@@ -10,7 +10,7 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, token: currentToken } = useAuth();
+  const { user, token: currentToken, setRequiresPasswordChange } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -36,6 +36,9 @@ const ResetPassword = () => {
           ...student,
           isPasswordChanged: true
         }));
+
+        // Update auth context
+        setRequiresPasswordChange(false);
 
         // Show success message
         toast.success('Password reset successfully!');

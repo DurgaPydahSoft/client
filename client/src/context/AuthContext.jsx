@@ -139,6 +139,7 @@ export const AuthProvider = ({ children }) => {
       loading, 
       socket: socketRef.current,
       requiresPasswordChange,
+      setRequiresPasswordChange,
       isAuthenticated: !!user && !!token
     }}>
       {children}
