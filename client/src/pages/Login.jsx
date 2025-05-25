@@ -143,7 +143,7 @@ const Login = () => {
                 <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   name="username"
-                  placeholder="Enter 'ADMIN' as username"
+                  placeholder="Enter ADMIN  username"
                   value={form.username}
                   onChange={handleChange}
                   required
@@ -162,7 +162,7 @@ const Login = () => {
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                   name="adminPassword"
                   type="password"
-                  placeholder="Enter password (default: admin123)"
+                  placeholder="Enter password"
                   value={form.adminPassword}
                   onChange={handleChange}
                   required
