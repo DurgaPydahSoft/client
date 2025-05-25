@@ -9,6 +9,8 @@ import { subscribeToPushNotifications, checkNotificationSupport, registerService
 import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import { connectSocket, disconnectSocket } from './utils/socket';
+import RouteLoading from './components/RouteLoading';
+import RoutePersist from './components/RoutePersist';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -130,71 +132,72 @@ const PushNotificationInitializer = () => {
 function App() {
   return (
     <HelmetProvider>
-    <ErrorBoundary>
-      <AuthProvider>
-        <PushNotificationInitializer />
-        <Suspense fallback={<Loading />}>
-          <Routes>
-            {/* Home page */}
-            <Route path="/" element={<Home />} />
-            
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<StudentRegister />} />
-            
-            {/* Protected admin routes */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute requireAuth={true} role="admin">
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<DashboardHome />} />
-              <Route path="students" element={<Students />} />
-              <Route path="complaints" element={<Complaints />} />
-              <Route path="complaints/details/:id" element={<Complaints />} />
-              <Route path="announcements" element={<Announcements />} />
-              <Route path="notifications" element={<Notifications />} />
-              <Route path="members" element={<MemberManagement />} />
-              <Route path="polls" element={<PollManagement />} />
-            </Route>
-            
-            {/* Student reset password route */}
-            <Route
-              path="/student/reset-password"
-              element={
-                <ProtectedRoute requireAuth={true} requirePasswordChange={true}>
-                  <ResetPassword />
-                </ProtectedRoute>
-              }
-            />
-            
-            {/* Protected student routes */}
-            <Route
-              path="/student"
-              element={
-                <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
-                  <StudentDashboard />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<div>Welcome, Student! Select a feature from the sidebar.</div>} />
-              <Route path="raise" element={<RaiseComplaint />} />
-              <Route path="my-complaints" element={<MyComplaints />} />
-              <Route path="announcements" element={<StudentAnnouncements />} />
-              <Route path="notifications" element={<StudentNotifications />} />
-              <Route path="polls" element={<Polls />} />
+      <ErrorBoundary>
+        <AuthProvider>
+          <PushNotificationInitializer />
+          <RoutePersist />
+          <Suspense fallback={<RouteLoading />}>
+            <Routes>
+              {/* Home page */}
+              <Route path="/" element={<Home />} />
+              
+              {/* Public routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<StudentRegister />} />
+              
+              {/* Protected admin routes */}
+              <Route
+                path="/admin/*"
+                element={
+                  <ProtectedRoute requireAuth={true} role="admin">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<DashboardHome />} />
+                <Route path="students" element={<Students />} />
+                <Route path="complaints" element={<Complaints />} />
+                <Route path="complaints/details/:id" element={<Complaints />} />
+                <Route path="announcements" element={<Announcements />} />
+                <Route path="notifications" element={<Notifications />} />
+                <Route path="members" element={<MemberManagement />} />
+                <Route path="polls" element={<PollManagement />} />
+              </Route>
+              
+              {/* Student reset password route */}
+              <Route
+                path="/student/reset-password"
+                element={
+                  <ProtectedRoute requireAuth={true} requirePasswordChange={true}>
+                    <ResetPassword />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Protected student routes */}
+              <Route
+                path="/student/*"
+                element={
+                  <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
+                    <StudentDashboard />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<div>Welcome, Student! Select a feature from the sidebar.</div>} />
+                <Route path="raise" element={<RaiseComplaint />} />
+                <Route path="my-complaints" element={<MyComplaints />} />
+                <Route path="announcements" element={<StudentAnnouncements />} />
+                <Route path="notifications" element={<StudentNotifications />} />
+                <Route path="polls" element={<Polls />} />
                 <Route path="profile" element={<Profile />} />
-            </Route>
-            
-            {/* 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </AuthProvider>
-    </ErrorBoundary>
+              </Route>
+              
+              {/* 404 */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
+      </ErrorBoundary>
     </HelmetProvider>
   );
 }

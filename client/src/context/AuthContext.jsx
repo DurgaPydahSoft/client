@@ -1,62 +1,70 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
-import api from '../utils/axios';
 
 const AuthContext = createContext();
 
+export const useAuth = () => useContext(AuthContext);
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastPath, setLastPath] = useState(null);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
-  const socketRef = useSocket(token);
+  const socketRef = useSocket(localStorage.getItem('token'));
 
-  // Validate token on mount and token change
+  // Initialize auth state from localStorage
   useEffect(() => {
-    const validateToken = async () => {
-      if (!token) {
-        setLoading(false);
-        setUser(null);
-        return;
-      }
-
+    const initializeAuth = async () => {
       try {
-        console.log('Validating token...');
-        const res = await api.get('/api/auth/validate');
-        
-        if (res.data.success && res.data.data?.user) {
-          console.log('Token validation successful:', res.data.data.user);
-          setUser(res.data.data.user);
+        const token = localStorage.getItem('token');
+        const savedUser = localStorage.getItem('user');
+        const savedPath = localStorage.getItem('lastPath');
+
+        if (token && savedUser) {
+          // Set auth header
+          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
-          // Update stored user data if needed
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          if (JSON.stringify(storedUser) !== JSON.stringify(res.data.data.user)) {
-            localStorage.setItem('user', JSON.stringify(res.data.data.user));
+          // Verify token with backend
+          const response = await axios.get('/api/auth/verify');
+          
+          if (response.data.success) {
+            setUser(JSON.parse(savedUser));
+            setIsAuthenticated(true);
+            if (savedPath) {
+              setLastPath(savedPath);
+            }
+          } else {
+            // Clear invalid auth data
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('lastPath');
+            delete axios.defaults.headers.common['Authorization'];
           }
-        } else {
-          console.error('Invalid token validation response:', res.data);
-          throw new Error('Invalid token validation response');
         }
       } catch (error) {
-        console.error('Token validation failed:', error);
-        // Clear invalid token and user data
-        setToken(null);
-        setUser(null);
+        console.error('Auth initialization error:', error);
+        // Clear invalid auth data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        
-        // Only redirect if we're not already on the login page
-        if (!window.location.pathname.includes('/login')) {
-          window.location.replace('/login');
-    }
+        localStorage.removeItem('lastPath');
+        delete axios.defaults.headers.common['Authorization'];
       } finally {
-    setLoading(false);
+        setLoading(false);
       }
     };
 
-    validateToken();
-  }, [token]);
+    initializeAuth();
+  }, []);
+
+  // Save last path when it changes
+  useEffect(() => {
+    if (lastPath) {
+      localStorage.setItem('lastPath', lastPath);
+    }
+  }, [lastPath]);
 
   // Listen for real-time notifications
   useEffect(() => {
@@ -70,81 +78,81 @@ export const AuthProvider = ({ children }) => {
     return () => {
       socket.off('notification', handler);
     };
-  }, [socketRef, token]);
+  }, [socketRef, localStorage.getItem('token')]);
 
-  const login = async (type, credentials) => {
+  const login = async (credentials) => {
     try {
-      console.log('Login attempt:', { type, credentials });
-      const url = `/api/auth/${type}/login`;
-      console.log('Login URL:', url);
+      const response = await axios.post('/api/auth/login', credentials);
+      const { token, user } = response.data.data;
 
-      const res = await api.post(url, credentials);
-      console.log('Login response:', res.data);
+      // Save auth data
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      setUser(user);
+      setIsAuthenticated(true);
+      setRequiresPasswordChange(response.data.data.requiresPasswordChange || false);
       
-      if (res.data.success) {
-        const { token: newToken, admin, student, requiresPasswordChange: needsPasswordChange } = res.data.data;
-        const userData = admin || student;
-        
-        if (!userData) {
-          throw new Error('No user data received from server');
-        }
-        
-        // Ensure role is set correctly
-        userData.role = admin ? 'admin' : 'student';
-        
-        console.log('Login successful, user data:', userData);
-        
-        // Store token and user data
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(userData));
-        setToken(newToken);
-        setUser(userData);
-        setRequiresPasswordChange(needsPasswordChange || false);
-        
-    // Register socket room for notifications
-        if (socketRef.current && userData.id) {
-          socketRef.current.emit('register', userData.id);
-        }
-
-        return { requiresPasswordChange: needsPasswordChange };
-      } else {
-        throw new Error(res.data.message || 'Login failed');
+      // Register socket room for notifications
+      if (socketRef.current && user.id) {
+        socketRef.current.emit('register', user.id);
       }
+
+      return { success: true };
     } catch (error) {
-      console.error('Login error:', error.response || error);
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      toast.error(errorMessage);
-      throw error;
+      console.error('Login error:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed'
+      };
     }
   };
 
   const logout = () => {
-    console.log('Logging out user');
-    setToken(null);
-    setUser(null);
-    setRequiresPasswordChange(false);
+    // Clear auth data
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('lastPath');
+    delete axios.defaults.headers.common['Authorization'];
+    
+    setUser(null);
+    setIsAuthenticated(false);
+    setLastPath(null);
+    setRequiresPasswordChange(false);
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
   };
 
+  const updateLastPath = (path) => {
+    setLastPath(path);
+  };
+
+  const value = {
+    user,
+    isAuthenticated,
+    loading,
+    lastPath,
+    login,
+    logout,
+    updateLastPath,
+    requiresPasswordChange,
+    setRequiresPasswordChange,
+    socket: socketRef.current
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      login, 
-      logout, 
-      loading, 
-      socket: socketRef.current,
-      requiresPasswordChange,
-      setRequiresPasswordChange,
-      isAuthenticated: !!user && !!token
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
-};
-
-export const useAuth = () => useContext(AuthContext); 
+}; 
