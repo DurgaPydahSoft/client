@@ -222,16 +222,9 @@ const MyComplaints = () => {
   };
 
   const handleFeedback = async e => {
-    console.log('handleFeedback triggered. Current submittingFeedback state:', submittingFeedback);
     e.preventDefault();
-    if (!selected) {
-      console.log('handleFeedback: No complaint selected, exiting.');
-      return;
-    }
-    if (submittingFeedback) {
-      console.log('handleFeedback: Already submitting feedback, exiting to prevent double submission.');
-      return;
-    }
+    if (!selected) return;
+    if (submittingFeedback) return;
     
     setSubmittingFeedback(true);
     try {
@@ -241,9 +234,35 @@ const MyComplaints = () => {
       });
       
       if (res.data.success) {
+        // Update the selected complaint with the feedback
+        setSelected(prev => ({
+          ...prev,
+          feedback: {
+            isSatisfied: feedback === 'satisfied',
+            comment: feedbackComment,
+            timestamp: new Date().toISOString()
+          }
+        }));
+        
+        // Update the complaints list
+        setComplaints(prev => 
+          prev.map(c => 
+            c._id === selected._id 
+              ? {
+                  ...c,
+                  feedback: {
+                    isSatisfied: feedback === 'satisfied',
+                    comment: feedbackComment,
+                    timestamp: new Date().toISOString()
+                  }
+                }
+              : c
+          )
+        );
+
         toast.success('Feedback submitted successfully');
-        setSelected(null);
-        fetchComplaints();
+        setFeedback('');
+        setFeedbackComment('');
       }
     } catch (err) {
       console.error('Error submitting feedback:', err);
@@ -683,79 +702,102 @@ const MyComplaints = () => {
                   </div>
 
                   {/* Feedback Section */}
-                  {selected.currentStatus === 'Resolved' && !selected.feedback && (
+                  {selected.currentStatus === 'Resolved' && (
                     <div className="border-t border-gray-100 pt-4 sm:pt-6">
-                      <div className="font-medium text-blue-900 text-sm sm:text-base mb-3">Provide Feedback</div>
-                      <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setFeedback('satisfied')}
-                          className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border text-sm ${
-                            feedback === 'satisfied'
-                              ? 'bg-green-50 border-green-200 text-green-700 shadow-inner'
-                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          } transition-all`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-                            </svg>
-                            Satisfied
-                          </div>
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => setFeedback('not-satisfied')}
-                          className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border text-sm ${
-                            feedback === 'not-satisfied'
-                              ? 'bg-red-50 border-red-200 text-red-700 shadow-inner'
-                              : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-                          } transition-all`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
-                            </svg>
-                            Not Satisfied
-                          </div>
-                        </motion.button>
+                      <div className="font-medium text-blue-900 text-sm sm:text-base mb-3">
+                        {selected.feedback ? 'Your Previous Feedback' : 'Provide Feedback'}
                       </div>
-                      {feedback && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          className="space-y-3"
-                        >
-                          <textarea
-                            value={feedbackComment}
-                            onChange={e => setFeedbackComment(e.target.value)}
-                            placeholder="Additional comments (optional)"
-                            className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm"
-                            rows="3"
-                          />
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={handleFeedback}
-                            disabled={submittingFeedback}
-                            className={`w-full py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-medium text-white text-sm transition-all duration-300 shadow-md ${
-                              submittingFeedback 
-                                ? 'bg-gray-400 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600'
-                            }`}
-                          >
-                            {submittingFeedback ? (
+                      
+                      {selected.feedback ? (
+                        <div className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                              selected.feedback.isSatisfied ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(selected.feedback.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          {selected.feedback.comment && (
+                            <p className="text-sm text-gray-600">{selected.feedback.comment}</p>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex gap-3 sm:gap-4 mb-3 sm:mb-4">
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setFeedback('satisfied')}
+                              className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border text-sm ${
+                                feedback === 'satisfied'
+                                  ? 'bg-green-50 border-green-200 text-green-700 shadow-inner'
+                                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                              } transition-all`}
+                            >
                               <div className="flex items-center justify-center gap-2">
-                                <LoadingSpinner size="sm" className="border-white" />
-                                <span>Submitting...</span>
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                </svg>
+                                Satisfied
                               </div>
-                            ) : (
-                              'Submit Feedback'
-                            )}
-                          </motion.button>
-                        </motion.div>
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => setFeedback('not-satisfied')}
+                              className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 rounded-lg border text-sm ${
+                                feedback === 'not-satisfied'
+                                  ? 'bg-red-50 border-red-200 text-red-700 shadow-inner'
+                                  : 'border-gray-200 text-gray-700 hover:bg-gray-50'
+                              } transition-all`}
+                            >
+                              <div className="flex items-center justify-center gap-2">
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                </svg>
+                                Not Satisfied
+                              </div>
+                            </motion.button>
+                          </div>
+                          {feedback && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              className="space-y-3"
+                            >
+                              <textarea
+                                value={feedbackComment}
+                                onChange={e => setFeedbackComment(e.target.value)}
+                                placeholder="Additional comments (optional)"
+                                className="w-full px-3 sm:px-4 py-2 sm:py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm"
+                                rows="3"
+                              />
+                              <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={handleFeedback}
+                                disabled={submittingFeedback}
+                                className={`w-full py-2 sm:py-3 px-4 sm:px-6 rounded-lg font-medium text-white text-sm transition-all duration-300 shadow-md ${
+                                  submittingFeedback 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : 'bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600'
+                                }`}
+                              >
+                                {submittingFeedback ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <LoadingSpinner size="sm" className="border-white" />
+                                    <span>Submitting...</span>
+                                  </div>
+                                ) : (
+                                  'Submit Feedback'
+                                )}
+                              </motion.button>
+                            </motion.div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}
