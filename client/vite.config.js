@@ -16,7 +16,15 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
   },
   // Ensure service worker is served from root
   publicDir: 'public',
+  base: '/',
 }); 
