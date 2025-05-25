@@ -37,8 +37,11 @@ const ResetPassword = () => {
           isPasswordChanged: true
         }));
 
-        // Force a page reload to update the auth context
-        window.location.href = '/student';
+        // Show success message
+        toast.success('Password reset successfully!');
+        
+        // Navigate to student dashboard
+        navigate('/student', { replace: true });
       } else {
         throw new Error(res.data.message || 'Failed to reset password');
       }

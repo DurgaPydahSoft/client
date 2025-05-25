@@ -26,8 +26,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   error => {
-    // Handle all 401 errors (unauthorized)
-    if (error.response?.status === 401) {
+    // Don't redirect to login if we're already on the reset password page
+    if (error.response?.status === 401 && !window.location.pathname.includes('/reset-password')) {
       console.log('Token expired or invalid, logging out...');
       // Clear token and user data
       localStorage.removeItem('token');
