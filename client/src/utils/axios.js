@@ -2,10 +2,11 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: 'https://hostel-complaint-backend.onrender.com',
+  baseURL: import.meta.env.VITE_API_URL || 'https://hostel-complaint-backend.onrender.com',
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // Enable sending cookies
 });
 
 // Add a request interceptor to add the auth token to every request

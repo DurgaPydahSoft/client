@@ -613,9 +613,7 @@ const Complaints = () => {
 
       {/* Main Content */}
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Complaints Management</h1>
-        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Sidebar - Filters */}
           <div className="lg:col-span-1">

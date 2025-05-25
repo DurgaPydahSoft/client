@@ -1138,53 +1138,61 @@ const Students = () => {
 
   // Edit Modal
   const renderEditModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl">
-        <h2 className="text-xl font-bold mb-4">Edit Student</h2>
-        <form onSubmit={handleEditSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-2xl my-2 sm:my-4">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900">Edit Student</h2>
+          <button
+            onClick={() => setEditModal(false)}
+            className="text-gray-500 hover:text-gray-700 p-1"
+          >
+            <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        </div>
+        <form onSubmit={handleEditSubmit} className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
               <input
                 type="text"
                 name="name"
                 value={editForm.name}
                 onChange={handleEditFormChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
               <input
                 type="text"
                 value={editForm.rollNumber}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
               <select
                 name="gender"
                 value={editForm.gender}
                 onChange={handleEditFormChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
               <select
                 name="course"
                 value={editForm.course}
                 onChange={handleEditFormChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Course</option>
                 {Object.keys(COURSES).map(course => (
@@ -1192,14 +1200,14 @@ const Students = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
               <select
                 name="year"
                 value={editForm.year}
                 onChange={handleEditFormChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 {Array.from(
                   { length: COURSES[editForm.course] === 'BTECH' || COURSES[editForm.course] === 'PHARMACY' ? 4 : 3 },
@@ -1209,14 +1217,14 @@ const Students = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
               <select
                 name="branch"
                 value={editForm.branch}
                 onChange={handleEditFormChange}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Branch</option>
                 {editForm.course && BRANCHES[COURSES[editForm.course]].map(branch => (
@@ -1224,15 +1232,15 @@ const Students = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
               <select
                 name="category"
                 value={editForm.category}
                 onChange={handleEditFormChange}
                 required
                 disabled={!editForm.gender}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Category</option>
                 {editForm.gender && (editForm.gender === 'Male' 
@@ -1249,15 +1257,15 @@ const Students = () => {
                 )}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
               <select
                 name="roomNumber"
                 value={editForm.roomNumber}
                 onChange={handleEditFormChange}
                 required
                 disabled={!editForm.gender || !editForm.category}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Room</option>
                 {editForm.gender && editForm.category && ROOM_MAPPINGS[editForm.gender][editForm.category].map(room => (
@@ -1265,8 +1273,8 @@ const Students = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
               <input
                 type="tel"
                 name="studentPhone"
@@ -1275,11 +1283,11 @@ const Students = () => {
                 required
                 pattern="[0-9]{10}"
                 title="10 digit phone number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Phone</label>
               <input
                 type="tel"
                 name="parentPhone"
@@ -1288,18 +1296,18 @@ const Students = () => {
                 required
                 pattern="[0-9]{10}"
                 title="10 digit phone number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
               <select
                 name="batch"
                 value={editForm.batch}
                 onChange={handleEditFormChange}
                 required
                 disabled={!editForm.course}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Batch</option>
                 {editForm.course && generateBatches(editForm.course).map(batch => (
@@ -1308,18 +1316,18 @@ const Students = () => {
               </select>
             </div>
           </div>
-          <div className="flex justify-end space-x-3">
+          <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
             <button
               type="button"
               onClick={() => setEditModal(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={editing}
-              className={`px-4 py-2 rounded-lg text-white font-medium ${
+              className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${
                 editing 
                 ? 'bg-gray-400 cursor-not-allowed' 
                 : 'bg-blue-600 hover:bg-blue-700'
@@ -1409,7 +1417,7 @@ const Students = () => {
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium text-blue-800">Required Excel Columns:</h3>
                 <a
-                  href="/ValidatedStudentSamples_10Rows.xlsx"
+                  href="/Bulk_Student_Upload_10_Rows.xlsx"
                   download
                   className="flex items-center px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
