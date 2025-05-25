@@ -177,7 +177,7 @@ const subscribeToPushNotifications = async (registration) => {
 
     // Send subscription to server
     console.log('Sending subscription to server...');
-    const response = await fetch('/api/push-subscriptions/subscribe', {
+    const response = await fetch('https://hostel-complaint-backend.onrender.com/api/push-subscriptions/subscribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
