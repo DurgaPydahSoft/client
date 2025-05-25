@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Create axios instance
+// Create axios instance with base URL
 const api = axios.create({
+  baseURL: 'https://hostel-complaint-backend.onrender.com',
   headers: {
     'Content-Type': 'application/json'
   }
