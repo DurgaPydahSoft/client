@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://hostel-complaint-backend.onrender.com',
+  baseURL: 'https://hostel-complaint-backend.onrender.com',
   headers: {
     'Content-Type': 'application/json'
   }
@@ -32,8 +32,8 @@ api.interceptors.response.use(
       // Clear token and user data
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Use window.location.href to prevent back button from returning to protected page
-      window.location.href = '/login';
+      // Use window.location.replace to prevent back button from returning to protected page
+      window.location.replace('/login');
     }
     return Promise.reject(error);
   }

@@ -10,7 +10,6 @@ import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import { connectSocket, disconnectSocket } from './utils/socket';
 import RouteLoading from './components/RouteLoading';
-import RoutePersist from './components/RoutePersist';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -135,7 +134,6 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <PushNotificationInitializer />
-          <RoutePersist />
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               {/* Home page */}

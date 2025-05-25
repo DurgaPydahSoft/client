@@ -5,61 +5,58 @@ import api from '../utils/axios';
 
 const AuthContext = createContext();
 
-export const useAuth = () => useContext(AuthContext);
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [token, setToken] = useState(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
-  const [lastPath, setLastPath] = useState(null);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
-  const socketRef = useSocket(localStorage.getItem('token'));
+  const socketRef = useSocket(token);
 
-  // Initialize auth state from localStorage
+  // Validate token on mount and token change
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const savedUser = localStorage.getItem('user');
-        const savedPath = localStorage.getItem('lastPath');
+    const validateToken = async () => {
+      if (!token) {
+        setLoading(false);
+        setUser(null);
+        return;
+      }
 
-        if (token && savedUser) {
-          // Verify token with backend
-          const response = await api.get('/api/auth/verify');
+      try {
+        console.log('Validating token...');
+        const res = await api.get('/api/auth/validate');
+        
+        if (res.data.success && res.data.data?.user) {
+          console.log('Token validation successful:', res.data.data.user);
+          setUser(res.data.data.user);
           
-          if (response.data.success) {
-            setUser(JSON.parse(savedUser));
-            setIsAuthenticated(true);
-            if (savedPath) {
-              setLastPath(savedPath);
-            }
-          } else {
-            // Clear invalid auth data
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            localStorage.removeItem('lastPath');
+          // Update stored user data if needed
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          if (JSON.stringify(storedUser) !== JSON.stringify(res.data.data.user)) {
+            localStorage.setItem('user', JSON.stringify(res.data.data.user));
           }
+        } else {
+          console.error('Invalid token validation response:', res.data);
+          throw new Error('Invalid token validation response');
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
-        // Clear invalid auth data
+        console.error('Token validation failed:', error);
+        // Clear invalid token and user data
+        setToken(null);
+        setUser(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        localStorage.removeItem('lastPath');
+        
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          window.location.replace('/login');
+    }
       } finally {
-        setLoading(false);
+    setLoading(false);
       }
     };
 
-    initializeAuth();
-  }, []);
-
-  // Save last path when it changes
-  useEffect(() => {
-    if (lastPath) {
-      localStorage.setItem('lastPath', lastPath);
-    }
-  }, [lastPath]);
+    validateToken();
+  }, [token]);
 
   // Listen for real-time notifications
   useEffect(() => {
@@ -73,7 +70,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       socket.off('notification', handler);
     };
-  }, [socketRef, localStorage.getItem('token')]);
+  }, [socketRef, token]);
 
   const login = async (type, credentials) => {
     try {
@@ -81,11 +78,11 @@ export const AuthProvider = ({ children }) => {
       const url = `/api/auth/${type}/login`;
       console.log('Login URL:', url);
 
-      const response = await api.post(url, credentials);
-      console.log('Login response:', response.data);
+      const res = await api.post(url, credentials);
+      console.log('Login response:', res.data);
       
-      if (response.data.success) {
-        const { token, admin, student, requiresPasswordChange: needsPasswordChange } = response.data.data;
+      if (res.data.success) {
+        const { token: newToken, admin, student, requiresPasswordChange: needsPasswordChange } = res.data.data;
         const userData = admin || student;
         
         if (!userData) {
@@ -98,74 +95,56 @@ export const AuthProvider = ({ children }) => {
         console.log('Login successful, user data:', userData);
         
         // Store token and user data
-        localStorage.setItem('token', token);
+        localStorage.setItem('token', newToken);
         localStorage.setItem('user', JSON.stringify(userData));
-
+        setToken(newToken);
         setUser(userData);
-        setIsAuthenticated(true);
         setRequiresPasswordChange(needsPasswordChange || false);
         
-        // Register socket room for notifications
-        if (socketRef.current && userData._id) {
-          socketRef.current.emit('register', userData._id);
+    // Register socket room for notifications
+        if (socketRef.current && userData.id) {
+          socketRef.current.emit('register', userData.id);
         }
 
-        return { success: true };
+        return { requiresPasswordChange: needsPasswordChange };
       } else {
-        throw new Error(response.data.message || 'Login failed');
+        throw new Error(res.data.message || 'Login failed');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      return {
-        success: false,
-        message: error.response?.data?.message || error.message || 'Login failed'
-      };
+      console.error('Login error:', error.response || error);
+      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      toast.error(errorMessage);
+      throw error;
     }
   };
 
   const logout = () => {
-    // Clear auth data
+    console.log('Logging out user');
+    setToken(null);
+    setUser(null);
+    setRequiresPasswordChange(false);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    localStorage.removeItem('lastPath');
-    
-    setUser(null);
-    setIsAuthenticated(false);
-    setLastPath(null);
-    setRequiresPasswordChange(false);
     if (socketRef.current) {
       socketRef.current.disconnect();
     }
   };
 
-  const updateLastPath = (path) => {
-    setLastPath(path);
-  };
-
-  const value = {
-    user,
-    isAuthenticated,
-    loading,
-    lastPath,
-    login,
-    logout,
-    updateLastPath,
-    requiresPasswordChange,
-    setRequiresPasswordChange,
-    socket: socketRef.current
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ 
+      user, 
+      token, 
+      login, 
+      logout, 
+      loading, 
+      socket: socketRef.current,
+      requiresPasswordChange,
+      setRequiresPasswordChange,
+      isAuthenticated: !!user && !!token
+    }}>
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
+
+export const useAuth = () => useContext(AuthContext); 
