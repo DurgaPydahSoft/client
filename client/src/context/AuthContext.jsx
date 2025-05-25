@@ -80,31 +80,51 @@ export const AuthProvider = ({ children }) => {
     };
   }, [socketRef, localStorage.getItem('token')]);
 
-  const login = async (credentials) => {
+  const login = async (type, credentials) => {
     try {
-      const response = await axios.post('/api/auth/login', credentials);
-      const { token, user } = response.data.data;
+      console.log('Login attempt:', { type, credentials });
+      const url = `/api/auth/${type}/login`;
+      console.log('Login URL:', url);
 
-      // Save auth data
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      setUser(user);
-      setIsAuthenticated(true);
-      setRequiresPasswordChange(response.data.data.requiresPasswordChange || false);
+      const response = await axios.post(url, credentials);
+      console.log('Login response:', response.data);
       
-      // Register socket room for notifications
-      if (socketRef.current && user.id) {
-        socketRef.current.emit('register', user.id);
-      }
+      if (response.data.success) {
+        const { token, admin, student, requiresPasswordChange: needsPasswordChange } = response.data.data;
+        const userData = admin || student;
+        
+        if (!userData) {
+          throw new Error('No user data received from server');
+        }
+        
+        // Ensure role is set correctly
+        userData.role = admin ? 'admin' : 'student';
+        
+        console.log('Login successful, user data:', userData);
+        
+        // Store token and user data
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(userData));
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
 
-      return { success: true };
+        setUser(userData);
+        setIsAuthenticated(true);
+        setRequiresPasswordChange(needsPasswordChange || false);
+        
+        // Register socket room for notifications
+        if (socketRef.current && userData._id) {
+          socketRef.current.emit('register', userData._id);
+        }
+
+        return { success: true };
+      } else {
+        throw new Error(response.data.message || 'Login failed');
+      }
     } catch (error) {
       console.error('Login error:', error);
       return {
         success: false,
-        message: error.response?.data?.message || 'Login failed'
+        message: error.response?.data?.message || error.message || 'Login failed'
       };
     }
   };
