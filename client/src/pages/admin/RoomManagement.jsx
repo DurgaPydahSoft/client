@@ -670,7 +670,7 @@ const RoomManagement = () => {
                 <div className="flex justify-center items-center h-32">
                   <LoadingSpinner size="md" />
                 </div>
-              ) : roomStudents.length === 0 ? (
+              ) : !roomStudents || roomStudents.length === 0 ? (
                 <div className="text-center py-8">
                   <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-500">No students assigned to this room</p>
@@ -765,7 +765,7 @@ const RoomManagement = () => {
               <h3 className="text-lg font-semibold mb-2">Bill History</h3>
               {billLoading ? (
                 <div className="text-center py-4">Loading...</div>
-              ) : billHistory.length === 0 ? (
+              ) : !billHistory || billHistory.length === 0 ? (
                 <div className="text-center py-4 text-gray-500">No bills found.</div>
               ) : (
                 <div className="overflow-x-auto">
