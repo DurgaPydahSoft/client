@@ -128,7 +128,7 @@ const OutpassManagement = () => {
         />
 
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Outpass Management</h1>
+          <h1 className="text-2xl font-bold text-blue-900">Outpass Management</h1>
           <div className="flex gap-3">
             <select
               value={filters.status}
