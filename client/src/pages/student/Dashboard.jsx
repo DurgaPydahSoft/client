@@ -758,17 +758,17 @@ const StudentDashboard = () => (
       description="Access your hostel complaints, track their status, and submit new complaints. Manage your hostel-related grievances efficiently."
       keywords="Student Dashboard, Hostel Complaints, Complaint Status, Submit Complaint, Track Complaints, Student Portal"
     />
-    <Routes>
-      <Route element={<StudentDashboardLayout />}>
-        <Route index element={<DashboardHome />} />
-        <Route path="raise" element={<RaiseComplaint />} />
-        <Route path="my-complaints" element={<MyComplaints />} />
+  <Routes>
+    <Route element={<StudentDashboardLayout />}>
+      <Route index element={<DashboardHome />} />
+      <Route path="raise" element={<RaiseComplaint />} />
+      <Route path="my-complaints" element={<MyComplaints />} />
         <Route path="outpass" element={<Outpass />} />
-        <Route path="announcements" element={<Announcements />} />
-        <Route path="polls" element={<Polls />} />
+      <Route path="announcements" element={<Announcements />} />
+      <Route path="polls" element={<Polls />} />
         <Route path="profile" element={<Profile />} />
-      </Route>
-    </Routes>
+    </Route>
+  </Routes>
   </>
 );
 

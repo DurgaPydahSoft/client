@@ -194,13 +194,8 @@ const RoomManagement = () => {
       }
       setBillForm(prev => ({ ...prev, rate: defaultRate }));
 
-      const response = await axios.get(
-        `/api/admin/rooms/${room._id}/electricity-bills`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
-          }
-        }
+      const response = await api.get(
+        `/api/admin/rooms/${room._id}/electricity-bills`
       );
 
       if (response.data.success) {
