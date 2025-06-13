@@ -734,7 +734,7 @@ const DashboardHome = () => {
                           <td className="px-4 py-2 border">{bill.month}</td>
                           <td className="px-4 py-2 border">{bill.startUnits}</td>
                           <td className="px-4 py-2 border">{bill.endUnits}</td>
-                          <td className="px-4 py-2 border">{bill.consumption}</td>
+                          <td className="px-4 py-2 border">{bill.consumption !== undefined ? bill.consumption : bill.endUnits - bill.startUnits}</td>
                           <td className="px-4 py-2 border">₹{bill.rate}</td>
                           <td className="px-4 py-2 border">₹{bill.total}</td>
                         </tr>

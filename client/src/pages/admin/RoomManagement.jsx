@@ -397,7 +397,7 @@ const RoomManagement = () => {
                           <TrashIcon className="w-5 h-5" />
                         </button>
                         <button
-                          className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors text-sm font-semibold"
+                          className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-semibold"
                           onClick={(e) => { e.stopPropagation(); openBillModal(room); }}
                         >
                           Electricity Bill
