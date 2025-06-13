@@ -179,15 +179,15 @@ const OutpassManagement = () => {
                       <div className="flex items-center gap-4 mb-3">
                         <div className="flex items-center gap-1 text-sm text-gray-600">
                           <UserIcon className="w-4 h-4" />
-                          <span>{outpass.student.name}</span>
+                          <span>{outpass.student?.name || 'N/A'}</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm text-gray-600">
                           <AcademicCapIcon className="w-4 h-4" />
-                          <span>{outpass.student.rollNumber}</span>
+                          <span>{outpass.student?.rollNumber || 'N/A'}</span>
                         </div>
                         <div className="flex items-center gap-1 text-sm text-gray-600">
                           <PhoneIcon className="w-4 h-4" />
-                          <span>{outpass.parentPhone}</span>
+                          <span>{outpass.parentPhone || 'N/A'}</span>
                         </div>
                       </div>
 
