@@ -10,6 +10,7 @@ import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import { connectSocket, disconnectSocket } from './utils/socket';
 import RouteLoading from './components/RouteLoading';
+import OutpassQRDetails from './pages/student/OutpassQRDetails';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -26,6 +27,8 @@ const Announcements = lazy(() => import('./pages/admin/Announcements'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
 const PollManagement = lazy(() => import('./pages/admin/PollManagement'));
+const RoomManagement = lazy(() => import('./pages/admin/RoomManagement'));
+const OutpassManagement = lazy(() => import('./pages/admin/OutpassManagement'));
 
 // Student components
 const RaiseComplaint = lazy(() => import('./pages/student/RaiseComplaint'));
@@ -142,6 +145,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<StudentRegister />} />
+            <Route path="outpass/qr/:id" element={<OutpassQRDetails />} />
             
             {/* Protected admin routes */}
             <Route
@@ -160,6 +164,8 @@ function App() {
               <Route path="notifications" element={<Notifications />} />
               <Route path="members" element={<MemberManagement />} />
               <Route path="polls" element={<PollManagement />} />
+              <Route path="rooms" element={<RoomManagement />} />
+              <Route path="outpass" element={<OutpassManagement />} /> 
             </Route>
             
             {/* Student reset password route */}

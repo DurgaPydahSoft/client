@@ -14,7 +14,8 @@ import {
   ClipboardDocumentListIcon,
   MegaphoneIcon,
   ChartBarIcon,
-  UserIcon
+  UserIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 import RaiseComplaint from './RaiseComplaint';
 import MyComplaints from './MyComplaints';
@@ -25,6 +26,7 @@ import NotificationBell from '../../components/NotificationBell';
 import PollPopup from '../../components/PollPopup';
 import { canReenableNotifications } from '../../utils/pushNotifications';
 import SEO from '../../components/SEO';
+import Outpass from './Outpass';
 
 const navItems = [
   {
@@ -44,6 +46,12 @@ const navItems = [
     path: "my-complaints",
     icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
     notificationType: 'complaint'
+  },
+  {
+    name: "Outpass",
+    path: "outpass",
+    icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    notificationType: null
   },
   {
     name: "Announcements",
@@ -394,17 +402,23 @@ const DashboardHome = () => {
   const metrics = useOutletContext();
   const navigate = useNavigate();
   const [announcements, setAnnouncements] = useState([]);
+  const [electricityBills, setElectricityBills] = useState([]);
+  const [showBillModal, setShowBillModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [announcementsRes] = await Promise.all([
-          api.get('/api/announcements')
+        const [announcementsRes, billsRes] = await Promise.all([
+          api.get('/api/announcements'),
+          api.get('/api/rooms/student/electricity-bills')
         ]);
+        
         if (announcementsRes.data.success) {
           setAnnouncements(announcementsRes.data.data);
-        } else {
-          throw new Error(announcementsRes.data.message || 'Failed to fetch announcements');
+        }
+        
+        if (billsRes.data.success) {
+          setElectricityBills(billsRes.data.data);
         }
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
@@ -594,7 +608,7 @@ const DashboardHome = () => {
           <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -640,6 +654,15 @@ const DashboardHome = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => setShowBillModal(true)}
+              className="p-3 sm:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300"
+            >
+              <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" />
+              <span className="text-xs sm:text-sm">Electricity Bills</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => navigate("/student")}
               className="p-3 sm:p-4 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all duration-300"
             >
@@ -661,6 +684,69 @@ const DashboardHome = () => {
           </div>
         </div>
       </div>
+
+      {/* Electricity Bill Modal */}
+      <AnimatePresence>
+        {showBillModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Electricity Bills - Room {user?.roomNumber}</h2>
+                <button
+                  onClick={() => setShowBillModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              {electricityBills.length === 0 ? (
+                <div className="text-center py-8">
+                  <BoltIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No electricity bills found</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="px-4 py-2 border">Month</th>
+                        <th className="px-4 py-2 border">Start Units</th>
+                        <th className="px-4 py-2 border">End Units</th>
+                        <th className="px-4 py-2 border">Consumption</th>
+                        <th className="px-4 py-2 border">Rate/Unit</th>
+                        <th className="px-4 py-2 border">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {electricityBills.map((bill, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-4 py-2 border">{bill.month}</td>
+                          <td className="px-4 py-2 border">{bill.startUnits}</td>
+                          <td className="px-4 py-2 border">{bill.endUnits}</td>
+                          <td className="px-4 py-2 border">{bill.consumption}</td>
+                          <td className="px-4 py-2 border">₹{bill.rate}</td>
+                          <td className="px-4 py-2 border">₹{bill.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
@@ -672,16 +758,17 @@ const StudentDashboard = () => (
       description="Access your hostel complaints, track their status, and submit new complaints. Manage your hostel-related grievances efficiently."
       keywords="Student Dashboard, Hostel Complaints, Complaint Status, Submit Complaint, Track Complaints, Student Portal"
     />
-  <Routes>
-    <Route element={<StudentDashboardLayout />}>
-      <Route index element={<DashboardHome />} />
-      <Route path="raise" element={<RaiseComplaint />} />
-      <Route path="my-complaints" element={<MyComplaints />} />
-      <Route path="announcements" element={<Announcements />} />
-      <Route path="polls" element={<Polls />} />
+    <Routes>
+      <Route element={<StudentDashboardLayout />}>
+        <Route index element={<DashboardHome />} />
+        <Route path="raise" element={<RaiseComplaint />} />
+        <Route path="my-complaints" element={<MyComplaints />} />
+        <Route path="outpass" element={<Outpass />} />
+        <Route path="announcements" element={<Announcements />} />
+        <Route path="polls" element={<Polls />} />
         <Route path="profile" element={<Profile />} />
-    </Route>
-  </Routes>
+      </Route>
+    </Routes>
   </>
 );
 

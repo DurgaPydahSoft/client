@@ -18,6 +18,7 @@ import AnnouncementManagement from './AnnouncementManagement';
 import DashboardStats from './DashboardStats';
 import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
+import OutpassManagement from './OutpassManagement';
 
 const navItems = [
   { 
@@ -39,6 +40,12 @@ const navItems = [
     notificationType: 'complaint'
   },
   { 
+    name: 'Outpass Management', 
+    path: 'outpass',
+    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+    notificationType: null
+  },
+  { 
     name: 'Announcements', 
     path: 'announcements',
     icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
@@ -56,6 +63,12 @@ const navItems = [
     icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
     notificationType: 'poll'
   },
+  {
+    name: 'Room Management',
+    path: 'rooms',
+    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+    notificationType: null
+  }
 ];
 
 const AdminDashboard = () => {
@@ -293,6 +306,7 @@ const AdminDashboardLayout = () => (
   <Routes>
     <Route index element={<DashboardStats />} />
     <Route path="complaints" element={<ComplaintList />} />
+    <Route path="outpass" element={<OutpassManagement />} />
     <Route path="members" element={<MemberManagement />} />
     <Route path="announcements" element={<AnnouncementManagement />} />
     <Route path="polls" element={<PollManagement />} />

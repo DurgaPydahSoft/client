@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://hostel-complaint-backend.onrender.com',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
   headers: {
     'Content-Type': 'application/json'
   },
@@ -27,6 +27,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   error => {
+    console.error('API Error:', error.response?.data || error.message);
     // Don't redirect to login if we're already on the reset password page
     if (error.response?.status === 401 && !window.location.pathname.includes('/reset-password')) {
       console.log('Token expired or invalid, logging out...');

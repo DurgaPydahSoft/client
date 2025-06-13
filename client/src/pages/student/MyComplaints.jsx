@@ -444,7 +444,7 @@ const MyComplaints = () => {
             </svg>
           </div>
         <div>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
             My Complaints
           </h2>
           <p className="text-gray-600 text-sm mt-1">Track and manage your submitted complaints</p>
