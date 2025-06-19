@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/axios';
@@ -13,52 +14,49 @@ const NotificationBell = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [showPermissionBanner, setShowPermissionBanner] = useState(false);
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
 
   const fetchNotifications = async () => {
     try {
-      setIsLoading(true);
-      const res = await api.get('/api/notifications/unread');
-      if (res.data.success) {
-        const newNotifications = res.data.data;
+      console.log('🔔 NotificationBell: Fetching notifications for role:', isAdmin ? 'admin' : 'student');
+      const [notificationsRes, countRes] = await Promise.all([
+        api.get(isAdmin ? '/api/notifications/admin/unread' : '/api/notifications/unread'),
+        api.get(isAdmin ? '/api/notifications/admin/unread-count' : '/api/notifications/count')
+      ]);
+
+      console.log('🔔 NotificationBell: Responses:', { notificationsRes: notificationsRes.data, countRes: countRes.data });
+
+      if (notificationsRes.data.success) {
+        const newNotifications = notificationsRes.data.data;
         setNotifications(newNotifications);
         if (newNotifications.length > 0) {
           setHasNewNotification(true);
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch notifications:', err);
-      toast.error('Failed to fetch notifications');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const fetchUnreadCount = async () => {
-    try {
-      const res = await api.get('/api/notifications/count');
-      if (res.data.success) {
-        const newCount = res.data.count;
+      if (countRes.data.success) {
+        const newCount = countRes.data.count;
         if (newCount > unreadCount) {
           setHasNewNotification(true);
         }
         setUnreadCount(newCount);
       }
     } catch (err) {
-      console.error('Failed to fetch unread count:', err);
+      console.error('🔔 NotificationBell: Failed to fetch notifications:', err);
+      // Don't let notification errors cause logout - just set defaults
+      setNotifications([]);
+      setUnreadCount(0);
+      setHasNewNotification(false);
     }
   };
 
   useEffect(() => {
     fetchNotifications();
-    fetchUnreadCount();
-
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(() => {
-      fetchNotifications();
-      fetchUnreadCount();
-    }, 30000);
-
-    return () => clearInterval(interval);
+    const handler = () => fetchNotifications();
+    window.addEventListener('refresh-notifications', handler);
+    return () => window.removeEventListener('refresh-notifications', handler);
   }, []);
 
   // Auto-close notification panel after 7 seconds
@@ -74,9 +72,8 @@ const NotificationBell = () => {
 
   const handleMarkAsRead = async (notificationId) => {
     try {
-      await api.delete(`/api/notifications/${notificationId}`);
-      setNotifications(prev => prev.filter(n => n._id !== notificationId));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      await api.patch(`/api/notifications/${notificationId}/read`);
+      fetchNotifications();
       toast.success('Notification marked as read');
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
@@ -163,7 +160,7 @@ const NotificationBell = () => {
           </motion.div>
           {unreadCount > 0 && (
             <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-500 rounded-full">
-              {unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </button>

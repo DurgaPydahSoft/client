@@ -7,20 +7,22 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
   const { user, token, loading, requiresPasswordChange: needsPasswordChange } = useAuth();
   const location = useLocation();
 
-  console.log('ProtectedRoute check:', {
+  console.log('🛡️ ProtectedRoute check:', {
     path: location.pathname,
     requireAuth,
     requirePasswordChange,
     role,
     hasToken: !!token,
     userRole: user?.role,
+    userPermissions: user?.permissions,
     needsPasswordChange,
     isPasswordChanged: user?.isPasswordChanged,
-    isLoading: loading
+    isLoading: loading,
+    user: user ? 'exists' : 'null'
   });
 
   if (loading) {
-    console.log('Auth context is loading, ProtectedRoute is waiting...');
+    console.log('🛡️ Auth context is loading, ProtectedRoute is waiting...');
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <LoadingSpinner size="lg" />
@@ -30,29 +32,34 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
 
   // If authentication is required and user is not logged in
   if (requireAuth && !token) {
-    console.log('No token found, redirecting to login');
+    console.log('🛡️ No token found, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // If role is specified and user's role doesn't match
   if (role && user?.role !== role) {
-    console.log(`Role mismatch: required ${role}, got ${user?.role}, redirecting to login`);
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Special handling for admin routes - allow 'admin', 'super_admin', and 'sub_admin'
+    if (role === 'admin' && (user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin')) {
+      console.log('🛡️ Admin access granted for role:', user?.role);
+    } else {
+      console.log(`🛡️ Role mismatch: required ${role}, got ${user?.role}, redirecting to login`);
+      return <Navigate to="/login" state={{ from: location }} replace />;
+    }
   }
 
   // If user needs to change password and is not on reset password page
   if (requireAuth && token && needsPasswordChange && !requirePasswordChange) {
-    console.log('Password change required, redirecting to reset password page');
+    console.log('🛡️ Password change required, redirecting to reset password page');
     return <Navigate to="/student/reset-password" state={{ from: location }} replace />;
   }
 
   // If on reset password page but password change is not needed
   if (requirePasswordChange && (!token || !needsPasswordChange)) {
-    console.log('No password change needed, redirecting to student dashboard');
+    console.log('🛡️ No password change needed, redirecting to student dashboard');
     return <Navigate to="/student" state={{ from: location }} replace />;
   }
 
-  console.log('Access granted to protected route');
+  console.log('🛡️ Access granted to protected route');
   return children;
 };
 

@@ -194,11 +194,15 @@ const OutpassManagement = () => {
                       <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                         <div className="flex items-center gap-1">
                           <CalendarIcon className="w-4 h-4" />
-                          <span>{new Date(outpass.dateOfOutpass).toLocaleDateString()}</span>
+                          <span>From: {new Date(outpass.startDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="w-4 h-4" />
+                          <span>To: {new Date(outpass.endDate).toLocaleDateString()}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <ClockIcon className="w-4 h-4" />
-                          <span>{new Date(outpass.dateOfOutpass).toLocaleTimeString()}</span>
+                          <span>{outpass.numberOfDays} day{outpass.numberOfDays > 1 ? 's' : ''}</span>
                         </div>
                       </div>
 

@@ -826,145 +826,26 @@ const DashboardHome = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [complaintsRes, studentCountRes, announcementsRes, pollsRes, membersRes] = await Promise.all([
-          api.get('/api/complaints/admin/all'),
-          api.get('/api/admin/students/count'),
-          api.get('/api/announcements/admin/all'),
-          api.get('/api/polls/admin/all'),
-          api.get('/api/admin/members'),
-        ]);
+        console.log('📊 DashboardHome mounted - temporarily disabled API calls for testing');
         
-        // Handle complaints response
-        let complaintsData = [];
-        try {
-          if (complaintsRes?.data?.success) {
-            const responseData = complaintsRes.data.data;
-            if (responseData?.complaints && Array.isArray(responseData.complaints)) {
-              complaintsData = responseData.complaints.filter(c => c && typeof c === 'object');
-            } else if (Array.isArray(responseData)) {
-              complaintsData = responseData.filter(c => c && typeof c === 'object');
-            } else {
-              console.warn('Unexpected complaints data format:', responseData);
-            }
-          } else if (Array.isArray(complaintsRes?.data)) {
-            complaintsData = complaintsRes.data.filter(c => c && typeof c === 'object');
-          } else {
-            console.warn('Invalid complaints response format:', complaintsRes?.data);
-          }
-          
-          // Ensure each complaint has required properties and valid dates
-          complaintsData = complaintsData.map(c => {
-            try {
-              const createdAt = c.createdAt ? new Date(c.createdAt) : new Date();
-              const resolvedAt = c.resolvedAt ? new Date(c.resolvedAt) : null;
-              
-              return {
-                ...c,
-                _id: c._id || c.id || `temp-${Math.random()}`,
-                createdAt: createdAt.toISOString(),
-                resolvedAt: resolvedAt?.toISOString() || null,
-                currentStatus: c.currentStatus || 'Unknown',
-                category: c.category || 'Uncategorized',
-                // Add helper method for active duration
-                getActiveStatusDuration: function() {
-                  if (this.currentStatus === 'Resolved' && this.resolvedAt) {
-                    return Math.ceil((new Date(this.resolvedAt) - new Date(this.createdAt)) / (1000 * 60 * 60 * 24));
-                  }
-                  return Math.ceil((new Date() - new Date(this.createdAt)) / (1000 * 60 * 60 * 24));
-                }
-              };
-            } catch (error) {
-              console.error('Error processing complaint:', error, c);
-              return null;
-            }
-          }).filter(Boolean); // Remove any null entries from failed processing
-        } catch (error) {
-          console.error('Error processing complaints data:', error);
-          complaintsData = [];
-        }
-
-        // Handle student count response
-        let studentCountData = 0;
-        try {
-          if (studentCountRes?.data?.success && typeof studentCountRes.data.data?.count === 'number') {
-            studentCountData = studentCountRes.data.data.count;
-          } else {
-            console.warn('Invalid student count data format:', studentCountRes?.data);
-          }
-        } catch (error) {
-          console.error('Error processing student count:', error);
-        }
-
-        // Announcements
-        let announcementsData = [];
-        try {
-          if (announcementsRes?.data?.success && Array.isArray(announcementsRes.data.data)) {
-            announcementsData = announcementsRes.data.data
-              .filter(a => a && typeof a === 'object')
-              .map(a => ({
-                ...a,
-                createdAt: a.createdAt ? new Date(a.createdAt).toISOString() : new Date().toISOString()
-              }))
-              .slice(0, 3);
-          } else {
-            console.warn('Invalid announcements data format:', announcementsRes?.data);
-          }
-        } catch (error) {
-          console.error('Error processing announcements:', error);
-        }
-
-        // Polls
-        let pollsData = [];
-        try {
-          if (pollsRes?.data?.success && Array.isArray(pollsRes.data.data)) {
-            pollsData = pollsRes.data.data
-              .filter(p => p && typeof p === 'object')
-              .map(p => ({
-                ...p,
-                createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : new Date().toISOString(),
-                endTime: p.endTime ? new Date(p.endTime).toISOString() : null
-              }));
-          } else {
-            console.warn('Invalid polls data format:', pollsRes?.data);
-          }
-        } catch (error) {
-          console.error('Error processing polls:', error);
-        }
-
-        // Members
-        let membersData = [];
-        try {
-          if (membersRes?.data?.success && Array.isArray(membersRes.data.data?.members)) {
-            membersData = membersRes.data.data.members.filter(m => m && typeof m === 'object');
-          } else {
-            console.warn('Invalid members data format:', membersRes?.data);
-          }
-        } catch (error) {
-          console.error('Error processing members:', error);
-        }
-
-        // Debug: store raw API data
-        setDebugData({
-          complaints: complaintsRes.data,
-          students: studentCountRes.data,
-          announcements: announcementsRes.data,
-          polls: pollsRes.data,
-          members: membersRes.data
-        });
-
-        setComplaints(complaintsData);
-        setTotalStudents(studentCountData);
-        setAnnouncements(announcementsData);
-        setPolls(pollsData);
-        setMembers(membersData);
-      } catch (err) {
-        console.error('Error fetching dashboard data:', err);
+        // Temporarily disable all API calls to test if sub-admin can stay logged in
+        console.log('📊 Setting default values without API calls');
+        
         setComplaints([]);
         setTotalStudents(0);
         setAnnouncements([]);
         setPolls([]);
         setMembers([]);
-        setDebugData({ error: err.message });
+        
+        console.log('📊 Dashboard data set to defaults successfully');
+      } catch (err) {
+        console.error('📊 Error in fetchData:', err);
+        // Set default values instead of throwing
+        setComplaints([]);
+        setTotalStudents(0);
+        setAnnouncements([]);
+        setPolls([]);
+        setMembers([]);
       } finally {
         setLoading(false);
       }

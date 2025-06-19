@@ -19,6 +19,8 @@ import SEO from '../../components/SEO';
 import axios from 'axios';
 
 const RoomManagement = () => {
+  console.log('🏠 RoomManagement component loaded');
+  
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -41,19 +43,24 @@ const RoomManagement = () => {
   const [billForm, setBillForm] = useState({ month: '', startUnits: '', endUnits: '', rate: '' });
   const [billHistory, setBillHistory] = useState([]);
   const [billLoading, setBillLoading] = useState(false);
+  const [showEditBillModal, setShowEditBillModal] = useState(false);
+  const [editBillForm, setEditBillForm] = useState({ month: '', startUnits: '', endUnits: '', rate: '' });
 
   const fetchRooms = async () => {
     try {
+      console.log('🏠 Fetching rooms with filters:', filters);
       const response = await api.get('/api/admin/rooms', {
         params: filters
       });
+      console.log('🏠 Rooms response:', response.data);
       if (response.data.success) {
         setRooms(response.data.data.rooms || []);
       } else {
         throw new Error('Failed to fetch rooms');
       }
     } catch (error) {
-      console.error('Error fetching rooms:', error);
+      console.error('🏠 Error fetching rooms:', error);
+      console.error('🏠 Error details:', error.response?.data);
       toast.error('Failed to fetch rooms');
     } finally {
       setLoading(false);
@@ -778,6 +785,7 @@ const RoomManagement = () => {
                         <th className="px-2 py-1 border">Consumption</th>
                         <th className="px-2 py-1 border">Rate</th>
                         <th className="px-2 py-1 border">Total</th>
+                        <th className="px-2 py-1 border">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -789,12 +797,117 @@ const RoomManagement = () => {
                           <td className="px-2 py-1 border">{bill.consumption !== undefined ? bill.consumption : bill.endUnits - bill.startUnits}</td>
                           <td className="px-2 py-1 border">{bill.rate}</td>
                           <td className="px-2 py-1 border">{bill.total}</td>
+                          <td className="px-2 py-1 border">
+                            <button
+                              className="px-2 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 text-xs"
+                              onClick={() => {
+                                setEditBillForm({
+                                  month: bill.month,
+                                  startUnits: bill.startUnits,
+                                  endUnits: bill.endUnits,
+                                  rate: bill.rate
+                                });
+                                setShowEditBillModal(true);
+                              }}
+                            >
+                              Edit
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Bill Modal */}
+      <AnimatePresence>
+        {showEditBillModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-xl p-6 w-full max-w-md"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Edit Bill</h2>
+                <button
+                  onClick={() => setShowEditBillModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const payload = {
+                    ...editBillForm,
+                    startUnits: Number(editBillForm.startUnits),
+                    endUnits: Number(editBillForm.endUnits),
+                    rate: editBillForm.rate !== '' ? Number(editBillForm.rate) : undefined
+                  };
+                  const response = await axios.post(
+                    `${import.meta.env.VITE_API_URL}/api/rooms/${selectedRoom._id}/electricity-bill`,
+                    payload,
+                    {
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${localStorage.getItem('token')}`
+                      }
+                    }
+                  );
+                  if (response.data.success) {
+                    // Refresh bill history
+                    const billsResponse = await axios.get(
+                      `/api/admin/rooms/${selectedRoom._id}/electricity-bills`,
+                      {
+                        headers: {
+                          Authorization: `Bearer ${localStorage.getItem('token')}`
+                        }
+                      }
+                    );
+                    setBillHistory(billsResponse.data.data);
+                    setShowEditBillModal(false);
+                    toast.success('Bill updated successfully');
+                  }
+                } catch (error) {
+                  toast.error(error.response?.data?.message || 'Failed to update bill');
+                }
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Month (YYYY-MM)</label>
+                  <input type="month" name="month" value={editBillForm.month} disabled className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100" />
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Units</label>
+                    <input type="number" name="startUnits" value={editBillForm.startUnits} onChange={e => setEditBillForm(f => ({ ...f, startUnits: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Units</label>
+                    <input type="number" name="endUnits" value={editBillForm.endUnits} onChange={e => setEditBillForm(f => ({ ...f, endUnits: e.target.value }))} required className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rate/Unit</label>
+                    <input type="number" name="rate" value={editBillForm.rate} onChange={e => setEditBillForm(f => ({ ...f, rate: e.target.value }))} className="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button type="button" onClick={() => setShowEditBillModal(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
+                  <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">Update Bill</button>
+                </div>
+              </form>
             </motion.div>
           </motion.div>
         )}

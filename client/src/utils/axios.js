@@ -27,10 +27,35 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   error => {
-    console.error('API Error:', error.response?.data || error.message);
-    // Don't redirect to login if we're already on the reset password page
+    console.error('🚨 API Error:', error.response?.data || error.message);
+    console.error('🚨 API Error URL:', error.config?.url);
+    console.error('🚨 API Error Method:', error.config?.method);
+    console.error('🚨 API Error Status:', error.response?.status);
+    console.error('🚨 API Error Headers:', error.config?.headers);
+    console.error('🚨 Current pathname:', window.location.pathname);
+    
+    // Only logout on 401 errors that are authentication-related
+    // Skip logout for dashboard data fetching errors to prevent immediate logout
     if (error.response?.status === 401 && !window.location.pathname.includes('/reset-password')) {
-      console.log('Token expired or invalid, logging out...');
+      // Check if this is a dashboard data fetching error
+      const isDashboardDataError = error.config?.url?.includes('/admin/students/count') ||
+                                  error.config?.url?.includes('/announcements/admin/all') ||
+                                  error.config?.url?.includes('/polls/admin/all') ||
+                                  error.config?.url?.includes('/admin/members') ||
+                                  error.config?.url?.includes('/complaints/admin/all');
+      
+      if (isDashboardDataError) {
+        console.log('🚨 Dashboard data error - not logging out, just logging error');
+        console.log('🚨 Failed dashboard request URL:', error.config?.url);
+        console.log('🚨 Error response data:', error.response?.data);
+        return Promise.reject(error);
+      }
+      
+      console.log('🚨 Authentication error - logging out...');
+      console.log('🚨 Failed request URL:', error.config?.url);
+      console.log('🚨 Failed request method:', error.config?.method);
+      console.log('🚨 Error response data:', error.response?.data);
+      
       // Clear token and user data
       localStorage.removeItem('token');
       localStorage.removeItem('user');

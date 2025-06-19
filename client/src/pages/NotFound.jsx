@@ -10,9 +10,8 @@ const NotFound = () => {
     navigate(-1);
   };
 
-  const getHomeLink = () => {
-    if (!isAuthenticated) return '/';
-    return user?.role === 'admin' ? '/admin' : '/student';
+  const redirectPath = () => {
+    return user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin' ? '/admin' : '/student';
   };
 
   return (
@@ -31,7 +30,7 @@ const NotFound = () => {
             Go Back
           </button>
           <Link
-            to={getHomeLink()}
+            to={redirectPath()}
             className="block w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
           >
             Go to Home

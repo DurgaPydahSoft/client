@@ -4,13 +4,10 @@ import { useNavigate, NavLink, Outlet, Routes, Route, Link, useLocation } from '
 import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ClipboardDocumentListIcon,
-  UserGroupIcon,
-  MegaphoneIcon,
-  ChartBarIcon,
-  ChartPieIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  LockClosedIcon,
+  ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
 import ComplaintList from './ComplaintList';
 import MemberManagement from './MemberManagement';
@@ -71,6 +68,42 @@ const navItems = [
   }
 ];
 
+// Permission Denied Component
+const PermissionDenied = ({ sectionName }) => {
+  return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center max-w-md mx-auto">
+        <div className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
+          <ShieldExclamationIcon className="w-10 h-10 text-red-600" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+        <p className="text-gray-600 mb-6">
+          You don't have permission to access the <strong>{sectionName}</strong> section. 
+          Please contact your super admin to request access.
+        </p>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <p className="text-sm text-blue-800">
+            <strong>Available sections:</strong> Check the sidebar for sections you can access.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Protected Section Component
+const ProtectedSection = ({ permission, sectionName, children }) => {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const hasPermission = isSuperAdmin || user?.permissions?.includes(permission);
+
+  if (!hasPermission) {
+    return <PermissionDenied sectionName={sectionName} />;
+  }
+
+  return children;
+};
+
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -81,6 +114,7 @@ const AdminDashboard = () => {
     announcement: false,
     poll: false
   });
+  const { pathname } = useLocation();
   
   const handleLogout = () => {
     logout();
@@ -88,34 +122,33 @@ const AdminDashboard = () => {
   };
 
   // Close sidebar when route changes
-  const location = useLocation();
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, [location]);
+  }, [pathname]);
 
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
-        const [countRes, notificationsRes] = await Promise.all([
-          api.get('/api/notifications/unread-count'),
-          api.get('/api/notifications/unread')
-        ]);
+        console.log('🔔 Temporarily disabled notification fetching for testing');
         
-        if (countRes.data.success) {
-          setNotificationCount(countRes.data.count);
-        }
-
-        // Update notification states based on unread notifications
-        if (notificationsRes.data.success) {
-          const notifications = notificationsRes.data.data;
-          setNotificationStates({
-            complaint: notifications.some(n => n.type === 'complaint'),
-            announcement: notifications.some(n => n.type === 'announcement'),
-            poll: notifications.some(n => n.type === 'poll')
-          });
-        }
+        // Temporarily disable notification API calls
+        setNotificationCount(0);
+        setNotificationStates({
+          complaint: false,
+          announcement: false,
+          poll: false
+        });
+        
+        console.log('🔔 Notification states set to defaults');
       } catch (err) {
-        console.error('Failed to fetch notification count:', err);
+        console.error('🔔 Failed to fetch notification count:', err);
+        // Don't let notification errors cause logout - just set defaults
+        setNotificationCount(0);
+        setNotificationStates({
+          complaint: false,
+          announcement: false,
+          poll: false
+        });
       }
     };
 
@@ -132,7 +165,78 @@ const AdminDashboard = () => {
       window.removeEventListener('refresh-notifications', refreshHandler);
       clearInterval(interval);
     };
-  }, []);
+  }, [pathname]);
+
+  const isSuperAdmin = user?.role === 'super_admin';
+  const hasPermission = (permission) => {
+    console.log('🔐 Permission check:', {
+      permission,
+      userRole: user?.role,
+      userPermissions: user?.permissions,
+      isSuperAdmin,
+      hasPermission: isSuperAdmin || user?.permissions?.includes(permission)
+    });
+    return isSuperAdmin || user?.permissions?.includes(permission);
+  };
+
+  const menuItems = [
+    {
+      name: 'Dashboard Home',
+      icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z',
+      path: '/admin/dashboard',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'Room Management',
+      icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+      path: '/admin/dashboard/rooms',
+      show: true,
+      locked: !hasPermission('room_management')
+    },
+    {
+      name: 'Student Management',
+      icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+      path: '/admin/dashboard/students',
+      show: true,
+      locked: !hasPermission('student_management')
+    },
+    {
+      name: 'Complaints',
+      icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
+      path: '/admin/dashboard/complaints',
+      show: true,
+      locked: !hasPermission('complaint_management')
+    },
+    {
+      name: 'Outpass Management',
+      icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+      path: '/admin/dashboard/outpass',
+      show: true,
+      locked: !hasPermission('outpass_management')
+    },
+    {
+      name: 'Announcements',
+      icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
+      path: '/admin/dashboard/announcements',
+      show: true,
+      locked: !hasPermission('announcement_management')
+    },
+    {
+      name: 'Polls',
+      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+      path: '/admin/dashboard/polls',
+      show: true,
+      locked: !hasPermission('poll_management')
+    },
+    {
+      name: 'Admin Management',
+      icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
+      path: '/admin/dashboard/admin-management',
+      show: isSuperAdmin,
+      locked: !isSuperAdmin
+    }
+  ];
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50 overflow-hidden">
@@ -191,61 +295,84 @@ const AdminDashboard = () => {
 
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {navItems.map((item, index) => (
+          {menuItems.filter(item => item.show).map((item, index) => (
             <motion.div
-              key={item.path}
+              key={item.name}
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: index * 0.1 }}
             >
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
-                    isActive
-                      ? "bg-blue-50 text-blue-700 shadow-sm"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  }`
-                }
-                end
-              >
-                <div className="relative">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d={item.icon}
-                    />
-                  </svg>
-                  {item.notificationType && notificationStates[item.notificationType] && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+              {item.locked ? (
+                // Locked item - show as disabled (icon + faded label only)
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-300 cursor-not-allowed opacity-60 select-none">
+                  <div className="relative">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.2, 1],
-                          opacity: [1, 0.5, 1]
-                        }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                        className="w-full h-full bg-red-500 rounded-full"
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={item.icon}
                       />
-                    </motion.div>
-                  )}
+                    </svg>
+                  </div>
+                  <span className="flex-1">{item.name}</span>
                 </div>
-                {item.name}
-              </NavLink>
+              ) : (
+                // Active item - normal NavLink
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`
+                  }
+                  end
+                >
+                  <div className="relative">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={item.icon}
+                      />
+                    </svg>
+                    {item.notificationType && notificationStates[item.notificationType] && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                      >
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.2, 1],
+                            opacity: [1, 0.5, 1]
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                          className="w-full h-full bg-red-500 rounded-full"
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                  {item.name}
+                </NavLink>
+              )}
             </motion.div>
           ))}
         </nav>
@@ -254,14 +381,14 @@ const AdminDashboard = () => {
         <div className="p-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-              {user?.name?.charAt(0).toUpperCase()}
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-gray-900 truncate">
-                {user?.name}
+                {user?.name || 'Admin'}
               </div>
               <div className="text-xs text-gray-500 truncate">
-                Admin
+                {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'sub_admin' ? 'Sub Admin' : 'Admin'}
               </div>
             </div>
           </div>

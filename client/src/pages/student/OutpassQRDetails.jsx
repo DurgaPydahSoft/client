@@ -7,6 +7,7 @@ const OutpassQRDetails = () => {
   const [outpass, setOutpass] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [scannedAt, setScannedAt] = useState(null);
 
   useEffect(() => {
     const fetchOutpass = async () => {
@@ -18,7 +19,12 @@ const OutpassQRDetails = () => {
           setError('Outpass not found');
         }
       } catch (err) {
-        setError('Outpass not found');
+        if (err.response && err.response.status === 403 && err.response.data.message) {
+          setError(err.response.data.message);
+          setScannedAt(err.response.data.scannedAt);
+        } else {
+          setError('Outpass not found');
+        }
       } finally {
         setLoading(false);
       }
@@ -30,7 +36,19 @@ const OutpassQRDetails = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
   if (error) {
-    return <div className="flex items-center justify-center min-h-screen text-red-600">{error}</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-yellow-100 p-4">
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border-t-8 border-red-500">
+          <h1 className="text-2xl font-extrabold text-red-700 mb-4">Gatepass Invalid</h1>
+          <div className="mb-6">
+            <span className="block text-lg font-semibold text-gray-700 mb-1">{error}</span>
+            {scannedAt && (
+              <span className="block text-base text-gray-600 mt-2">Scanned At: {new Date(scannedAt).toLocaleString()}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
   if (!outpass) return null;
 
@@ -43,8 +61,12 @@ const OutpassQRDetails = () => {
           <span className="block text-xl text-gray-900 mb-2">{outpass.student?.name}</span>
           <span className="block text-lg font-semibold text-gray-700 mb-1">Roll No:</span>
           <span className="block text-xl text-gray-900 mb-2">{outpass.student?.rollNumber}</span>
-          <span className="block text-lg font-semibold text-gray-700 mb-1">Date:</span>
-          <span className="block text-xl text-gray-900 mb-2">{new Date(outpass.dateOfOutpass).toLocaleString()}</span>
+          <span className="block text-lg font-semibold text-gray-700 mb-1">Start Date:</span>
+          <span className="block text-xl text-gray-900 mb-2">{new Date(outpass.startDate).toLocaleString()}</span>
+          <span className="block text-lg font-semibold text-gray-700 mb-1">End Date:</span>
+          <span className="block text-xl text-gray-900 mb-2">{new Date(outpass.endDate).toLocaleString()}</span>
+          <span className="block text-lg font-semibold text-gray-700 mb-1">Duration:</span>
+          <span className="block text-xl text-gray-900 mb-2">{outpass.numberOfDays} day{outpass.numberOfDays > 1 ? 's' : ''}</span>
           <span className="block text-lg font-semibold text-gray-700 mb-1">Reason:</span>
           <span className="block text-xl text-gray-900 mb-2">{outpass.reason}</span>
         </div>

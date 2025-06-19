@@ -20,7 +20,8 @@ const Outpass = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [qrModal, setQrModal] = useState({ open: false, outpass: null });
   const [formData, setFormData] = useState({
-    dateOfOutpass: '',
+    startDate: '',
+    endDate: '',
     reason: ''
   });
   const { user } = useAuth ? useAuth() : { user: null };
@@ -70,7 +71,7 @@ const Outpass = () => {
       if (response.data.success) {
         toast.success(response.data.data.message || 'Outpass request submitted successfully');
         setShowRequestModal(false);
-        setFormData({ dateOfOutpass: '', reason: '' });
+        setFormData({ startDate: '', endDate: '', reason: '' });
         fetchOutpasses();
       } else {
         throw new Error(response.data.message || 'Failed to submit outpass request');
@@ -175,11 +176,15 @@ const Outpass = () => {
                       <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-600 mb-2">
                         <div className="flex items-center gap-1">
                           <CalendarIcon className="w-4 h-4" />
-                          <span>{new Date(outpass.dateOfOutpass).toLocaleDateString()}</span>
+                          <span>From: {new Date(outpass.startDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <CalendarIcon className="w-4 h-4" />
+                          <span>To: {new Date(outpass.endDate).toLocaleDateString()}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <ClockIcon className="w-4 h-4" />
-                          <span>{new Date(outpass.dateOfOutpass).toLocaleTimeString()}</span>
+                          <span>{outpass.numberOfDays} day{outpass.numberOfDays > 1 ? 's' : ''}</span>
                         </div>
                       </div>
 
@@ -194,10 +199,28 @@ const Outpass = () => {
                     {/* QR Code Button for Approved Outpass */}
                     {outpass.status === 'Approved' && (
                       <button
-                        className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm font-semibold"
-                        onClick={() => setQrModal({ open: true, outpass })}
+                        className={`w-full sm:w-auto mt-2 sm:mt-0 px-3 py-2 rounded transition-colors text-sm font-semibold ${outpass.qrLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                        disabled={outpass.qrLocked}
+                        onClick={async () => {
+                          if (outpass.qrLocked) return;
+                          try {
+                            const res = await api.post(`/api/outpass/qr-view/${outpass._id}`);
+                            if (res.data.success) {
+                              setQrModal({ open: true, outpass });
+                            }
+                          } catch (err) {
+                            if (err.response && err.response.data && err.response.data.qrLocked) {
+                              toast.error('QR code view limit reached');
+                              // Optionally update UI
+                              outpass.qrLocked = true;
+                              setOutpasses([...outpasses]);
+                            } else {
+                              toast.error('Unable to open QR code');
+                            }
+                          }
+                        }}
                       >
-                        View QR Code
+                        {outpass.qrLocked ? 'QR Locked' : 'View QR Code'}
                       </button>
                     )}
                   </div>
@@ -243,12 +266,24 @@ const Outpass = () => {
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date and Time
+                  Start Date and Time
                 </label>
                 <input
                   type="datetime-local"
-                  value={formData.dateOfOutpass}
-                  onChange={(e) => setFormData({ ...formData, dateOfOutpass: e.target.value })}
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date and Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -271,7 +306,7 @@ const Outpass = () => {
                   type="button"
                   onClick={() => {
                     setShowRequestModal(false);
-                    setFormData({ dateOfOutpass: '', reason: '' });
+                    setFormData({ startDate: '', endDate: '', reason: '' });
                   }}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >

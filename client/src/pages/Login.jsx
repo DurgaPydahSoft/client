@@ -27,12 +27,37 @@ const Login = () => {
     setLoading(true);
     try {
       if (role === 'admin') {
-        await login('admin', { username: form.username, password: form.adminPassword });
-        toast.success('Admin login successful');
-        navigate('/admin');
+        console.log('Attempting admin login with:', { username: form.username });
+        const result = await login('admin', { 
+          username: form.username, 
+          password: form.adminPassword 
+        });
+        
+        console.log('Admin login result:', result);
+        
+        if (result.success) {
+          toast.success('Admin login successful');
+          // Route based on admin role
+          if (result.user.role === 'super_admin') {
+            console.log('Super admin detected, navigating to dashboard');
+            navigate('/admin/dashboard', { replace: true });
+          } else {
+            console.log('Sub-admin detected, navigating to main dashboard');
+            console.log('Sub-admin user data:', result.user);
+            console.log('Sub-admin permissions:', result.user.permissions);
+            
+            // Sub-admin - always redirect to main dashboard
+            // The dashboard will handle showing/hiding sections based on permissions
+            console.log('Navigating to main dashboard for sub-admin');
+            navigate('/admin/dashboard', { replace: true });
+          }
+        }
       } else {
         console.log('Attempting student login...');
-        const result = await login('student', { rollNumber: form.rollNumber, password: form.password });
+        const result = await login('student', { 
+          rollNumber: form.rollNumber, 
+          password: form.password 
+        });
         console.log('Student login result:', result);
         
         if (result?.requiresPasswordChange) {
@@ -46,7 +71,8 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      toast.error(err.response?.data?.message || 'Login failed');
+      const errorMessage = err.response?.data?.message || 'Login failed';
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -99,7 +125,7 @@ const Login = () => {
             {/* Slider Toggle Switch */}
             <div className="flex justify-center mb-8">
               <div className="relative bg-gray-100 rounded-full p-1 w-64">
-        <motion.div 
+                <motion.div 
                   className="absolute top-1 left-1 w-1/2 h-8 bg-white rounded-full shadow-md"
                   animate={{
                     x: role === 'admin' ? '100%' : '0%',
@@ -107,137 +133,135 @@ const Login = () => {
                   transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 />
                 <div className="relative flex">
-          <button
+                  <button
                     className={`flex-1 flex items-center justify-center py-2 px-4 rounded-full text-sm font-medium transition-colors duration-200 ${
                       role === 'student' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-            onClick={() => setRole('student')}
-          >
+                    }`}
+                    onClick={() => setRole('student')}
+                  >
                     <AcademicCapIcon className="w-5 h-5 mr-2" />
-            Student
-          </button>
-          <button
+                    Student
+                  </button>
+                  <button
                     className={`flex-1 flex items-center justify-center py-2 px-4 rounded-full text-sm font-medium transition-colors duration-200 ${
                       role === 'admin' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-            onClick={() => setRole('admin')}
-          >
+                    }`}
+                    onClick={() => setRole('admin')}
+                  >
                     <ShieldCheckIcon className="w-5 h-5 mr-2" />
-            Admin
-          </button>
+                    Admin
+                  </button>
                 </div>
               </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-          {role === 'admin' ? (
-            <>
+              {role === 'admin' ? (
+                <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Username
                     </label>
-              <div className="relative">
+                    <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <UserIcon className="h-5 w-5 text-gray-400" />
                       </div>
-                <input
+                      <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  name="username"
-                  placeholder="Enter ADMIN  username"
-                  value={form.username}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+                        name="username"
+                        placeholder="Enter admin username"
+                        value={form.username}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-              <div className="relative">
+                    <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <LockClosedIcon className="h-5 w-5 text-gray-400" />
                       </div>
-                <input
+                      <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  name="adminPassword"
-                  type="password"
-                  placeholder="Enter password"
-                  value={form.adminPassword}
-                  onChange={handleChange}
-                  required
-                />
+                        name="adminPassword"
+                        type="password"
+                        placeholder="Enter password"
+                        value={form.adminPassword}
+                        onChange={handleChange}
+                        required
+                      />
                     </div>
-              </div>
-            </>
-          ) : (
-            <>
+                  </div>
+                </>
+              ) : (
+                <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Roll Number
                     </label>
-              <div className="relative">
+                    <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <AcademicCapIcon className="h-5 w-5 text-gray-400" />
                       </div>
-                <input
+                      <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  name="rollNumber"
+                        name="rollNumber"
                         placeholder="Enter your roll number"
-                  value={form.rollNumber}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
+                        value={form.rollNumber}
+                        onChange={handleChange}
+                        required
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Password
                     </label>
-              <div className="relative">
+                    <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <LockClosedIcon className="h-5 w-5 text-gray-400" />
                       </div>
-                <input
+                      <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  name="password"
-                  type="password"
+                        name="password"
+                        type="password"
                         placeholder="Enter your password"
-                  value={form.password}
-                  onChange={handleChange}
-                  required
-                />
+                        value={form.password}
+                        onChange={handleChange}
+                        required
+                      />
                     </div>
-              </div>
-            </>
-          )}
+                  </div>
+                </>
+              )}
 
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            type="submit"
-            disabled={loading}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={loading}
                 className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
                   loading
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 shadow-lg hover:shadow-xl'
                 }`}
-          >
-            {loading ? (
+              >
+                {loading ? (
                   <div className="flex items-center justify-center">
-                <LoadingSpinner size="sm" className="border-white" />
+                    <LoadingSpinner size="sm" className="border-white" />
                     <span className="ml-2">Logging in...</span>
-              </div>
-            ) : (
+                  </div>
+                ) : (
                   <div className="flex items-center justify-center">
                     <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2" />
                     <span>Sign In</span>
                   </div>
-            )}
-          </motion.button>
+                )}
+              </motion.button>
             </form>
-
-        
           </div>
         </div>
       </motion.div>

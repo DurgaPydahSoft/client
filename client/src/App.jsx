@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedSection from './components/ProtectedSection';
 import LoadingSpinner from './components/LoadingSpinner';
 import React from 'react';
 import MemberManagement from './pages/admin/MemberManagement';
@@ -11,6 +12,8 @@ import { HelmetProvider } from 'react-helmet-async';
 import { connectSocket, disconnectSocket } from './utils/socket';
 import RouteLoading from './components/RouteLoading';
 import OutpassQRDetails from './pages/student/OutpassQRDetails';
+import SecurityDashboard from './pages/security/SecurityDashboard';
+import AdminManagement from './pages/admin/AdminManagement';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -146,10 +149,15 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<StudentRegister />} />
             <Route path="outpass/qr/:id" element={<OutpassQRDetails />} />
+            <Route path="security-dashboard" element={<SecurityDashboard />} />
             
             {/* Protected admin routes */}
             <Route
-                path="/admin/*"
+                path="/admin"
+              element={<Navigate to="/admin/dashboard" replace />}
+            />
+            <Route
+                path="/admin/dashboard/*"
               element={
                 <ProtectedRoute requireAuth={true} role="admin">
                   <AdminDashboard />
@@ -157,15 +165,48 @@ function App() {
               }
             >
               <Route index element={<DashboardHome />} />
-              <Route path="students" element={<Students />} />
-              <Route path="complaints" element={<Complaints />} />
-              <Route path="complaints/details/:id" element={<Complaints />} />
-              <Route path="announcements" element={<Announcements />} />
+              <Route path="rooms" element={
+                <ProtectedSection permission="room_management" sectionName="Room Management">
+                  <RoomManagement />
+                </ProtectedSection>
+              } />
+              <Route path="students" element={
+                <ProtectedSection permission="student_management" sectionName="Student Management">
+                  <Students />
+                </ProtectedSection>
+              } />
+              <Route path="complaints" element={
+                <ProtectedSection permission="complaint_management" sectionName="Complaints">
+                  <Complaints />
+                </ProtectedSection>
+              } />
+              <Route path="complaints/details/:id" element={
+                <ProtectedSection permission="complaint_management" sectionName="Complaints">
+                  <Complaints />
+                </ProtectedSection>
+              } />
+              <Route path="announcements" element={
+                <ProtectedSection permission="announcement_management" sectionName="Announcements">
+                  <Announcements />
+                </ProtectedSection>
+              } />
               <Route path="notifications" element={<Notifications />} />
               <Route path="members" element={<MemberManagement />} />
-              <Route path="polls" element={<PollManagement />} />
-              <Route path="rooms" element={<RoomManagement />} />
-              <Route path="outpass" element={<OutpassManagement />} /> 
+              <Route path="polls" element={
+                <ProtectedSection permission="poll_management" sectionName="Polls">
+                  <PollManagement />
+                </ProtectedSection>
+              } />
+              <Route path="outpass" element={
+                <ProtectedSection permission="outpass_management" sectionName="Outpass Management">
+                  <OutpassManagement />
+                </ProtectedSection>
+              } />
+              <Route path="admin-management" element={
+                <ProtectedSection permission="super_admin" sectionName="Admin Management">
+                  <AdminManagement />
+                </ProtectedSection>
+              } />
             </Route>
             
             {/* Student reset password route */}
