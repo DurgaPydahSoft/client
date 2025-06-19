@@ -276,13 +276,40 @@ const SecurityDashboard = () => {
           ) : (
             <>
               {/* Today's Passes */}
-              <SectionTable title="Today's Passes" passes={todayPasses} getBlinkingDot={getBlinkingDot} isOutpassExpired={isOutpassExpired} getVerificationStatusColor={getVerificationStatusColor} getVerificationStatusIcon={getVerificationStatusIcon} />
+              <SectionTable 
+                title="Today's Passes" 
+                passes={todayPasses} 
+                getBlinkingDot={getBlinkingDot} 
+                isOutpassExpired={isOutpassExpired} 
+                getVerificationStatusColor={getVerificationStatusColor} 
+                getVerificationStatusIcon={getVerificationStatusIcon}
+                setSelectedOutpass={setSelectedOutpass}
+                setShowVerificationModal={setShowVerificationModal}
+              />
               {/* Upcoming Passes - Only show when toggled */}
               {showUpcomingPasses && (
-                <SectionTable title="Upcoming Passes" passes={upcomingPasses} getBlinkingDot={getBlinkingDot} isOutpassExpired={isOutpassExpired} getVerificationStatusColor={getVerificationStatusColor} getVerificationStatusIcon={getVerificationStatusIcon} />
+                <SectionTable 
+                  title="Upcoming Passes" 
+                  passes={upcomingPasses} 
+                  getBlinkingDot={getBlinkingDot} 
+                  isOutpassExpired={isOutpassExpired} 
+                  getVerificationStatusColor={getVerificationStatusColor} 
+                  getVerificationStatusIcon={getVerificationStatusIcon}
+                  setSelectedOutpass={setSelectedOutpass}
+                  setShowVerificationModal={setShowVerificationModal}
+                />
               )}
               {/* Expired/Recent Requests */}
-              <SectionTable title="Expired / Recent Requests" passes={expiredPasses} getBlinkingDot={getBlinkingDot} isOutpassExpired={isOutpassExpired} getVerificationStatusColor={getVerificationStatusColor} getVerificationStatusIcon={getVerificationStatusIcon} />
+              <SectionTable 
+                title="Expired / Recent Requests" 
+                passes={expiredPasses} 
+                getBlinkingDot={getBlinkingDot} 
+                isOutpassExpired={isOutpassExpired} 
+                getVerificationStatusColor={getVerificationStatusColor} 
+                getVerificationStatusIcon={getVerificationStatusIcon}
+                setSelectedOutpass={setSelectedOutpass}
+                setShowVerificationModal={setShowVerificationModal}
+              />
             </>
           )}
         </div>
@@ -347,7 +374,16 @@ const SecurityDashboard = () => {
 };
 
 // SectionTable component
-const SectionTable = ({ title, passes, getBlinkingDot, isOutpassExpired, getVerificationStatusColor, getVerificationStatusIcon }) => (
+const SectionTable = ({ 
+  title, 
+  passes, 
+  getBlinkingDot, 
+  isOutpassExpired, 
+  getVerificationStatusColor, 
+  getVerificationStatusIcon,
+  setSelectedOutpass,
+  setShowVerificationModal 
+}) => (
   <div className="mb-8">
     <h2 className="text-lg font-bold text-blue-800 mb-2 mt-6">{title}</h2>
     {passes.length === 0 ? (
@@ -459,10 +495,10 @@ const SectionTable = ({ title, passes, getBlinkingDot, isOutpassExpired, getVeri
                         setSelectedOutpass(outpass);
                         setShowVerificationModal(true);
                       }}
-                      className="px-2 sm:px-3 py-1 sm:py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm font-medium flex items-center gap-1"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
                     >
                       <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden sm:inline">Verify</span>
+                      Verify
                     </button>
                   )}
                 </div>
@@ -518,10 +554,12 @@ const SectionTable = ({ title, passes, getBlinkingDot, isOutpassExpired, getVeri
                 ) : (
                   <button
                     onClick={() => {
-                      // This will need to be lifted to parent for modal, but for now just show disabled
+                      setSelectedOutpass(outpass);
+                      setShowVerificationModal(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
                   >
+                    <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                     Verify
                   </button>
                 )}
