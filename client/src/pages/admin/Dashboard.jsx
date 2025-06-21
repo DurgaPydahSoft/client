@@ -12,7 +12,7 @@ import {
 import ComplaintList from './ComplaintList';
 import MemberManagement from './MemberManagement';
 import AnnouncementManagement from './AnnouncementManagement';
-import DashboardStats from './DashboardStats';
+import DashboardHome from './DashboardHome';
 import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
 import LeaveManagement from "./LeaveManagement";
@@ -214,6 +214,13 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/leave',
       show: true,
       locked: !hasPermission('leave_management')
+    },
+    {
+      name: 'Members',
+      icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+      path: '/admin/dashboard/members',
+      show: true,
+      locked: !hasPermission('member_management')
     },
     {
       name: 'Announcements',
@@ -431,7 +438,7 @@ const AdminDashboard = () => {
 
 const AdminDashboardLayout = () => (
   <Routes>
-    <Route index element={<DashboardStats />} />
+    <Route index element={<DashboardHome />} />
     <Route path="complaints" element={<ComplaintList />} />
     <Route path="leave" element={<LeaveManagement />} />
     <Route path="members" element={<MemberManagement />} />

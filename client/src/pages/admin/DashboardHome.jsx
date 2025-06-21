@@ -826,21 +826,73 @@ const DashboardHome = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        console.log('📊 DashboardHome mounted - temporarily disabled API calls for testing');
+        console.log('📊 DashboardHome mounted - fetching data from APIs');
         
-        // Temporarily disable all API calls to test if sub-admin can stay logged in
-        console.log('📊 Setting default values without API calls');
+        // Fetch all data in parallel
+        const [complaintsRes, studentsRes, announcementsRes, pollsRes, membersRes] = await Promise.all([
+          api.get('/api/complaints/admin/all'),
+          api.get('/api/admin/students/count'),
+          api.get('/api/announcements/admin/all'),
+          api.get('/api/polls/admin/all'),
+          api.get('/api/admin/members')
+        ]);
+
+        console.log('📊 API Responses:');
+        console.log('Complaints:', complaintsRes.data);
+        console.log('Students:', studentsRes.data);
+        console.log('Announcements:', announcementsRes.data);
+        console.log('Polls:', pollsRes.data);
+        console.log('Members:', membersRes.data);
+
+        // Set complaints data
+        if (complaintsRes.data.success) {
+          setComplaints(complaintsRes.data.data.complaints || []);
+          console.log('📊 Set complaints:', complaintsRes.data.data.complaints?.length || 0);
+        } else {
+          console.error('Failed to fetch complaints:', complaintsRes.data);
+          setComplaints([]);
+        }
+
+        // Set students count
+        if (studentsRes.data.success) {
+          setTotalStudents(studentsRes.data.data.count || 0);
+          console.log('📊 Set students count:', studentsRes.data.data.count || 0);
+        } else {
+          console.error('Failed to fetch students count:', studentsRes.data);
+          setTotalStudents(0);
+        }
+
+        // Set announcements data
+        if (announcementsRes.data.success) {
+          setAnnouncements(announcementsRes.data.data || []);
+          console.log('📊 Set announcements:', announcementsRes.data.data?.length || 0);
+        } else {
+          console.error('Failed to fetch announcements:', announcementsRes.data);
+          setAnnouncements([]);
+        }
+
+        // Set polls data
+        if (pollsRes.data.success) {
+          setPolls(pollsRes.data.data || []);
+          console.log('📊 Set polls:', pollsRes.data.data?.length || 0);
+        } else {
+          console.error('Failed to fetch polls:', pollsRes.data);
+          setPolls([]);
+        }
+
+        // Set members data
+        if (membersRes.data.success) {
+          setMembers(membersRes.data.data.members || []);
+          console.log('📊 Set members:', membersRes.data.data.members?.length || 0);
+        } else {
+          console.error('Failed to fetch members:', membersRes.data);
+          setMembers([]);
+        }
         
-        setComplaints([]);
-        setTotalStudents(0);
-        setAnnouncements([]);
-        setPolls([]);
-        setMembers([]);
-        
-        console.log('📊 Dashboard data set to defaults successfully');
+        console.log('📊 Dashboard data fetched successfully');
       } catch (err) {
         console.error('📊 Error in fetchData:', err);
-        // Set default values instead of throwing
+        // Set default values on error
         setComplaints([]);
         setTotalStudents(0);
         setAnnouncements([]);

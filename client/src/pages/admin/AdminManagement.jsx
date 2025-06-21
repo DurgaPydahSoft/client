@@ -19,9 +19,10 @@ const PERMISSIONS = [
   { id: 'room_management', label: 'Room Management' },
   { id: 'student_management', label: 'Student Management' },
   { id: 'complaint_management', label: 'Complaint Management' },
-  { id: 'outpass_management', label: 'Outpass Management' },
+  { id: 'leave_management', label: 'Leave Management' },
   { id: 'announcement_management', label: 'Announcement Management' },
-  { id: 'poll_management', label: 'Poll Management' }
+  { id: 'poll_management', label: 'Poll Management' },
+  { id: 'member_management', label: 'Member Management' }
 ];
 
 const AdminManagement = () => {
