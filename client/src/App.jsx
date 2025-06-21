@@ -11,7 +11,7 @@ import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import { connectSocket, disconnectSocket } from './utils/socket';
 import RouteLoading from './components/RouteLoading';
-import OutpassQRDetails from './pages/student/OutpassQRDetails';
+import LeaveQRDetails from './pages/student/LeaveQRDetails';
 import SecurityDashboard from './pages/security/SecurityDashboard';
 import AdminManagement from './pages/admin/AdminManagement';
 
@@ -31,7 +31,7 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
 const PollManagement = lazy(() => import('./pages/admin/PollManagement'));
 const RoomManagement = lazy(() => import('./pages/admin/RoomManagement'));
-const OutpassManagement = lazy(() => import('./pages/admin/OutpassManagement'));
+const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
 
 // Student components
 const RaiseComplaint = lazy(() => import('./pages/student/RaiseComplaint'));
@@ -40,6 +40,7 @@ const StudentAnnouncements = lazy(() => import('./pages/student/Announcements'))
 const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const Polls = lazy(() => import('./pages/student/Polls'));
+const Leave = lazy(() => import('./pages/student/Leave'));
 
 // Loading component
 const Loading = () => (
@@ -148,7 +149,7 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<StudentRegister />} />
-            <Route path="outpass/qr/:id" element={<OutpassQRDetails />} />
+            <Route path="leave/qr/:id" element={<LeaveQRDetails />} />
             <Route path="security-dashboard" element={<SecurityDashboard />} />
             
             {/* Protected admin routes */}
@@ -197,9 +198,9 @@ function App() {
                   <PollManagement />
                 </ProtectedSection>
               } />
-              <Route path="outpass" element={
-                <ProtectedSection permission="outpass_management" sectionName="Outpass Management">
-                  <OutpassManagement />
+              <Route path="leave" element={
+                <ProtectedSection permission="leave_management" sectionName="Leave Management">
+                  <LeaveManagement />
                 </ProtectedSection>
               } />
               <Route path="admin-management" element={
@@ -231,10 +232,11 @@ function App() {
               <Route index element={<div>Welcome, Student! Select a feature from the sidebar.</div>} />
               <Route path="raise" element={<RaiseComplaint />} />
               <Route path="my-complaints" element={<MyComplaints />} />
+              <Route path="leave" element={<Leave />} />
               <Route path="announcements" element={<StudentAnnouncements />} />
               <Route path="notifications" element={<StudentNotifications />} />
               <Route path="polls" element={<Polls />} />
-                <Route path="profile" element={<Profile />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
             
             {/* 404 */}

@@ -15,7 +15,7 @@ import AnnouncementManagement from './AnnouncementManagement';
 import DashboardStats from './DashboardStats';
 import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
-import OutpassManagement from './OutpassManagement';
+import LeaveManagement from "./LeaveManagement";
 
 const navItems = [
   { 
@@ -37,8 +37,8 @@ const navItems = [
     notificationType: 'complaint'
   },
   { 
-    name: 'Outpass Management', 
-    path: 'outpass',
+    name: 'Leave Management', 
+    path: 'leave',
     icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
     notificationType: null
   },
@@ -209,11 +209,11 @@ const AdminDashboard = () => {
       locked: !hasPermission('complaint_management')
     },
     {
-      name: 'Outpass Management',
+      name: 'Leave Management',
       icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-      path: '/admin/dashboard/outpass',
+      path: '/admin/dashboard/leave',
       show: true,
-      locked: !hasPermission('outpass_management')
+      locked: !hasPermission('leave_management')
     },
     {
       name: 'Announcements',
@@ -433,7 +433,7 @@ const AdminDashboardLayout = () => (
   <Routes>
     <Route index element={<DashboardStats />} />
     <Route path="complaints" element={<ComplaintList />} />
-    <Route path="outpass" element={<OutpassManagement />} />
+    <Route path="leave" element={<LeaveManagement />} />
     <Route path="members" element={<MemberManagement />} />
     <Route path="announcements" element={<AnnouncementManagement />} />
     <Route path="polls" element={<PollManagement />} />

@@ -26,7 +26,7 @@ import NotificationBell from '../../components/NotificationBell';
 import PollPopup from '../../components/PollPopup';
 import { canReenableNotifications } from '../../utils/pushNotifications';
 import SEO from '../../components/SEO';
-import Outpass from './Outpass';
+import Leave from './Leave';
 
 const navItems = [
   {
@@ -48,8 +48,8 @@ const navItems = [
     notificationType: 'complaint'
   },
   {
-    name: "Outpass",
-    path: "outpass",
+    name: "Leave",
+    path: "leave",
     icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     notificationType: null
   },
@@ -763,7 +763,7 @@ const StudentDashboard = () => (
       <Route index element={<DashboardHome />} />
       <Route path="raise" element={<RaiseComplaint />} />
       <Route path="my-complaints" element={<MyComplaints />} />
-        <Route path="outpass" element={<Outpass />} />
+        <Route path="leave" element={<Leave />} />
       <Route path="announcements" element={<Announcements />} />
       <Route path="polls" element={<Polls />} />
         <Route path="profile" element={<Profile />} />

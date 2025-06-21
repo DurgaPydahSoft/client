@@ -18,11 +18,11 @@ import {
 import SEO from '../../components/SEO';
 
 const SecurityDashboard = () => {
-  const [outpasses, setOutpasses] = useState([]);
-  const [filteredOutpasses, setFilteredOutpasses] = useState([]);
+  const [leaves, setLeaves] = useState([]);
+  const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [selectedOutpass, setSelectedOutpass] = useState(null);
+  const [selectedLeave, setSelectedLeave] = useState(null);
   const [verificationStatus, setVerificationStatus] = useState('Verified');
   const [showUpcomingPasses, setShowUpcomingPasses] = useState(false);
   const [filters, setFilters] = useState({
@@ -31,38 +31,38 @@ const SecurityDashboard = () => {
   });
 
   useEffect(() => {
-    fetchApprovedOutpasses();
+    fetchApprovedLeaves();
   }, [filters.page]);
 
   useEffect(() => {
-    // Apply filters to the fetched outpasses
-    let filtered = [...outpasses];
+    // Apply filters to the fetched leaves
+    let filtered = [...leaves];
     
     if (filters.verificationStatus) {
-      filtered = filtered.filter(outpass => outpass.verificationStatus === filters.verificationStatus);
+      filtered = filtered.filter(leave => leave.verificationStatus === filters.verificationStatus);
     }
     
-    setFilteredOutpasses(filtered);
-  }, [outpasses, filters.verificationStatus]);
+    setFilteredLeaves(filtered);
+  }, [leaves, filters.verificationStatus]);
 
-  const fetchApprovedOutpasses = async () => {
+  const fetchApprovedLeaves = async () => {
     try {
-      console.log('Fetching approved outpasses with filters:', filters);
-      const response = await api.get('/api/outpass/approved', { params: { page: filters.page } });
-      console.log('Approved outpasses response:', response.data);
+      console.log('Fetching approved leaves with filters:', filters);
+      const response = await api.get('/api/leave/approved', { params: { page: filters.page } });
+      console.log('Approved leaves response:', response.data);
       if (response.data.success) {
-        setOutpasses(response.data.data.outpasses);
-        console.log('Set approved outpasses:', response.data.data.outpasses);
+        setLeaves(response.data.data.leaves);
+        console.log('Set approved leaves:', response.data.data.leaves);
       }
     } catch (error) {
-      console.error('Error fetching approved outpasses:', error);
+      console.error('Error fetching approved leaves:', error);
       console.error('Error details:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
         headers: error.response?.headers
       });
-      toast.error('Failed to fetch approved outpass requests');
+      toast.error('Failed to fetch approved leave requests');
     } finally {
       setLoading(false);
     }
@@ -70,8 +70,8 @@ const SecurityDashboard = () => {
 
   const handleVerification = async () => {
     try {
-      const response = await api.post('/api/outpass/verify', {
-        outpassId: selectedOutpass._id,
+      const response = await api.post('/api/leave/verify', {
+        leaveId: selectedLeave._id,
         verificationStatus
       });
       
@@ -79,7 +79,7 @@ const SecurityDashboard = () => {
         toast.success(response.data.data.message);
         setShowVerificationModal(false);
         setVerificationStatus('Verified');
-        fetchApprovedOutpasses();
+        fetchApprovedLeaves();
       }
     } catch (error) {
       console.error('Error updating verification status:', error);
@@ -113,9 +113,9 @@ const SecurityDashboard = () => {
     }
   };
 
-  const isOutpassExpired = (outpass) => {
+  const isLeaveExpired = (leave) => {
     const now = new Date();
-    const endDate = new Date(outpass.endDate);
+    const endDate = new Date(leave.endDate);
     return now > endDate;
   };
 
@@ -130,18 +130,18 @@ const SecurityDashboard = () => {
   };
 
   // Helper: sort and auto-expire
-  const getSortedOutpasses = () => {
+  const getSortedLeaves = () => {
     const now = new Date();
     // Clone and add frontend-only expired status if needed
-    const enhanced = filteredOutpasses.map(op => {
-      const start = new Date(op.startDate);
+    const enhanced = filteredLeaves.map(leave => {
+      const start = new Date(leave.startDate);
       if (
-        op.verificationStatus !== 'Verified' &&
+        leave.verificationStatus !== 'Verified' &&
         now - start > 12 * 60 * 60 * 1000 // 12 hours
       ) {
-        return { ...op, _frontendExpired: true };
+        return { ...leave, _frontendExpired: true };
       }
-      return op;
+      return leave;
     });
     // Today's first, then by start date/time ascending
     return enhanced.sort((a, b) => {
@@ -156,23 +156,23 @@ const SecurityDashboard = () => {
   };
 
   // Helper: get blinking dot
-  const getBlinkingDot = (op) => {
+  const getBlinkingDot = (leave) => {
     const now = new Date();
-    const start = new Date(op.startDate);
+    const start = new Date(leave.startDate);
     const diff = start - now;
     const diffPast = now - start;
     
-    // Don't show dots for verified passes
-    if (op.verificationStatus === 'Verified') return null;
+    // Don't show dots for verified leaves
+    if (leave.verificationStatus === 'Verified') return null;
     
     // Debug logging for timing
-    console.log(`Outpass ${op._id}:`, {
-      student: op.student?.name,
+    console.log(`Leave ${leave._id}:`, {
+      student: leave.student?.name,
       startTime: start.toLocaleString(),
       now: now.toLocaleString(),
       diffMinutes: Math.round(diff / (60 * 1000)),
       diffPastMinutes: Math.round(diffPast / (60 * 1000)),
-      status: op.verificationStatus
+      status: leave.verificationStatus
     });
     
     // Green dot: within 30 min of start time (urgent - student is about to leave)
@@ -185,7 +185,7 @@ const SecurityDashboard = () => {
       );
     }
     
-    // Red dot: overdue passes (any time past start and not verified)
+    // Red dot: overdue leaves (any time past start and not verified)
     if (diffPast > 0) {
       console.log(`  -> Showing RED dot (overdue - ${Math.round(diffPast / (60 * 1000))} min past start)`);
       return (
@@ -201,16 +201,16 @@ const SecurityDashboard = () => {
 
   // Section helpers
   const now = new Date();
-  const todayPasses = getSortedOutpasses().filter(op => {
-    const start = new Date(op.startDate);
-    return isToday(start) && (!op._frontendExpired && op.verificationStatus !== 'Expired');
+  const todayLeaves = getSortedLeaves().filter(leave => {
+    const start = new Date(leave.startDate);
+    return isToday(start) && (!leave._frontendExpired && leave.verificationStatus !== 'Expired');
   });
-  const upcomingPasses = getSortedOutpasses().filter(op => {
-    const start = new Date(op.startDate);
-    return start > now && (!op._frontendExpired && op.verificationStatus !== 'Expired');
+  const upcomingLeaves = getSortedLeaves().filter(leave => {
+    const start = new Date(leave.startDate);
+    return start > now && (!leave._frontendExpired && leave.verificationStatus !== 'Expired');
   });
-  const expiredPasses = getSortedOutpasses().filter(op => {
-    const start = new Date(op.startDate);
+  const expiredLeaves = getSortedLeaves().filter(leave => {
+    const start = new Date(leave.startDate);
     // Only include if start time is more than 24 hours ago
     return (now - start > 24 * 60 * 60 * 1000);
   }).sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
@@ -220,8 +220,8 @@ const SecurityDashboard = () => {
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         <SEO 
           title="Security Dashboard"
-          description="Security guard dashboard for outpass verification"
-          keywords="security dashboard, outpass verification, guard access"
+          description="Security guard dashboard for leave verification"
+          keywords="security dashboard, leave verification, guard access"
         />
 
         {/* Header */}
@@ -231,7 +231,7 @@ const SecurityDashboard = () => {
               <ShieldCheckIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-blue-900">Security Dashboard</h1>
-                <p className="text-sm sm:text-base text-gray-600">Manage approved outpass verifications</p>
+                <p className="text-sm sm:text-base text-gray-600">Manage approved leave verifications</p>
               </div>
             </div>
             
@@ -249,7 +249,7 @@ const SecurityDashboard = () => {
                 <option value="Expired">Expired</option>
               </select>
               
-              {/* Upcoming Passes Toggle */}
+              {/* Upcoming Leaves Toggle */}
               <button
                 onClick={() => setShowUpcomingPasses(!showUpcomingPasses)}
                 className={`px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 ${
@@ -266,48 +266,48 @@ const SecurityDashboard = () => {
           </div>
         </div>
 
-        {/* Outpass List */}
+        {/* Leave List */}
         <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
           {loading ? (
             <div className="p-4 sm:p-8 text-center">
               <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-sm sm:text-base text-gray-600">Loading outpass requests...</p>
+              <p className="mt-2 text-sm sm:text-base text-gray-600">Loading leave requests...</p>
             </div>
           ) : (
             <>
-              {/* Today's Passes */}
+              {/* Today's Leaves */}
               <SectionTable 
-                title="Today's Passes" 
-                passes={todayPasses} 
+                title="Today's Leaves" 
+                leaves={todayLeaves} 
                 getBlinkingDot={getBlinkingDot} 
-                isOutpassExpired={isOutpassExpired} 
+                isLeaveExpired={isLeaveExpired} 
                 getVerificationStatusColor={getVerificationStatusColor} 
                 getVerificationStatusIcon={getVerificationStatusIcon}
-                setSelectedOutpass={setSelectedOutpass}
+                setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
               />
-              {/* Upcoming Passes - Only show when toggled */}
+              {/* Upcoming Leaves - Only show when toggled */}
               {showUpcomingPasses && (
                 <SectionTable 
-                  title="Upcoming Passes" 
-                  passes={upcomingPasses} 
+                  title="Upcoming Leaves" 
+                  leaves={upcomingLeaves} 
                   getBlinkingDot={getBlinkingDot} 
-                  isOutpassExpired={isOutpassExpired} 
+                  isLeaveExpired={isLeaveExpired} 
                   getVerificationStatusColor={getVerificationStatusColor} 
                   getVerificationStatusIcon={getVerificationStatusIcon}
-                  setSelectedOutpass={setSelectedOutpass}
+                  setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                 />
               )}
               {/* Expired/Recent Requests */}
               <SectionTable 
                 title="Expired / Recent Requests" 
-                passes={expiredPasses} 
+                leaves={expiredLeaves} 
                 getBlinkingDot={getBlinkingDot} 
-                isOutpassExpired={isOutpassExpired} 
+                isLeaveExpired={isLeaveExpired} 
                 getVerificationStatusColor={getVerificationStatusColor} 
                 getVerificationStatusIcon={getVerificationStatusIcon}
-                setSelectedOutpass={setSelectedOutpass}
+                setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
               />
             </>
@@ -316,14 +316,14 @@ const SecurityDashboard = () => {
       </div>
 
       {/* Verification Modal */}
-      {showVerificationModal && selectedOutpass && (
+      {showVerificationModal && selectedLeave && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
           >
-            <h2 className="text-lg sm:text-xl font-semibold mb-4">Verify Outpass</h2>
+            <h2 className="text-lg sm:text-xl font-semibold mb-4">Verify Leave</h2>
             
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -340,12 +340,12 @@ const SecurityDashboard = () => {
             </div>
 
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-              <h3 className="font-medium text-gray-900 mb-2 text-sm">Outpass Details:</h3>
+              <h3 className="font-medium text-gray-900 mb-2 text-sm">Leave Details:</h3>
               <div className="space-y-1 text-xs sm:text-sm">
-                <p className="text-gray-600">Student: {selectedOutpass.student?.name}</p>
-                <p className="text-gray-600">Roll No: {selectedOutpass.student?.rollNumber}</p>
-                <p className="text-gray-600">Date: {new Date(selectedOutpass.startDate).toLocaleDateString()} - {new Date(selectedOutpass.endDate).toLocaleDateString()}</p>
-                <p className="text-gray-600">Reason: {selectedOutpass.reason}</p>
+                <p className="text-gray-600">Student: {selectedLeave.student?.name}</p>
+                <p className="text-gray-600">Roll No: {selectedLeave.student?.rollNumber}</p>
+                <p className="text-gray-600">Date: {new Date(selectedLeave.startDate).toLocaleDateString()} - {new Date(selectedLeave.endDate).toLocaleDateString()}</p>
+                <p className="text-gray-600">Reason: {selectedLeave.reason}</p>
               </div>
             </div>
 
@@ -376,18 +376,18 @@ const SecurityDashboard = () => {
 // SectionTable component
 const SectionTable = ({ 
   title, 
-  passes, 
+  leaves, 
   getBlinkingDot, 
-  isOutpassExpired, 
+  isLeaveExpired, 
   getVerificationStatusColor, 
   getVerificationStatusIcon,
-  setSelectedOutpass,
+  setSelectedLeave,
   setShowVerificationModal 
 }) => (
   <div className="mb-8">
     <h2 className="text-lg font-bold text-blue-800 mb-2 mt-6">{title}</h2>
-    {passes.length === 0 ? (
-      <div className="p-4 text-center text-gray-400">No passes in this section.</div>
+    {leaves.length === 0 ? (
+      <div className="p-4 text-center text-gray-400">No leaves in this section.</div>
     ) : (
       <div className="overflow-x-auto">
         {/* Desktop Table */}
@@ -405,9 +405,9 @@ const SectionTable = ({
         </div>
         {/* Desktop Table Body */}
         <div className="hidden md:block divide-y divide-gray-200" style={{ minWidth: '900px', tableLayout: 'fixed' }}>
-          {passes.map((outpass) => (
+          {leaves.map((leave) => (
             <motion.div
-              key={outpass._id}
+              key={leave._id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="p-3 sm:p-4 lg:p-6 hover:bg-gray-50 transition-colors"
@@ -418,15 +418,15 @@ const SectionTable = ({
                 <div className="col-span-3 max-w-xs truncate flex flex-col gap-1 justify-center">
                   <div className="flex items-center gap-2 mb-1">
                     <UserIcon className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium text-gray-900 text-sm truncate">{outpass.student?.name || 'N/A'}</span>
+                    <span className="font-medium text-gray-900 text-sm truncate">{leave.student?.name || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 truncate">
                     <AcademicCapIcon className="w-4 h-4" />
-                    <span className="truncate">{outpass.student?.rollNumber || 'N/A'}</span>
+                    <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 truncate">
                     <PhoneIcon className="w-4 h-4" />
-                    <span className="truncate">{outpass.parentPhone || 'N/A'}</span>
+                    <span className="truncate">{leave.parentPhone || 'N/A'}</span>
                   </div>
                 </div>
 
@@ -438,8 +438,8 @@ const SectionTable = ({
                       <span className="font-medium">From:</span>
                     </div>
                     <span className="font-bold text-base flex items-center">
-                      {getBlinkingDot(outpass)}
-                      {isNaN(new Date(outpass.startDate)) ? 'Invalid Date' : new Date(outpass.startDate).toLocaleDateString()} {isNaN(new Date(outpass.startDate)) ? '' : new Date(outpass.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {getBlinkingDot(leave)}
+                      {isNaN(new Date(leave.startDate)) ? 'Invalid Date' : new Date(leave.startDate).toLocaleDateString()} {isNaN(new Date(leave.startDate)) ? '' : new Date(leave.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                   <div className="text-xs text-gray-900 mt-1 truncate">
@@ -447,7 +447,7 @@ const SectionTable = ({
                       <CalendarIcon className="w-4 h-4 text-gray-500" />
                       <span className="font-medium">To:</span>
                     </div>
-                    <span>{isNaN(new Date(outpass.endDate)) ? 'Invalid Date' : new Date(outpass.endDate).toLocaleDateString()}</span>
+                    <span>{isNaN(new Date(leave.endDate)) ? 'Invalid Date' : new Date(leave.endDate).toLocaleDateString()}</span>
                   </div>
                 </div>
 
@@ -455,26 +455,26 @@ const SectionTable = ({
                 <div className="col-span-2 max-w-[120px] truncate flex flex-col gap-1 justify-center">
                   <div className="flex items-center gap-1">
                     <ClockIcon className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium text-xs">{outpass.numberOfDays} day{outpass.numberOfDays > 1 ? 's' : ''}</span>
+                    <span className="font-medium text-xs">{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1 truncate">
-                    Approved: {isNaN(new Date(outpass.approvedAt)) ? 'Invalid Date' : new Date(outpass.approvedAt).toLocaleDateString()}
+                    Approved: {isNaN(new Date(leave.approvedAt)) ? 'Invalid Date' : new Date(leave.approvedAt).toLocaleDateString()}
                   </div>
                 </div>
 
                 {/* Reason */}
                 <div className="col-span-2 max-w-xs truncate flex items-center">
-                  <p className="text-xs text-gray-700 truncate">{outpass.reason}</p>
+                  <p className="text-xs text-gray-700 truncate">{leave.reason}</p>
                 </div>
 
                 {/* Status */}
                 <div className="col-span-2 max-w-[120px] truncate flex flex-col gap-1 justify-center">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(outpass._frontendExpired ? 'Expired' : outpass.verificationStatus)}`}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
                     style={{ minWidth: '90px' }}>
-                    {getVerificationStatusIcon(outpass._frontendExpired ? 'Expired' : outpass.verificationStatus)}
-                    <span className="ml-1 truncate">{outpass._frontendExpired ? 'Expired' : outpass.verificationStatus}</span>
+                    {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                    <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                   </span>
-                  {isOutpassExpired(outpass) && !outpass._frontendExpired && (
+                  {isLeaveExpired(leave) && !leave._frontendExpired && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50 border border-red-200 mt-1 truncate">
                       <XCircleIcon className="w-3 h-3 mr-1" />
                       Expired
@@ -484,7 +484,7 @@ const SectionTable = ({
 
                 {/* Action */}
                 <div className="col-span-1 max-w-[80px] flex items-center justify-center">
-                  {outpass.verificationStatus === 'Verified' ? (
+                  {leave.verificationStatus === 'Verified' ? (
                     <div className="flex items-center gap-1 text-green-600 text-xs">
                       <CheckCircleIcon className="w-4 h-4" />
                       <span className="font-medium">Verified</span>
@@ -492,7 +492,7 @@ const SectionTable = ({
                   ) : (
                     <button
                       onClick={() => {
-                        setSelectedOutpass(outpass);
+                        setSelectedLeave(leave);
                         setShowVerificationModal(true);
                       }}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
@@ -508,53 +508,53 @@ const SectionTable = ({
         </div>
         {/* Mobile Card List */}
         <div className="md:hidden flex flex-col gap-4">
-          {passes.map((outpass) => (
+          {leaves.map((leave) => (
             <motion.div
-              key={outpass._id}
+              key={leave._id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-lg shadow p-4 flex flex-col gap-2 border border-gray-100"
             >
               <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-2">
-                  {getBlinkingDot(outpass)}
+                  {getBlinkingDot(leave)}
                   <span className="font-bold text-base">
-                    {isNaN(new Date(outpass.startDate)) ? 'Invalid Date' : new Date(outpass.startDate).toLocaleDateString()} {isNaN(new Date(outpass.startDate)) ? '' : new Date(outpass.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {isNaN(new Date(leave.startDate)) ? 'Invalid Date' : new Date(leave.startDate).toLocaleDateString()} {isNaN(new Date(leave.startDate)) ? '' : new Date(leave.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(outpass._frontendExpired ? 'Expired' : outpass.verificationStatus)}`}
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
                   style={{ minWidth: '70px' }}>
-                  {getVerificationStatusIcon(outpass._frontendExpired ? 'Expired' : outpass.verificationStatus)}
-                  <span className="ml-1 truncate">{outpass._frontendExpired ? 'Expired' : outpass.verificationStatus}</span>
+                  {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                  <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <UserIcon className="w-4 h-4 text-gray-500" />
-                <span className="font-medium">{outpass.student?.name || 'N/A'}</span>
+                <span className="font-medium">{leave.student?.name || 'N/A'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <AcademicCapIcon className="w-4 h-4" />
-                <span>{outpass.student?.rollNumber || 'N/A'}</span>
+                <span>{leave.student?.rollNumber || 'N/A'}</span>
                 <PhoneIcon className="w-4 h-4 ml-2" />
-                <span>{outpass.parentPhone || 'N/A'}</span>
+                <span>{leave.parentPhone || 'N/A'}</span>
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <CalendarIcon className="w-4 h-4" />
-                <span>To: {isNaN(new Date(outpass.endDate)) ? 'Invalid Date' : new Date(outpass.endDate).toLocaleDateString()}</span>
+                <span>To: {isNaN(new Date(leave.endDate)) ? 'Invalid Date' : new Date(leave.endDate).toLocaleDateString()}</span>
                 <ClockIcon className="w-4 h-4 ml-2" />
-                <span>{outpass.numberOfDays} day{outpass.numberOfDays > 1 ? 's' : ''}</span>
+                <span>{leave.numberOfDays} day{leave.numberOfDays > 1 ? 's' : ''}</span>
               </div>
-              <div className="text-xs text-gray-700"><span className="font-medium">Reason:</span> {outpass.reason}</div>
+              <div className="text-xs text-gray-700"><span className="font-medium">Reason:</span> {leave.reason}</div>
               <div className="flex justify-end mt-2">
-                {outpass.verificationStatus === 'Verified' || outpass._frontendExpired ? (
+                {leave.verificationStatus === 'Verified' || leave._frontendExpired ? (
                   <div className="flex items-center gap-1 text-green-600 text-xs">
                     <CheckCircleIcon className="w-4 h-4" />
-                    <span className="font-medium">{outpass._frontendExpired ? 'Expired' : 'Verified'}</span>
+                    <span className="font-medium">{leave._frontendExpired ? 'Expired' : 'Verified'}</span>
                   </div>
                 ) : (
                   <button
                     onClick={() => {
-                      setSelectedOutpass(outpass);
+                      setSelectedLeave(leave);
                       setShowVerificationModal(true);
                     }}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
