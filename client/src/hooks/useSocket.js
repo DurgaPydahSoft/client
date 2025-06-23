@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'https://hostel-complaint-backend.onrender.com';
+const SOCKET_URL = import.meta.env.VITE_API_URL;
 
 export const useSocket = (token) => {
   const socketRef = useRef(null);
