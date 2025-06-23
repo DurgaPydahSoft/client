@@ -1,61 +1,99 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import notificationManager from '../utils/notificationManager';
+import { toast } from 'react-hot-toast';
 
 const PushNotificationInitializer = () => {
   const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(null);
 
   useEffect(() => {
+    if (!user || isInitialized) {
+      return;
+    }
+
     const initializeNotifications = async () => {
       try {
-        // Only initialize for authenticated users
-        if (!user) {
-          console.log('🔔 PushNotificationInitializer: User not authenticated, skipping initialization');
+        console.log('🔔 PushNotificationInitializer: Setting up for user:', user._id);
+        
+        // Wait for OneSignal to be available (already initialized in HTML)
+        let attempts = 0;
+        const maxAttempts = 50; // Wait up to 5 seconds
+        
+        while (typeof OneSignal === 'undefined' && attempts < maxAttempts) {
+          console.log('🔔 PushNotificationInitializer: Waiting for OneSignal...', attempts + 1);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+
+        if (typeof OneSignal === 'undefined') {
+          console.log('🔔 PushNotificationInitializer: OneSignal not available, using database notifications only.');
+          setIsInitialized(true);
           return;
         }
 
-        console.log('🔔 PushNotificationInitializer: Starting initialization for user:', user.name);
+        // OneSignal is already initialized in HTML, just set up user and listeners
+        console.log('🔔 PushNotificationInitializer: OneSignal available, setting up user and listeners...');
         
-        // Initialize the hybrid notification manager
-        const initStatus = await notificationManager.initialize(user);
-        setStatus(initStatus);
-        
-        if (initStatus.oneSignal || initStatus.legacy || initStatus.socket) {
-          console.log('🔔 PushNotificationInitializer: Notification systems initialized successfully');
-          setIsInitialized(true);
-          
-          // Set up notification click handler
-          notificationManager.setupNotificationClickHandler((event) => {
+        // Set user ID for OneSignal
+        try {
+          await OneSignal.login(user._id);
+          console.log('🔔 PushNotificationInitializer: User ID set for OneSignal');
+        } catch (error) {
+          console.warn('🔔 PushNotificationInitializer: Could not set user ID:', error);
+        }
+
+        // Check for permission and subscribe if needed
+        try {
+          const permission = await OneSignal.Notifications.permission;
+          if (permission !== 'granted') {
+            console.log('🔔 PushNotificationInitializer: Requesting notification permission...');
+            await OneSignal.Notifications.requestPermission();
+          }
+        } catch (error) {
+          console.warn('🔔 PushNotificationInitializer: Could not request permission:', error);
+        }
+
+        // Set up notification listeners
+        try {
+          OneSignal.Notifications.addEventListener('click', (event) => {
             console.log('🔔 Notification clicked:', event);
-            // Handle notification clicks here
-            // You can navigate to specific pages based on notification type
-            if (event.data?.url) {
-              window.location.href = event.data.url;
+            const url = event.notification?.additionalData?.url;
+            if (url) {
+              window.location.href = url;
             }
           });
-        } else {
-          console.warn('🔔 PushNotificationInitializer: No notification systems were initialized');
-          setError('No notification systems available');
+
+          OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event) => {
+            console.log('🔔 Foreground notification received:', event);
+            toast.success(event.notification.title, {
+              id: event.notification.rawPayload.custom.i,
+            });
+            window.dispatchEvent(new CustomEvent('refresh-notifications'));
+          });
+
+          console.log('🔔 PushNotificationInitializer: Notification listeners set up successfully');
+        } catch (error) {
+          console.warn('🔔 PushNotificationInitializer: Could not set up listeners:', error);
         }
+
+        setIsInitialized(true);
+        console.log('🔔 PushNotificationInitializer: Setup completed successfully');
+
       } catch (error) {
-        console.error('🔔 PushNotificationInitializer: Error initializing notifications:', error);
-        setError(error.message);
+        console.error('🔔 PushNotificationInitializer: Error setting up notifications:', error);
+        console.log('🔔 PushNotificationInitializer: Using database notifications only.');
+        setIsInitialized(true);
       }
     };
 
-    initializeNotifications();
+    // Delay initialization slightly to ensure OneSignal is ready
+    const timer = setTimeout(initializeNotifications, 1000);
+    return () => clearTimeout(timer);
 
-    // Cleanup function
-    return () => {
-      notificationManager.cleanup();
-    };
-  }, [user]);
+  }, [user, isInitialized]);
 
-  // Don't render anything - this is a background component
-  return null;
+  return null; // This component does not render anything
 };
 
 export default PushNotificationInitializer; 

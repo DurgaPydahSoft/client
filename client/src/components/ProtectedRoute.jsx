@@ -36,13 +36,17 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If role is specified and user's role doesn't match
-  if (role && user?.role !== role) {
-    // Special handling for admin routes - allow 'admin', 'super_admin', and 'sub_admin'
-    if (role === 'admin' && (user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin')) {
-      console.log('🛡️ Admin access granted for role:', user?.role);
-    } else {
-      console.log(`🛡️ Role mismatch: required ${role}, got ${user?.role}, redirecting to login`);
+  // If role is specified, check if the user's role is permitted
+  if (role) {
+    const isPermitted = () => {
+      if (role === 'admin') {
+        return ['admin', 'super_admin', 'sub_admin'].includes(user?.role);
+      }
+      return user?.role === role;
+    };
+
+    if (!isPermitted()) {
+      console.log(`🛡️ Role mismatch: required ${role} permission, but user has role ${user?.role}. Redirecting to login.`);
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }

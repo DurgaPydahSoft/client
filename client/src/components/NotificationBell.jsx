@@ -11,7 +11,7 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [showPermissionBanner, setShowPermissionBanner] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState(null);
@@ -21,10 +21,11 @@ const NotificationBell = () => {
 
   const fetchNotifications = async () => {
     try {
+      setIsLoading(true);
       console.log('🔔 NotificationBell: Fetching notifications for role:', isAdmin ? 'admin' : 'student');
       const [notificationsRes, countRes] = await Promise.all([
         api.get(isAdmin ? '/api/notifications/admin/unread' : '/api/notifications/unread'),
-        api.get(isAdmin ? '/api/notifications/admin/unread-count' : '/api/notifications/count')
+        api.get(isAdmin ? '/api/notifications/admin/count' : '/api/notifications/count')
       ]);
 
       console.log('🔔 NotificationBell: Responses:', { notificationsRes: notificationsRes.data, countRes: countRes.data });
@@ -50,6 +51,8 @@ const NotificationBell = () => {
       setNotifications([]);
       setUnreadCount(0);
       setHasNewNotification(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -78,7 +81,8 @@ const NotificationBell = () => {
 
   const handleMarkAsRead = async (notificationId) => {
     try {
-      await api.patch(`/api/notifications/${notificationId}/read`);
+      const route = isAdmin ? `/api/notifications/admin/${notificationId}/read` : `/api/notifications/${notificationId}/read`;
+      await api.patch(route);
       fetchNotifications();
       toast.success('Notification marked as read');
     } catch (err) {
@@ -89,7 +93,8 @@ const NotificationBell = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      await api.patch('/api/notifications/read-all');
+      const route = isAdmin ? '/api/notifications/admin/read-all' : '/api/notifications/read-all';
+      await api.patch(route);
       setNotifications([]);
       setUnreadCount(0);
       setHasNewNotification(false);
@@ -130,6 +135,34 @@ const NotificationBell = () => {
     } catch (error) {
       console.error('Error sending test notification:', error);
       toast.error('Failed to send test notification');
+    }
+  };
+
+  const formatNotificationTime = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'complaint':
+        return '📝';
+      case 'announcement':
+        return '📢';
+      case 'poll':
+        return '📊';
+      case 'leave':
+        return '🏠';
+      case 'system':
+        return '🔔';
+      default:
+        return '📌';
     }
   };
 
@@ -237,21 +270,16 @@ const NotificationBell = () => {
                         className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                         onClick={() => handleMarkAsRead(notification._id)}
                       >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-gray-900">
-                              {notification.title}
-                            </h4>
-                            <p className="text-xs text-gray-600 mt-1">
+                        <div className="flex items-start gap-3">
+                          <span className="text-lg">{getNotificationIcon(notification.type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              {new Date(notification.createdAt).toLocaleString()}
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatNotificationTime(notification.createdAt)}
                             </p>
                           </div>
-                          {!notification.isRead && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
-                          )}
                         </div>
                       </div>
                     ))}

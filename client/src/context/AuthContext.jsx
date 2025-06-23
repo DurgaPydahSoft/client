@@ -24,112 +24,59 @@ export const AuthProvider = ({ children }) => {
   // Validate token on mount and token change
   useEffect(() => {
     const validateToken = async () => {
-      console.log('🔍 Token validation useEffect triggered');
-      console.log('🔍 Current token:', token ? 'exists' : 'null');
-      console.log('🔍 Skip validation flag:', skipValidation);
-      console.log('🔍 Loading state:', loading);
-      console.log('🔍 Current user state:', user);
-      
       if (!token) {
-        console.log('🔍 No token, setting loading to false and user to null');
         setLoading(false);
         setUser(null);
         return;
       }
 
-      // Skip validation if we just logged in
+      // This flag was causing the validation to be skipped on fresh logins.
+      // We will now validate every time the token is set.
       if (skipValidation) {
-        console.log('🔍 Skipping token validation after login');
         setSkipValidation(false);
-        setLoading(false);
-        return;
-      }
-
-      // Additional check: if we have valid user data in localStorage and no current user, 
-      // it might be a fresh login, so skip validation
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const userRole = localStorage.getItem('userRole');
-      
-      console.log('🔍 Stored user from localStorage:', storedUser);
-      console.log('🔍 Stored userRole from localStorage:', userRole);
-      
-      if (storedUser && storedUser.id && !user && (userRole === 'admin' || storedUser.role === 'admin' || storedUser.role === 'super_admin' || storedUser.role === 'sub_admin')) {
-        console.log('🔍 Fresh admin login detected, setting user from localStorage');
-        setUser(storedUser);
-        setLoading(false);
-        return;
       }
 
       try {
         console.log('🔍 Starting token validation...');
-        
-        console.log('🔍 Stored user role:', userRole);
-        console.log('🔍 Stored user data:', storedUser);
-        console.log('🔍 Current user state:', user);
+        const userRole = localStorage.getItem('userRole');
         
         let res;
-        if (userRole === 'admin' || storedUser.role === 'admin' || storedUser.role === 'super_admin' || storedUser.role === 'sub_admin') {
+        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin') {
           console.log('🔍 Validating admin token...');
-          try {
-            res = await api.get('/api/admin-management/validate');
-            console.log('🔍 Admin validation successful:', res.data);
-          } catch (adminError) {
-            console.error('🔍 Admin validation failed:', adminError.response?.data);
-            console.error('🔍 Admin validation error status:', adminError.response?.status);
-            throw adminError;
-          }
+          res = await api.get('/api/admin-management/validate');
         } else {
           console.log('🔍 Validating student token...');
-          try {
-            res = await api.get('/api/auth/validate');
-            console.log('🔍 Student validation successful:', res.data);
-          } catch (studentError) {
-            console.error('🔍 Student validation failed:', studentError.response?.data);
-            throw studentError;
-          }
+          res = await api.get('/api/auth/validate');
         }
         
-        console.log('🔍 Validation response:', res.data);
-        
         if (res.data.success && res.data.data?.user) {
-          console.log('🔍 Token validation successful:', res.data.data.user);
-          setUser(res.data.data.user);
+          const freshUser = res.data.data.user;
+          console.log('🔍 Token validation successful:', freshUser);
+          setUser(freshUser);
           
-          // Update stored user data if needed
-          if (JSON.stringify(storedUser) !== JSON.stringify(res.data.data.user)) {
-            localStorage.setItem('user', JSON.stringify(res.data.data.user));
-          }
+          // Update local storage to match validated data
+          localStorage.setItem('user', JSON.stringify(freshUser));
+          localStorage.setItem('userRole', freshUser.role);
         } else {
-          console.error('🔍 Invalid token validation response:', res.data);
           throw new Error('Invalid token validation response');
         }
       } catch (error) {
-        console.error('🔍 Token validation failed:', error);
-        console.error('🔍 Error details:', error.response?.data);
-        console.error('🔍 Error status:', error.response?.status);
-        console.error('🔍 Error message:', error.message);
+        console.error('🔍 Token validation failed:', error.response?.data || error.message);
         
         // Clear invalid token and user data
-        console.log('🔍 Clearing token and user data due to validation failure');
         setToken(null);
         setUser(null);
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('userRole');
         
-        // Only redirect if we're not already on the login page
-        if (!window.location.pathname.includes('/login')) {
-          console.log('🔍 Redirecting to login page');
-          window.location.replace('/login');
-        }
       } finally {
-        console.log('🔍 Setting loading to false');
         setLoading(false);
       }
     };
 
     validateToken();
-  }, [token, skipValidation]);
+  }, [token]); // Removed skipValidation dependency
 
   // Listen for real-time notifications
   useEffect(() => {

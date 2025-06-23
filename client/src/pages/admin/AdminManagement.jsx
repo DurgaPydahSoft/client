@@ -91,7 +91,21 @@ const AdminManagement = () => {
   const handleEditAdmin = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/api/admin-management/sub-admins/${selectedAdmin._id}`, formData);
+      console.log('🔧 Frontend: Sending update data:', formData);
+      
+      // Only send password if it's not empty
+      const updateData = {
+        username: formData.username,
+        permissions: formData.permissions
+      };
+      
+      if (formData.password.trim()) {
+        updateData.password = formData.password;
+      }
+      
+      console.log('🔧 Frontend: Final update data:', updateData);
+      
+      const response = await api.put(`/api/admin-management/sub-admins/${selectedAdmin._id}`, updateData);
       if (response.data.success) {
         toast.success('Sub-admin updated successfully');
         setShowEditModal(false);
@@ -100,6 +114,7 @@ const AdminManagement = () => {
         fetchSubAdmins();
       }
     } catch (error) {
+      console.error('🔧 Frontend: Error updating sub-admin:', error);
       toast.error(error.response?.data?.message || 'Failed to update sub-admin');
     }
   };

@@ -257,12 +257,17 @@ const RoomManagement = () => {
       }
       setBillForm(prev => ({ ...prev, rate: defaultRate }));
 
-      const response = await api.get(
-        `/api/admin/rooms/${room._id}/electricity-bills`
+      const billsResponse = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${room._id}/electricity-bill`,
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
       );
 
-      if (response.data.success) {
-        setBillHistory(response.data.data);
+      if (billsResponse.data.success) {
+        setBillHistory(billsResponse.data.data);
       }
     } catch (error) {
       console.error('Error fetching bill history:', error);
@@ -376,7 +381,7 @@ const RoomManagement = () => {
   const handleBillConfirm = async () => {
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bills`,
+        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
         {
           month: billPreview.month,
           startUnits: billPreview.startUnits,
@@ -394,7 +399,7 @@ const RoomManagement = () => {
       if (response.data.success) {
         // Refresh bill history
         const billsResponse = await axios.get(
-          `/api/admin/rooms/${selectedRoom._id}/electricity-bills`,
+          `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -503,7 +508,7 @@ const RoomManagement = () => {
       };
       
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/rooms/${selectedRoom._id}/electricity-bill`,
+        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
         payload,
         {
           headers: {
@@ -516,7 +521,7 @@ const RoomManagement = () => {
       if (response.data.success) {
         // Refresh bill history
         const billsResponse = await axios.get(
-          `/api/admin/rooms/${selectedRoom._id}/electricity-bills`,
+          `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -567,7 +572,12 @@ const RoomManagement = () => {
         }))
       };
 
-      await api.post('/api/admin/rooms/bulk-electricity-bills', payload);
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/rooms/bulk-electricity-bills`, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
       toast.success(`${billsToSave.length} bills saved successfully!`);
       
       // Refetch rooms to update last bill info

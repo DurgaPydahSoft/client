@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneSignal Environment Test</title>
+</head>
+<body>
+    <h1>🔔 OneSignal Environment Test</h1>
+    <div id="status">Testing OneSignal environment detection...</div>
+    
+    <!-- OneSignal SDK v16 - Environment-Aware Setup -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      // Register OneSignal Service Worker first
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/OneSignalSDKWorker.js')
+            .then(function(registration) {
+              console.log('🔔 OneSignal Service Worker registered successfully:', registration);
+              document.getElementById('status').innerHTML += '<br>✅ Service Worker registered successfully';
+            })
+            .catch(function(error) {
+              console.error('🔔 OneSignal Service Worker registration failed:', error);
+              document.getElementById('status').innerHTML += '<br>❌ Service Worker registration failed: ' + error.message;
+            });
+        });
+      }
+
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(function(OneSignal) {
+        console.log('🔔 OneSignal SDK v16 loading...');
+        
+        // Environment-aware configuration
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isHttps = window.location.protocol === 'https:';
+        
+        console.log('🔔 Environment check:', {
+          hostname: window.location.hostname,
+          protocol: window.location.protocol,
+          isDevelopment: isDevelopment,
+          isHttps: isHttps
+        });
+        
+        document.getElementById('status').innerHTML = `
+          <strong>Environment Detection:</strong><br>
+          Hostname: ${window.location.hostname}<br>
+          Protocol: ${window.location.protocol}<br>
+          Development: ${isDevelopment}<br>
+          HTTPS: ${isHttps}<br>
+          <br>
+          <strong>OneSignal Status:</strong> Initializing...
+        `;
+        
+        const config = {
+          appId: "7a3290a8-d6a8-4e09-903f-c4a0f251ca01",
+          safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
+          notifyButton: {
+            enable: true,
+          },
+        };
+        
+        // Add development-specific options
+        if (isDevelopment) {
+          config.allowLocalhostAsSecureOrigin = true;
+          console.log('🔔 Development mode: Added localhost support');
+        }
+        
+        OneSignal.init(config);
+        console.log('🔔 OneSignal SDK v16 initialized successfully');
+        
+        document.getElementById('status').innerHTML += '<br>✅ OneSignal initialized successfully';
+        
+        // Make OneSignal available globally
+        window.OneSignal = OneSignal;
+      });
+    </script>
+</body>
+</html> 

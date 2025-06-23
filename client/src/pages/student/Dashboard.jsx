@@ -24,7 +24,6 @@ import Polls from './Polls';
 import Profile from './Profile';
 import NotificationBell from '../../components/NotificationBell';
 import PollPopup from '../../components/PollPopup';
-import { canReenableNotifications } from '../../utils/pushNotifications';
 import SEO from '../../components/SEO';
 import Leave from './Leave';
 

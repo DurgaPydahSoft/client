@@ -5,6 +5,67 @@
     <link rel="icon" type="image/svg+xml" href="./PYDAHSOFT LOGO.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- OneSignal SDK v16 - Environment-Aware Setup -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      // Register OneSignal Service Worker with better error handling
+      if ('serviceWorker' in navigator) {
+        // Wait for the page to be fully loaded
+        window.addEventListener('load', async function() {
+          try {
+            console.log('🔔 Registering OneSignal Service Worker...');
+            const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', {
+              scope: '/'
+            });
+            console.log('🔔 OneSignal Service Worker registered successfully:', registration);
+            
+            // Wait for the service worker to be ready
+            await navigator.serviceWorker.ready;
+            console.log('🔔 OneSignal Service Worker is ready');
+            
+          } catch (error) {
+            console.error('🔔 OneSignal Service Worker registration failed:', error);
+          }
+        });
+      }
+
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(function(OneSignal) {
+        console.log('🔔 OneSignal SDK v16 loading...');
+        
+        // Environment-aware configuration
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isHttps = window.location.protocol === 'https:';
+        
+        console.log('🔔 Environment check:', {
+          hostname: window.location.hostname,
+          protocol: window.location.protocol,
+          isDevelopment: isDevelopment,
+          isHttps: isHttps
+        });
+        
+        const config = {
+          appId: "7a3290a8-d6a8-4e09-903f-c4a0f251ca01",
+          safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
+          notifyButton: {
+            enable: true,
+          },
+        };
+        
+        // Add development-specific options
+        if (isDevelopment) {
+          config.allowLocalhostAsSecureOrigin = true;
+          console.log('🔔 Development mode: Added localhost support');
+        }
+        
+        OneSignal.init(config);
+        console.log('🔔 OneSignal SDK v16 initialized successfully');
+        
+        // Make OneSignal available globally for our notification manager
+        window.OneSignal = OneSignal;
+      });
+    </script>
+    
     <!-- Primary Meta Tags -->
     <title>Pydah Hostel Complaint Management System | Hostel Portal</title>
     <meta name="title" content="Pydah Hostel Complaint Management System | Online Hostel Grievance Portal">
