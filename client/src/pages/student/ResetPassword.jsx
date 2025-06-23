@@ -10,7 +10,7 @@ const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, token: currentToken, setRequiresPasswordChange } = useAuth();
+  const { user, updateUser, setRequiresPasswordChange } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -29,13 +29,14 @@ const ResetPassword = () => {
       if (res.data.success) {
         const { token: newToken, student } = res.data.data;
         
-        // Update localStorage
+        // Update localStorage and AuthContext
         localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify({
+        const updatedUser = {
           ...user,
           ...student,
           isPasswordChanged: true
-        }));
+        };
+        updateUser(updatedUser);
 
         // Update auth context
         setRequiresPasswordChange(false);

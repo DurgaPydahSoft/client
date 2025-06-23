@@ -6,14 +6,13 @@ import ProtectedSection from './components/ProtectedSection';
 import LoadingSpinner from './components/LoadingSpinner';
 import React from 'react';
 import MemberManagement from './pages/admin/MemberManagement';
-import { subscribeToPushNotifications, checkNotificationSupport, registerServiceWorker, requestNotificationPermission } from './utils/pushNotifications';
 import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
-import { connectSocket, disconnectSocket } from './utils/socket';
 import RouteLoading from './components/RouteLoading';
 import LeaveQRDetails from './pages/student/LeaveQRDetails';
 import SecurityDashboard from './pages/security/SecurityDashboard';
 import AdminManagement from './pages/admin/AdminManagement';
+import PushNotificationInitializer from './components/PushNotificationInitializer';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -80,59 +79,6 @@ const ErrorBoundary = ({ children }) => {
   }
 
   return children;
-};
-
-// Create a separate component for push notification initialization
-const PushNotificationInitializer = () => {
-  const { isAuthenticated, user } = useAuth();
-  const [initialized, setInitialized] = useState(false);
-
-  useEffect(() => {
-    console.log('PushNotificationInitializer - Auth State:', {
-      isAuthenticated,
-      user: user ? 'User data present' : 'No user data',
-      initialized
-    });
-
-    const initializeNotifications = async () => {
-      if (!isAuthenticated || !user || initialized) {
-        console.log('PushNotificationInitializer - Waiting for auth:', {
-          isAuthenticated,
-          hasUser: !!user,
-          initialized
-        });
-        return;
-      }
-
-      console.log('PushNotificationInitializer - Starting initialization for user:', user.name);
-      
-      // Connect socket first
-      connectSocket();
-
-        try {
-        const registration = await registerServiceWorker();
-        if (registration) {
-          const hasPermission = await requestNotificationPermission();
-          if (hasPermission) {
-            await subscribeToPushNotifications(registration);
-          }
-          }
-        } catch (error) {
-        console.error('PushNotificationInitializer - Error:', error);
-      } finally {
-        setInitialized(true);
-      }
-    };
-
-    initializeNotifications();
-
-    // Cleanup function
-    return () => {
-      disconnectSocket();
-    };
-  }, [isAuthenticated, user, initialized]);
-
-  return null;
 };
 
 function App() {

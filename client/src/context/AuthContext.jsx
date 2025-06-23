@@ -191,24 +191,25 @@ export const AuthProvider = ({ children }) => {
         if (response.data.success) {
           const { token: newToken, student: studentUser, requiresPasswordChange } = response.data.data;
           
-          // Check if password change is required
-          if (requiresPasswordChange) {
-            return { requiresPasswordChange: true, user: studentUser };
-          }
-          
-          // Store student data
+          // Always set the token and user data to establish a session
           localStorage.setItem('token', newToken);
           localStorage.setItem('user', JSON.stringify(studentUser));
           localStorage.setItem('userRole', 'student');
           
-          // Set skip validation BEFORE setting token to prevent immediate validation
           setSkipValidation(true);
-          
           setToken(newToken);
           setUser(studentUser);
           api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
           
-          return { success: true, user: studentUser };
+          // Set the password change requirement state
+          setRequiresPasswordChange(requiresPasswordChange);
+
+          // Return a consistent success object
+          return { 
+            success: true, 
+            user: studentUser, 
+            requiresPasswordChange: requiresPasswordChange 
+          };
         } else {
           throw new Error(response.data.message || 'Login failed');
         }
@@ -270,6 +271,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isStudent,
     requiresPasswordChange,
+    setRequiresPasswordChange,
     isAuthenticated: !!token && !!user
   };
 

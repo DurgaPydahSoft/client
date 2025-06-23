@@ -1,0 +1,27 @@
+MY Upcoming tasks --->
+
+
+1)Implement a preview feature for the electricity bill module to verify and confirm updates before final submission.
+
+2)Design and develop a bulk electricity billing management system for room-wise billing, presented in a tabular format to facilitate easier updates.
+
+3)Modify the gate pass functionality to support application for permission requests or leave approvals.
+
+4)Enhance batch update capabilities to include an option for renewal of batches for the next academic year, with corresponding updates to the registration logic.
+
+5)Update the admin dashboard to accommodate changes related to batch renewal and registration processes.
+
+6)Integrate email notifications at each stage of the process, including sending credentials (which are to be non-randomized and compliant), status tracking, and broadcasting new announcements.
+
+*** -- notifications very important update
+
+
+7)Revise the bulk registration logic to improve efficiency and compliance across the registration workflow.
+
+8)Enable profile picture updates for students, including guardian photos, along with password reset functionalities.
+
+9)Extend the security dashboard to include a search feature by roll number, displaying comprehensive student details along with associated images.
+
+10)Add menu options in the student dashboard for better navigation and user experience.
+
+11)Introduce a new section in the hostel management module to add and manage breakfast and daytime meal menus, with optional item quantity counts for the entire day.

@@ -4,7 +4,7 @@ import { BellIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/axios';
 import { toast } from 'react-hot-toast';
-import { requestNotificationPermission, getBrowserInstructions } from '../utils/pushNotifications';
+import notificationManager from '../utils/notificationManager';
 import NotificationPermission from './NotificationPermission';
 
 const NotificationBell = () => {
@@ -14,6 +14,7 @@ const NotificationBell = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [showPermissionBanner, setShowPermissionBanner] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState(null);
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
@@ -56,6 +57,11 @@ const NotificationBell = () => {
     fetchNotifications();
     const handler = () => fetchNotifications();
     window.addEventListener('refresh-notifications', handler);
+    
+    // Get notification system status
+    const status = notificationManager.getStatus();
+    setNotificationStatus(status);
+    
     return () => window.removeEventListener('refresh-notifications', handler);
   }, []);
 
@@ -96,41 +102,34 @@ const NotificationBell = () => {
 
   const handleEnableNotifications = async () => {
     try {
-      const granted = await requestNotificationPermission();
-      if (granted) {
+      const results = await notificationManager.requestPermission();
+      
+      if (results.oneSignal || results.legacy) {
         toast.success('Notifications enabled successfully!');
         setShowPermissionBanner(false);
+        
+        // Update status
+        setNotificationStatus(notificationManager.getStatus());
       } else {
-        const instructions = getBrowserInstructions();
-        toast.error(
-          <div>
-            <p className="font-bold">{instructions.title}</p>
-            <ol className="list-decimal list-inside mt-2">
-              {instructions.steps.map((step, index) => (
-                <li key={index}>{step}</li>
-              ))}
-            </ol>
-          </div>,
-          { duration: 10000 }
-        );
+        toast.error('Please enable notifications in your browser settings');
       }
     } catch (error) {
-      if (error.message === 'PERMISSION_DENIED') {
-        const instructions = getBrowserInstructions();
-        toast.error(
-          <div>
-            <p className="font-bold">{instructions.title}</p>
-            <ol className="list-decimal list-inside mt-2">
-              {instructions.steps.map((step, index) => (
-                <li key={index}>{step}</li>
-              ))}
-            </ol>
-          </div>,
-          { duration: 10000 }
-        );
+      console.error('Error enabling notifications:', error);
+      toast.error('Failed to enable notifications. Please try again.');
+    }
+  };
+
+  const handleTestNotification = async () => {
+    try {
+      const sent = await notificationManager.sendTestNotification();
+      if (sent) {
+        toast.success('Test notification sent successfully!');
       } else {
-        toast.error('Failed to enable notifications. Please try again.');
+        toast.error('Failed to send test notification');
       }
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+      toast.error('Failed to send test notification');
     }
   };
 
@@ -186,6 +185,26 @@ const NotificationBell = () => {
                   )}
                 </div>
                 
+                {/* Notification System Status */}
+                {notificationStatus && (
+                  <div className="mb-3 p-2 bg-gray-50 rounded text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">System Status:</span>
+                      <div className="flex gap-2">
+                        {notificationStatus.oneSignal && (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded">OneSignal</span>
+                        )}
+                        {notificationStatus.legacy && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Legacy</span>
+                        )}
+                        {notificationStatus.socket && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Socket</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {isLoading ? (
                   <div className="flex justify-center items-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
@@ -193,31 +212,46 @@ const NotificationBell = () => {
                 ) : notifications.length === 0 ? (
                   <div className="text-center py-4">
                     <p className="text-gray-500 mb-4">No new notifications</p>
-                    <button
-                      onClick={handleEnableNotifications}
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Enable Notifications
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleEnableNotifications}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Enable Notifications
+                      </button>
+                      {notificationStatus?.oneSignal && (
+                        <button
+                          onClick={handleTestNotification}
+                          className="block w-full text-sm text-green-600 hover:text-green-800"
+                        >
+                          Send Test Notification
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
                     {notifications.map((notification) => (
                       <div
                         key={notification._id}
-                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        onClick={() => handleMarkAsRead(notification._id)}
                       >
-                        <p className="text-sm text-gray-700">{notification.message}</p>
-                        <div className="mt-2 flex justify-between items-center">
-                          <span className="text-xs text-gray-500">
-                            {new Date(notification.createdAt).toLocaleString()}
-                          </span>
-                          <button
-                            onClick={() => handleMarkAsRead(notification._id)}
-                            className="text-xs text-blue-600 hover:text-blue-800"
-                          >
-                            Mark as read
-                          </button>
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-gray-900">
+                              {notification.title}
+                            </h4>
+                            <p className="text-xs text-gray-600 mt-1">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {new Date(notification.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                          )}
                         </div>
                       </div>
                     ))}

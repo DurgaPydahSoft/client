@@ -58,7 +58,8 @@ const initialForm = {
   roomNumber: '',
   studentPhone: '',
   parentPhone: '',
-  batch: ''
+  batch: '',
+  academicYear: ''
 };
 
 // Add BATCHES constant after other constants
@@ -104,6 +105,17 @@ const generateBatches = (course) => {
   return batches;
 };
 
+const generateAcademicYears = () => {
+  const startYear = 2022;
+  const years = [];
+  for (let i = 0; i < 10; i++) {
+    const academicStart = startYear + i;
+    const academicEnd = academicStart + 1;
+    years.push(`${academicStart}-${academicEnd}`);
+  }
+  return years;
+};
+
 const Students = () => {
   const [tab, setTab] = useState('add');
   const [form, setForm] = useState(initialForm);
@@ -124,7 +136,8 @@ const Students = () => {
     gender: '',
     category: '',
     roomNumber: '',
-    batch: ''
+    batch: '',
+    academicYear: ''
   });
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,8 +150,14 @@ const Students = () => {
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const [bulkPreview, setBulkPreview] = useState(null);
+  const [showBulkPreview, setShowBulkPreview] = useState(false);
+  const [editablePreviewData, setEditablePreviewData] = useState([]);
+  const [previewErrors, setPreviewErrors] = useState([]);
+  const [editingRow, setEditingRow] = useState(null);
   const [tempStudentsSummary, setTempStudentsSummary] = useState([]);
   const [loadingTempSummary, setLoadingTempSummary] = useState(false);
+  const [renewalModalOpen, setRenewalModalOpen] = useState(false);
 
   // Debounce search term
   useEffect(() => {
@@ -164,7 +183,7 @@ const Students = () => {
     if (tab === 'list') {
       fetchStudents(false); // Subsequent fetches don't use main setLoading
     }
-  }, [currentPage, filters.course, filters.branch, filters.roomNumber, filters.batch, debouncedSearchTerm]);
+  }, [currentPage, filters.course, filters.branch, filters.roomNumber, filters.batch, filters.academicYear, debouncedSearchTerm]);
 
   const fetchTempStudentsSummary = async () => {
     setLoadingTempSummary(true);
@@ -203,6 +222,7 @@ const Students = () => {
       if (filters.category) params.append('category', filters.category);
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
       if (filters.batch) params.append('batch', filters.batch);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
 
       console.log('Filter params:', Object.fromEntries(params)); // Debug log
 
@@ -234,7 +254,7 @@ const Students = () => {
     if (tab === 'list') {
       fetchStudents(false);
     }
-  }, [currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, debouncedSearchTerm, fetchStudents]);
+  }, [currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, debouncedSearchTerm, fetchStudents]);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
@@ -304,7 +324,8 @@ const Students = () => {
       roomNumber: student.roomNumber,
       studentPhone: student.studentPhone,
       parentPhone: student.parentPhone,
-      batch: student.batch
+      batch: student.batch,
+      academicYear: student.academicYear
     });
     setEditModal(true);
   };
@@ -409,44 +430,201 @@ const Students = () => {
       return;
     }
     setBulkProcessing(true);
+    setBulkPreview(null);
     setBulkUploadResults(null);
     const formData = new FormData();
     formData.append('file', bulkFile);
 
     try {
-      const res = await api.post('/api/admin/students/bulk-upload', formData, {
+      const res = await api.post('/api/admin/students/bulk-upload-preview', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
       if (res.data.success) {
-        toast.success(res.data.message || 'Bulk upload processed!');
+        const validStudents = res.data.data.validStudents || [];
+        setBulkPreview(res.data.data);
+        setEditablePreviewData(validStudents);
+        setPreviewErrors(validStudents.map(validateStudentRow));
+        setShowBulkPreview(true);
+        toast.success('Preview loaded. Please review and edit the data.');
+      } else {
+        toast.error(res.data.message || 'Failed to generate preview.');
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || 'An error occurred during preview generation.';
+      toast.error(errorMsg);
+      console.error("Bulk preview error:", err.response?.data || err);
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
+  const handleConfirmBulkUpload = async () => {
+    const hasErrors = previewErrors.some(errors => Object.keys(errors).length > 0);
+    if (hasErrors) {
+      toast.error('Please fix all validation errors before confirming.');
+      return;
+    }
+
+    if (!editablePreviewData || editablePreviewData.length === 0) {
+      toast.error('No valid students to upload.');
+      return;
+    }
+    setBulkProcessing(true);
+    setBulkUploadResults(null);
+
+    try {
+      const res = await api.post('/api/admin/students/bulk-upload-commit', { students: editablePreviewData });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Bulk upload completed successfully!');
         setBulkUploadResults(res.data.data);
-        fetchTempStudentsSummary(); // Refresh summary table
-        setBulkFile(null); // Clear file input
-        if (document.getElementById('bulk-file-input')) {
-          document.getElementById('bulk-file-input').value = null;
-        }
-        // Refresh the student list if we're on the list tab
+        setShowBulkPreview(false);
+        setBulkPreview(null);
+        setEditablePreviewData([]);
+        setPreviewErrors([]);
+        setEditingRow(null);
+        fetchTempStudentsSummary();
         if (tab === 'list') {
           fetchStudents(true);
         }
       } else {
-        toast.error(res.data.message || 'Bulk upload failed.');
-        if(res.data.data && res.data.data.errors && res.data.data.errors.length > 0){
-          setBulkUploadResults(res.data.data); // Show errors
-        }
+        toast.error(res.data.message || 'Commit failed.');
       }
     } catch (err) {
-      const errorMsg = err.response?.data?.message || 'An error occurred during bulk upload.';
-      toast.error(errorMsg);
-      if(err.response?.data?.data && err.response?.data?.data.errors && err.response?.data?.data.errors.length > 0){
-        setBulkUploadResults(err.response.data.data); // Show errors from server
-      }
-      console.error("Bulk upload error object:", err.response?.data || err);
+      toast.error(err.response?.data?.message || 'An error occurred during commit.');
     } finally {
       setBulkProcessing(false);
     }
+  };
+
+  const handleCancelPreview = () => {
+    setShowBulkPreview(false);
+    setBulkPreview(null);
+    setEditablePreviewData([]);
+    setPreviewErrors([]);
+    setEditingRow(null);
+    setBulkFile(null);
+    if (document.getElementById('bulk-file-input')) {
+      document.getElementById('bulk-file-input').value = null;
+    }
+  };
+
+  const getCategoryOptions = (gender) => {
+    return gender === 'Male' 
+      ? ['A+', 'A', 'B+', 'B']
+      : ['A+', 'A', 'B', 'C'];
+  };
+
+  const validateStudentRow = (student) => {
+    const errors = {};
+    const { Name, RollNumber, Gender, Course, Branch, Year, Category, RoomNumber, StudentPhone, ParentPhone, Batch, AcademicYear } = student;
+  
+    if (!Name) errors.Name = 'Name is required.';
+    if (!RollNumber) errors.RollNumber = 'Roll number is required.';
+  
+    if (!Gender) errors.Gender = 'Gender is required.';
+    else if (!['Male', 'Female'].includes(Gender)) errors.Gender = 'Invalid gender.';
+  
+    if (!Course) errors.Course = 'Course is required.';
+    else if (!BRANCHES[COURSES[Course]]) errors.Course = 'Invalid course selected.';
+  
+    if (!Branch) errors.Branch = 'Branch is required.';
+    else if (Course && BRANCHES[COURSES[Course]] && !BRANCHES[COURSES[Course]].includes(Branch)) {
+      errors.Branch = `Invalid branch for ${Course}.`;
+    }
+  
+    if (!Year) errors.Year = 'Year is required.';
+  
+    if (!Category) errors.Category = 'Category is required.';
+    else if (Gender && !(getCategoryOptions(Gender).includes(Category))) {
+      errors.Category = `Invalid category for ${Gender}.`;
+    }
+  
+    if (!RoomNumber) errors.RoomNumber = 'Room number is required.';
+    else if (Gender && Category && ROOM_MAPPINGS[Gender]?.[Category] && !ROOM_MAPPINGS[Gender][Category].includes(String(RoomNumber))) {
+      errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+    }
+  
+    if (!StudentPhone) errors.StudentPhone = 'Student phone is required.';
+    else if (!/^[0-9]{10}$/.test(StudentPhone)) errors.StudentPhone = 'Must be 10 digits.';
+  
+    if (!ParentPhone) errors.ParentPhone = 'Parent phone is required.';
+    else if (!/^[0-9]{10}$/.test(ParentPhone)) errors.ParentPhone = 'Must be 10 digits.';
+  
+    if (!Batch) errors.Batch = 'Batch is required.';
+    else if (!/^\d{4}-\d{4}$/.test(Batch)) {
+      errors.Batch = 'Format must be YYYY-YYYY.';
+    } else {
+      const [start, end] = Batch.split('-').map(Number);
+      const duration = end - start;
+      const expectedDuration = (Course === 'B.Tech' || Course === 'Pharmacy') ? 4 : 3;
+      if (duration !== expectedDuration) {
+        errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
+      }
+    }
+  
+    if (!AcademicYear) errors.AcademicYear = 'Academic year is required.';
+    else if (!/^\d{4}-\d{4}$/.test(AcademicYear)) {
+      errors.AcademicYear = 'Format must be YYYY-YYYY.';
+    } else {
+      const [start, end] = AcademicYear.split('-').map(Number);
+      if (end !== start + 1) {
+        errors.AcademicYear = 'Years must be consecutive.';
+      }
+    }
+  
+    return errors;
+  };
+
+  const handleClearTempStudents = async () => {
+    if (!window.confirm('Are you sure you want to clear all temporary student records? This will remove all pending password reset students.')) {
+      return;
+    }
+    
+    try {
+      const res = await api.delete('/api/admin/students/temp-clear');
+      if (res.data.success) {
+        toast.success(res.data.message);
+        fetchTempStudentsSummary(); // Refresh the temp students list
+      } else {
+        toast.error(res.data.message || 'Failed to clear temporary students.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'An error occurred while clearing temporary students.');
+    }
+  };
+
+  const handleStartEdit = (index) => {
+    setEditingRow(index);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingRow(null);
+  };
+
+  const handleSaveEdit = (index) => {
+    setEditingRow(null);
+    toast.success('Changes saved to preview.');
+  };
+
+  const handleEditField = (index, field, value) => {
+    const updatedData = [...editablePreviewData];
+    const newStudent = { ...updatedData[index], [field]: value };
+    updatedData[index] = newStudent;
+    setEditablePreviewData(updatedData);
+
+    const newErrors = [...previewErrors];
+    newErrors[index] = validateStudentRow(newStudent);
+    setPreviewErrors(newErrors);
+  };
+
+  const handleRemoveStudent = (index) => {
+    const updatedData = editablePreviewData.filter((_, i) => i !== index);
+    const updatedErrors = previewErrors.filter((_, i) => i !== index);
+    setEditablePreviewData(updatedData);
+    setPreviewErrors(updatedErrors);
+    toast.success('Student removed from preview.');
   };
 
   // Function to generate PDF
@@ -739,21 +917,38 @@ const Students = () => {
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
-            <select
-              name="batch"
-              value={form.batch}
-              onChange={handleFormChange}
-              required
-              disabled={!form.course}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Batch</option>
-              {form.course && generateBatches(form.course).map(batch => (
-                <option key={batch} value={batch}>{batch}</option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
+              <select
+                name="batch"
+                value={form.batch}
+                onChange={handleFormChange}
+                required
+                disabled={!form.course}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Batch</option>
+                {form.course && generateBatches(form.course).map(batch => (
+                  <option key={batch} value={batch}>{batch}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+              <select
+                name="academicYear"
+                value={form.academicYear}
+                onChange={handleFormChange}
+                required
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Academic Year</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         <div className="flex justify-end">
@@ -801,7 +996,13 @@ const Students = () => {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800">All Students</h2>
-            <div className="mt-2 sm:mt-0">
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+              <button
+                onClick={() => setRenewalModalOpen(true)}
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Renew Batches
+              </button>
               <span className="text-sm text-gray-600">
                 Showing {students.length} of {totalStudents} students
                 {Object.entries(filters).some(([key, value]) => value && key !== 'search') && ' (filtered)'}
@@ -940,6 +1141,22 @@ const Students = () => {
                 {filters.course && generateBatches(filters.course).map(batch => (
                   <option key={batch} value={batch}>{batch}</option>
                 ))}
+                {!filters.course && BATCHES.map(batch => (
+                  <option key={batch} value={batch}>{batch}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="academicYear"
+                value={filters.academicYear}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Academic Years</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -956,7 +1173,8 @@ const Students = () => {
                     gender: '',
                     category: '',
                     roomNumber: '',
-                    batch: ''
+                    batch: '',
+                    academicYear: ''
                   });
                   setCurrentPage(1);
                 }}
@@ -1023,6 +1241,7 @@ const Students = () => {
                           <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
                           <th scope="col" className="hidden xl:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                           <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                          <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
@@ -1041,6 +1260,7 @@ const Students = () => {
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">Room {student.roomNumber}</td>
                             <td className="hidden xl:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.batch}</td>
+                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.academicYear}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex space-x-2">
                                 <button
@@ -1315,6 +1535,21 @@ const Students = () => {
                 ))}
               </select>
             </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Academic Year</label>
+              <select
+                name="academicYear"
+                value={editForm.academicYear}
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Academic Year</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
             <button
@@ -1417,7 +1652,7 @@ const Students = () => {
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium text-blue-800">Required Excel Columns:</h3>
                 <a
-                  href="/Bulk_Student_Upload_10_Rows.xlsx"
+                  href="/Updated_Student_Data.xlsx"
                   download
                   className="flex items-center px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
@@ -1442,6 +1677,7 @@ const Students = () => {
                     <li>- Diploma/Degree: YYYY-YYYY (3 years, e.g., 2020-2023)</li>
                   </ul>
                 </li>
+                <li>• AcademicYear (e.g., 2023-2024)</li>
               </ul>
             </div>
 
@@ -1456,6 +1692,273 @@ const Students = () => {
           </div>
         </div>
       </div>
+
+      {/* Preview Section */}
+      {showBulkPreview && bulkPreview && (
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Preview - Editable</h3>
+          
+          {/* Debug Information */}
+          {bulkPreview.debug && (
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <h4 className="text-md font-medium text-blue-800 mb-2">Debug Information</h4>
+              <p className="text-sm text-blue-700">Total Rows: {bulkPreview.debug.totalRows}</p>
+              <p className="text-sm text-blue-700">Available Columns: {bulkPreview.debug.firstRowColumns.join(', ')}</p>
+              <details className="mt-2">
+                <summary className="text-sm text-blue-700 cursor-pointer">First Row Data</summary>
+                <pre className="text-xs text-blue-600 mt-1 bg-blue-100 p-2 rounded overflow-auto">
+                  {JSON.stringify(bulkPreview.debug.firstRowData, null, 2)}
+                </pre>
+              </details>
+            </div>
+          )}
+
+          {/* Editable Students Table */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-md font-medium text-green-700">Students to Upload ({editablePreviewData.length})</h4>
+              <div className="text-sm text-gray-500">
+                Click on any cell to edit • Changes are saved automatically
+              </div>
+            </div>
+            
+            {editablePreviewData.length > 0 ? (
+              <div className="overflow-x-auto border rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Row</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Name</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Roll Number</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Gender</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Course</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Branch</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Year</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Category</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Room</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Student Phone</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Parent Phone</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Batch</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Academic Year</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {editablePreviewData.map((student, index) => {
+                      const errors = previewErrors[index] || {};
+                      return (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700 font-medium align-top">
+                            {index + 2}
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="text"
+                              value={student.Name || ''}
+                              onChange={(e) => handleEditField(index, 'Name', e.target.value)}
+                              title={errors.Name}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Name ? 'border-red-500' : 'border-gray-300'}`}
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="text"
+                              value={student.RollNumber || ''}
+                              onChange={(e) => handleEditField(index, 'RollNumber', e.target.value)}
+                              title={errors.RollNumber}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RollNumber ? 'border-red-500' : 'border-gray-300'}`}
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.Gender || ''}
+                              onChange={(e) => handleEditField(index, 'Gender', e.target.value)}
+                              title={errors.Gender}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Gender ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.Course || ''}
+                              onChange={(e) => handleEditField(index, 'Course', e.target.value)}
+                              title={errors.Course}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Course ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              <option value="B.Tech">B.Tech</option>
+                              <option value="Diploma">Diploma</option>
+                              <option value="Pharmacy">Pharmacy</option>
+                              <option value="Degree">Degree</option>
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.Branch || ''}
+                              onChange={(e) => handleEditField(index, 'Branch', e.target.value)}
+                              title={errors.Branch}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Branch ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              {student.Course && BRANCHES[COURSES[student.Course]]?.map(branch => (
+                                <option key={branch} value={branch}>{branch}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.Year || ''}
+                              onChange={(e) => handleEditField(index, 'Year', e.target.value)}
+                              title={errors.Year}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Year ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              {student.Course && Array.from({ length: (student.Course === 'B.Tech' || student.Course === 'Pharmacy') ? 4 : 3 }, (_, i) => i + 1).map(year => (
+                                <option key={year} value={year}>Year {year}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.Category || ''}
+                              onChange={(e) => handleEditField(index, 'Category', e.target.value)}
+                              title={errors.Category}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Category ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              {student.Gender && getCategoryOptions(student.Gender).map(category => (
+                                <option key={category} value={category}>{category}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <select
+                              value={student.RoomNumber || ''}
+                              onChange={(e) => handleEditField(index, 'RoomNumber', e.target.value)}
+                              title={errors.RoomNumber}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RoomNumber ? 'border-red-500' : 'border-gray-300'}`}
+                            >
+                              <option value="">Select</option>
+                              {student.Gender && student.Category && ROOM_MAPPINGS[student.Gender]?.[student.Category]?.map(room => (
+                                <option key={room} value={room}>Room {room}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="tel"
+                              value={student.StudentPhone || ''}
+                              onChange={(e) => handleEditField(index, 'StudentPhone', e.target.value)}
+                              title={errors.StudentPhone}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.StudentPhone ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="10 digits"
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="tel"
+                              value={student.ParentPhone || ''}
+                              onChange={(e) => handleEditField(index, 'ParentPhone', e.target.value)}
+                              title={errors.ParentPhone}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.ParentPhone ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="10 digits"
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="text"
+                              value={student.Batch || ''}
+                              onChange={(e) => handleEditField(index, 'Batch', e.target.value)}
+                              title={errors.Batch}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Batch ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="YYYY-YYYY"
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="text"
+                              value={student.AcademicYear || ''}
+                              onChange={(e) => handleEditField(index, 'AcademicYear', e.target.value)}
+                              title={errors.AcademicYear}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.AcademicYear ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="YYYY-YYYY"
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <button
+                              onClick={() => handleRemoveStudent(index)}
+                              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
+                              title="Remove student"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="text-sm text-gray-500">No valid students found in the file.</p>}
+          </div>
+
+          {/* Invalid Students */}
+          {bulkPreview.invalidStudents && bulkPreview.invalidStudents.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-red-700 mb-2">Invalid Students ({bulkPreview.invalidStudents.length})</h4>
+              <div className="max-h-80 overflow-y-auto border rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-red-50 sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Row</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Roll Number</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Errors</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {bulkPreview.invalidStudents.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.row}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.data.Name}</td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.data.RollNumber}</td>
+                        <td className="px-4 py-2 text-sm text-red-600">
+                          <ul className="list-disc list-inside">
+                            {item.errors.map((err, i) => <li key={i}>{err}</li>)}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              onClick={handleCancelPreview}
+              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirmBulkUpload}
+              disabled={bulkProcessing || editablePreviewData.length === 0 || previewErrors.some(e => Object.keys(e).length > 0)}
+              className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                (bulkProcessing || editablePreviewData.length === 0 || previewErrors.some(e => Object.keys(e).length > 0))
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.length} Students`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Results Section */}
       {bulkUploadResults && (
@@ -1524,6 +2027,13 @@ const Students = () => {
         </div>
         {tempStudentsSummary.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-3 sm:mt-0">
+            <button
+              onClick={handleClearTempStudents}
+              className="flex items-center px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
+            >
+              <TrashIcon className="w-5 h-5 mr-2" />
+              Clear Temp Students
+            </button>
             <button
               onClick={handlePrintPending}
               className="flex items-center px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -1595,6 +2105,189 @@ const Students = () => {
     </div>
   );
 
+  // Batch Renewal Modal Component
+  const BatchRenewalModal = ({ isOpen, onClose, onRenew }) => {
+    const academicYears = generateAcademicYears();
+    const [fromAcademicYear, setFromAcademicYear] = useState('');
+    const [toAcademicYear, setToAcademicYear] = useState('');
+    const [studentsToRenew, setStudentsToRenew] = useState([]);
+    const [selectedStudents, setSelectedStudents] = useState(new Set());
+    const [loadingStudents, setLoadingStudents] = useState(false);
+    const [isRenewing, setIsRenewing] = useState(false);
+
+    useEffect(() => {
+      if (fromAcademicYear) {
+        const fetchStudentsForRenewal = async () => {
+          setLoadingStudents(true);
+          try {
+            const res = await api.get('/api/admin/students', {
+              params: { academicYear: fromAcademicYear, limit: 1000 } // Fetch all for this year
+            });
+            if (res.data.success) {
+              const activeStudents = res.data.data.students.filter(s => s.hostelStatus === 'Active');
+              setStudentsToRenew(activeStudents);
+              // Initially select all students
+              setSelectedStudents(new Set(activeStudents.map(s => s._id)));
+            } else {
+              toast.error('Failed to fetch students for renewal.');
+            }
+          } catch (err) {
+            toast.error(err.response?.data?.message || 'Error fetching students.');
+          } finally {
+            setLoadingStudents(false);
+          }
+        };
+        fetchStudentsForRenewal();
+      } else {
+        setStudentsToRenew([]);
+        setSelectedStudents(new Set());
+      }
+    }, [fromAcademicYear]);
+
+    const handleSelectAll = (e) => {
+      if (e.target.checked) {
+        setSelectedStudents(new Set(studentsToRenew.map(s => s._id)));
+      } else {
+        setSelectedStudents(new Set());
+      }
+    };
+
+    const handleSelectStudent = (studentId) => {
+      const newSelection = new Set(selectedStudents);
+      if (newSelection.has(studentId)) {
+        newSelection.delete(studentId);
+      } else {
+        newSelection.add(studentId);
+      }
+      setSelectedStudents(newSelection);
+    };
+
+    const handleRenew = async () => {
+      if (!fromAcademicYear || !toAcademicYear) {
+        toast.error('Please select both "From" and "To" academic years.');
+        return;
+      }
+      if (selectedStudents.size === 0) {
+        if (!confirm('You have not selected any students to renew. This will mark all students from this year as inactive. Do you want to proceed?')) {
+          return;
+        }
+      }
+      setIsRenewing(true);
+      try {
+        await onRenew(fromAcademicYear, toAcademicYear, Array.from(selectedStudents));
+        onClose();
+      } finally {
+        setIsRenewing(false);
+      }
+    };
+
+    return (
+      isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 flex flex-col max-h-[90vh]">
+            <h3 className="text-xl font-bold text-gray-800 mb-4">Renew Student Batches</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">From Academic Year</label>
+                <select
+                  value={fromAcademicYear}
+                  onChange={(e) => setFromAcademicYear(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select Year to Renew From</option>
+                  {academicYears.map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">To New Academic Year</label>
+                <select
+                  value={toAcademicYear}
+                  onChange={(e) => setToAcademicYear(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Select New Academic Year</option>
+                  {academicYears.filter(y => y > fromAcademicYear).map(year => <option key={year} value={year}>{year}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex-grow overflow-y-auto border rounded-lg p-2 bg-gray-50">
+              {loadingStudents ? (
+                <div className="flex justify-center items-center h-full"><LoadingSpinner /></div>
+              ) : studentsToRenew.length > 0 ? (
+                <div className="space-y-2">
+                   <div className="flex items-center p-2 border-b">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={selectedStudents.size === studentsToRenew.length}
+                      onChange={handleSelectAll}
+                    />
+                    <label className="ml-3 block text-sm font-medium text-gray-900">
+                      Select All ({selectedStudents.size} / {studentsToRenew.length})
+                    </label>
+                  </div>
+                  {studentsToRenew.map(student => (
+                    <div key={student._id} className="flex items-center p-2 rounded-md hover:bg-gray-100">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedStudents.has(student._id)}
+                        onChange={() => handleSelectStudent(student._id)}
+                      />
+                      <div className="ml-3 text-sm">
+                        <label className="font-medium text-gray-900">{student.name}</label>
+                        <p className="text-gray-500">{student.rollNumber} - {student.branch}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 py-10">
+                  {fromAcademicYear ? 'No active students found for this year.' : 'Select an academic year to see students.'}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={onClose} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+              <button
+                onClick={handleRenew}
+                disabled={isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  (isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear)
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
+              >
+                {isRenewing ? 'Renewing...' : 'Renew Batches'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    );
+  };
+
+  // Function to handle the renewal API call
+  const handleRenewBatches = async (fromAcademicYear, toAcademicYear, studentIds) => {
+    try {
+      const res = await api.post('/api/admin/students/renew-batch', { fromAcademicYear, toAcademicYear, studentIds });
+      if (res.data.success) {
+        toast.success(res.data.message);
+        console.log('Renewal Results:', res.data.data);
+        // Optionally refresh data
+        if (tab === 'list') {
+          fetchStudents(true);
+        }
+      } else {
+        toast.error(res.data.message || 'Renewal failed.');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'An error occurred during batch renewal.');
+    }
+  };
+
   if (loading && tab === 'list' && !tableLoading) { 
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
@@ -1628,6 +2321,11 @@ const Students = () => {
       {tab === 'list' && renderStudentList()}
       {showPasswordModal && renderPasswordModal()}
       {editModal && renderEditModal()}
+      <BatchRenewalModal
+        isOpen={renewalModalOpen}
+        onClose={() => setRenewalModalOpen(false)}
+        onRenew={handleRenewBatches}
+      />
     </div>
   );
 };
