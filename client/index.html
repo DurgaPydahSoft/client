@@ -5,65 +5,106 @@
     <link rel="icon" type="image/svg+xml" href="./PYDAHSOFT LOGO.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- OneSignal SDK v16 - Environment-Aware Setup -->
+    <!-- OneSignal SDK v16 - Improved Service Worker Registration -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>
-      // Register OneSignal Service Worker with better error handling
-      if ('serviceWorker' in navigator) {
-        // Wait for the page to be fully loaded
-        window.addEventListener('load', async function() {
+      // Global variable to track service worker registration
+      window.serviceWorkerRegistration = null;
+      
+      // Improved service worker registration
+      async function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
           try {
             console.log('🔔 Registering OneSignal Service Worker...');
+            
+            // Check if service worker is already registered
+            const existingRegistration = await navigator.serviceWorker.getRegistration('/OneSignalSDKWorker.js');
+            
+            if (existingRegistration) {
+              console.log('🔔 Service Worker already registered:', existingRegistration);
+              window.serviceWorkerRegistration = existingRegistration;
+              return existingRegistration;
+            }
+            
+            // Register new service worker
             const registration = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', {
-              scope: '/'
+              scope: '/',
+              updateViaCache: 'none' // Always fetch latest version
             });
+            
             console.log('🔔 OneSignal Service Worker registered successfully:', registration);
+            window.serviceWorkerRegistration = registration;
             
             // Wait for the service worker to be ready
             await navigator.serviceWorker.ready;
             console.log('🔔 OneSignal Service Worker is ready');
             
+            return registration;
+            
           } catch (error) {
             console.error('🔔 OneSignal Service Worker registration failed:', error);
+            return null;
           }
-        });
+        } else {
+          console.warn('🔔 Service Worker not supported in this browser');
+          return null;
+        }
       }
 
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(function(OneSignal) {
-        console.log('🔔 OneSignal SDK v16 loading...');
-        
-        // Environment-aware configuration
-        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const isHttps = window.location.protocol === 'https:';
-        
-        console.log('🔔 Environment check:', {
-          hostname: window.location.hostname,
-          protocol: window.location.protocol,
-          isDevelopment: isDevelopment,
-          isHttps: isHttps
-        });
-        
-        const config = {
-          appId: "7a3290a8-d6a8-4e09-903f-c4a0f251ca01",
-          safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
-          notifyButton: {
-            enable: true,
-          },
-        };
-        
-        // Add development-specific options
-        if (isDevelopment) {
-          config.allowLocalhostAsSecureOrigin = true;
-          console.log('🔔 Development mode: Added localhost support');
+      // Initialize OneSignal after service worker is ready
+      async function initializeOneSignal() {
+        try {
+          // Wait for service worker registration
+          const swRegistration = await registerServiceWorker();
+          
+          // Wait a bit more to ensure service worker is fully ready
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          console.log('🔔 Initializing OneSignal SDK v16...');
+          
+          // Environment-aware configuration
+          const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          const isHttps = window.location.protocol === 'https:';
+          
+          console.log('🔔 Environment check:', {
+            hostname: window.location.hostname,
+            protocol: window.location.protocol,
+            isDevelopment: isDevelopment,
+            isHttps: isHttps
+          });
+          
+          const config = {
+            appId: "7a3290a8-d6a8-4e09-903f-c4a0f251ca01",
+            safari_web_id: "web.onesignal.auto.42873e37-42b9-4e5d-9423-af83e9e44ff4",
+            notifyButton: {
+              enable: true,
+            },
+            serviceWorkerParam: {
+              scope: '/'
+            },
+            serviceWorkerPath: '/OneSignalSDKWorker.js'
+          };
+          
+          // Add development-specific options
+          if (isDevelopment) {
+            config.allowLocalhostAsSecureOrigin = true;
+            console.log('🔔 Development mode: Added localhost support');
+          }
+          
+          // Initialize OneSignal
+          await OneSignal.init(config);
+          console.log('🔔 OneSignal SDK v16 initialized successfully');
+          
+          // Make OneSignal available globally for our notification manager
+          window.OneSignal = OneSignal;
+          
+        } catch (error) {
+          console.error('🔔 Error initializing OneSignal:', error);
         }
-        
-        OneSignal.init(config);
-        console.log('🔔 OneSignal SDK v16 initialized successfully');
-        
-        // Make OneSignal available globally for our notification manager
-        window.OneSignal = OneSignal;
-      });
+      }
+
+      // Start initialization when page loads
+      window.addEventListener('load', initializeOneSignal);
     </script>
     
     <!-- Primary Meta Tags -->

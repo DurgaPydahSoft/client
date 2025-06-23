@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '../utils/axios';
 import { toast } from 'react-hot-toast';
 import notificationManager from '../utils/notificationManager';
-import NotificationPermission from './NotificationPermission';
 
 const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
@@ -13,7 +12,6 @@ const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
-  const [showPermissionBanner, setShowPermissionBanner] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState(null);
   const { user } = useAuth();
 
@@ -111,7 +109,6 @@ const NotificationBell = () => {
       
       if (results.oneSignal || results.legacy) {
         toast.success('Notifications enabled successfully!');
-        setShowPermissionBanner(false);
         
         // Update status
         setNotificationStatus(notificationManager.getStatus());
@@ -126,14 +123,17 @@ const NotificationBell = () => {
 
   const handleTestNotification = async () => {
     try {
+      console.log('🔔 Testing notification system...');
       const sent = await notificationManager.sendTestNotification();
       if (sent) {
-        toast.success('Test notification sent successfully!');
+        toast.success('Test notification sent successfully! Check your browser for push notification.');
+        console.log('🔔 Test notification sent successfully');
       } else {
-        toast.error('Failed to send test notification');
+        toast.error('Failed to send test notification. Check console for details.');
+        console.error('🔔 Failed to send test notification');
       }
     } catch (error) {
-      console.error('Error sending test notification:', error);
+      console.error('🔔 Error sending test notification:', error);
       toast.error('Failed to send test notification');
     }
   };
@@ -168,7 +168,6 @@ const NotificationBell = () => {
 
   return (
     <>
-      <NotificationPermission />
       <div className="fixed top-4 right-4 z-50">
         <button
           onClick={() => {

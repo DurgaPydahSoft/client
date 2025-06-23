@@ -60,7 +60,7 @@ class NotificationManager {
 
       // Wait for OneSignal to be available (using the new v16 deferred pattern)
       let attempts = 0;
-      const maxAttempts = 50; // Wait up to 5 seconds (50 * 100ms)
+      const maxAttempts = 100; // Wait up to 10 seconds (100 * 100ms)
       
       while (typeof OneSignal === 'undefined' && attempts < maxAttempts) {
         console.log('🔔 Waiting for OneSignal SDK v16 to load...', attempts + 1);
@@ -70,7 +70,7 @@ class NotificationManager {
 
       // Check if OneSignal is available
       if (typeof OneSignal === 'undefined') {
-        console.warn('🔔 OneSignal SDK v16 not loaded after 5 seconds - notifications will use database only');
+        console.warn('🔔 OneSignal SDK v16 not loaded after 10 seconds - notifications will use database only');
         console.warn('🔔 This could be due to network issues, firewall blocking, or CDN problems');
         console.warn('🔔 Check browser console for any script loading errors');
         this.isInitialized = true; // Mark as initialized to prevent repeated attempts
@@ -81,7 +81,7 @@ class NotificationManager {
 
       // Wait for OneSignal to be fully initialized
       attempts = 0;
-      while (attempts < 100) { // Wait up to 10 seconds
+      while (attempts < 150) { // Wait up to 15 seconds
         try {
           // Check if OneSignal is ready using multiple methods
           if (OneSignal && OneSignal.isInitialized && OneSignal.isInitialized()) {
@@ -111,7 +111,7 @@ class NotificationManager {
         }
       }
 
-      if (attempts >= 100) {
+      if (attempts >= 150) {
         console.warn('🔔 OneSignal SDK v16 initialization timeout - notifications will use database only');
         this.isInitialized = true;
         return false;
