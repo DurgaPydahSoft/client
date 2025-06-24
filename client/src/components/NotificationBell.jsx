@@ -138,6 +138,40 @@ const NotificationBell = () => {
     }
   };
 
+  const handleTestPushNotification = async () => {
+    try {
+      console.log('🔔 Testing OneSignal push notification...');
+      const sent = await notificationManager.sendTestPushNotification();
+      if (sent) {
+        toast.success('Test push notification sent successfully! Check your browser for push notification.');
+        console.log('🔔 Test push notification sent successfully');
+      } else {
+        toast.error('Failed to send test push notification. Check console for details.');
+        console.error('🔔 Failed to send test push notification');
+      }
+    } catch (error) {
+      console.error('🔔 Error sending test push notification:', error);
+      toast.error('Failed to send test push notification');
+    }
+  };
+
+  const handleTestOneSignalConnection = async () => {
+    try {
+      console.log('🔔 Testing OneSignal connection...');
+      const result = await notificationManager.testOneSignalConnection();
+      if (result.success) {
+        toast.success('OneSignal connection test successful!');
+        console.log('🔔 OneSignal connection test successful:', result);
+      } else {
+        toast.error('OneSignal connection test failed. Check console for details.');
+        console.error('🔔 OneSignal connection test failed:', result);
+      }
+    } catch (error) {
+      console.error('🔔 Error testing OneSignal connection:', error);
+      toast.error('Failed to test OneSignal connection');
+    }
+  };
+
   const formatNotificationTime = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -252,12 +286,26 @@ const NotificationBell = () => {
                         Enable Notifications
                       </button>
                       {notificationStatus?.oneSignal && (
-                        <button
-                          onClick={handleTestNotification}
-                          className="block w-full text-sm text-green-600 hover:text-green-800"
-                        >
-                          Send Test Notification
-                        </button>
+                        <>
+                          <button
+                            onClick={handleTestNotification}
+                            className="block w-full text-sm text-green-600 hover:text-green-800"
+                          >
+                            Send Test Notification
+                          </button>
+                          <button
+                            onClick={handleTestPushNotification}
+                            className="block w-full text-sm text-purple-600 hover:text-purple-800"
+                          >
+                            Test Push Notification
+                          </button>
+                          <button
+                            onClick={handleTestOneSignalConnection}
+                            className="block w-full text-sm text-orange-600 hover:text-orange-800"
+                          >
+                            Test OneSignal Connection
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

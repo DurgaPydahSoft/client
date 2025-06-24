@@ -229,6 +229,69 @@ class NotificationManager {
     }
   }
 
+  // Send test push notification directly to OneSignal
+  async sendTestPushNotification() {
+    try {
+      if (!this.userId) {
+        console.log('🔔 Cannot send test push notification - no user ID');
+        return false;
+      }
+
+      console.log('🔔 Sending test push notification to OneSignal...');
+
+      const response = await fetch('/test-push-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          userId: this.userId
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🔔 Test push notification sent successfully:', result);
+        return true;
+      } else {
+        const error = await response.json();
+        console.error('🔔 Failed to send test push notification:', error);
+        return false;
+      }
+    } catch (error) {
+      console.error('🔔 Error sending test push notification:', error);
+      return false;
+    }
+  }
+
+  // Test OneSignal connection
+  async testOneSignalConnection() {
+    try {
+      console.log('🔔 Testing OneSignal connection...');
+
+      const response = await fetch('/test-onesignal', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🔔 OneSignal connection test result:', result);
+        return result;
+      } else {
+        const error = await response.json();
+        console.error('🔔 OneSignal connection test failed:', error);
+        return { success: false, error };
+      }
+    } catch (error) {
+      console.error('🔔 Error testing OneSignal connection:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Get notification status
   getStatus() {
     return {
