@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -159,6 +159,26 @@ const Students = () => {
   const [loadingTempSummary, setLoadingTempSummary] = useState(false);
   const [renewalModalOpen, setRenewalModalOpen] = useState(false);
 
+  // Photo upload states
+  const [studentPhoto, setStudentPhoto] = useState(null);
+  const [guardianPhoto1, setGuardianPhoto1] = useState(null);
+  const [guardianPhoto2, setGuardianPhoto2] = useState(null);
+  const [studentPhotoPreview, setStudentPhotoPreview] = useState(null);
+  const [guardianPhoto1Preview, setGuardianPhoto1Preview] = useState(null);
+  const [guardianPhoto2Preview, setGuardianPhoto2Preview] = useState(null);
+
+  // Photo edit modal states (separate from edit modal)
+  const [photoEditModal, setPhotoEditModal] = useState(false);
+  const [photoEditId, setPhotoEditId] = useState(null);
+  const [photoEditStudent, setPhotoEditStudent] = useState(null);
+  const [photoEditStudentPhoto, setPhotoEditStudentPhoto] = useState(null);
+  const [photoEditGuardianPhoto1, setPhotoEditGuardianPhoto1] = useState(null);
+  const [photoEditGuardianPhoto2, setPhotoEditGuardianPhoto2] = useState(null);
+  const [photoEditStudentPhotoPreview, setPhotoEditStudentPhotoPreview] = useState(null);
+  const [photoEditGuardianPhoto1Preview, setPhotoEditGuardianPhoto1Preview] = useState(null);
+  const [photoEditGuardianPhoto2Preview, setPhotoEditGuardianPhoto2Preview] = useState(null);
+  const [photoEditLoading, setPhotoEditLoading] = useState(false);
+
   // Debounce search term
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -278,14 +298,77 @@ const Students = () => {
     });
   };
 
+  // Photo handling functions
+  const handlePhotoChange = (e, type) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        switch (type) {
+          case 'student':
+            setStudentPhoto(file);
+            setStudentPhotoPreview(reader.result);
+            break;
+          case 'guardian1':
+            setGuardianPhoto1(file);
+            setGuardianPhoto1Preview(reader.result);
+            break;
+          case 'guardian2':
+            setGuardianPhoto2(file);
+            setGuardianPhoto2Preview(reader.result);
+            break;
+          default:
+            break;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetPhotoForm = () => {
+    setStudentPhoto(null);
+    setGuardianPhoto1(null);
+    setGuardianPhoto2(null);
+    setStudentPhotoPreview(null);
+    setGuardianPhoto1Preview(null);
+    setGuardianPhoto2Preview(null);
+  };
+
   const handleAddStudent = async e => {
     e.preventDefault();
     setAdding(true);
     try {
-      // Send course label (e.g., 'B.Tech')
-      const res = await api.post('/api/admin/students', form);
+      const formData = new FormData();
+      
+      // Add form fields
+      Object.keys(form).forEach(key => {
+        formData.append(key, form[key]);
+      });
+      
+      // Add photos if selected
+      if (studentPhoto) {
+        formData.append('studentPhoto', studentPhoto);
+      }
+      if (guardianPhoto1) {
+        formData.append('guardianPhoto1', guardianPhoto1);
+      }
+      if (guardianPhoto2) {
+        formData.append('guardianPhoto2', guardianPhoto2);
+      }
+
+      const res = await api.post('/api/admin/students', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       toast.success('Student added successfully');
       setForm(initialForm);
+      resetPhotoForm();
       setGeneratedPassword(res.data.data.generatedPassword);
       setShowPasswordModal(true);
       if (tab === 'list') fetchStudents(); // Refresh list if current tab is 'list'
@@ -311,15 +394,15 @@ const Students = () => {
     }
   };
 
-  const openEditModal = student => {
+  const openEditModal = (student) => {
     setEditId(student._id);
     setEditForm({
       name: student.name,
       rollNumber: student.rollNumber,
-      gender: student.gender,
       course: student.course,
       year: student.year,
       branch: student.branch,
+      gender: student.gender,
       category: student.category,
       roomNumber: student.roomNumber,
       studentPhone: student.studentPhone,
@@ -352,6 +435,47 @@ const Students = () => {
     });
   };
 
+  // Edit photo handling functions
+  const handleEditPhotoChange = (e, type) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        switch (type) {
+          case 'student':
+            setEditStudentPhoto(file);
+            setEditStudentPhotoPreview(reader.result);
+            break;
+          case 'guardian1':
+            setEditGuardianPhoto1(file);
+            setEditGuardianPhoto1Preview(reader.result);
+            break;
+          case 'guardian2':
+            setEditGuardianPhoto2(file);
+            setEditGuardianPhoto2Preview(reader.result);
+            break;
+          default:
+            break;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetEditPhotoForm = () => {
+    setEditStudentPhoto(null);
+    setEditGuardianPhoto1(null);
+    setEditGuardianPhoto2(null);
+    setEditStudentPhotoPreview(null);
+    setEditGuardianPhoto1Preview(null);
+    setEditGuardianPhoto2Preview(null);
+  };
+
   const handleEditSubmit = async e => {
     e.preventDefault();
     setEditing(true);
@@ -378,7 +502,7 @@ const Students = () => {
         throw new Error(`Invalid batch duration for ${editForm.course}. Must be ${expectedDuration} years.`);
       }
 
-      // Send course label (e.g., 'B.Tech')
+      // Update student without photos (photos are managed separately)
       await api.put(`/api/admin/students/${editId}`, editForm);
       toast.success('Student updated successfully');
       setEditModal(false);
@@ -951,6 +1075,128 @@ const Students = () => {
             </div>
           </div>
         </div>
+        
+        {/* Photo Upload Section */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photos (Optional)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Student Photo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {studentPhotoPreview ? (
+                      <div className="relative">
+                        <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setStudentPhoto(null);
+                            setStudentPhotoPreview(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <XCircleIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-500">Click to upload</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, 'student')}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Guardian Photo 1 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {guardianPhoto1Preview ? (
+                      <div className="relative">
+                        <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setGuardianPhoto1(null);
+                            setGuardianPhoto1Preview(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <XCircleIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-500">Click to upload</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, 'guardian1')}
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Guardian Photo 2 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
+              <div className="flex items-center justify-center w-full">
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    {guardianPhoto2Preview ? (
+                      <div className="relative">
+                        <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setGuardianPhoto2(null);
+                            setGuardianPhoto2Preview(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <XCircleIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-500">Click to upload</p>
+                      </>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => handlePhotoChange(e, 'guardian2')}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
+        </div>
+        
         <div className="flex justify-end">
           <button
             type="submit"
@@ -1231,6 +1477,7 @@ const Students = () => {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
                           <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
@@ -1241,13 +1488,35 @@ const Students = () => {
                           <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
                           <th scope="col" className="hidden xl:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                           <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                          <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Academic Year</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {students.map(student => (
                           <tr key={student._id} className="hover:bg-gray-50">
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              {student.studentPhoto ? (
+                                <button
+                                  onClick={() => openPhotoEditModal(student)}
+                                  className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                  title="Click to edit photos"
+                                >
+                                  <img
+                                    src={student.studentPhoto}
+                                    alt={student.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => openPhotoEditModal(student)}
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-xs font-bold hover:from-blue-700 hover:to-blue-900 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                  title="Click to add photos"
+                                >
+                                  {student.name?.charAt(0).toUpperCase()}
+                                </button>
+                              )}
+                            </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
@@ -1260,7 +1529,6 @@ const Students = () => {
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">Room {student.roomNumber}</td>
                             <td className="hidden xl:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.batch}</td>
-                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.academicYear}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex space-x-2">
                                 <button
@@ -1358,19 +1626,25 @@ const Students = () => {
 
   // Edit Modal
   const renderEditModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-2xl my-2 sm:my-4">
-        <div className="flex justify-between items-center mb-3 sm:mb-4">
-          <h2 className="text-base sm:text-lg font-bold text-gray-900">Edit Student</h2>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">Edit Student</h3>
+            <p className="text-sm text-gray-600 mt-1">Update student information</p>
+          </div>
           <button
-            onClick={() => setEditModal(false)}
-            className="text-gray-500 hover:text-gray-700 p-1"
+            onClick={() => {
+              setEditModal(false);
+            }}
+            className="text-gray-500 hover:text-gray-700 p-2"
           >
-            <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
-        <form onSubmit={handleEditSubmit} className="space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+
+        <form onSubmit={handleEditSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
               <input
@@ -1386,9 +1660,51 @@ const Students = () => {
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
               <input
                 type="text"
+                name="rollNumber"
                 value={editForm.rollNumber}
-                disabled
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg bg-gray-50"
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
+              <select
+                name="course"
+                value={editForm.course}
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Course</option>
+                <option value="B.Tech">B.Tech</option>
+                <option value="Diploma">Diploma</option>
+                <option value="Pharmacy">Pharmacy</option>
+                <option value="Degree">Degree</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
+              <input
+                type="number"
+                name="year"
+                value={editForm.year}
+                onChange={handleEditFormChange}
+                required
+                min={1}
+                max={4}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
+              <input
+                type="text"
+                name="branch"
+                value={editForm.branch}
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
             <div className="space-y-1">
@@ -1406,75 +1722,18 @@ const Students = () => {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
-              <select
-                name="course"
-                value={editForm.course}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Course</option>
-                {Object.keys(COURSES).map(course => (
-                  <option key={course} value={course}>{course}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
-              <select
-                name="year"
-                value={editForm.year}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {Array.from(
-                  { length: COURSES[editForm.course] === 'BTECH' || COURSES[editForm.course] === 'PHARMACY' ? 4 : 3 },
-                  (_, i) => i + 1
-                ).map(year => (
-                  <option key={year} value={year}>Year {year}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
-              <select
-                name="branch"
-                value={editForm.branch}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Branch</option>
-                {editForm.course && BRANCHES[COURSES[editForm.course]].map(branch => (
-                  <option key={branch} value={branch}>{branch}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
               <select
                 name="category"
                 value={editForm.category}
                 onChange={handleEditFormChange}
                 required
-                disabled={!editForm.gender}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Category</option>
-                {editForm.gender && (editForm.gender === 'Male' 
-                  ? ['A+', 'A', 'B+', 'B'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                      </option>
-                    ))
-                  : ['A+', 'A', 'B', 'C'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category}
-                      </option>
-                    ))
-                )}
+                {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">
@@ -1484,12 +1743,12 @@ const Students = () => {
                 value={editForm.roomNumber}
                 onChange={handleEditFormChange}
                 required
-                disabled={!editForm.gender || !editForm.category}
+                disabled={!editForm.category}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Room</option>
-                {editForm.gender && editForm.category && ROOM_MAPPINGS[editForm.gender][editForm.category].map(room => (
-                  <option key={room} value={room}>Room {room}</option>
+                {editForm.category && ROOM_MAPPINGS[editForm.gender]?.[editForm.category]?.map(room => (
+                  <option key={room} value={room}>{room}</option>
                 ))}
               </select>
             </div>
@@ -1502,7 +1761,6 @@ const Students = () => {
                 onChange={handleEditFormChange}
                 required
                 pattern="[0-9]{10}"
-                title="10 digit phone number"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -1515,7 +1773,6 @@ const Students = () => {
                 onChange={handleEditFormChange}
                 required
                 pattern="[0-9]{10}"
-                title="10 digit phone number"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -1551,10 +1808,13 @@ const Students = () => {
               </select>
             </div>
           </div>
+
           <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
             <button
               type="button"
-              onClick={() => setEditModal(false)}
+              onClick={() => {
+                setEditModal(false);
+              }}
               className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
@@ -2288,6 +2548,277 @@ const Students = () => {
     }
   };
 
+  // Photo Edit Modal
+  const renderPhotoEditModal = () => (
+    photoEditModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Edit Photos</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {photoEditStudent?.name} ({photoEditStudent?.rollNumber})
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPhotoEditModal(false);
+                resetPhotoEditForm();
+              }}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handlePhotoEditSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Student Photo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {photoEditStudentPhotoPreview ? (
+                        <div className="relative">
+                          <img src={photoEditStudentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPhotoEditStudentPhoto(null);
+                              setPhotoEditStudentPhotoPreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoEditChange(e, 'student')}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Guardian Photo 1 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {photoEditGuardianPhoto1Preview ? (
+                        <div className="relative">
+                          <img src={photoEditGuardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPhotoEditGuardianPhoto1(null);
+                              setPhotoEditGuardianPhoto1Preview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoEditChange(e, 'guardian1')}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Guardian Photo 2 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {photoEditGuardianPhoto2Preview ? (
+                        <div className="relative">
+                          <img src={photoEditGuardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPhotoEditGuardianPhoto2(null);
+                              setPhotoEditGuardianPhoto2Preview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoEditChange(e, 'guardian2')}
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 pt-2 sm:pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotoEditModal(false);
+                  resetPhotoEditForm();
+                }}
+                className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={photoEditLoading}
+                className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${
+                  photoEditLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                }`}
+              >
+                {photoEditLoading ? 'Updating...' : 'Update Photos'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  );
+
+  // Photo edit modal functions
+  const openPhotoEditModal = (student) => {
+    setPhotoEditId(student._id);
+    setPhotoEditStudent(student);
+    
+    // Set existing photo previews
+    setPhotoEditStudentPhotoPreview(student.studentPhoto || null);
+    setPhotoEditGuardianPhoto1Preview(student.guardianPhoto1 || null);
+    setPhotoEditGuardianPhoto2Preview(student.guardianPhoto2 || null);
+    
+    // Reset new photo uploads
+    setPhotoEditStudentPhoto(null);
+    setPhotoEditGuardianPhoto1(null);
+    setPhotoEditGuardianPhoto2(null);
+    
+    setPhotoEditModal(true);
+  };
+
+  const handlePhotoEditChange = (e, type) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        switch (type) {
+          case 'student':
+            setPhotoEditStudentPhoto(file);
+            setPhotoEditStudentPhotoPreview(reader.result);
+            break;
+          case 'guardian1':
+            setPhotoEditGuardianPhoto1(file);
+            setPhotoEditGuardianPhoto1Preview(reader.result);
+            break;
+          case 'guardian2':
+            setPhotoEditGuardianPhoto2(file);
+            setPhotoEditGuardianPhoto2Preview(reader.result);
+            break;
+          default:
+            break;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetPhotoEditForm = () => {
+    setPhotoEditStudentPhoto(null);
+    setPhotoEditGuardianPhoto1(null);
+    setPhotoEditGuardianPhoto2(null);
+    setPhotoEditStudentPhotoPreview(null);
+    setPhotoEditGuardianPhoto1Preview(null);
+    setPhotoEditGuardianPhoto2Preview(null);
+  };
+
+  const handlePhotoEditSubmit = async (e) => {
+    e.preventDefault();
+    setPhotoEditLoading(true);
+    try {
+      // Create FormData for multipart upload
+      const formData = new FormData();
+      
+      // Add photos if selected
+      if (photoEditStudentPhoto) {
+        formData.append('studentPhoto', photoEditStudentPhoto);
+      }
+      if (photoEditGuardianPhoto1) {
+        formData.append('guardianPhoto1', photoEditGuardianPhoto1);
+      }
+      if (photoEditGuardianPhoto2) {
+        formData.append('guardianPhoto2', photoEditGuardianPhoto2);
+      }
+
+      // Only proceed if at least one photo is selected
+      if (!photoEditStudentPhoto && !photoEditGuardianPhoto1 && !photoEditGuardianPhoto2) {
+        toast.error('Please select at least one photo to update');
+        return;
+      }
+
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      };
+      
+      await api.put(`/api/admin/students/${photoEditId}`, formData, config);
+      toast.success('Photos updated successfully');
+      setPhotoEditModal(false);
+      setPhotoEditId(null);
+      setPhotoEditStudent(null);
+      resetPhotoEditForm();
+      fetchStudents(); // Refresh list
+    } catch (err) {
+      toast.error(err.response?.data?.message || err.message || 'Failed to update photos');
+    } finally {
+      setPhotoEditLoading(false);
+    }
+  };
+
   if (loading && tab === 'list' && !tableLoading) { 
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
@@ -2321,6 +2852,7 @@ const Students = () => {
       {tab === 'list' && renderStudentList()}
       {showPasswordModal && renderPasswordModal()}
       {editModal && renderEditModal()}
+      {photoEditModal && renderPhotoEditModal()}
       <BatchRenewalModal
         isOpen={renewalModalOpen}
         onClose={() => setRenewalModalOpen(false)}

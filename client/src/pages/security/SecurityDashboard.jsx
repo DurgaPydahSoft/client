@@ -279,7 +279,7 @@ const SecurityDashboard = () => {
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-t from-blue-50 to-blue-200">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         <SEO 
           title="Security Dashboard"
@@ -678,47 +678,88 @@ const SectionTable = ({
   </div>
 );
 
-const StudentDetailsCard = ({ student, onClose }) => (
-  <motion.div
-    initial={{ opacity: 0, y: -20 }}
-    animate={{ opacity: 1, y: 0 }}
-    exit={{ opacity: 0, y: -20 }}
-    className="bg-white rounded-lg shadow-lg p-6 mb-6 border-l-4 border-blue-600"
-  >
-    <div className="flex justify-between items-start">
-      <h2 className="text-xl font-bold text-blue-900 mb-4">Student Details</h2>
-      <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
-        <XCircleIcon className="w-6 h-6" />
-      </button>
-    </div>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="md:col-span-1 flex flex-col items-center">
-        <img 
-          src={student.photoUrl || `https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=128`} 
-          alt={student.name}
-          className="w-32 h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
-        />
-        <span className={`mt-3 px-3 py-1 text-sm font-semibold rounded-full ${
-          student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {student.hostelStatus}
-        </span>
-      </div>
-      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-        <InfoField icon={<UserIcon />} label="Name" value={student.name} />
-        <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
-        <InfoField icon={<TagIcon />} label="Course" value={`${student.course} - ${student.branch}`} />
-        <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
-        <InfoField icon={<PhoneIcon />} label="Student Phone" value={student.studentPhone} />
-        <InfoField icon={<PhoneIcon />} label="Parent Phone" value={student.parentPhone} />
-        <InfoField icon={<div className="font-bold">R</div>} label="Room" value={student.roomNumber} />
-        <InfoField icon={<div className="font-bold">C</div>} label="Category" value={student.category} />
-        <InfoField icon={<CalendarIcon />} label="Batch" value={student.batch} />
-        <InfoField icon={<CalendarIcon />} label="Academic Year" value={student.academicYear} />
-      </div>
-    </div>
-  </motion.div>
-);
+const StudentDetailsCard = ({ student, onClose }) => {
+  const [popupImage, setPopupImage] = useState(null);
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 border-l-4 border-blue-600"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-lg sm:text-xl font-bold text-blue-900">Student Details</h2>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
+            <XCircleIcon className="w-6 h-6" />
+          </button>
+        </div>
+        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+          <div className="flex flex-col items-center w-full md:w-1/3">
+            <img
+              src={student.studentPhoto || `https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=128`}
+              alt={student.name}
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md cursor-pointer hover:scale-105 transition-transform"
+              onClick={() => setPopupImage(student.studentPhoto || `https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=512`)}
+            />
+            <span className={`mt-3 px-3 py-1 text-sm font-semibold rounded-full ${
+              student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              {student.hostelStatus}
+            </span>
+            {/* Guardian Photos */}
+            {(student.guardianPhoto1 || student.guardianPhoto2) && (
+              <div className="mt-4 w-full flex flex-row justify-center items-center gap-2">
+                {student.guardianPhoto1 && (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
+                    <img src={student.guardianPhoto1} alt="Guardian 1" className="w-full h-full object-cover" onClick={() => setPopupImage(student.guardianPhoto1)} />
+                    <div className="text-xs text-center text-gray-500 mt-1">Guardian Photo 1</div>
+                  </div>
+                )}
+                {student.guardianPhoto2 && (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
+                    <img src={student.guardianPhoto2} alt="Guardian 2" className="w-full h-full object-cover" onClick={() => setPopupImage(student.guardianPhoto2)} />
+                    <div className="text-xs text-center text-gray-500 mt-1">Guardian Photo 2</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm w-full">
+            <InfoField icon={<UserIcon />} label="Name" value={student.name} />
+            <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
+            <InfoField icon={<TagIcon />} label="Course" value={`${student.course} - ${student.branch}`} />
+            <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
+            <InfoField icon={<PhoneIcon />} label="Student Phone" value={student.studentPhone} />
+            <InfoField icon={<PhoneIcon />} label="Parent Phone" value={student.parentPhone} />
+            <InfoField icon={<div className="font-bold">R</div>} label="Room" value={student.roomNumber} />
+            <InfoField icon={<div className="font-bold">C</div>} label="Category" value={student.category} />
+            <InfoField icon={<CalendarIcon />} label="Batch" value={student.batch} />
+            <InfoField icon={<CalendarIcon />} label="Academic Year" value={student.academicYear} />
+          </div>
+        </div>
+      </motion.div>
+      {/* Image Popup Modal */}
+      {popupImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+          <div className="relative bg-white rounded-lg shadow-lg p-2 max-w-full max-h-full flex flex-col items-center">
+            <button
+              onClick={() => setPopupImage(null)}
+              className="absolute top-2 right-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full z-10"
+            >
+              <XCircleIcon className="w-7 h-7" />
+            </button>
+            <img
+              src={popupImage}
+              alt="Enlarged"
+              className="max-w-[90vw] max-h-[80vh] rounded-lg object-contain"
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 const InfoField = ({ icon, label, value }) => (
   <div className="flex items-start gap-3">
