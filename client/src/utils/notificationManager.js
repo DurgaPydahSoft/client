@@ -143,6 +143,12 @@ class NotificationManager {
         return false;
       }
 
+      // Validate user ID
+      if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+        console.warn('🔔 Invalid user ID provided:', userId);
+        return false;
+      }
+
       this.userId = userId;
       
       // Use the new OneSignal v16 login method

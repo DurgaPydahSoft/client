@@ -13,6 +13,7 @@ const NotificationBell = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState(null);
+  const [permissionStatus, setPermissionStatus] = useState(null);
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
@@ -54,6 +55,18 @@ const NotificationBell = () => {
     }
   };
 
+  // Check current permission status
+  const checkPermissionStatus = () => {
+    const status = {
+      browser: Notification.permission,
+      oneSignal: Notification.permission // Use browser permission as fallback
+    };
+
+    // For now, avoid OneSignal permission API to prevent crashes
+    // We'll rely on browser permission status
+    setPermissionStatus(status);
+  };
+
   useEffect(() => {
     fetchNotifications();
     const handler = () => fetchNotifications();
@@ -62,6 +75,9 @@ const NotificationBell = () => {
     // Get notification system status
     const status = notificationManager.getStatus();
     setNotificationStatus(status);
+    
+    // Check permission status
+    checkPermissionStatus();
     
     return () => window.removeEventListener('refresh-notifications', handler);
   }, []);
@@ -112,12 +128,79 @@ const NotificationBell = () => {
         
         // Update status
         setNotificationStatus(notificationManager.getStatus());
+        
+        // Refresh notifications and permission status
+        fetchNotifications();
+        checkPermissionStatus();
       } else {
         toast.error('Please enable notifications in your browser settings');
+        
+        // Show helpful instructions
+        if (Notification.permission === 'denied') {
+          toast.error('Notifications are blocked. Please enable them in your browser settings and refresh the page.');
+        } else if (Notification.permission === 'default') {
+          toast.error('Please allow notifications when prompted by your browser.');
+        }
       }
     } catch (error) {
       console.error('Error enabling notifications:', error);
       toast.error('Failed to enable notifications. Please try again.');
+    }
+  };
+
+  const handleManualPermissionRequest = async () => {
+    try {
+      console.log('🔔 Manually requesting notification permission...');
+      
+      // Check if OneSignal is available
+      if (typeof OneSignal !== 'undefined' && OneSignal.Notifications) {
+        try {
+          const permission = await OneSignal.Notifications.requestPermission();
+          console.log('🔔 Manual permission request result:', permission);
+          
+          if (permission) {
+            toast.success('Notification permission granted!');
+            setNotificationStatus(notificationManager.getStatus());
+            fetchNotifications();
+            checkPermissionStatus();
+          } else {
+            toast.error('Permission denied. Please enable notifications in browser settings.');
+            checkPermissionStatus();
+          }
+        } catch (oneSignalError) {
+          console.warn('🔔 OneSignal permission request failed, trying browser API:', oneSignalError);
+          // Fallback to browser notification API
+          const permission = await Notification.requestPermission();
+          console.log('🔔 Browser permission request result:', permission);
+          
+          if (permission === 'granted') {
+            toast.success('Notification permission granted!');
+            setNotificationStatus(notificationManager.getStatus());
+            fetchNotifications();
+            checkPermissionStatus();
+          } else {
+            toast.error('Permission denied. Please enable notifications in browser settings.');
+            checkPermissionStatus();
+          }
+        }
+      } else {
+        // Fallback to browser notification API
+        const permission = await Notification.requestPermission();
+        console.log('🔔 Browser permission request result:', permission);
+        
+        if (permission === 'granted') {
+          toast.success('Notification permission granted!');
+          setNotificationStatus(notificationManager.getStatus());
+          fetchNotifications();
+          checkPermissionStatus();
+        } else {
+          toast.error('Permission denied. Please enable notifications in browser settings.');
+          checkPermissionStatus();
+        }
+      }
+    } catch (error) {
+      console.error('🔔 Error in manual permission request:', error);
+      toast.error('Failed to request permission. Please try again.');
     }
   };
 
@@ -251,63 +334,9 @@ const NotificationBell = () => {
                   )}
                 </div>
                 
-                {/* Notification System Status */}
-                {notificationStatus && (
-                  <div className="mb-3 p-2 bg-gray-50 rounded text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium">System Status:</span>
-                      <div className="flex gap-2">
-                        {notificationStatus.oneSignal && (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded">OneSignal</span>
-                        )}
-                        {notificationStatus.legacy && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">Legacy</span>
-                        )}
-                        {notificationStatus.socket && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded">Socket</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {isLoading ? (
-                  <div className="flex justify-center items-center py-4">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                  </div>
-                ) : notifications.length === 0 ? (
+                {notifications.length === 0 ? (
                   <div className="text-center py-4">
                     <p className="text-gray-500 mb-4">No new notifications</p>
-                    <div className="space-y-2">
-                      <button
-                        onClick={handleEnableNotifications}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        Enable Notifications
-                      </button>
-                      {notificationStatus?.oneSignal && (
-                        <>
-                          <button
-                            onClick={handleTestNotification}
-                            className="block w-full text-sm text-green-600 hover:text-green-800"
-                          >
-                            Send Test Notification
-                          </button>
-                          <button
-                            onClick={handleTestPushNotification}
-                            className="block w-full text-sm text-purple-600 hover:text-purple-800"
-                          >
-                            Test Push Notification
-                          </button>
-                          <button
-                            onClick={handleTestOneSignalConnection}
-                            className="block w-full text-sm text-orange-600 hover:text-orange-800"
-                          >
-                            Test OneSignal Connection
-                          </button>
-                        </>
-                      )}
-                    </div>
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
