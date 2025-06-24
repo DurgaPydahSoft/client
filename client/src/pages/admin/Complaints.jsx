@@ -875,12 +875,27 @@ const Complaints = () => {
                     const complaintCategory = selected?.category;
                     const complaintSubCategory = selected?.subCategory;
                     
+                    // Normalize function to avoid case mismatches
+                    const normalize = str => str?.toLowerCase();
+
                     const categoryToFilterBy = complaintCategory === 'Maintenance' && complaintSubCategory 
                       ? complaintSubCategory 
                       : complaintCategory;
 
-                    const availableMembersForCategory = categoryToFilterBy ? members[categoryToFilterBy] : [];
-                    
+                    // Debug logs
+                    console.log('Selected complaint:', selected);
+                    console.log('Members object:', members);
+                    console.log('categoryToFilterBy:', categoryToFilterBy);
+
+                    // Build available members, robust to case
+                    const availableMembersForCategory = [
+                      ...(members[categoryToFilterBy] || []),
+                      ...(members['Maintenance'] || []),
+                      ...(members[normalize(categoryToFilterBy)] || []),
+                      ...(members[normalize('Maintenance')] || [])
+                    ];
+                    console.log('Available members for category:', availableMembersForCategory);
+
                     return (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Assign Member</label>
@@ -896,10 +911,10 @@ const Complaints = () => {
                           <option key="default" value="">Select a member</option>
                           {availableMembersForCategory?.map(member => {
                             const memberId = member._id || member.id;
-                            console.log('Member data:', member);
+                            const isGenericMaintenance = member.category === 'Maintenance';
                             return (
                               <option key={memberId} value={memberId}>
-                                {member.name} ({member.category})
+                                {member.name} ({member.category}{isGenericMaintenance ? ' - All Maintenance' : ''})
                               </option>
                             );
                           })}
