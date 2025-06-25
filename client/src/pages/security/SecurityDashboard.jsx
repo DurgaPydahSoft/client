@@ -35,9 +35,15 @@ const SecurityDashboard = () => {
   const [searchedStudent, setSearchedStudent] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [securitySettings, setSecuritySettings] = useState({
+    viewProfilePictures: true,
+    viewPhoneNumbers: true,
+    viewGuardianImages: true
+  });
 
   useEffect(() => {
     fetchApprovedLeaves();
+    fetchSecuritySettings();
   }, [filters.page]);
 
   useEffect(() => {
@@ -70,6 +76,22 @@ const SecurityDashboard = () => {
       toast.error('Failed to fetch approved leave requests');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSecuritySettings = async () => {
+    try {
+      const res = await api.get('/api/security-settings');
+      if (res.data.success) {
+        setSecuritySettings(res.data.data);
+      }
+    } catch (err) {
+      // fallback: all true
+      setSecuritySettings({
+        viewProfilePictures: true,
+        viewPhoneNumbers: true,
+        viewGuardianImages: true
+      });
     }
   };
 
@@ -238,12 +260,12 @@ const SecurityDashboard = () => {
       toast.error('Please enter a roll number to search.');
       return;
     }
-    
     setIsSearching(true);
     setSearchError('');
     setSearchedStudent(null);
-    
     try {
+      // Always fetch latest settings before showing student
+      await fetchSecuritySettings();
       const response = await api.get(`/api/admin/students/search/${searchQuery.trim()}`);
       if (response.data.success) {
         setSearchedStudent(response.data.data);
@@ -361,7 +383,7 @@ const SecurityDashboard = () => {
           <StudentDetailsCard student={searchedStudent} onClose={() => {
             setSearchedStudent(null);
             setSearchQuery('');
-          }} />
+          }} securitySettings={securitySettings} />
         )}
         {searchError && !searchedStudent && (
           <div className="bg-white rounded-lg shadow-sm p-6 my-6 text-center">
@@ -678,7 +700,7 @@ const SectionTable = ({
   </div>
 );
 
-const StudentDetailsCard = ({ student, onClose }) => {
+const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
   const [popupImage, setPopupImage] = useState(null);
   return (
     <>
@@ -696,19 +718,32 @@ const StudentDetailsCard = ({ student, onClose }) => {
         </div>
         <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
           <div className="flex flex-col items-center w-full md:w-1/3">
-            <img
-              src={student.studentPhoto || `https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=128`}
-              alt={student.name}
-              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md cursor-pointer hover:scale-105 transition-transform"
-              onClick={() => setPopupImage(student.studentPhoto || `https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=512`)}
-            />
+            {/* Profile Picture */}
+            {securitySettings.viewProfilePictures && student.studentPhoto ? (
+              <img
+                src={student.studentPhoto}
+                alt={student.name}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                onClick={() => setPopupImage(student.studentPhoto)}
+              />
+            ) : securitySettings.viewProfilePictures ? (
+              <img
+                src={`https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=128`}
+                alt={student.name}
+                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
+              />
+            ) : (
+              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-lg font-semibold border-4 border-gray-100 shadow-md">
+                Hidden by admin
+              </div>
+            )}
             <span className={`mt-3 px-3 py-1 text-sm font-semibold rounded-full ${
               student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {student.hostelStatus}
             </span>
             {/* Guardian Photos */}
-            {(student.guardianPhoto1 || student.guardianPhoto2) && (
+            {securitySettings.viewGuardianImages && (student.guardianPhoto1 || student.guardianPhoto2) ? (
               <div className="mt-4 w-full flex flex-row justify-center items-center gap-2">
                 {student.guardianPhoto1 && (
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
@@ -723,15 +758,21 @@ const StudentDetailsCard = ({ student, onClose }) => {
                   </div>
                 )}
               </div>
-            )}
+            ) : !securitySettings.viewGuardianImages && (student.guardianPhoto1 || student.guardianPhoto2) ? (
+              <div className="mt-4 w-full flex flex-row justify-center items-center gap-2">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-semibold border border-gray-200">
+                  Guardian images hidden
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm w-full">
             <InfoField icon={<UserIcon />} label="Name" value={student.name} />
             <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
             <InfoField icon={<TagIcon />} label="Course" value={`${student.course} - ${student.branch}`} />
             <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
-            <InfoField icon={<PhoneIcon />} label="Student Phone" value={student.studentPhone} />
-            <InfoField icon={<PhoneIcon />} label="Parent Phone" value={student.parentPhone} />
+            <InfoField icon={<PhoneIcon />} label="Student Phone" value={securitySettings.viewPhoneNumbers ? student.studentPhone : 'Hidden by admin'} />
+            <InfoField icon={<PhoneIcon />} label="Parent Phone" value={securitySettings.viewPhoneNumbers ? student.parentPhone : 'Hidden by admin'} />
             <InfoField icon={<div className="font-bold">R</div>} label="Room" value={student.roomNumber} />
             <InfoField icon={<div className="font-bold">C</div>} label="Category" value={student.category} />
             <InfoField icon={<CalendarIcon />} label="Batch" value={student.batch} />

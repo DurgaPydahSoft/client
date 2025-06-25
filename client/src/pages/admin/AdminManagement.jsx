@@ -10,7 +10,9 @@ import {
   UserIcon,
   KeyIcon,
   CheckIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  HomeIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -25,8 +27,34 @@ const PERMISSIONS = [
   { id: 'member_management', label: 'Member Management' }
 ];
 
+const ToggleSwitch = ({ label, checked, onChange }) => (
+  <label className="flex items-center gap-3 cursor-pointer select-none">
+    <span className="text-gray-800 font-medium">{label}</span>
+    <span className="relative inline-block w-12 h-6 align-middle">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="sr-only peer"
+      />
+      <span
+        className={`block w-12 h-6 rounded-full transition-colors duration-300
+          ${checked ? 'bg-blue-600' : 'bg-gray-300'}
+        `}
+      ></span>
+      <span
+        className={`absolute left-0 top-0 w-6 h-6 bg-white border border-gray-300 rounded-full shadow transform transition-transform duration-300
+          ${checked ? 'translate-x-6 border-blue-600' : ''}
+        `}
+      ></span>
+    </span>
+  </label>
+);
+
 const AdminManagement = () => {
+  const [activeTab, setActiveTab] = useState('sub-admins');
   const [subAdmins, setSubAdmins] = useState([]);
+  const [wardens, setWardens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -34,24 +62,55 @@ const AdminManagement = () => {
   const [formData, setFormData] = useState({
     username: '',
     password: '',
-    permissions: []
+    permissions: [],
+    hostelType: ''
   });
+  const [securitySettings, setSecuritySettings] = useState({
+    viewProfilePictures: true,
+    viewPhoneNumbers: true,
+    viewGuardianImages: true
+  });
+  const [securitySettingsLoading, setSecuritySettingsLoading] = useState(true);
+  const [securitySettingsError, setSecuritySettingsError] = useState('');
 
   useEffect(() => {
-    fetchSubAdmins();
+    fetchData();
+    fetchSecuritySettings();
   }, []);
 
-  const fetchSubAdmins = async () => {
+  const fetchData = async () => {
     try {
-      const response = await api.get('/api/admin-management/sub-admins');
-      if (response.data.success) {
-        setSubAdmins(response.data.data);
+      const [subAdminsRes, wardensRes] = await Promise.all([
+        api.get('/api/admin-management/sub-admins'),
+        api.get('/api/admin-management/wardens')
+      ]);
+      
+      if (subAdminsRes.data.success) {
+        setSubAdmins(subAdminsRes.data.data);
+      }
+      if (wardensRes.data.success) {
+        setWardens(wardensRes.data.data);
       }
     } catch (error) {
-      console.error('Error fetching sub-admins:', error);
-      toast.error('Failed to fetch sub-admins');
+      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSecuritySettings = async () => {
+    setSecuritySettingsLoading(true);
+    setSecuritySettingsError('');
+    try {
+      const res = await api.get('/api/security-settings');
+      if (res.data.success) {
+        setSecuritySettings(res.data.data);
+      }
+    } catch (err) {
+      setSecuritySettingsError('Failed to load security settings');
+    } finally {
+      setSecuritySettingsLoading(false);
     }
   };
 
@@ -76,15 +135,22 @@ const AdminManagement = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/api/admin-management/sub-admins', formData);
+      const endpoint = activeTab === 'sub-admins' ? '/api/admin-management/sub-admins' : '/api/admin-management/wardens';
+      
+      // For wardens, ensure hostelType is included
+      const requestData = activeTab === 'wardens' 
+        ? { ...formData, hostelType: formData.hostelType }
+        : formData;
+      
+      const response = await api.post(endpoint, requestData);
       if (response.data.success) {
-        toast.success('Sub-admin added successfully');
+        toast.success(`${activeTab === 'sub-admins' ? 'Sub-admin' : 'Warden'} added successfully`);
         setShowAddModal(false);
-        setFormData({ username: '', password: '', permissions: [] });
-        fetchSubAdmins();
+        setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+        fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add sub-admin');
+      toast.error(error.response?.data?.message || `Failed to add ${activeTab === 'sub-admins' ? 'sub-admin' : 'warden'}`);
     }
   };
 
@@ -92,6 +158,10 @@ const AdminManagement = () => {
     e.preventDefault();
     try {
       console.log('🔧 Frontend: Sending update data:', formData);
+      
+      const endpoint = activeTab === 'sub-admins' 
+        ? `/api/admin-management/sub-admins/${selectedAdmin._id}`
+        : `/api/admin-management/wardens/${selectedAdmin._id}`;
       
       // Only send password if it's not empty
       const updateData = {
@@ -103,33 +173,43 @@ const AdminManagement = () => {
         updateData.password = formData.password;
       }
       
+      // For wardens, include hostelType
+      if (activeTab === 'wardens' && formData.hostelType) {
+        updateData.hostelType = formData.hostelType;
+      }
+      
       console.log('🔧 Frontend: Final update data:', updateData);
       
-      const response = await api.put(`/api/admin-management/sub-admins/${selectedAdmin._id}`, updateData);
+      const response = await api.put(endpoint, updateData);
       if (response.data.success) {
-        toast.success('Sub-admin updated successfully');
+        toast.success(`${activeTab === 'sub-admins' ? 'Sub-admin' : 'Warden'} updated successfully`);
         setShowEditModal(false);
         setSelectedAdmin(null);
-        setFormData({ username: '', password: '', permissions: [] });
-        fetchSubAdmins();
+        setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+        fetchData();
       }
     } catch (error) {
-      console.error('🔧 Frontend: Error updating sub-admin:', error);
-      toast.error(error.response?.data?.message || 'Failed to update sub-admin');
+      console.error('🔧 Frontend: Error updating:', error);
+      toast.error(error.response?.data?.message || `Failed to update ${activeTab === 'sub-admins' ? 'sub-admin' : 'warden'}`);
     }
   };
 
   const handleDeleteAdmin = async (adminId) => {
-    if (!window.confirm('Are you sure you want to delete this sub-admin?')) return;
+    const userType = activeTab === 'sub-admins' ? 'sub-admin' : 'warden';
+    if (!window.confirm(`Are you sure you want to delete this ${userType}?`)) return;
     
     try {
-      const response = await api.delete(`/api/admin-management/sub-admins/${adminId}`);
+      const endpoint = activeTab === 'sub-admins' 
+        ? `/api/admin-management/sub-admins/${adminId}`
+        : `/api/admin-management/wardens/${adminId}`;
+      
+      const response = await api.delete(endpoint);
       if (response.data.success) {
-        toast.success('Sub-admin deleted successfully');
-        fetchSubAdmins();
+        toast.success(`${userType} deleted successfully`);
+        fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete sub-admin');
+      toast.error(error.response?.data?.message || `Failed to delete ${userType}`);
     }
   };
 
@@ -138,12 +218,36 @@ const AdminManagement = () => {
     setFormData({
       username: admin.username,
       password: '',
-      permissions: admin.permissions
+      permissions: admin.permissions,
+      hostelType: admin.hostelType || ''
     });
     setShowEditModal(true);
   };
 
+  const resetForm = () => {
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setSelectedAdmin(null);
+    setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+  };
+
+  const handleSecurityToggle = async (key) => {
+    const updated = { ...securitySettings, [key]: !securitySettings[key] };
+    setSecuritySettings(updated);
+    try {
+      await api.post('/api/security-settings', updated);
+      toast.success('Security settings updated');
+    } catch (err) {
+      toast.error('Failed to update security settings');
+      // Optionally revert UI
+      fetchSecuritySettings();
+    }
+  };
+
   if (loading) return <LoadingSpinner />;
+
+  const currentData = activeTab === 'sub-admins' ? subAdmins : wardens;
+  const isWardenTab = activeTab === 'wardens';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -153,44 +257,120 @@ const AdminManagement = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Admin Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage sub-admin accounts and their permissions</p>
+          <p className="text-sm text-gray-500 mt-1">Manage sub-admin and warden accounts</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <UserPlusIcon className="w-5 h-5" />
-          Add Sub-Admin
+          Add {isWardenTab ? 'Warden' : 'Sub-Admin'}
         </button>
       </div>
 
-      {/* Sub-Admins List */}
+      {/* Tabs */}
+      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+        <button
+          onClick={() => setActiveTab('sub-admins')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'sub-admins'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <ShieldCheckIcon className="w-4 h-4" />
+          Sub-Admins
+        </button>
+        <button
+          onClick={() => setActiveTab('wardens')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'wardens'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <HomeIcon className="w-4 h-4" />
+          Wardens
+        </button>
+      </div>
+
+      {/* Security Settings Section */}
+      <div className="bg-white rounded-xl shadow-sm p-6 mt-8 mb-8">
+        <h2 className="text-lg font-bold text-blue-800 mb-4">Security Settings</h2>
+        {securitySettingsLoading ? (
+          <div className="text-gray-500">Loading...</div>
+        ) : securitySettingsError ? (
+          <div className="text-red-500">{securitySettingsError}</div>
+        ) : (
+          <div className="flex flex-col sm:flex-row gap-6">
+            <ToggleSwitch
+              label="View Profile Pictures"
+              checked={securitySettings.viewProfilePictures}
+              onChange={() => handleSecurityToggle('viewProfilePictures')}
+            />
+            <ToggleSwitch
+              label="View Phone Numbers"
+              checked={securitySettings.viewPhoneNumbers}
+              onChange={() => handleSecurityToggle('viewPhoneNumbers')}
+            />
+            <ToggleSwitch
+              label="View Guardian Images"
+              checked={securitySettings.viewGuardianImages}
+              onChange={() => handleSecurityToggle('viewGuardianImages')}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Users List */}
       <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {subAdmins.length === 0 ? (
+        {currentData.length === 0 ? (
           <div className="p-8 text-center">
             <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">No sub-admins found</p>
+            <p className="text-gray-500">No {isWardenTab ? 'wardens' : 'sub-admins'} found</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {subAdmins.map((admin) => (
+            {currentData.map((admin) => (
               <div key={admin._id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                      {isWardenTab ? (
+                        <HomeIcon className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                      )}
                       <h3 className="font-medium text-gray-900">{admin.username}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {admin.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {admin.permissions.map(permission => (
-                        <span key={permission} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
-                          {PERMISSIONS.find(p => p.id === permission)?.label || permission}
+                    {!isWardenTab && (
+                      <div className="flex flex-wrap gap-2">
+                        {admin.permissions.map(permission => (
+                          <span key={permission} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                            {PERMISSIONS.find(p => p.id === permission)?.label || permission}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {isWardenTab && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
+                          Warden Permissions
                         </span>
-                      ))}
-                    </div>
+                        {admin.hostelType && (
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            admin.hostelType === 'boys' 
+                              ? 'bg-blue-50 text-blue-700' 
+                              : 'bg-pink-50 text-pink-700'
+                          }`}>
+                            {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -230,15 +410,10 @@ const AdminManagement = () => {
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">
-                  {showAddModal ? 'Add New Sub-Admin' : 'Edit Sub-Admin'}
+                  {showAddModal ? `Add New ${isWardenTab ? 'Warden' : 'Sub-Admin'}` : `Edit ${isWardenTab ? 'Warden' : 'Sub-Admin'}`}
                 </h2>
                 <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setShowEditModal(false);
-                    setSelectedAdmin(null);
-                    setFormData({ username: '', password: '', permissions: [] });
-                  }}
+                  onClick={resetForm}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <XMarkIcon className="w-6 h-6" />
@@ -282,35 +457,61 @@ const AdminManagement = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Permissions
-                  </label>
-                  <div className="space-y-2">
-                    {PERMISSIONS.map(permission => (
-                      <label key={permission.id} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          value={permission.id}
-                          checked={formData.permissions.includes(permission.id)}
-                          onChange={handleFormChange}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700">{permission.label}</span>
-                      </label>
-                    ))}
+                {!isWardenTab && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Permissions
+                    </label>
+                    <div className="space-y-2">
+                      {PERMISSIONS.map(permission => (
+                        <label key={permission.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            value={permission.id}
+                            checked={formData.permissions.includes(permission.id)}
+                            onChange={handleFormChange}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-sm text-gray-700">{permission.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {isWardenTab && (
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <p className="text-sm text-green-700">
+                      <strong>Warden Permissions:</strong> Wardens have access to student oversight, 
+                      complaint management, leave approval, room monitoring, announcements, 
+                      discipline management, and attendance tracking.
+                    </p>
+                  </div>
+                )}
+
+                {isWardenTab && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Hostel Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="hostelType"
+                      value={formData.hostelType}
+                      onChange={handleFormChange}
+                      required={isWardenTab}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Hostel Type</option>
+                      <option value="boys">Boys Hostel</option>
+                      <option value="girls">Girls Hostel</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setShowEditModal(false);
-                      setSelectedAdmin(null);
-                      setFormData({ username: '', password: '', permissions: [] });
-                    }}
+                    onClick={resetForm}
                     className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     Cancel
@@ -320,7 +521,7 @@ const AdminManagement = () => {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
                     <CheckIcon className="w-5 h-5" />
-                    {showAddModal ? 'Add Sub-Admin' : 'Update Sub-Admin'}
+                    {showAddModal ? `Add ${isWardenTab ? 'Warden' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : 'Sub-Admin'}`}
                   </button>
                 </div>
               </form>

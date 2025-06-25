@@ -13,12 +13,15 @@ import LeaveQRDetails from './pages/student/LeaveQRDetails';
 import SecurityDashboard from './pages/security/SecurityDashboard';
 import AdminManagement from './pages/admin/AdminManagement';
 import PushNotificationInitializer from './components/PushNotificationInitializer';
+import MenuManagement from './pages/admin/MenuManagement';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
 const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
+const WardenDashboard = lazy(() => import('./pages/warden/wardendashboard'));
+const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Home = lazy(() => import('./pages/Home'));
 
@@ -35,51 +38,48 @@ const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
 // Student components
 const RaiseComplaint = lazy(() => import('./pages/student/RaiseComplaint'));
 const MyComplaints = lazy(() => import('./pages/student/MyComplaints'));
+const Leave = lazy(() => import('./pages/student/Leave'));
 const StudentAnnouncements = lazy(() => import('./pages/student/Announcements'));
 const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
-const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const Polls = lazy(() => import('./pages/student/Polls'));
-const Leave = lazy(() => import('./pages/student/Leave'));
+const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 
-// Loading component
-const Loading = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <LoadingSpinner size="lg" />
-  </div>
-);
-
-// Error boundary component
-const ErrorBoundary = ({ children }) => {
-  const [hasError, setHasError] = React.useState(false);
-
-  React.useEffect(() => {
-    const handleError = (error) => {
-      console.error('Error caught by boundary:', error);
-      setHasError(true);
-    };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-
-  if (hasError) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-2">Something went wrong</h2>
-          <button 
-            className="btn-primary"
-            onClick={() => window.location.reload()}
-          >
-            Reload Page
-          </button>
-        </div>
-      </div>
-    );
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
   }
 
-  return children;
-};
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
+            <p className="text-gray-600 mb-4">Please refresh the page or try again later.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 function App() {
   return (
@@ -144,6 +144,7 @@ function App() {
                   <PollManagement />
                 </ProtectedSection>
               } />
+              <Route path="menu" element={<MenuManagement />} />
               <Route path="leave" element={
                 <ProtectedSection permission="leave_management" sectionName="Leave Management">
                   <LeaveManagement />
@@ -155,6 +156,28 @@ function App() {
                 </ProtectedSection>
               } />
             </Route>
+
+            {/* Protected warden routes */}
+            <Route
+                path="/warden"
+              element={<Navigate to="/warden/dashboard" replace />}
+            />
+            <Route
+                path="/warden/dashboard"
+              element={
+                <ProtectedRoute requireAuth={true} role="warden">
+                  <WardenDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+                path="/warden/bulk-outing"
+              element={
+                <ProtectedRoute requireAuth={true} role="warden">
+                  <BulkOuting />
+                </ProtectedRoute>
+              }
+            />
             
             {/* Student reset password route */}
             <Route

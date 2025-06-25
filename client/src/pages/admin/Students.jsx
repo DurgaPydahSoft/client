@@ -137,7 +137,8 @@ const Students = () => {
     category: '',
     roomNumber: '',
     batch: '',
-    academicYear: ''
+    academicYear: '',
+    hostelStatus: 'Active' // Default to show only active students
   });
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -190,21 +191,6 @@ const Students = () => {
     };
   }, [filters.search]);
 
-  // Fetch students when tab, currentPage, or filters (excluding direct search) change
-  useEffect(() => {
-    if (tab === 'list') {
-      fetchStudents(true); // Pass true for initialLoad to use setLoading
-    } else if (tab === 'bulkUpload') {
-      fetchTempStudentsSummary();
-    }
-  }, [tab]); // Initial load for tab change
-
-  useEffect(() => {
-    if (tab === 'list') {
-      fetchStudents(false); // Subsequent fetches don't use main setLoading
-    }
-  }, [currentPage, filters.course, filters.branch, filters.roomNumber, filters.batch, filters.academicYear, debouncedSearchTerm]);
-
   const fetchTempStudentsSummary = async () => {
     setLoadingTempSummary(true);
     try {
@@ -243,6 +229,7 @@ const Students = () => {
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
       if (filters.batch) params.append('batch', filters.batch);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
 
       console.log('Filter params:', Object.fromEntries(params)); // Debug log
 
@@ -267,14 +254,16 @@ const Students = () => {
         setTableLoading(false);
       }
     }
-  }, [currentPage, filters, debouncedSearchTerm]);
+  }, [currentPage, filters.search, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
-  // Update useEffect for filter changes to include batch
+  // Fetch students when tab, currentPage, or filters change
   useEffect(() => {
     if (tab === 'list') {
-      fetchStudents(false);
+      fetchStudents(true); // Pass true for initialLoad to use setLoading
+    } else if (tab === 'bulkUpload') {
+      fetchTempStudentsSummary();
     }
-  }, [currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, debouncedSearchTerm, fetchStudents]);
+  }, [tab, currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
@@ -386,7 +375,7 @@ const Students = () => {
     try {
       await api.delete(`/api/admin/students/${id}`);
       toast.success('Student deleted successfully');
-      fetchStudents(); // Refresh list
+      await fetchStudents(); // Refresh list
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete student');
     } finally {
@@ -408,7 +397,8 @@ const Students = () => {
       studentPhone: student.studentPhone,
       parentPhone: student.parentPhone,
       batch: student.batch,
-      academicYear: student.academicYear
+      academicYear: student.academicYear,
+      hostelStatus: student.hostelStatus || 'Active'
     });
     setEditModal(true);
   };
@@ -1405,6 +1395,18 @@ const Students = () => {
                 ))}
               </select>
             </div>
+            <div>
+              <select
+                name="hostelStatus"
+                value={filters.hostelStatus}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Status</option>
+                <option value="Active">Active Students</option>
+                <option value="Inactive">Inactive Students</option>
+              </select>
+            </div>
           </div>
 
           {/* Active Filters - Made responsive */}
@@ -1420,7 +1422,8 @@ const Students = () => {
                     category: '',
                     roomNumber: '',
                     batch: '',
-                    academicYear: ''
+                    academicYear: '',
+                    hostelStatus: 'Active'
                   });
                   setCurrentPage(1);
                 }}
@@ -1488,6 +1491,7 @@ const Students = () => {
                           <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
                           <th scope="col" className="hidden xl:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
                           <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                          <th scope="col" className="hidden md:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
@@ -1529,6 +1533,28 @@ const Students = () => {
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">Room {student.roomNumber}</td>
                             <td className="hidden xl:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.batch}</td>
+                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm">
+                              <div className="flex flex-col gap-1">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                  student.hostelStatus === 'Active' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {student.hostelStatus}
+                                </span>
+                                {student.graduationStatus && (
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                    student.graduationStatus === 'Graduated' 
+                                      ? 'bg-blue-100 text-blue-800' 
+                                      : student.graduationStatus === 'Dropped'
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {student.graduationStatus}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex space-x-2">
                                 <button
@@ -1805,6 +1831,19 @@ const Students = () => {
                 {generateAcademicYears().map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel Status</label>
+              <select
+                name="hostelStatus"
+                value={editForm.hostelStatus || 'Active'}
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
               </select>
             </div>
           </div>
@@ -2534,8 +2573,16 @@ const Students = () => {
     try {
       const res = await api.post('/api/admin/students/renew-batch', { fromAcademicYear, toAcademicYear, studentIds });
       if (res.data.success) {
-        toast.success(res.data.message);
+        const { renewedCount, graduatedCount, deactivatedCount, graduationDetails } = res.data.data;
+        
+        let message = `Batch renewal completed: ${renewedCount} renewed, ${graduatedCount} graduated, ${deactivatedCount} deactivated.`;
+        if (graduationDetails && graduationDetails.length > 0) {
+          message += ` Graduated students: ${graduationDetails.map(g => g.name).join(', ')}`;
+        }
+        
+        toast.success(message);
         console.log('Renewal Results:', res.data.data);
+        
         // Optionally refresh data
         if (tab === 'list') {
           fetchStudents(true);

@@ -11,7 +11,10 @@ const NotFound = () => {
   };
 
   const redirectPath = () => {
-    return user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin' ? '/admin' : '/student';
+    if (user?.role === 'warden') {
+      return '/warden/dashboard';
+    }
+    return user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin' ? '/admin/dashboard' : '/student';
   };
 
   return (

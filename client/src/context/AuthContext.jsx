@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }) => {
         const userRole = localStorage.getItem('userRole');
         
         let res;
-        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin') {
-          console.log('🔍 Validating admin token...');
+        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden') {
+          console.log('🔍 Validating admin/warden token...');
           res = await api.get('/api/admin-management/validate');
         } else {
           console.log('🔍 Validating student token...');
@@ -202,6 +202,10 @@ export const AuthProvider = ({ children }) => {
     return user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
   };
 
+  const isWarden = () => {
+    return user?.role === 'warden';
+  };
+
   const isStudent = () => {
     return user?.role === 'student';
   };
@@ -216,6 +220,7 @@ export const AuthProvider = ({ children }) => {
     hasPermission,
     isSuperAdmin,
     isAdmin,
+    isWarden,
     isStudent,
     requiresPasswordChange,
     setRequiresPasswordChange,

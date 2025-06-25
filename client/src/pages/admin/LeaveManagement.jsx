@@ -17,21 +17,30 @@ import SEO from '../../components/SEO';
 
 const LeaveManagement = () => {
   const [leaves, setLeaves] = useState([]);
+  const [bulkOutings, setBulkOutings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bulkOutingsLoading, setBulkOutingsLoading] = useState(false);
   const [showOTPModal, setShowOTPModal] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [otp, setOtp] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('leaves'); // 'leaves' or 'bulk-outings'
   const [filters, setFilters] = useState({
     status: '',
     applicationType: '',
     page: 1
   });
+  const [expandedBulkOutings, setExpandedBulkOutings] = useState(new Set());
+  const [loadingStudentDetails, setLoadingStudentDetails] = useState(new Set());
 
   useEffect(() => {
-    fetchLeaves();
-  }, [filters]);
+    if (activeTab === 'leaves') {
+      fetchLeaves();
+    } else {
+      fetchBulkOutings();
+    }
+  }, [filters, activeTab]);
 
   const fetchLeaves = async () => {
     try {
@@ -53,6 +62,79 @@ const LeaveManagement = () => {
       toast.error('Failed to fetch leave requests');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBulkOutings = async () => {
+    setBulkOutingsLoading(true);
+    try {
+      const response = await api.get('/api/bulk-outing/admin', { params: filters });
+      if (response.data.success) {
+        setBulkOutings(response.data.data.bulkOutings);
+      }
+    } catch (error) {
+      console.error('Error fetching bulk outings:', error);
+      toast.error('Failed to fetch bulk outing requests');
+    } finally {
+      setBulkOutingsLoading(false);
+    }
+  };
+
+  const fetchBulkOutingStudents = async (outingId) => {
+    // Set loading state for this specific outing
+    setLoadingStudentDetails(prev => new Set(prev).add(outingId));
+    
+    try {
+      const response = await api.get(`/api/bulk-outing/admin/${outingId}/students`);
+      if (response.data.success) {
+        // Update the specific bulk outing with student details
+        setBulkOutings(prev => prev.map(outing => 
+          outing._id === outingId 
+            ? { ...outing, students: response.data.data.students }
+            : outing
+        ));
+      }
+    } catch (error) {
+      console.error('Error fetching bulk outing students:', error);
+      // Don't show error toast for 404 or other expected errors
+      if (error.response?.status !== 404) {
+        toast.error('Failed to fetch student details');
+      }
+    } finally {
+      // Clear loading state for this specific outing
+      setLoadingStudentDetails(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(outingId);
+        return newSet;
+      });
+    }
+  };
+
+  const handleApproveBulkOuting = async (bulkOutingId) => {
+    try {
+      const response = await api.post(`/api/bulk-outing/admin/${bulkOutingId}/approve`);
+      if (response.data.success) {
+        toast.success('Bulk outing request approved successfully');
+        fetchBulkOutings();
+      }
+    } catch (error) {
+      console.error('Error approving bulk outing:', error);
+      toast.error(error.response?.data?.message || 'Failed to approve bulk outing');
+    }
+  };
+
+  const handleRejectBulkOuting = async (bulkOutingId, reason) => {
+    try {
+      const response = await api.post(`/api/bulk-outing/admin/${bulkOutingId}/reject`, {
+        rejectionReason: reason
+      });
+      if (response.data.success) {
+        toast.success('Bulk outing request rejected successfully');
+        fetchBulkOutings();
+      }
+    } catch (error) {
+      console.error('Error rejecting bulk outing:', error);
+      toast.error(error.response?.data?.message || 'Failed to reject bulk outing');
     }
   };
 
@@ -149,6 +231,20 @@ const LeaveManagement = () => {
     return {};
   };
 
+  const toggleBulkOutingExpansion = (outingId) => {
+    setExpandedBulkOutings(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(outingId)) {
+        newSet.delete(outingId);
+      } else {
+        newSet.add(outingId);
+        // Fetch student details when expanding
+        fetchBulkOutingStudents(outingId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -184,23 +280,178 @@ const LeaveManagement = () => {
           </div>
         </div>
 
-        {/* Leave List */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            </div>
-          ) : leaves.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <p>No requests found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {leaves.map((leave) => {
-                const displayInfo = formatDisplayDate(leave);
-                return (
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 mb-6">
+          <button
+            onClick={() => setActiveTab('leaves')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'leaves'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Individual Requests
+          </button>
+          <button
+            onClick={() => setActiveTab('bulk-outings')}
+            className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              activeTab === 'bulk-outings'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Bulk Outing Requests
+          </button>
+        </div>
+
+        {/* Content based on active tab */}
+        {activeTab === 'leaves' ? (
+          /* Leave List */
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : leaves.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <p>No requests found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {leaves.map((leave) => {
+                  const displayInfo = formatDisplayDate(leave);
+                  return (
+                    <motion.div
+                      key={leave._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-6 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
+                              {getStatusIcon(leave.status)}
+                              <span className="ml-1">{leave.status}</span>
+                            </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                              {leave.applicationType}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {new Date(leave.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+
+                          {/* Student Details */}
+                          <div className="flex flex-wrap items-center gap-4 mb-3">
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <UserIcon className="w-4 h-4" />
+                              <span>{leave.student?.name || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <AcademicCapIcon className="w-4 h-4" />
+                              <span>{leave.student?.rollNumber || 'N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-sm text-gray-600">
+                              <PhoneIcon className="w-4 h-4" />
+                              <span>{leave.parentPhone || 'N/A'}</span>
+                            </div>
+                          </div>
+
+                          {/* Date/Time Information */}
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
+                            {leave.applicationType === 'Leave' ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <CalendarIcon className="w-4 h-4" />
+                                  <span>From: {displayInfo.start}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <CalendarIcon className="w-4 h-4" />
+                                  <span>To: {displayInfo.end}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <ClockIcon className="w-4 h-4" />
+                                  <span>{displayInfo.duration}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <CalendarIcon className="w-4 h-4" />
+                                  <span>Date: {displayInfo.date}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <ClockIcon className="w-4 h-4" />
+                                  <span>Time: {displayInfo.time}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Gate Pass Information for Leave */}
+                          {leave.applicationType === 'Leave' && (
+                            <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
+                              <ArrowRightIcon className="w-4 h-4" />
+                              <span>Gate Pass: {displayInfo.gatePass}</span>
+                            </div>
+                          )}
+
+                          <p className="text-gray-700 mb-2 break-words">{leave.reason}</p>
+
+                          {leave.rejectionReason && (
+                            <p className="text-sm text-red-600">
+                              Rejection Reason: {leave.rejectionReason}
+                            </p>
+                          )}
+
+                          {/* Action Buttons */}
+                          {leave.status === 'Pending OTP Verification' && (
+                            <div className="flex gap-3 mt-4">
+                              <button
+                                onClick={() => {
+                                  setSelectedLeave(leave);
+                                  setShowOTPModal(true);
+                                }}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                              >
+                                Verify OTP
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedLeave(leave);
+                                  setShowRejectModal(true);
+                                }}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Bulk Outing List */
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {bulkOutingsLoading ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              </div>
+            ) : bulkOutings.length === 0 ? (
+              <div className="p-8 text-center text-gray-500">
+                <p>No bulk outing requests found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {bulkOutings.map((outing) => (
                   <motion.div
-                    key={leave._id}
+                    key={outing._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="p-6 hover:bg-gray-50 transition-colors"
@@ -208,97 +459,130 @@ const LeaveManagement = () => {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
-                            {getStatusIcon(leave.status)}
-                            <span className="ml-1">{leave.status}</span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(outing.status)}`}>
+                            {getStatusIcon(outing.status)}
+                            <span className="ml-1">{outing.status}</span>
                           </span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                            {leave.applicationType}
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border text-purple-600 bg-purple-50 border-purple-200">
+                            Bulk Outing
                           </span>
                           <span className="text-sm text-gray-500">
-                            {new Date(leave.createdAt).toLocaleDateString()}
+                            {new Date(outing.createdAt).toLocaleDateString()}
                           </span>
                         </div>
 
-                        {/* Student Details */}
+                        {/* Warden Details */}
                         <div className="flex flex-wrap items-center gap-4 mb-3">
                           <div className="flex items-center gap-1 text-sm text-gray-600">
                             <UserIcon className="w-4 h-4" />
-                            <span>{leave.student?.name || 'N/A'}</span>
+                            <span>Warden: {outing.createdBy?.username || 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <AcademicCapIcon className="w-4 h-4" />
-                            <span>{leave.student?.rollNumber || 'N/A'}</span>
+                            <span>Hostel: {outing.createdBy?.hostelType || 'N/A'}</span>
                           </div>
                           <div className="flex items-center gap-1 text-sm text-gray-600">
-                            <PhoneIcon className="w-4 h-4" />
-                            <span>{leave.parentPhone || 'N/A'}</span>
+                            <span>Students: {outing.studentCount}</span>
                           </div>
                         </div>
 
-                        {/* Date/Time Information */}
+                        {/* Outing Details */}
                         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-2">
-                          {leave.applicationType === 'Leave' ? (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
-                                <span>From: {displayInfo.start}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
-                                <span>To: {displayInfo.end}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <ClockIcon className="w-4 h-4" />
-                                <span>{displayInfo.duration}</span>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
-                                <span>Date: {displayInfo.date}</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <ClockIcon className="w-4 h-4" />
-                                <span>Time: {displayInfo.time}</span>
-                              </div>
-                            </>
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="w-4 h-4" />
+                            <span>Date: {new Date(outing.outingDate).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        <p className="text-gray-700 mb-2 break-words">{outing.reason}</p>
+
+                        {/* Student Details Section */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => toggleBulkOutingExpansion(outing._id)}
+                            className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                          >
+                            <span>{expandedBulkOutings.has(outing._id) ? 'Hide' : 'Show'} Student Details</span>
+                            <svg
+                              className={`w-4 h-4 transition-transform ${expandedBulkOutings.has(outing._id) ? 'rotate-180' : ''}`}
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+
+                          {expandedBulkOutings.has(outing._id) && (
+                            <div className="mt-3 p-4 bg-gray-50 rounded-lg">
+                              <h5 className="text-sm font-medium text-gray-900 mb-3">Students in this outing:</h5>
+                              
+                              {loadingStudentDetails.has(outing._id) ? (
+                                <div className="flex justify-center py-4">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                                </div>
+                              ) : outing.students && outing.students.length > 0 ? (
+                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                  {outing.students.map((student, index) => (
+                                    <div key={student._id || index} className="flex items-center justify-between p-2 bg-white rounded border">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex-shrink-0 h-8 w-8">
+                                          {student.studentPhoto ? (
+                                            <img
+                                              className="h-8 w-8 rounded-full object-cover"
+                                              src={student.studentPhoto}
+                                              alt={student.name}
+                                            />
+                                          ) : (
+                                            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                              <span className="text-xs font-medium text-gray-700">
+                                                {student.name?.charAt(0).toUpperCase()}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <p className="text-sm font-medium text-gray-900">{student.name}</p>
+                                          <p className="text-xs text-gray-500">{student.rollNumber}</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-xs text-gray-600">{student.course} - {student.branch}</p>
+                                        <p className="text-xs text-gray-500">Room {student.roomNumber}</p>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="text-center py-4 text-gray-500">
+                                  <p className="text-sm">Student details not available</p>
+                                  <p className="text-xs text-gray-400 mt-1">Click "Show Student Details" to load</p>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
 
-                        {/* Gate Pass Information for Leave */}
-                        {leave.applicationType === 'Leave' && (
-                          <div className="flex items-center gap-1 text-sm text-gray-600 mb-2">
-                            <ArrowRightIcon className="w-4 h-4" />
-                            <span>Gate Pass: {displayInfo.gatePass}</span>
-                          </div>
-                        )}
-
-                        <p className="text-gray-700 mb-2 break-words">{leave.reason}</p>
-
-                        {leave.rejectionReason && (
+                        {outing.rejectionReason && (
                           <p className="text-sm text-red-600">
-                            Rejection Reason: {leave.rejectionReason}
+                            Rejection Reason: {outing.rejectionReason}
                           </p>
                         )}
 
                         {/* Action Buttons */}
-                        {leave.status === 'Pending OTP Verification' && (
+                        {outing.status === 'Pending' && (
                           <div className="flex gap-3 mt-4">
                             <button
-                              onClick={() => {
-                                setSelectedLeave(leave);
-                                setShowOTPModal(true);
-                              }}
+                              onClick={() => handleApproveBulkOuting(outing._id)}
                               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                             >
-                              Verify OTP
+                              Approve
                             </button>
                             <button
                               onClick={() => {
-                                setSelectedLeave(leave);
-                                setShowRejectModal(true);
+                                const reason = prompt('Enter rejection reason:');
+                                if (reason) {
+                                  handleRejectBulkOuting(outing._id, reason);
+                                }
                               }}
                               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                             >
@@ -309,11 +593,11 @@ const LeaveManagement = () => {
                       </div>
                     </div>
                   </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* OTP Verification Modal */}

@@ -36,19 +36,17 @@ const Login = () => {
         console.log('Admin login result:', result);
         
         if (result.success) {
-          toast.success('Admin login successful');
+          toast.success('Login successful');
+          
           // Route based on admin role
-          if (result.user.role === 'super_admin') {
-            console.log('Super admin detected, navigating to dashboard');
+          if (result.user.role === 'warden') {
+            console.log('Warden detected, navigating to warden dashboard');
+            navigate('/warden/dashboard', { replace: true });
+          } else if (result.user.role === 'super_admin' || result.user.role === 'sub_admin') {
+            console.log('Admin detected, navigating to admin dashboard');
             navigate('/admin/dashboard', { replace: true });
           } else {
-            console.log('Sub-admin detected, navigating to main dashboard');
-            console.log('Sub-admin user data:', result.user);
-            console.log('Sub-admin permissions:', result.user.permissions);
-            
-            // Sub-admin - always redirect to main dashboard
-            // The dashboard will handle showing/hiding sections based on permissions
-            console.log('Navigating to main dashboard for sub-admin');
+            console.log('Unknown admin role, defaulting to admin dashboard');
             navigate('/admin/dashboard', { replace: true });
           }
         }
@@ -186,9 +184,9 @@ const Login = () => {
                       </div>
                       <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        name="adminPassword"
                         type="password"
-                        placeholder="Enter password"
+                        name="adminPassword"
+                        placeholder="Enter admin password"
                         value={form.adminPassword}
                         onChange={handleChange}
                         required
@@ -226,8 +224,8 @@ const Login = () => {
                       </div>
                       <input
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        name="password"
                         type="password"
+                        name="password"
                         placeholder="Enter your password"
                         value={form.password}
                         onChange={handleChange}
@@ -243,22 +241,15 @@ const Login = () => {
                 whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={loading}
-                className={`w-full py-3 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
-                  loading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-700 hover:to-blue-900 shadow-lg hover:shadow-xl'
-                }`}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center">
-                    <LoadingSpinner size="sm" className="border-white" />
-                    <span className="ml-2">Logging in...</span>
-                  </div>
+                  <LoadingSpinner size="sm" />
                 ) : (
-                  <div className="flex items-center justify-center">
-                    <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2" />
-                    <span>Sign In</span>
-                  </div>
+                  <>
+                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                    Sign In
+                  </>
                 )}
               </motion.button>
             </form>

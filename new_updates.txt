@@ -1,6 +1,5 @@
 MY Upcoming tasks --->
 
-
 1)Implement a preview feature for the electricity bill module to verify and confirm updates before final submission.
 
 2)Design and develop a bulk electricity billing management system for room-wise billing, presented in a tabular format to facilitate easier updates.

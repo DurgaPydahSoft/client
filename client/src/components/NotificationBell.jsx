@@ -170,6 +170,28 @@ const NotificationBell = () => {
         } catch (oneSignalError) {
           console.warn('🔔 OneSignal permission request failed, trying browser API:', oneSignalError);
           // Fallback to browser notification API
+          try {
+            const permission = await Notification.requestPermission();
+            console.log('🔔 Browser permission request result:', permission);
+            
+            if (permission === 'granted') {
+              toast.success('Notification permission granted!');
+              setNotificationStatus(notificationManager.getStatus());
+              fetchNotifications();
+              checkPermissionStatus();
+            } else {
+              toast.error('Permission denied. Please enable notifications in browser settings.');
+              checkPermissionStatus();
+            }
+          } catch (browserError) {
+            console.error('🔔 Browser permission request also failed:', browserError);
+            toast.error('Failed to request notification permission. Please try again.');
+            checkPermissionStatus();
+          }
+        }
+      } else {
+        // Fallback to browser notification API
+        try {
           const permission = await Notification.requestPermission();
           console.log('🔔 Browser permission request result:', permission);
           
@@ -182,25 +204,15 @@ const NotificationBell = () => {
             toast.error('Permission denied. Please enable notifications in browser settings.');
             checkPermissionStatus();
           }
-        }
-      } else {
-        // Fallback to browser notification API
-        const permission = await Notification.requestPermission();
-        console.log('🔔 Browser permission request result:', permission);
-        
-        if (permission === 'granted') {
-          toast.success('Notification permission granted!');
-          setNotificationStatus(notificationManager.getStatus());
-          fetchNotifications();
-          checkPermissionStatus();
-        } else {
-          toast.error('Permission denied. Please enable notifications in browser settings.');
+        } catch (browserError) {
+          console.error('🔔 Browser permission request failed:', browserError);
+          toast.error('Failed to request notification permission. Please try again.');
           checkPermissionStatus();
         }
       }
     } catch (error) {
-      console.error('🔔 Error in manual permission request:', error);
-      toast.error('Failed to request permission. Please try again.');
+      console.error('🔔 Error in handleManualPermissionRequest:', error);
+      toast.error('Failed to request notification permission. Please try again.');
     }
   };
 

@@ -151,10 +151,15 @@ class NotificationManager {
 
       this.userId = userId;
       
-      // Use the new OneSignal v16 login method
-      await this.oneSignal.login(userId);
-      console.log('🔔 OneSignal user ID set (login):', userId);
-      return true;
+      // Use the new OneSignal v16 login method with error handling
+      try {
+        await this.oneSignal.login(userId);
+        console.log('🔔 OneSignal user ID set (login):', userId);
+        return true;
+      } catch (loginError) {
+        console.warn('🔔 OneSignal login failed, but continuing:', loginError);
+        return false;
+      }
     } catch (error) {
       console.error('🔔 Error setting OneSignal user ID:', error);
       return false;
@@ -171,16 +176,35 @@ class NotificationManager {
 
       console.log('🔔 Requesting notification permission...');
 
-      // Use the new OneSignal v16 notification permission API
-      const permission = await this.oneSignal.Notifications.requestPermission();
-      
-      if (permission) {
-        console.log('🔔 Notification permission granted');
-        this.isSubscribed = true;
-        return { oneSignal: true, legacy: false };
-      } else {
-        console.log('🔔 Notification permission denied');
-        return { oneSignal: false, legacy: false };
+      // Use the new OneSignal v16 notification permission API with error handling
+      try {
+        const permission = await this.oneSignal.Notifications.requestPermission();
+        
+        if (permission) {
+          console.log('🔔 Notification permission granted');
+          this.isSubscribed = true;
+          return { oneSignal: true, legacy: false };
+        } else {
+          console.log('🔔 Notification permission denied');
+          return { oneSignal: false, legacy: false };
+        }
+      } catch (permissionError) {
+        console.warn('🔔 OneSignal permission request failed, trying browser API:', permissionError);
+        
+        // Fallback to browser notification API
+        try {
+          const browserPermission = await Notification.requestPermission();
+          if (browserPermission === 'granted') {
+            console.log('🔔 Browser notification permission granted');
+            return { oneSignal: false, legacy: true };
+          } else {
+            console.log('🔔 Browser notification permission denied');
+            return { oneSignal: false, legacy: false };
+          }
+        } catch (browserError) {
+          console.error('🔔 Browser notification permission request failed:', browserError);
+          return { oneSignal: false, legacy: false };
+        }
       }
     } catch (error) {
       console.error('🔔 Error requesting notification permission:', error);

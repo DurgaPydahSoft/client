@@ -403,6 +403,13 @@ const DashboardHome = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [electricityBills, setElectricityBills] = useState([]);
   const [showBillModal, setShowBillModal] = useState(false);
+  // Today's menu state
+  const [todaysMenu, setTodaysMenu] = useState(null);
+  const [loadingMenu, setLoadingMenu] = useState(true);
+  // Modal state for today's menu
+  const [showMenuModal, setShowMenuModal] = useState(false);
+  const [modalMenu, setModalMenu] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -411,11 +418,9 @@ const DashboardHome = () => {
           api.get('/api/announcements'),
           api.get('/api/rooms/student/electricity-bills')
         ]);
-        
         if (announcementsRes.data.success) {
           setAnnouncements(announcementsRes.data.data);
         }
-        
         if (billsRes.data.success) {
           setElectricityBills(billsRes.data.data);
         }
@@ -426,14 +431,47 @@ const DashboardHome = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    const fetchMenu = async () => {
+      setLoadingMenu(true);
+      try {
+        const res = await api.get('/api/menu/today');
+        setTodaysMenu(res.data.data);
+      } catch (err) {
+        setTodaysMenu(null);
+      } finally {
+        setLoadingMenu(false);
+      }
+    };
+    fetchMenu();
+  }, []);
+
+  // Handler to open today's menu modal
+  const handleOpenMenuModal = async () => {
+    setShowMenuModal(true);
+    setModalLoading(true);
+    try {
+      const res = await api.get('/api/menu/today');
+      setModalMenu(res.data.data);
+    } catch (err) {
+      setModalMenu(null);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+  const handleCloseMenuModal = () => {
+    setShowMenuModal(false);
+    setModalMenu(null);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="space-y-8 mt-16 sm:mt-0"
     >
-      <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 flex flex-col lg:block">
+        <div className="flex items-center justify-between mb-4 order-1 lg:order-none">
           <div className="text-center flex-1">
             <h2 className="text-2xl sm:text-3xl font-bold text-blue-900 mb-3 sm:mb-4 bg-clip-text">
               Welcome back, {user?.name}
@@ -444,8 +482,74 @@ const DashboardHome = () => {
             <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 mx-auto rounded-full"></div>
           </div>
         </div>
+        {/* Quick Actions - order-2 on mobile, order-none on lg+ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-6 lg:mt-0 order-2 lg:order-none">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate("raise")}
+            className="p-3 sm:p-4 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300"
+          >
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+              />
+            </svg>
+            <span className="text-xs sm:text-sm">Raise Complaint</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate("my-complaints")}
+            className="p-3 sm:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300"
+          >
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+              />
+            </svg>
+            <span className="text-xs sm:text-sm">View Complaints</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowBillModal(true)}
+            className="p-3 sm:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300"
+          >
+            <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" />
+            <span className="text-xs sm:text-sm">Electricity Bills</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleOpenMenuModal}
+            className="p-3 sm:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300"
+          >
+            <svg className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            <span className="text-xs sm:text-sm">Today's Menu</span>
+          </motion.button>
+        </div>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <MetricCard
           title="Total Complaints"
@@ -579,111 +683,6 @@ const DashboardHome = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">
-            Resolution Rate
-          </h3>
-          <div className="flex items-center">
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-4 border-blue-500 flex items-center justify-center mr-4">
-              <span className="text-lg sm:text-xl font-bold text-blue-600">
-                {metrics.totalComplaints
-                  ? Math.round((metrics.resolved / metrics.totalComplaints) * 100)
-                  : 0}%
-              </span>
-            </div>
-            <div>
-              <p className="text-xs sm:text-sm text-gray-500">
-                {metrics.resolved} out of {metrics.totalComplaints} complaints resolved
-              </p>
-              <p className="text-xs sm:text-sm text-gray-400 mt-1">
-                Average response time: {Math.round(metrics.responseTime)} hours
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4">
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("raise")}
-              className="p-3 sm:p-4 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300"
-            >
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
-              <span className="text-xs sm:text-sm">Raise Complaint</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("my-complaints")}
-              className="p-3 sm:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300"
-            >
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                />
-              </svg>
-              <span className="text-xs sm:text-sm">View Complaints</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowBillModal(true)}
-              className="p-3 sm:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300"
-            >
-              <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" />
-              <span className="text-xs sm:text-sm">Electricity Bills</span>
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => navigate("/student")}
-              className="p-3 sm:p-4 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all duration-300"
-            >
-              <svg
-                className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-                />
-              </svg>
-              <span className="text-xs sm:text-sm">Overview</span>
-            </motion.button>
-          </div>
-        </div>
-      </div>
-
       {/* Electricity Bill Modal */}
       <AnimatePresence>
         {showBillModal && (
@@ -746,6 +745,46 @@ const DashboardHome = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Today's Menu Modal */}
+      {showMenuModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
+              onClick={handleCloseMenuModal}
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+            <h3 className="text-xl font-extrabold mb-4 text-green-900 flex items-center gap-2">
+              <span role="img" aria-label="menu">🍽️</span> Today's Menu
+            </h3>
+            {modalLoading ? (
+              <div className="text-gray-400 text-sm flex items-center gap-2"><span role="img" aria-label="hourglass">⏳</span>Loading menu...</div>
+            ) : modalMenu ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 bg-green-50 rounded p-2">
+                  <span className="text-2xl">🥞</span>
+                  <span className="font-semibold">Breakfast:</span>
+                  <span className="ml-2">{modalMenu.meals.breakfast.length ? modalMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}</span>
+                </div>
+                <div className="flex items-center gap-2 bg-yellow-50 rounded p-2">
+                  <span className="text-2xl">🍛</span>
+                  <span className="font-semibold">Lunch:</span>
+                  <span className="ml-2">{modalMenu.meals.lunch.length ? modalMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}</span>
+                </div>
+                <div className="flex items-center gap-2 bg-blue-50 rounded p-2">
+                  <span className="text-2xl">🍽️</span>
+                  <span className="font-semibold">Dinner:</span>
+                  <span className="ml-2">{modalMenu.meals.dinner.length ? modalMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="text-gray-400 text-sm flex items-center gap-2"><span role="img" aria-label="sad">😔</span>No menu set for today.</div>
+            )}
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };

@@ -15,6 +15,8 @@ const Overview = () => {
   const [complaints, setComplaints] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [todaysMenu, setTodaysMenu] = useState(null);
+  const [loadingMenu, setLoadingMenu] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,6 +35,21 @@ const Overview = () => {
       }
     };
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchMenu = async () => {
+      setLoadingMenu(true);
+      try {
+        const res = await axios.get('/api/menu/today');
+        setTodaysMenu(res.data.data);
+      } catch (err) {
+        setTodaysMenu(null);
+      } finally {
+        setLoadingMenu(false);
+      }
+    };
+    fetchMenu();
   }, []);
 
   // Calculate complaint statistics
@@ -59,6 +76,26 @@ const Overview = () => {
     </div>
   ) : (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6 mt-16 sm:mt-0">
+      {/* Today's Menu Card */}
+      <div className="mb-6">
+        <div className="bg-green-50 rounded-lg p-4 shadow flex flex-col">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+            <span className="font-bold text-green-900">Today's Menu</span>
+          </div>
+          {loadingMenu ? (
+            <div className="text-gray-400 text-sm">Loading menu...</div>
+          ) : todaysMenu ? (
+            <div>
+              <div className="mb-1"><span className="font-semibold">Breakfast:</span> {todaysMenu.meals.breakfast.length ? todaysMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}</div>
+              <div className="mb-1"><span className="font-semibold">Lunch:</span> {todaysMenu.meals.lunch.length ? todaysMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}</div>
+              <div className="mb-1"><span className="font-semibold">Dinner:</span> {todaysMenu.meals.dinner.length ? todaysMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}</div>
+            </div>
+          ) : (
+            <div className="text-gray-400 text-sm">No menu set for today.</div>
+          )}
+        </div>
+      </div>
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div className="p-2 sm:p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-100">
           <svg className="w-6 h-6 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

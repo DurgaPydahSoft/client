@@ -16,6 +16,7 @@ import DashboardHome from './DashboardHome';
 import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
 import LeaveManagement from "./LeaveManagement";
+import MenuManagement from './MenuManagement';
 
 const navItems = [
   { 
@@ -65,6 +66,13 @@ const navItems = [
     path: 'rooms',
     icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
     notificationType: null
+  },
+  {
+    name: 'Menu',
+    icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
+    path: '/admin/dashboard/menu',
+    show: true,
+    locked: false
   }
 ];
 
@@ -242,6 +250,13 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/admin-management',
       show: isSuperAdmin,
       locked: !isSuperAdmin
+    },
+    {
+      name: 'Menu',
+      icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
+      path: '/admin/dashboard/menu',
+      show: true,
+      locked: !hasPermission('menu_management')
     }
   ];
 
@@ -275,7 +290,7 @@ const AdminDashboard = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-60 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 w-56 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
         <button
@@ -289,7 +304,7 @@ const AdminDashboard = () => {
         <div className="p-6 flex-shrink-0">
           <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 rounded-2xl shadow-lg flex items-center gap-3">
             <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
@@ -444,6 +459,7 @@ const AdminDashboardLayout = () => (
     <Route path="members" element={<MemberManagement />} />
     <Route path="announcements" element={<AnnouncementManagement />} />
     <Route path="polls" element={<PollManagement />} />
+    <Route path="menu" element={<MenuManagement />} />
   </Routes>
 );
 
