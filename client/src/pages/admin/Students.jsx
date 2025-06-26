@@ -59,7 +59,8 @@ const initialForm = {
   studentPhone: '',
   parentPhone: '',
   batch: '',
-  academicYear: ''
+  academicYear: '',
+  email: ''
 };
 
 // Add BATCHES constant after other constants
@@ -396,6 +397,7 @@ const Students = () => {
       roomNumber: student.roomNumber,
       studentPhone: student.studentPhone,
       parentPhone: student.parentPhone,
+      email: student.email,
       batch: student.batch,
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
@@ -476,6 +478,11 @@ const Students = () => {
       }
       if (!/^[0-9]{10}$/.test(editForm.parentPhone)) {
         throw new Error('Parent phone number must be 10 digits');
+      }
+
+      // Validate email
+      if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+        throw new Error('Invalid email address format');
       }
 
       // Validate room number
@@ -632,7 +639,7 @@ const Students = () => {
 
   const validateStudentRow = (student) => {
     const errors = {};
-    const { Name, RollNumber, Gender, Course, Branch, Year, Category, RoomNumber, StudentPhone, ParentPhone, Batch, AcademicYear } = student;
+    const { Name, RollNumber, Gender, Course, Branch, Year, Category, RoomNumber, StudentPhone, ParentPhone, Email, Batch, AcademicYear } = student;
   
     if (!Name) errors.Name = 'Name is required.';
     if (!RollNumber) errors.RollNumber = 'Roll number is required.';
@@ -665,6 +672,9 @@ const Students = () => {
   
     if (!ParentPhone) errors.ParentPhone = 'Parent phone is required.';
     else if (!/^[0-9]{10}$/.test(ParentPhone)) errors.ParentPhone = 'Must be 10 digits.';
+  
+    if (!Email) errors.Email = 'Email is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(Email)) errors.Email = 'Invalid email format.';
   
     if (!Batch) errors.Batch = 'Batch is required.';
     else if (!/^\d{4}-\d{4}$/.test(Batch)) {
@@ -1028,6 +1038,17 @@ const Students = () => {
               required
               pattern="[0-9]{10}"
               title="10 digit phone number"
+              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleFormChange}
+              required
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -1803,6 +1824,17 @@ const Students = () => {
               />
             </div>
             <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={editForm.email}
+                onChange={handleEditFormChange}
+                required
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
               <select
                 name="batch"
@@ -1970,6 +2002,7 @@ const Students = () => {
                 <li>• RoomNumber (Based on gender and category)</li>
                 <li>• StudentPhone (10-digit mobile number)</li>
                 <li>• ParentPhone (10-digit mobile number)</li>
+                <li>• Email (Valid email address)</li>
                 <li>• Batch (Format based on course duration):
                   <ul className="ml-4 mt-1 space-y-1">
                     <li>- B.Tech/Pharmacy: YYYY-YYYY (4 years, e.g., 2020-2024)</li>
@@ -2023,7 +2056,7 @@ const Students = () => {
             
             {editablePreviewData.length > 0 ? (
               <div className="overflow-x-auto border rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-[1500px] divide-y divide-gray-200">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Row</th>
@@ -2037,6 +2070,7 @@ const Students = () => {
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Room</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Student Phone</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Parent Phone</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Email</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Batch</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Academic Year</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
@@ -2164,6 +2198,16 @@ const Students = () => {
                               title={errors.ParentPhone}
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.ParentPhone ? 'border-red-500' : 'border-gray-300'}`}
                               placeholder="10 digits"
+                            />
+                          </td>
+                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
+                            <input
+                              type="text"
+                              value={student.Email || ''}
+                              onChange={(e) => handleEditField(index, 'Email', e.target.value)}
+                              title={errors.Email}
+                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Email ? 'border-red-500' : 'border-gray-300'}`}
+                              placeholder="example@example.com"
                             />
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">

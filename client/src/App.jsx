@@ -3,7 +3,6 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedSection from './components/ProtectedSection';
-import LoadingSpinner from './components/LoadingSpinner';
 import React from 'react';
 import MemberManagement from './pages/admin/MemberManagement';
 import Profile from './pages/student/Profile';
@@ -21,7 +20,6 @@ const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
 const WardenDashboard = lazy(() => import('./pages/warden/wardendashboard'));
-const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Home = lazy(() => import('./pages/Home'));
 
@@ -170,14 +168,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-                path="/warden/bulk-outing"
-              element={
-                <ProtectedRoute requireAuth={true} role="warden">
-                  <BulkOuting />
-                </ProtectedRoute>
-              }
-            />
+            
             
             {/* Student reset password route */}
             <Route

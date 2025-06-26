@@ -23,4 +23,6 @@ MY Upcoming tasks --->
 
 10)Add menu options in the student dashboard for better navigation and user experience.
 
+mass outing request enabled ..implementes the warden dashboard to apply the mass outing 
+
 11)Introduce a new section in the hostel management module to add and manage breakfast and daytime meal menus, with optional item quantity counts for the entire day.
