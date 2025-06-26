@@ -18,64 +18,6 @@ import PollManagement from './PollManagement';
 import LeaveManagement from "./LeaveManagement";
 import MenuManagement from './MenuManagement';
 
-const navItems = [
-  { 
-    name: 'Overview', 
-    path: '', 
-    icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
-    notificationType: null
-  },
-  { 
-    name: 'Students', 
-    path: 'students',
-    icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
-    notificationType: null
-  },
-  { 
-    name: 'Complaints', 
-    path: 'complaints',
-    icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2',
-    notificationType: 'complaint'
-  },
-  { 
-    name: 'Leave Management', 
-    path: 'leave',
-    icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-    notificationType: null
-  },
-  { 
-    name: 'Announcements', 
-    path: 'announcements',
-    icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
-    notificationType: 'announcement'
-  },
-  {
-    name: 'Members',
-    path: 'members',
-    icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
-    notificationType: null
-  },
-  {
-    name: 'Polls',
-    path: 'polls',
-    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-    notificationType: 'poll'
-  },
-  {
-    name: 'Room Management',
-    path: 'rooms',
-    icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-    notificationType: null
-  },
-  {
-    name: 'Menu',
-    icon: 'M4 6h16M4 10h16M4 14h16M4 18h16',
-    path: '/admin/dashboard/menu',
-    show: true,
-    locked: false
-  }
-];
-
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
   return (
@@ -301,16 +243,16 @@ const AdminDashboard = () => {
         </button>
 
         {/* Header */}
-        <div className="p-6 flex-shrink-0">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-4 rounded-2xl shadow-lg flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
-              <svg className="w-6 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="p-4 flex-shrink-0">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-3 rounded-xl shadow-lg flex items-center gap-2">
+            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm">
+              <svg className="w-4 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
             <div className="flex-1">
-              <h1 className="font-bold text-sm">Hostel Admin</h1>
-              <p className="text-sm text-blue-100">Management Portal</p>
+              <h1 className="font-semibold text-xs">Hostel Admin</h1>
+              <p className="text-xs text-blue-100">Management Portal</p>
             </div>
           </div>
         </div>
@@ -326,10 +268,10 @@ const AdminDashboard = () => {
             >
               {item.locked ? (
                 // Locked item - show as disabled (icon + faded label only)
-                <div className="flex items-center gap-3 px-4 py-3 rounded-lg font-medium text-gray-300 cursor-not-allowed opacity-60 select-none">
+                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 cursor-not-allowed opacity-60 select-none">
                   <div className="relative">
                     <svg
-                      className="w-5 h-5"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -342,14 +284,14 @@ const AdminDashboard = () => {
                       />
                     </svg>
                   </div>
-                  <span className="flex-1">{item.name}</span>
+                  <span className="flex-1 text-sm font-normal">{item.name}</span>
                 </div>
               ) : (
                 // Active item - normal NavLink
                 <NavLink
                   to={item.path}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+                    `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
                       isActive
                         ? "bg-blue-50 text-blue-700 shadow-sm"
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -359,7 +301,7 @@ const AdminDashboard = () => {
                 >
                   <div className="relative">
                     <svg
-                      className="w-5 h-5"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -418,10 +360,10 @@ const AdminDashboard = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300 shadow hover:shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300 shadow hover:shadow-md"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
