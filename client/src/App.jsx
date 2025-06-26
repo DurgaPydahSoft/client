@@ -19,7 +19,7 @@ const Login = lazy(() => import('./pages/Login'));
 const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
-const WardenDashboard = lazy(() => import('./pages/warden/wardendashboard'));
+const WardenDashboard = lazy(() => import('./pages/warden/wardenDashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const Home = lazy(() => import('./pages/Home'));
 
