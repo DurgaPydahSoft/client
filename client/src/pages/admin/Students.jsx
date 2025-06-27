@@ -181,6 +181,14 @@ const Students = () => {
   const [photoEditGuardianPhoto2Preview, setPhotoEditGuardianPhoto2Preview] = useState(null);
   const [photoEditLoading, setPhotoEditLoading] = useState(false);
 
+  // Password reset modal states
+  const [passwordResetModal, setPasswordResetModal] = useState(false);
+  const [passwordResetId, setPasswordResetId] = useState(null);
+  const [passwordResetStudent, setPasswordResetStudent] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+
   // Debounce search term
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -1674,20 +1682,31 @@ const Students = () => {
   // Edit Modal
   const renderEditModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-4xl mx-auto max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h3 className="text-xl font-bold text-gray-800">Edit Student</h3>
             <p className="text-sm text-gray-600 mt-1">Update student information</p>
           </div>
-          <button
-            onClick={() => {
-              setEditModal(false);
-            }}
-            className="text-gray-500 hover:text-gray-700 p-2"
-          >
-            <XMarkIcon className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openPasswordResetModal({ _id: editId, name: editForm.name, rollNumber: editForm.rollNumber })}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Reset Password
+            </button>
+            <button
+              onClick={() => {
+                setEditModal(false);
+              }}
+              className="text-gray-500 hover:text-gray-700 p-2"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={handleEditSubmit} className="space-y-6">
@@ -2910,6 +2929,147 @@ const Students = () => {
     }
   };
 
+  // Password reset functions
+  const openPasswordResetModal = (student) => {
+    setPasswordResetId(student._id);
+    setPasswordResetStudent(student);
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordResetModal(true);
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    setPasswordResetLoading(true);
+    try {
+      const res = await api.post(`/api/admin/students/${passwordResetId}/reset-password`, { 
+        newPassword 
+      });
+
+      if (res.data.success) {
+        toast.success('Password reset successfully!');
+        setPasswordResetModal(false);
+        setPasswordResetId(null);
+        setPasswordResetStudent(null);
+        setNewPassword('');
+        setConfirmPassword('');
+        fetchTempStudentsSummary(); // Refresh temp students list
+      } else {
+        throw new Error(res.data.message || 'Failed to reset password');
+      }
+    } catch (err) {
+      console.error('Password reset error:', err);
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
+
+  // Password Reset Modal
+  const renderPasswordResetModal = () => (
+    passwordResetModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Reset Student Password</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {passwordResetStudent?.name} ({passwordResetStudent?.rollNumber})
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPasswordResetModal(false);
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handlePasswordReset} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                New Password
+              </label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter new password (min 6 characters)"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm New Password
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Confirm new password"
+              />
+            </div>
+
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">Password Requirements:</h4>
+              <ul className="text-xs text-blue-700 space-y-1">
+                <li>• Minimum 6 characters long</li>
+                <li>• Both password fields must match</li>
+              </ul>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setPasswordResetModal(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                }}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={passwordResetLoading}
+                className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${
+                  passwordResetLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-700'
+                }`}
+              >
+                {passwordResetLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  );
+
   if (loading && tab === 'list' && !tableLoading) { 
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
@@ -2949,6 +3109,7 @@ const Students = () => {
         onClose={() => setRenewalModalOpen(false)}
         onRenew={handleRenewBatches}
       />
+      {passwordResetModal && renderPasswordResetModal()}
     </div>
   );
 };
