@@ -161,6 +161,10 @@ const Students = () => {
   const [loadingTempSummary, setLoadingTempSummary] = useState(false);
   const [renewalModalOpen, setRenewalModalOpen] = useState(false);
 
+  // Email service status
+  const [emailServiceStatus, setEmailServiceStatus] = useState(null);
+  const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
+
   // Photo upload states
   const [studentPhoto, setStudentPhoto] = useState(null);
   const [guardianPhoto1, setGuardianPhoto1] = useState(null);
@@ -213,6 +217,22 @@ const Students = () => {
       toast.error(err.response?.data?.message || 'Error fetching temporary students summary.');
     } finally {
       setLoadingTempSummary(false);
+    }
+  };
+
+  const checkEmailServiceStatus = async () => {
+    setLoadingEmailStatus(true);
+    try {
+      const res = await api.get('/api/admin/email/status');
+      if (res.data.success) {
+        setEmailServiceStatus(res.data.data);
+      } else {
+        setEmailServiceStatus({ configured: false, error: 'Failed to check email service status' });
+      }
+    } catch (err) {
+      setEmailServiceStatus({ configured: false, error: err.response?.data?.message || 'Error checking email service status' });
+    } finally {
+      setLoadingEmailStatus(false);
     }
   };
 
@@ -273,6 +293,11 @@ const Students = () => {
       fetchTempStudentsSummary();
     }
   }, [tab, currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
+
+  // Check email service status on component mount
+  useEffect(() => {
+    checkEmailServiceStatus();
+  }, []);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
@@ -1643,6 +1668,43 @@ const Students = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <h3 className="text-xl font-bold text-gray-800 mb-4">Student Added Successfully</h3>
+        
+        {/* Email Status
+        {generatedPassword && (
+          <div className={`mb-4 p-3 rounded-lg ${
+            generatedPassword.emailSent 
+              ? 'bg-green-50 border border-green-200' 
+              : 'bg-yellow-50 border border-yellow-200'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              {generatedPassword.emailSent ? (
+                <>
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className="text-green-800 font-medium">Email Sent Successfully</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <span className="text-yellow-800 font-medium">Email Not Sent</span>
+                </>
+              )}
+            </div>
+            {generatedPassword.emailError && (
+              <p className="text-sm text-yellow-700">Error: {generatedPassword.emailError}</p>
+            )}
+            <p className="text-sm text-gray-600">
+              {generatedPassword.emailSent 
+                ? 'The student has been notified via email with their login credentials.'
+                : 'The student was added successfully, but the email notification failed. You can manually share the password below.'
+              }
+            </p>
+          </div>
+        )} */}
+        
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-yellow-800 font-medium">Generated Password:</p>
@@ -2345,7 +2407,7 @@ const Students = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="bg-green-50 p-4 rounded-lg">
               <h4 className="text-sm font-medium text-green-800 mb-2">Successfully Added</h4>
               <p className="text-2xl font-bold text-green-600">{bulkUploadResults.successCount}</p>
@@ -2354,11 +2416,51 @@ const Students = () => {
               <h4 className="text-sm font-medium text-red-800 mb-2">Failed</h4>
               <p className="text-2xl font-bold text-red-600">{bulkUploadResults.failureCount}</p>
             </div>
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">Emails Sent</h4>
+              <p className="text-2xl font-bold text-blue-600">{bulkUploadResults.emailResults?.sent || 0}</p>
+              {bulkUploadResults.emailResults?.failed > 0 && (
+                <p className="text-sm text-blue-600">({bulkUploadResults.emailResults.failed} failed)</p>
+              )}
+            </div>
           </div>
+
+          {/* Email Results Summary */}
+          {bulkUploadResults.emailResults && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-800 mb-2">Email Notification Summary</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Successfully sent: <span className="font-medium text-green-600">{bulkUploadResults.emailResults.sent}</span></p>
+                  <p className="text-sm text-gray-600">Failed to send: <span className="font-medium text-red-600">{bulkUploadResults.emailResults.failed}</span></p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Total students: <span className="font-medium">{bulkUploadResults.successCount}</span></p>
+                  <p className="text-sm text-gray-600">Email success rate: <span className="font-medium">{bulkUploadResults.successCount > 0 ? Math.round((bulkUploadResults.emailResults.sent / bulkUploadResults.successCount) * 100) : 0}%</span></p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Email Errors */}
+          {bulkUploadResults.emailResults?.errors && bulkUploadResults.emailResults.errors.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-red-700 mb-2">Email Errors ({bulkUploadResults.emailResults.errors.length})</h4>
+              <div className="max-h-40 overflow-y-auto">
+                {bulkUploadResults.emailResults.errors.map((error, index) => (
+                  <div key={index} className="bg-red-50 p-3 rounded-lg mb-2">
+                    <p className="text-sm text-red-700">
+                      <span className="font-medium">{error.student} ({error.rollNumber}):</span> {error.error}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {bulkUploadResults.errors && bulkUploadResults.errors.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Errors:</h4>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Upload Errors:</h4>
               <div className="max-h-60 overflow-y-auto">
                 {bulkUploadResults.errors.map((error, index) => (
                   <div key={index} className="bg-red-50 p-3 rounded-lg mb-2">
@@ -2959,7 +3061,17 @@ const Students = () => {
       });
 
       if (res.data.success) {
-        toast.success('Password reset successfully!');
+        const { emailSent, emailError } = res.data.data;
+        
+        if (emailSent) {
+          toast.success('Password reset successfully and email notification sent!');
+        } else {
+          toast.success('Password reset successfully, but email notification failed.');
+          if (emailError) {
+            toast.error(`Email error: ${emailError}`);
+          }
+        }
+        
         setPasswordResetModal(false);
         setPasswordResetId(null);
         setPasswordResetStudent(null);

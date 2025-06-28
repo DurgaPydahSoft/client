@@ -330,11 +330,10 @@ const Home = () => {
               className="mb-8"
             >
               <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-cyan-200 leading-[1.15]">
-                Pydah HOSTEL
+                 HOSTEL
                 <br />
-                Management
-                <br />
-                System
+                
+                CONNECTIFY 
               </h1>
               <p className="text-xl md:text-2xl mb-10 font-light text-cyan-100 max-w-2xl mx-auto leading-relaxed">
                 Transforming hostel communication with a modern, transparent, and efficient digital platform.
