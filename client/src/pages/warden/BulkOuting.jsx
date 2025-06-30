@@ -47,6 +47,10 @@ const BulkOuting = () => {
     totalStudents: 0,
     selectedStudents: 0
   });
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
+  const [selectedOutingStudents, setSelectedOutingStudents] = useState([]);
+  const [selectedOutingDetails, setSelectedOutingDetails] = useState(null);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   // Helper to map hostelType to gender
   const getWardenGender = () => {
@@ -218,6 +222,24 @@ const BulkOuting = () => {
       case 'Rejected': return <XMarkIcon className="w-4 h-4" />;
       case 'Pending': return <ClockIcon className="w-4 h-4" />;
       default: return null;
+    }
+  };
+
+  const handleViewStudents = async (outing) => {
+    setSelectedOutingDetails(outing);
+    setShowStudentsModal(true);
+    setLoadingStudents(true);
+    
+    try {
+      const response = await api.get(`/api/bulk-outing/admin/${outing._id}/students`);
+      if (response.data.success) {
+        setSelectedOutingStudents(response.data.data.students);
+      }
+    } catch (error) {
+      console.error('Error fetching outing students:', error);
+      toast.error('Failed to fetch students list');
+    } finally {
+      setLoadingStudents(false);
     }
   };
 
@@ -640,7 +662,7 @@ const BulkOuting = () => {
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-700">Students:</span>
-                            <span className="text-sm text-gray-600 ml-2">{outing.selectedStudentIds?.length || 0} students</span>
+                            <span className="text-sm text-gray-600 ml-2">{outing.selectedStudents?.length || outing.studentCount || 0} students</span>
                           </div>
                           {outing.rejectionReason && (
                             <div>
@@ -650,6 +672,15 @@ const BulkOuting = () => {
                           )}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleViewStudents(outing)}
+                          className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                          See Students List
+                        </button>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
@@ -658,6 +689,128 @@ const BulkOuting = () => {
           </motion.div>
         )}
       </div>
+
+      {/* Students List Modal */}
+      {showStudentsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+          >
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <UsersIcon className="w-5 h-5 text-blue-600" />
+                  Students in Bulk Outing
+                </h3>
+                {selectedOutingDetails && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    {new Date(selectedOutingDetails.outingDate).toLocaleDateString()} - {selectedOutingDetails.reason}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setShowStudentsModal(false);
+                  setSelectedOutingStudents([]);
+                  setSelectedOutingDetails(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {loadingStudents ? (
+                <div className="flex items-center justify-center py-8">
+                  <LoadingSpinner />
+                </div>
+              ) : selectedOutingStudents.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Student
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Course & Branch
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Room
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Contact
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {selectedOutingStudents.map((student, index) => (
+                        <motion.tr
+                          key={student._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {student.rollNumber}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {student.course} {student.year}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {student.branch}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            Room {student.roomNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {student.studentPhone}
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-500">No students found for this outing.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                Total: {selectedOutingStudents.length} students
+              </span>
+              <button
+                onClick={() => {
+                  setShowStudentsModal(false);
+                  setSelectedOutingStudents([]);
+                  setSelectedOutingDetails(null);
+                }}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

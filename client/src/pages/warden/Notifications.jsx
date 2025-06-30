@@ -20,9 +20,12 @@ const Notifications = () => {
     setError(null);
     try {
       const res = await axios.get('/api/notifications/warden');
-      setNotifications(res.data.data || res.data);
+      // Ensure notifications is always an array
+      const notificationsData = res.data.data || res.data || [];
+      setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
     } catch (err) {
       setError('Failed to fetch notifications');
+      setNotifications([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -46,6 +49,10 @@ const Notifications = () => {
     }
   };
 
+  // Ensure notifications is always an array before using array methods
+  const notificationsArray = Array.isArray(notifications) ? notifications : [];
+  const hasUnreadNotifications = notificationsArray.some(n => !n.isRead);
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -60,7 +67,7 @@ const Notifications = () => {
             <option value="unread">Unread</option>
             <option value="read">Read</option>
           </select>
-          {notifications.some(n => !n.isRead) && (
+          {hasUnreadNotifications && (
             <button
               onClick={() => markAllAsRead()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
@@ -77,13 +84,13 @@ const Notifications = () => {
         </div>
       ) : error ? (
         <div className="text-red-600">{error}</div>
-      ) : notifications.length === 0 ? (
+      ) : notificationsArray.length === 0 ? (
         <div className="bg-gray-50 p-4 rounded-lg border text-sm text-center">
           No notifications yet.
         </div>
       ) : (
         <div className="space-y-4">
-          {notifications
+          {notificationsArray
             .filter(n => filter === 'all' ? true : filter === 'unread' ? !n.isRead : n.isRead)
             .map(n => (
               <div 
