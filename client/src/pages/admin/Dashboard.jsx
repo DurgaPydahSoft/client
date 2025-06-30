@@ -117,6 +117,18 @@ const AdminDashboard = () => {
     };
   }, [pathname]);
 
+  // Initialize scroll indicators
+  useEffect(() => {
+    const nav = document.querySelector('nav.overflow-y-auto');
+    const bottomFade = document.getElementById('bottom-fade');
+    
+    if (nav && bottomFade) {
+      // Check if content is scrollable
+      const isScrollable = nav.scrollHeight > nav.clientHeight;
+      bottomFade.style.opacity = isScrollable ? '1' : '0';
+    }
+  }, []);
+
   const isSuperAdmin = user?.role === 'super_admin';
   const hasPermission = (permission) => {
     console.log('🔐 Permission check:', {
@@ -258,88 +270,112 @@ const AdminDashboard = () => {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {menuItems.filter(item => item.show).map((item, index) => (
-            <motion.div
-              key={item.name}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              {item.locked ? (
-                // Locked item - show as disabled (icon + faded label only)
-                <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 cursor-not-allowed opacity-60 select-none">
-                  <div className="relative">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d={item.icon}
-                      />
-                    </svg>
-                  </div>
-                  <span className="flex-1 text-sm font-normal">{item.name}</span>
-                </div>
-              ) : (
-                // Active item - normal NavLink
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
-                      isActive
-                        ? "bg-blue-50 text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                    }`
-                  }
-                  end
-                >
-                  <div className="relative">
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d={item.icon}
-                      />
-                    </svg>
-                    {item.notificationType && notificationStates[item.notificationType] && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+        <div className="flex-1 relative">
+          {/* Top fade indicator */}
+          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
+               id="top-fade"></div>
+          
+          <nav className="flex-1 px-4 space-y-2 overflow-y-auto scrollbar-hide h-full" 
+               onScroll={(e) => {
+                 const target = e.target;
+                 const topFade = document.getElementById('top-fade');
+                 const bottomFade = document.getElementById('bottom-fade');
+                 
+                 if (topFade && bottomFade) {
+                   // Show top fade when scrolled down
+                   topFade.style.opacity = target.scrollTop > 10 ? '1' : '0';
+                   
+                   // Show bottom fade when not at bottom
+                   const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
+                   bottomFade.style.opacity = isAtBottom ? '0' : '1';
+                 }
+               }}>
+            {menuItems.filter(item => item.show).map((item, index) => (
+              <motion.div
+                key={item.name}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                {item.locked ? (
+                  // Locked item - show as disabled (icon + faded label only)
+                  <div className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 cursor-not-allowed opacity-60 select-none">
+                    <div className="relative">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <motion.div
-                          animate={{
-                            scale: [1, 1.2, 1],
-                            opacity: [1, 0.5, 1]
-                          }}
-                          transition={{
-                            duration: 1.5,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                          }}
-                          className="w-full h-full bg-red-500 rounded-full"
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d={item.icon}
                         />
-                      </motion.div>
-                    )}
+                      </svg>
+                    </div>
+                    <span className="flex-1 text-sm font-normal">{item.name}</span>
                   </div>
-                  {item.name}
-                </NavLink>
-              )}
-            </motion.div>
-          ))}
-        </nav>
+                ) : (
+                  // Active item - normal NavLink
+                  <NavLink
+                    to={item.path}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
+                        isActive
+                          ? "bg-blue-50 text-blue-700 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`
+                    }
+                    end
+                  >
+                    <div className="relative">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d={item.icon}
+                        />
+                      </svg>
+                      {item.notificationType && notificationStates[item.notificationType] && (
+                        <motion.div
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                        >
+                          <motion.div
+                            animate={{
+                              scale: [1, 1.2, 1],
+                              opacity: [1, 0.5, 1]
+                            }}
+                            transition={{
+                              duration: 1.5,
+                              repeat: Infinity,
+                              ease: "easeInOut"
+                            }}
+                            className="w-full h-full bg-red-500 rounded-full"
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+                    {item.name}
+                  </NavLink>
+                )}
+              </motion.div>
+            ))}
+          </nav>
+          
+          {/* Bottom fade indicator */}
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
+               id="bottom-fade"></div>
+        </div>
 
         {/* User Profile and Logout */}
         <div className="p-4 border-t border-gray-100 flex-shrink-0">

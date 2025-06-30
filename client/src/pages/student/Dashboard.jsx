@@ -26,6 +26,7 @@ import NotificationBell from '../../components/NotificationBell';
 import PollPopup from '../../components/PollPopup';
 import SEO from '../../components/SEO';
 import Leave from './Leave';
+import MealRating from '../../components/MealRating';
 
 const navItems = [
   {
@@ -435,7 +436,7 @@ const DashboardHome = () => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
       try {
-        const res = await api.get('/api/menu/today');
+        const res = await api.get('/api/menu/today/with-ratings');
         setTodaysMenu(res.data.data);
       } catch (err) {
         setTodaysMenu(null);
@@ -451,7 +452,7 @@ const DashboardHome = () => {
     setShowMenuModal(true);
     setModalLoading(true);
     try {
-      const res = await api.get('/api/menu/today');
+      const res = await api.get('/api/menu/today/with-ratings');
       setModalMenu(res.data.data);
     } catch (err) {
       setModalMenu(null);
@@ -459,9 +460,15 @@ const DashboardHome = () => {
       setModalLoading(false);
     }
   };
+
   const handleCloseMenuModal = () => {
     setShowMenuModal(false);
     setModalMenu(null);
+  };
+
+  const handleRatingSubmit = () => {
+    // Refresh menu data after rating submission
+    handleOpenMenuModal();
   };
 
   return (
@@ -749,7 +756,7 @@ const DashboardHome = () => {
       {/* Today's Menu Modal */}
       {showMenuModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
             <button
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
               onClick={handleCloseMenuModal}
@@ -762,21 +769,66 @@ const DashboardHome = () => {
             {modalLoading ? (
               <div className="text-gray-400 text-sm flex items-center gap-2"><span role="img" aria-label="hourglass">⏳</span>Loading menu...</div>
             ) : modalMenu ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 bg-green-50 rounded p-2">
-                  <span className="text-2xl">🥞</span>
-                  <span className="font-semibold">Breakfast:</span>
-                  <span className="ml-2">{modalMenu.meals.breakfast.length ? modalMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}</span>
+              <div className="space-y-6">
+                {/* Menu Display */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="flex items-center gap-2 bg-green-50 rounded p-3">
+                    <span className="text-2xl">🥞</span>
+                    <div>
+                      <span className="font-semibold">Breakfast:</span>
+                      <div className="text-sm text-gray-600">
+                        {modalMenu.meals.breakfast.length ? modalMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}
+                      </div>
+                      {modalMenu.avgRatings?.breakfast?.average > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ⭐ {modalMenu.avgRatings.breakfast.average}/5 ({modalMenu.avgRatings.breakfast.totalRatings} ratings)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-yellow-50 rounded p-3">
+                    <span className="text-2xl">🍛</span>
+                    <div>
+                      <span className="font-semibold">Lunch:</span>
+                      <div className="text-sm text-gray-600">
+                        {modalMenu.meals.lunch.length ? modalMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}
+                      </div>
+                      {modalMenu.avgRatings?.lunch?.average > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ⭐ {modalMenu.avgRatings.lunch.average}/5 ({modalMenu.avgRatings.lunch.totalRatings} ratings)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 bg-blue-50 rounded p-3">
+                    <span className="text-2xl">🍽️</span>
+                    <div>
+                      <span className="font-semibold">Dinner:</span>
+                      <div className="text-sm text-gray-600">
+                        {modalMenu.meals.dinner.length ? modalMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}
+                      </div>
+                      {modalMenu.avgRatings?.dinner?.average > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ⭐ {modalMenu.avgRatings.dinner.average}/5 ({modalMenu.avgRatings.dinner.totalRatings} ratings)
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 bg-yellow-50 rounded p-2">
-                  <span className="text-2xl">🍛</span>
-                  <span className="font-semibold">Lunch:</span>
-                  <span className="ml-2">{modalMenu.meals.lunch.length ? modalMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}</span>
-                </div>
-                <div className="flex items-center gap-2 bg-blue-50 rounded p-2">
-                  <span className="text-2xl">🍽️</span>
-                  <span className="font-semibold">Dinner:</span>
-                  <span className="ml-2">{modalMenu.meals.dinner.length ? modalMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}</span>
+
+                {/* Rating Section */}
+                <div className="border-t pt-6">
+                  <h4 className="text-lg font-semibold mb-4 text-gray-800">Rate Today's Meals</h4>
+                  <div className="space-y-4">
+                    {['breakfast', 'lunch', 'dinner'].map(mealType => (
+                      <MealRating
+                        key={mealType}
+                        mealType={mealType}
+                        date={new Date().toISOString().slice(0, 10)}
+                        onRatingSubmit={handleRatingSubmit}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : (

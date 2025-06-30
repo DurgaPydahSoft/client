@@ -617,7 +617,7 @@ const Home = () => {
           </div>
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-center text-gray-600">
-              © {new Date().getFullYear()} Pydah HOSTEL Complaint Management System. All rights reserved.
+              © {new Date().getFullYear()} Pydah HOSTEL Management System. All rights reserved.
             </p>
           </div>
         </div>

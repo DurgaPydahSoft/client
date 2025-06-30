@@ -13,6 +13,8 @@ import SecurityDashboard from './pages/security/SecurityDashboard';
 import AdminManagement from './pages/admin/AdminManagement';
 import PushNotificationInitializer from './components/PushNotificationInitializer';
 import MenuManagement from './pages/admin/MenuManagement';
+import Home from './pages/Home.jsx';
+import HomeAlt from './pages/HomeAlt.jsx';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -21,7 +23,6 @@ const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
 const WardenDashboard = lazy(() => import('./pages/warden/wardenDashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const Home = lazy(() => import('./pages/Home'));
 
 // Admin components
 const Students = lazy(() => import('./pages/admin/Students'));
@@ -89,6 +90,7 @@ function App() {
           <Routes>
             {/* Home page */}
             <Route path="/" element={<Home />} />
+            <Route path="/home-alt" element={<HomeAlt />} />
             
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
@@ -168,7 +170,6 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
             
             {/* Student reset password route */}
             <Route
