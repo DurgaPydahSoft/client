@@ -1,6 +1,6 @@
 # Hostel Complaint Management System
 
-A comprehensive, full-stack web application for managing hostel operations including complaints, student registrations, room management, leave requests, announcements, polls, member assignments, and warden oversight. Built with modern technologies and designed for efficiency, clarity, and actionable analytics for administrators, wardens, and students.
+A comprehensive, full-stack web application for managing hostel operations including complaints, student registrations, room management, leave requests, announcements, polls, member assignments, attendance tracking, and warden oversight. Built with modern technologies and designed for efficiency, clarity, and actionable analytics for administrators, wardens, and students.
 
 ---
 
@@ -56,11 +56,21 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 ### 🏛️ Warden Management
 - **Bulk outing management**: Create and manage bulk outing requests for multiple students
 - **Student oversight**: Comprehensive student management with filtering and search capabilities
+- **Attendance management**: Take and view hostel attendance (morning/evening) for students, with dedicated UI for wardens and admins
+- **Attendance analytics**: View attendance records, filter by date/session, and monitor student presence
 - **Announcement access**: View and manage hostel announcements
 - **Student status tracking**: Monitor student hostel status (Active/Inactive)
 - **Filtered student views**: Course, branch, gender, category, and room-based filtering
 - **Bulk outing history**: Track and review all bulk outing requests and their statuses
 - **Student selection tools**: Multi-select functionality for bulk operations
+- **Enhanced notifications**: Real-time, creative notifications for all key events (complaints, announcements, polls, leaves, menu, attendance)
+
+### 🟢 Attendance Management (NEW)
+- **Role-based attendance**: Wardens and Admins can take and view attendance for hostel students (morning/evening sessions)
+- **Student attendance view**: Students can view their own attendance records and history
+- **Modular UI**: Dedicated attendance pages for Admin, Warden, and Student roles
+- **Attendance analytics**: Track attendance trends and generate reports
+- **Real-time updates**: Attendance status updates reflected instantly for all roles
 
 ### 🔔 Advanced Notification System
 - **OneSignal integration**: Reliable push notifications for all platforms
@@ -109,16 +119,20 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 ### For Wardens
 - **Student oversight**: Comprehensive student management and monitoring
 - **Bulk outing management**: Create and manage bulk outing requests
+- **Attendance management**: Take and view attendance for hostel students (morning/evening)
+- **Attendance analytics**: View and filter attendance records
 - **Student filtering**: Advanced filtering by course, branch, gender, category, room
 - **Announcement access**: View and manage hostel announcements
 - **Student status tracking**: Monitor active/inactive student status
 - **Bulk operations**: Multi-select functionality for student management
+- **Enhanced notifications**: Receive real-time, creative notifications for all key events
 
 ### For Students
 - **Self-service portal**: Profile management and photo updates
 - **Complaint submission**: Category-based complaint creation
 - **Status tracking**: Real-time complaint progress monitoring
 - **Leave requests**: Application and approval tracking
+- **Attendance view**: View personal attendance records and history
 - **Engagement**: Announcements, polls, and notifications
 
 ---
@@ -176,14 +190,19 @@ hostel-complaint-management/
 │   │   │   │   ├── Complaints.jsx
 │   │   │   │   ├── RoomManagement.jsx
 │   │   │   │   ├── LeaveManagement.jsx
+│   │   │   │   ├── TakeAttendance.jsx      # Admin: Take attendance
+│   │   │   │   ├── ViewAttendance.jsx      # Admin: View attendance
 │   │   │   │   └── ...
 │   │   │   ├── student/           # Student dashboard pages
 │   │   │   │   ├── Dashboard.jsx
 │   │   │   │   ├── RaiseComplaint.jsx
 │   │   │   │   ├── Leave.jsx
+│   │   │   │   ├── MyAttendance.jsx        # Student: View own attendance
 │   │   │   │   └── ...
 │   │   │   ├── warden/            # Warden dashboard pages
-│   │   │   │   ├── wardenDashboard.jsx
+│   │   │   │   ├── WardenDashboard.jsx
+│   │   │   │   ├── TakeAttendance.jsx     # Warden: Take attendance
+│   │   │   │   ├── ViewAttendance.jsx     # Warden: View attendance
 │   │   │   │   └── ...
 │   │   │   └── security/          # Security dashboard
 │   │   ├── context/               # React context providers
@@ -203,6 +222,7 @@ hostel-complaint-management/
 │   │   │   ├── leaveController.js
 │   │   │   ├── notificationController.js
 │   │   │   ├── wardenController.js
+│   │   │   ├── attendanceController.js    # Attendance controller (NEW)
 │   │   │   └── ...
 │   │   ├── models/                # MongoDB models
 │   │   │   ├── User.js
@@ -211,19 +231,20 @@ hostel-complaint-management/
 │   │   │   ├── Leave.js
 │   │   │   ├── Notification.js
 │   │   │   ├── BulkOuting.js
+│   │   │   ├── Attendance.js             # Attendance model (NEW)
 │   │   │   └── ...
 │   │   ├── routes/                # API routes
 │   │   │   ├── adminRoutes.js
 │   │   │   ├── complaintRoutes.js
 │   │   │   ├── roomRoutes.js
 │   │   │   ├── wardenRoutes.js
+│   │   │   ├── attendanceRoutes.js       # Attendance routes (NEW)
 │   │   │   └── ...
 │   │   ├── middleware/            # Custom middleware
 │   │   │   └── authMiddleware.js
 │   │   ├── utils/                 # Utility services
 │   │   │   ├── oneSignalService.js
 │   │   │   ├── notificationService.js
-│   │   │   ├── s3Service.js
 │   │   │   └── ...
 │   │   ├── config/                # Configuration files
 │   │   ├── scripts/               # Database scripts
@@ -370,7 +391,7 @@ Based on the development roadmap:
 10. **Warden Mobile App**: Dedicated mobile application for wardens
 11. **Advanced Bulk Outing**: Enhanced bulk outing with approval workflows
 12. **Warden Notifications**: Real-time notifications for warden-specific events
-13. **Student Attendance**: Track student attendance and presence in hostel
+13. **Student Attendance**: Track student attendance and presence in hostel (ENHANCED)
 14. **Warden Reports**: Comprehensive reporting for warden activities
 
 ---
