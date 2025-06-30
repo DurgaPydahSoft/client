@@ -14,6 +14,7 @@ const NotificationBell = () => {
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState(null);
   const [permissionStatus, setPermissionStatus] = useState(null);
+  const [nextMealTime, setNextMealTime] = useState(null);
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
@@ -81,18 +82,16 @@ const NotificationBell = () => {
 
   useEffect(() => {
     fetchNotifications();
-    const handler = () => fetchNotifications();
-    window.addEventListener('refresh-notifications', handler);
-    
-    // Get notification system status
-    const status = notificationManager.getStatus();
-    setNotificationStatus(status);
-    
-    // Check permission status
     checkPermissionStatus();
+    setNotificationStatus(notificationManager.getStatus());
     
-    return () => window.removeEventListener('refresh-notifications', handler);
-  }, []);
+    // Set up menu notification timer for students
+    if (user?.role === 'student') {
+      updateNextMealTime();
+      const interval = setInterval(updateNextMealTime, 60000); // Update every minute
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Auto-close notification panel after 7 seconds
   useEffect(() => {
@@ -104,6 +103,12 @@ const NotificationBell = () => {
     }
     return () => clearTimeout(timer);
   }, [isOpen]);
+
+  // Update next meal time
+  const updateNextMealTime = () => {
+    const nextMeal = notificationManager.getNextMealTime();
+    setNextMealTime(nextMeal);
+  };
 
   const handleMarkAsRead = async (notificationId) => {
     try {
@@ -323,6 +328,18 @@ const NotificationBell = () => {
     }
   };
 
+  // Manual trigger for menu notifications (for testing)
+  const handleTriggerMenuNotification = async (mealType) => {
+    try {
+      console.log(`🔔 Manually triggering ${mealType} menu notification...`);
+      await notificationManager.sendMenuNotification(mealType);
+      toast.success(`${mealType.charAt(0).toUpperCase() + mealType.slice(1)} notification sent!`);
+    } catch (error) {
+      console.error(`🔔 Error triggering ${mealType} notification:`, error);
+      toast.error(`Failed to send ${mealType} notification`);
+    }
+  };
+
   return (
     <>
       <div className="fixed top-4 right-4 z-50">
@@ -374,33 +391,44 @@ const NotificationBell = () => {
                   )}
                 </div>
                 
-                {notifications.length === 0 ? (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">No new notifications</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {notifications.map((notification) => (
+                {/* Notification List */}
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.map((notification) => (
                       <div
                         key={notification._id}
-                        className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                        className={`p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                          !notification.isRead ? 'bg-blue-50' : ''
+                        }`}
                         onClick={() => handleMarkAsRead(notification._id)}
                       >
-                        <div className="flex items-start gap-3">
-                          <span className="text-lg">{getNotificationIcon(notification.type)}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">
+                              {notification.title}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-400 mt-1">
                               {formatNotificationTime(notification.createdAt)}
                             </p>
                           </div>
+                          {!notification.isRead && (
+                            <div className="w-2 h-2 bg-blue-500 rounded-full ml-2"></div>
+                          )}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 text-sm">
+                      No notifications
+                    </div>
+                  )}
+                </div>
+
+                {/* Menu Notification Section for Students */}
+                
               </div>
             </motion.div>
           )}

@@ -331,6 +331,185 @@ class NotificationManager {
     };
   }
 
+  // Menu notification timers
+  menuNotificationTimers = {
+    breakfast: null,
+    lunch: null,
+    dinner: null
+  };
+
+  // Initialize menu notification timers
+  initializeMenuNotifications() {
+    console.log('🔔 Initializing menu notification timers...');
+    
+    // Clear any existing timers
+    this.clearMenuNotificationTimers();
+    
+    // Set up timers for each meal
+    this.setupMenuNotificationTimer('breakfast', 7, 0); // 7:00 AM
+    this.setupMenuNotificationTimer('lunch', 12, 0);    // 12:00 PM
+    this.setupMenuNotificationTimer('dinner', 19, 0);   // 7:00 PM
+    
+    console.log('🔔 Menu notification timers initialized');
+  }
+
+  // Setup timer for a specific meal
+  setupMenuNotificationTimer(mealType, hour, minute) {
+    const now = new Date();
+    const targetTime = new Date();
+    targetTime.setHours(hour, minute, 0, 0);
+    
+    // If target time has passed today, schedule for tomorrow
+    if (targetTime <= now) {
+      targetTime.setDate(targetTime.getDate() + 1);
+    }
+    
+    const timeUntilTarget = targetTime.getTime() - now.getTime();
+    
+    console.log(`🔔 Scheduling ${mealType} notification for ${targetTime.toLocaleString()}`);
+    
+    // Set timer
+    this.menuNotificationTimers[mealType] = setTimeout(() => {
+      this.sendMenuNotification(mealType);
+      // Schedule next day's notification
+      this.setupMenuNotificationTimer(mealType, hour, minute);
+    }, timeUntilTarget);
+  }
+
+  // Clear all menu notification timers
+  clearMenuNotificationTimers() {
+    Object.keys(this.menuNotificationTimers).forEach(mealType => {
+      if (this.menuNotificationTimers[mealType]) {
+        clearTimeout(this.menuNotificationTimers[mealType]);
+        this.menuNotificationTimers[mealType] = null;
+      }
+    });
+  }
+
+  // Send menu notification for a specific meal
+  async sendMenuNotification(mealType) {
+    try {
+      console.log(`🔔 Sending ${mealType} menu notification...`);
+      
+      const mealEmojis = {
+        breakfast: '🥞',
+        lunch: '🍛',
+        dinner: '🍽️'
+      };
+      
+      const mealNames = {
+        breakfast: 'Breakfast',
+        lunch: 'Lunch',
+        dinner: 'Dinner'
+      };
+      
+      const notificationData = {
+        title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
+        message: `Check today's ${mealType} menu and rate your meal.`,
+        type: 'menu',
+        mealType: mealType,
+        url: '/student', // Redirect to student dashboard
+        priority: 'high'
+      };
+      
+      // Send via OneSignal if available
+      if (this.isInitialized && this.oneSignal) {
+        try {
+          await this.sendOneSignalNotification(notificationData);
+          console.log(`🔔 ${mealType} notification sent via OneSignal`);
+        } catch (error) {
+          console.warn(`🔔 OneSignal ${mealType} notification failed, using database fallback:`, error);
+          await this.sendDatabaseNotification(notificationData);
+        }
+      } else {
+        // Fallback to database notification
+        await this.sendDatabaseNotification(notificationData);
+      }
+      
+    } catch (error) {
+      console.error(`🔔 Error sending ${mealType} menu notification:`, error);
+    }
+  }
+
+  // Send notification via OneSignal
+  async sendOneSignalNotification(notificationData) {
+    if (!this.userId) {
+      throw new Error('No user ID available');
+    }
+
+    const response = await fetch('/api/notifications/send-menu', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        ...notificationData,
+        userId: this.userId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send OneSignal notification');
+    }
+
+    return await response.json();
+  }
+
+  // Send notification via database
+  async sendDatabaseNotification(notificationData) {
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(notificationData)
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send database notification');
+    }
+
+    return await response.json();
+  }
+
+  // Check if it's time for a meal notification
+  isMealTime(mealType) {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    const mealTimes = {
+      breakfast: 7,
+      lunch: 12,
+      dinner: 19
+    };
+    
+    return hour === mealTimes[mealType];
+  }
+
+  // Get next meal time
+  getNextMealTime() {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    const mealTimes = [
+      { meal: 'breakfast', hour: 7, emoji: '🥞' },
+      { meal: 'lunch', hour: 12, emoji: '🍛' },
+      { meal: 'dinner', hour: 19, emoji: '🍽️' }
+    ];
+    
+    // Find next meal
+    for (const meal of mealTimes) {
+      if (hour < meal.hour) {
+        return meal;
+      }
+    }
+    
+    // If all meals passed today, return breakfast tomorrow
+    return mealTimes[0];
+  }
+
   // Subscribe to notifications
   async subscribe() {
     try {

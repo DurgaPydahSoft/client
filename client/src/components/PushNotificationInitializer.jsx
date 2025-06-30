@@ -95,6 +95,12 @@ const PushNotificationInitializer = () => {
         try {
           await notificationManager.initialize(userId);
           console.log('🔔 PushNotificationInitializer: Notification manager initialized');
+          
+          // Initialize menu notifications for students
+          if (user.role === 'student') {
+            console.log('🔔 PushNotificationInitializer: Initializing menu notifications for student');
+            notificationManager.initializeMenuNotifications();
+          }
         } catch (error) {
           console.warn('🔔 PushNotificationInitializer: Could not initialize notification manager:', error);
           console.log('🔔 PushNotificationInitializer: Using database notifications only');
@@ -156,7 +162,13 @@ const PushNotificationInitializer = () => {
 
     // Delay initialization slightly to ensure OneSignal is ready
     const timer = setTimeout(initializeNotifications, 1000);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      // Clean up menu notification timers
+      if (user?.role === 'student') {
+        notificationManager.clearMenuNotificationTimers();
+      }
+    };
 
   }, [user, isInitialized]);
 

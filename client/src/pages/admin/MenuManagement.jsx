@@ -38,6 +38,10 @@ const MenuManagement = () => {
   const [ratingStats, setRatingStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(false);
 
+  // Menu notification state
+  const [notificationLoading, setNotificationLoading] = useState(false);
+  const [lastNotificationSent, setLastNotificationSent] = useState(null);
+
   // Fetch today's menu on mount
   useEffect(() => {
     const fetchTodaysMenu = async () => {
@@ -196,16 +200,75 @@ const MenuManagement = () => {
     }
   };
 
+  // Menu notification handlers
+  const handleSendMenuNotification = async (mealType) => {
+    setNotificationLoading(true);
+    try {
+      const mealEmojis = {
+        breakfast: '🥞',
+        lunch: '🍛',
+        dinner: '🍽️'
+      };
+      
+      const mealNames = {
+        breakfast: 'Breakfast',
+        lunch: 'Lunch',
+        dinner: 'Dinner'
+      };
+
+      const response = await api.post('/api/notifications/send-menu-all', {
+        mealType,
+        title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
+        message: `Check today's ${mealType} menu and rate your meal.`,
+        url: '/student'
+      });
+
+      if (response.data.success) {
+        toast.success(`${mealNames[mealType]} notification sent to ${response.data.count} students!`);
+        setLastNotificationSent({
+          mealType,
+          timestamp: new Date(),
+          count: response.data.count
+        });
+      }
+    } catch (err) {
+      console.error('Error sending menu notification:', err);
+      toast.error(`Failed to send ${mealType} notification`);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
+  const getNextMealTime = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    
+    const mealTimes = [
+      { meal: 'breakfast', hour: 7, emoji: '🥞', name: 'Breakfast' },
+      { meal: 'lunch', hour: 12, emoji: '🍛', name: 'Lunch' },
+      { meal: 'dinner', hour: 19, emoji: '🍽️', name: 'Dinner' }
+    ];
+    
+    // Find next meal
+    for (const meal of mealTimes) {
+      if (hour < meal.hour) {
+        return meal;
+      }
+    }
+    
+    // If all meals passed today, return breakfast tomorrow
+    return mealTimes[0];
+  };
+
   return (
-    <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-6 mt-6">
+    <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-2 sm:p-4 md:p-6 mt-2 sm:mt-8">
       {/* Today's Menu Section (Read-only, with Update button) */}
-      <div className="mb-6">
-        <div className="bg-green-50 rounded-lg p-4 shadow flex flex-col">
-          <div className="flex items-center gap-2 mb-2">
-            <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-            <span className="font-bold text-green-900">Today's Menu</span>
+      <div className="mb-4 sm:mb-6">
+        <div className="bg-green-50 rounded-lg p-3 sm:p-4 shadow flex flex-col">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2">
+            <span className="font-bold text-green-900 text-base sm:text-lg">Today's Menu</span>
             <button
-              className="ml-auto px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+              className="sm:ml-auto px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 mt-2 sm:mt-0"
               onClick={openTodayModal}
               disabled={loadingToday}
             >
@@ -227,183 +290,251 @@ const MenuManagement = () => {
       </div>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
         {/* Left Column - Menu Management */}
         <div>
-          <h2 className="text-2xl font-bold mb-2 text-blue-900">Menu Management</h2>
-          <p className="text-gray-600 mb-4">Set the food menu for any day. You can add, edit, or remove items for breakfast, lunch, and dinner.</p>
-          <div className="flex items-center gap-4 mb-6">
-            <label className="font-medium">Date:</label>
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Menu Management</h2>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base">Set the food menu for any day. You can add, edit, or remove items for breakfast, lunch, and dinner.</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <label className="font-medium text-sm sm:text-base">Date:</label>
             <input
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
-              className="border px-3 py-2 rounded shadow-sm"
+              className="border px-3 py-2 rounded shadow-sm text-sm sm:text-base"
             />
           </div>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : (
-            <div>
-              <table className="w-full border mb-4">
-                <thead>
-                  <tr>
-                    <th className="border px-2 py-1">Meal</th>
-                    <th className="border px-2 py-1">Items</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {MEALS.map(meal => (
-                    <tr key={meal}>
-                      <td className="border px-2 py-1 font-semibold capitalize">{meal}</td>
-                      <td className="border px-2 py-1 align-top">
-                        <ul className="mb-2">
-                          {editMenu[meal].map((item, idx) => (
-                            <li key={idx} className="flex items-center gap-2 mb-1">
-                              <span>{item}</span>
-                              <button
-                                className="text-xs text-red-500 hover:underline"
-                                onClick={() => handleRemoveItem(meal, idx)}
-                              >Remove</button>
-                            </li>
-                          ))}
-                        </ul>
-                        <form
-                          onSubmit={e => {
-                            e.preventDefault();
-                            handleAddItem(meal);
-                          }}
-                        >
-                          <input
-                            type="text"
-                            placeholder={`Add to ${meal}`}
-                            value={addInputs[meal] || ''}
-                            onChange={e => handleAddInputChange(meal, e.target.value)}
-                            className="border px-2 py-1 rounded text-sm"
-                          />
-                          <button type="submit" className="ml-2 px-2 py-1 bg-green-500 text-white rounded text-xs">Add</button>
-                        </form>
-                      </td>
+            <>
+              {/* Table for screens >= 480px */}
+              <div className="hidden xs:block overflow-x-auto">
+                <table className="w-full min-w-[400px] border mb-4 text-xs sm:text-sm">
+                  <thead>
+                    <tr>
+                      <th className="border px-2 py-1">Meal</th>
+                      <th className="border px-2 py-1">Items</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex gap-4">
+                  </thead>
+                  <tbody>
+                    {MEALS.map(meal => (
+                      <tr key={meal}>
+                        <td className="border px-2 py-1 font-semibold capitalize align-top">{meal}</td>
+                        <td className="border px-2 py-1 align-top">
+                          <ul className="mb-2">
+                            {editMenu[meal].map((item, idx) => (
+                              <li key={idx} className="flex items-center gap-2 mb-1">
+                                <span>{item}</span>
+                                <button
+                                  className="text-xs text-red-500 hover:underline"
+                                  onClick={() => handleRemoveItem(meal, idx)}
+                                >Remove</button>
+                              </li>
+                            ))}
+                          </ul>
+                          <form
+                            onSubmit={e => {
+                              e.preventDefault();
+                              handleAddItem(meal);
+                            }}
+                            className="flex flex-col sm:flex-row gap-2"
+                          >
+                            <input
+                              type="text"
+                              placeholder={`Add to ${meal}`}
+                              value={addInputs[meal] || ''}
+                              onChange={e => handleAddInputChange(meal, e.target.value)}
+                              className="border px-2 py-1 rounded text-xs sm:text-sm flex-1"
+                            />
+                            <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs">Add</button>
+                          </form>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Card layout for screens < 480px */}
+              <div className="block xs:hidden space-y-4">
+                {MEALS.map(meal => (
+                  <div key={meal} className="border rounded-lg p-2 bg-gray-50">
+                    <div className="font-semibold capitalize mb-1 text-sm">{meal}</div>
+                    <ul className="mb-2">
+                      {editMenu[meal].map((item, idx) => (
+                        <li key={idx} className="flex items-center gap-2 mb-1">
+                          <span>{item}</span>
+                          <button
+                            className="text-xs text-red-500 hover:underline"
+                            onClick={() => handleRemoveItem(meal, idx)}
+                          >Remove</button>
+                        </li>
+                      ))}
+                    </ul>
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        handleAddItem(meal);
+                      }}
+                      className="flex flex-col gap-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder={`Add to ${meal}`}
+                        value={addInputs[meal] || ''}
+                        onChange={e => handleAddInputChange(meal, e.target.value)}
+                        className="border px-2 py-1 rounded text-xs flex-1"
+                      />
+                      <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs">Add</button>
+                    </form>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2">
                 <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs sm:text-base"
                   onClick={handleSave}
                   disabled={loading}
                 >
                   Save Menu
                 </button>
                 <button
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs sm:text-base"
                   onClick={fetchMenu}
                   disabled={loading}
                 >
                   Cancel
                 </button>
               </div>
-            </div>
+            </>
           )}
         </div>
 
         {/* Right Column - Rating Statistics */}
-        <div>
-          <h2 className="text-2xl font-bold mb-2 text-blue-900">Rating Statistics</h2>
-          <p className="text-gray-600 mb-4">Monitor student feedback and ratings for today's meals.</p>
-          
-          <div className="bg-blue-50 rounded-lg p-4 shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-              <span className="font-bold text-blue-900">Today's Ratings</span>
-            </div>
-            {loadingStats ? (
-              <div className="text-gray-400 text-sm">Loading ratings...</div>
-            ) : ratingStats ? (
-              <div className="space-y-4">
-                {['breakfast', 'lunch', 'dinner'].map(mealType => {
-                  const stats = ratingStats[mealType];
-                  const mealEmojis = { breakfast: '🥞', lunch: '🍛', dinner: '🍽️' };
-                  
-                  return (
-                    <div key={mealType} className="bg-white rounded-lg p-4 border">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-2xl">{mealEmojis[mealType]}</span>
-                        <span className="font-semibold capitalize text-lg">{mealType}</span>
-                      </div>
-                      {stats.totalRatings > 0 ? (
-                        <div>
-                          <div className="text-2xl font-bold text-blue-600 mb-2">
-                            {stats.average}/5 ⭐
-                          </div>
-                          <div className="text-sm text-gray-600 mb-3">
-                            {stats.totalRatings} rating{stats.totalRatings !== 1 ? 's' : ''}
-                          </div>
-                          
-                          {/* Rating Distribution */}
-                          <div className="space-y-2 mb-4">
-                            {[5, 4, 3, 2, 1].map(star => (
-                              <div key={star} className="flex items-center gap-3 text-sm">
-                                <span className="w-8">{star}★</span>
-                                <div className="flex-1 bg-gray-200 rounded-full h-3">
-                                  <div
-                                    className="bg-yellow-400 h-3 rounded-full"
-                                    style={{ width: `${(stats.ratingCounts[star] / stats.totalRatings) * 100}%` }}
+        <div className="mt-6 lg:mt-0">
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Rating Statistics</h2>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base">Monitor student feedback and ratings for today's meals.</p>
+          {loadingStats ? (
+            <div className="text-center py-8">Loading statistics...</div>
+          ) : ratingStats ? (
+            <div className="space-y-4">
+              {['breakfast', 'lunch', 'dinner'].map(mealType => {
+                const stats = ratingStats[mealType];
+                const mealEmojis = { breakfast: '🥞', lunch: '🍛', dinner: '🍽️' };
+                return (
+                  <div key={mealType} className="bg-white rounded-lg p-3 sm:p-4 border">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">{mealEmojis[mealType]}</span>
+                      <span className="font-semibold capitalize text-base sm:text-lg">{mealType}</span>
+                    </div>
+                    {stats.totalRatings > 0 ? (
+                      <div>
+                        <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-2">
+                          {stats.average}/5 ⭐
+                        </div>
+                        <div className="text-xs sm:text-sm text-gray-600 mb-3">
+                          {stats.totalRatings} rating{stats.totalRatings !== 1 ? 's' : ''}
+                        </div>
+                        <div className="space-y-2">
+                          {[5, 4, 3, 2, 1].map(rating => {
+                            const count = stats.distribution[rating] || 0;
+                            const percentage = stats.totalRatings > 0 ? (count / stats.totalRatings) * 100 : 0;
+                            return (
+                              <div key={rating} className="flex items-center gap-2">
+                                <span className="text-xs sm:text-sm text-gray-600 w-4">{rating}⭐</span>
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-yellow-400 h-2 rounded-full" 
+                                    style={{ width: `${percentage}%` }}
                                   ></div>
                                 </div>
-                                <span className="w-8 text-right font-medium">{stats.ratingCounts[star]}</span>
+                                <span className="text-xs text-gray-500 w-8">{count}</span>
                               </div>
-                            ))}
-                          </div>
-                          
-                          {/* Comments */}
-                          {stats.comments.length > 0 && (
-                            <div className="border-t pt-3">
-                              <div className="text-sm font-semibold text-gray-700 mb-2">
-                                Recent Comments ({stats.comments.length})
-                              </div>
-                              <div className="space-y-2 max-h-32 overflow-y-auto">
-                                {stats.comments.slice(0, 3).map((comment, idx) => (
-                                  <div key={idx} className="text-xs bg-gray-50 p-2 rounded">
-                                    <div className="flex items-center gap-1 mb-1">
-                                      {[1, 2, 3, 4, 5].map(star => (
-                                        <svg
-                                          key={star}
-                                          className={`w-3 h-3 ${star <= comment.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                                          fill="currentColor"
-                                          viewBox="0 0 20 20"
-                                        >
-                                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.54-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                        </svg>
-                                      ))}
-                                    </div>
-                                    <div className="text-gray-700 line-clamp-2">{comment.comment}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })}
                         </div>
-                      ) : (
-                        <div className="text-gray-400 text-center py-4">No ratings yet</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-gray-400 text-center py-8">No rating data available</div>
-            )}
-          </div>
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-center py-4">No ratings yet</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-gray-400 text-center py-8">No rating data available</div>
+          )}
         </div>
       </div>
+
+      {/* Menu Notification Management Section */}
+      <div className="mt-6 sm:mt-8">
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
+          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Menu Notifications</h2>
+          <p className="text-gray-600 mb-4 text-sm sm:text-base">Send timely notifications to students about meal times.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            {/* Next Meal Time */}
+            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 md:mb-0">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">Next Meal Time</h3>
+              {(() => {
+                const nextMeal = getNextMealTime();
+                return (
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{nextMeal.emoji}</span>
+                    <div>
+                      <div className="font-medium text-blue-900 text-sm sm:text-base">{nextMeal.name}</div>
+                      <div className="text-xs sm:text-sm text-blue-600">at {nextMeal.hour}:00</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            {/* Manual Notification Triggers */}
+            <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+              <h3 className="text-base sm:text-lg font-semibold text-green-900 mb-2">Send Notifications</h3>
+              <p className="text-xs sm:text-sm text-green-700 mb-3">Manually trigger meal notifications to all students</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => handleSendMenuNotification('breakfast')}
+                  disabled={notificationLoading}
+                  className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                >
+                  🥞 Send Breakfast Notification
+                </button>
+                <button
+                  onClick={() => handleSendMenuNotification('lunch')}
+                  disabled={notificationLoading}
+                  className="w-full px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                >
+                  🍛 Send Lunch Notification
+                </button>
+                <button
+                  onClick={() => handleSendMenuNotification('dinner')}
+                  disabled={notificationLoading}
+                  className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                >
+                  🍽️ Send Dinner Notification
+                </button>
+              </div>
+            </div>
+          </div>
+          {/* Last Notification Status */}
+          {lastNotificationSent && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+              <div className="text-xs sm:text-sm text-gray-600">
+                Last notification sent: <span className="font-medium">{lastNotificationSent.mealType}</span> 
+                to <span className="font-medium">{lastNotificationSent.count} students</span> 
+                at <span className="font-medium">{lastNotificationSent.timestamp.toLocaleTimeString()}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Modal for editing today's menu */}
       {showTodayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2 sm:px-0">
+          <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6 w-full max-w-md relative">
             <button
               className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
               onClick={closeTodayModal}
@@ -411,10 +542,10 @@ const MenuManagement = () => {
             >
               &times;
             </button>
-            <h3 className="text-lg font-bold mb-4 text-green-900">Edit Today's Menu</h3>
+            <h3 className="text-base sm:text-lg font-bold mb-4 text-green-900">Edit Today's Menu</h3>
             {MEALS.map(meal => (
               <div key={meal} className="mb-3">
-                <div className="font-semibold capitalize mb-1">{meal}</div>
+                <div className="font-semibold capitalize mb-1 text-sm sm:text-base">{meal}</div>
                 <ul className="mb-1">
                   {modalEditMenu[meal].map((item, idx) => (
                     <li key={idx} className="flex items-center gap-2 mb-1">
@@ -432,29 +563,30 @@ const MenuManagement = () => {
                     e.preventDefault();
                     handleModalAddItem(meal);
                   }}
+                  className="flex flex-col sm:flex-row gap-2"
                 >
                   <input
                     type="text"
                     placeholder={`Add to ${meal}`}
                     value={modalAddInputs[meal] || ''}
                     onChange={e => handleModalAddInputChange(meal, e.target.value)}
-                    className="border px-2 py-1 rounded text-sm"
+                    className="border px-2 py-1 rounded text-xs sm:text-sm flex-1"
                     disabled={savingToday}
                   />
-                  <button type="submit" className="ml-2 px-2 py-1 bg-green-500 text-white rounded text-xs" disabled={savingToday}>Add</button>
+                  <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs" disabled={savingToday}>Add</button>
                 </form>
               </div>
             ))}
-            <div className="flex gap-4 mt-4">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4">
               <button
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-xs sm:text-base"
                 onClick={handleModalSave}
                 disabled={savingToday}
               >
                 Save
               </button>
               <button
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs sm:text-base"
                 onClick={closeTodayModal}
                 disabled={savingToday}
               >
