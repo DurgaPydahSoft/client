@@ -2,7 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
-
+/* Custom scrollbar styles */
+@layer utilities {
+  .scrollbar-visible {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f1f5f9;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
 
 @layer components {
   .btn-primary {
@@ -19,14 +43,5 @@
 
   .card {
     @apply bg-white rounded-2xl shadow-lg p-8 border-t-4 border-blue-800;
-  }
-
-  .scrollbar-hide {
-    -ms-overflow-style: none;  /* Internet Explorer 10+ */
-    scrollbar-width: none;  /* Firefox */
-  }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Safari and Chrome */
   }
 } 

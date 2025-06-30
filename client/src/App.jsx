@@ -4,24 +4,23 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedSection from './components/ProtectedSection';
 import React from 'react';
-import MemberManagement from './pages/admin/MemberManagement';
 import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import RouteLoading from './components/RouteLoading';
 import LeaveQRDetails from './pages/student/LeaveQRDetails';
 import SecurityDashboard from './pages/security/SecurityDashboard';
-import AdminManagement from './pages/admin/AdminManagement';
 import PushNotificationInitializer from './components/PushNotificationInitializer';
 import MenuManagement from './pages/admin/MenuManagement';
 import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
+import MyAttendance from './pages/student/MyAttendance';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
 const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
-const WardenDashboard = lazy(() => import('./pages/warden/wardenDashboard'));
+const WardenDashboard = lazy(() => import('./pages/warden/WardenDashboard'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Admin components
@@ -33,6 +32,9 @@ const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
 const PollManagement = lazy(() => import('./pages/admin/PollManagement'));
 const RoomManagement = lazy(() => import('./pages/admin/RoomManagement'));
 const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
+const MemberManagement = lazy(() => import('./pages/admin/MemberManagement'));
+const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
+const Attendance = lazy(() => import('./pages/admin/Attendance'));
 
 // Student components
 const RaiseComplaint = lazy(() => import('./pages/student/RaiseComplaint'));
@@ -42,6 +44,13 @@ const StudentAnnouncements = lazy(() => import('./pages/student/Announcements'))
 const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
 const Polls = lazy(() => import('./pages/student/Polls'));
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
+
+// Warden components
+const WardenHome = lazy(() => import('./pages/warden/WardenHome'));
+const WardenTakeAttendance = lazy(() => import('./pages/warden/TakeAttendance'));
+const WardenViewAttendance = lazy(() => import('./pages/warden/ViewAttendance'));
+const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
+const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -144,7 +153,6 @@ function App() {
                   <PollManagement />
                 </ProtectedSection>
               } />
-              <Route path="menu" element={<MenuManagement />} />
               <Route path="leave" element={
                 <ProtectedSection permission="leave_management" sectionName="Leave Management">
                   <LeaveManagement />
@@ -155,6 +163,12 @@ function App() {
                   <AdminManagement />
                 </ProtectedSection>
               } />
+              <Route path="menu" element={<MenuManagement />} />
+              <Route path="attendance" element={
+                <ProtectedSection permission="attendance_management" sectionName="Attendance Management">
+                  <Attendance />
+                </ProtectedSection>
+              } />
             </Route>
 
             {/* Protected warden routes */}
@@ -163,13 +177,19 @@ function App() {
               element={<Navigate to="/warden/dashboard" replace />}
             />
             <Route
-                path="/warden/dashboard"
+                path="/warden/dashboard/*"
               element={
                 <ProtectedRoute requireAuth={true} role="warden">
                   <WardenDashboard />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<WardenHome />} />
+              <Route path="take-attendance" element={<WardenTakeAttendance />} />
+              <Route path="view-attendance" element={<WardenViewAttendance />} />
+              <Route path="bulk-outing" element={<BulkOuting />} />
+              <Route path="notifications" element={<WardenNotifications />} />
+            </Route>
             
             {/* Student reset password route */}
             <Route
@@ -198,6 +218,7 @@ function App() {
               <Route path="notifications" element={<StudentNotifications />} />
               <Route path="polls" element={<Polls />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="attendance" element={<MyAttendance />} />
             </Route>
             
             {/* 404 */}

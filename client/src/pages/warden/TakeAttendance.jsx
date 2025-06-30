@@ -1,0 +1,605 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { 
+  CalendarIcon, 
+  CheckIcon, 
+  XMarkIcon,
+  UserGroupIcon,
+  ClockIcon,
+  SunIcon,
+  MoonIcon,
+  FunnelIcon,
+  ArrowDownTrayIcon
+} from '@heroicons/react/24/outline';
+import api from '../../utils/axios';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import { toast } from 'react-hot-toast';
+import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+
+const TakeAttendance = () => {
+  const { user } = useAuth();
+  
+  // Debug logging to check user data
+  console.log('🔍 TakeAttendance Component - Full user object:', user);
+  console.log('🔍 TakeAttendance Component - User hostelType:', user?.hostelType);
+  console.log('🔍 TakeAttendance Component - User role:', user?.role);
+  
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attendanceData, setAttendanceData] = useState({});
+  const [filters, setFilters] = useState({
+    course: '',
+    branch: '',
+    gender: '',
+    category: '',
+    roomNumber: ''
+  });
+  const [roomInput, setRoomInput] = useState('');
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    attendanceTaken: 0
+  });
+
+  // Get current date in YYYY-MM-DD format
+  const currentDate = new Date().toISOString().split('T')[0];
+
+  // Force selectedDate to always be current date for warden
+  useEffect(() => {
+    if (selectedDate !== currentDate) {
+      setSelectedDate(currentDate);
+    }
+  }, [selectedDate, currentDate]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        roomNumber: roomInput
+      }));
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [roomInput]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [selectedDate, filters]);
+
+  // Helper to map hostelType to gender
+  const getWardenGender = () => {
+    if (!user?.hostelType) return undefined;
+    if (user.hostelType.toLowerCase() === 'boys') return 'Male';
+    if (user.hostelType.toLowerCase() === 'girls') return 'Female';
+    return undefined;
+  };
+
+  const fetchStudents = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        date: selectedDate,
+        ...filters
+      });
+
+      // Use mapped gender for filtering
+      const wardenGender = getWardenGender();
+      if (wardenGender) {
+        params.delete('gender');
+        params.append('gender', wardenGender);
+        console.log('🔍 Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
+        console.log('🔍 API params:', params.toString());
+      }
+
+      const response = await api.get(`/api/attendance/students?${params}`);
+      
+      if (response.data.success) {
+        console.log('🔍 Students received:', response.data.data.students.length);
+        console.log('🔍 Sample student gender:', response.data.data.students[0]?.gender);
+        
+        // Frontend filtering as fallback - ensure only students of warden's gender are shown
+        let filteredStudents = response.data.data.students;
+        if (wardenGender) {
+          filteredStudents = response.data.data.students.filter(student => 
+            student.gender === wardenGender
+          );
+          console.log('🔍 After frontend filtering:', filteredStudents.length, 'students');
+        }
+        
+        setStudents(filteredStudents);
+        setStats({
+          ...response.data.data,
+          totalStudents: filteredStudents.length
+        });
+        
+        // Initialize attendance data
+        const initialAttendance = {};
+        filteredStudents.forEach(student => {
+          initialAttendance[student._id] = {
+            morning: student.attendance?.morning || false,
+            evening: student.attendance?.evening || false,
+            notes: ''
+          };
+        });
+        setAttendanceData(initialAttendance);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to fetch students');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAttendanceChange = (studentId, session, value) => {
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [session]: value
+      }
+    }));
+  };
+
+  const handleNotesChange = (studentId, notes) => {
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        notes
+      }
+    }));
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleRoomInputChange = (e) => {
+    setRoomInput(e.target.value);
+  };
+
+  const handleSubmit = async () => {
+    // Validate that warden can only submit for current date
+    if (selectedDate !== currentDate) {
+      toast.error('Warden can only take attendance for today');
+      setSelectedDate(currentDate);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const attendanceRecords = Object.entries(attendanceData).map(([studentId, data]) => ({
+        studentId,
+        morning: data.morning,
+        evening: data.evening,
+        notes: data.notes
+      }));
+
+      const response = await api.post('/api/attendance/take', {
+        date: selectedDate,
+        attendanceData: attendanceRecords
+      });
+
+      if (response.data.success) {
+        toast.success(`Attendance saved for ${response.data.data.successful} students`);
+        fetchStudents(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+      toast.error('Failed to save attendance');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getAttendanceStatus = (student) => {
+    const attendance = attendanceData[student._id];
+    if (!attendance) return 'Absent';
+    
+    if (attendance.morning && attendance.evening) return 'Present';
+    if (attendance.morning || attendance.evening) return 'Partial';
+    return 'Absent';
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Present': return 'text-green-600 bg-green-50';
+      case 'Partial': return 'text-yellow-600 bg-yellow-50';
+      case 'Absent': return 'text-red-600 bg-red-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Present': return <CheckIcon className="w-4 h-4" />;
+      case 'Partial': return <ClockIcon className="w-4 h-4" />;
+      case 'Absent': return <XMarkIcon className="w-4 h-4" />;
+      default: return null;
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+      <SEO title="Take Attendance - Warden Dashboard" />
+      
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}
+              </h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
+              </p>
+              
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 text-center sm:text-right">
+              <div>
+                <p className="text-sm text-gray-500">Total Students</p>
+                <p className="text-2xl font-bold text-green-600">{stats.totalStudents}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Attendance Taken</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Controls */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+            {/* Date Selector */}
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <CalendarIcon className="w-4 h-4 inline mr-1" />
+                Date (Today Only)
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={currentDate}
+                  min={currentDate}
+                  max={currentDate}
+                  disabled={true}
+                  className="w-full px-3 py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm bg-green-50 cursor-not-allowed text-green-700 font-medium"
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                Warden can only take attendance for today
+              </p>
+            </div>
+
+            {/* Filters */}
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FunnelIcon className="w-4 h-4 inline mr-1" />
+                Course
+              </label>
+              <select
+                name="course"
+                value={filters.course}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              >
+                <option value="">All Courses</option>
+                <option value="B.Tech">B.Tech</option>
+                <option value="Diploma">Diploma</option>
+                <option value="Pharmacy">Pharmacy</option>
+                <option value="Degree">Degree</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+              <select
+                name="branch"
+                value={filters.branch}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              >
+                <option value="">All Branches</option>
+                <option value="CSE">CSE</option>
+                <option value="ECE">ECE</option>
+                <option value="EEE">EEE</option>
+                <option value="MECH">MECH</option>
+                <option value="CIVIL">CIVIL</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Gender {user?.hostelType && `(${user.hostelType} Warden)`}
+              </label>
+              <select
+                name="gender"
+                value={user?.hostelType || ''}
+                disabled={true}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm bg-gray-50 cursor-not-allowed"
+              >
+                <option value="">{user?.hostelType || 'Not Assigned'}</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              >
+                <option value="">All Categories</option>
+                <option value="A+">A+</option>
+                <option value="A">A</option>
+                <option value="B+">B+</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+
+            <div className="sm:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Room</label>
+              <input
+                type="text"
+                name="roomNumber"
+                value={roomInput}
+                onChange={handleRoomInputChange}
+                placeholder="Room number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Submit Button - Mobile Optimized */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-4 sm:mb-6"
+        >
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md font-medium"
+          >
+            {submitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Saving Attendance...
+              </>
+            ) : (
+              <>
+                <CheckIcon className="w-5 h-5" />
+                Save Attendance ({students.length} students)
+              </>
+            )}
+          </button>
+        </motion.div>
+
+        {/* Students List - Mobile Optimized */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-lg shadow-sm overflow-hidden"
+        >
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Students ({students.length})
+            </h2>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="block sm:hidden">
+            <div className="divide-y divide-gray-200">
+              {students.map((student, index) => {
+                const status = getAttendanceStatus(student);
+                return (
+                  <motion.div
+                    key={student._id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="p-4 hover:bg-gray-50"
+                  >
+                    {/* Student Info */}
+                    <div className="mb-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-medium text-gray-900">{student.name}</h3>
+                          <p className="text-xs text-gray-500">
+                            {student.rollNumber} • {student.course} {student.year} • {student.branch}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            Room {student.roomNumber} • {student.gender}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                          {getStatusIcon(status)}
+                          <span className="ml-1">{status}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Attendance Controls */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <SunIcon className="w-4 h-4 text-yellow-600" />
+                          <span className="text-sm font-medium">Morning</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={attendanceData[student._id]?.morning || false}
+                          onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
+                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <MoonIcon className="w-4 h-4 text-blue-600" />
+                          <span className="text-sm font-medium">Evening</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={attendanceData[student._id]?.evening || false}
+                          onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
+                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <input
+                        type="text"
+                        value={attendanceData[student._id]?.notes || ''}
+                        onChange={(e) => handleNotesChange(student._id, e.target.value)}
+                        placeholder="Add notes..."
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden sm:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <SunIcon className="w-4 h-4 inline mr-1" />
+                      Morning
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <MoonIcon className="w-4 h-4 inline mr-1" />
+                      Evening
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Notes
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {students.map((student, index) => {
+                    const status = getAttendanceStatus(student);
+                    return (
+                      <motion.tr
+                        key={student._id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {student.rollNumber} • {student.course} {student.year} • {student.branch}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                Room {student.roomNumber} • {student.gender}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <input
+                            type="checkbox"
+                            checked={attendanceData[student._id]?.morning || false}
+                            onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
+                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          />
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <input
+                            type="checkbox"
+                            checked={attendanceData[student._id]?.evening || false}
+                            onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
+                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          />
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                            {getStatusIcon(status)}
+                            <span className="ml-1">{status}</span>
+                          </span>
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="text"
+                            value={attendanceData[student._id]?.notes || ''}
+                            onChange={(e) => handleNotesChange(student._id, e.target.value)}
+                            placeholder="Add notes..."
+                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+                          />
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {students.length === 0 && (
+            <div className="text-center py-12">
+              <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No students found with the selected filters.</p>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default TakeAttendance; 

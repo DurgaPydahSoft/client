@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import LoadingSpinner from '../components/LoadingSpinner';
 import {
   UserIcon,
   ShieldCheckIcon,
@@ -25,6 +24,20 @@ const Login = () => {
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
+    
+    // Show interactive message about server load
+    toast('Please wait at least 30-40 seconds because sometimes the server faces huge loads', { 
+      icon: '⏳',
+      duration: 4000,
+      style: {
+        background: '#1e40af',
+        color: '#ffffff',
+        fontSize: '14px',
+        padding: '12px 16px',
+        borderRadius: '8px'
+      }
+    });
+    
     try {
       if (role === 'admin') {
         console.log('Attempting admin login with:', { username: form.username });
@@ -244,7 +257,10 @@ const Login = () => {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md"
               >
                 {loading ? (
-                  <LoadingSpinner size="sm" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Signing In...</span>
+                  </div>
                 ) : (
                   <>
                     <ArrowRightOnRectangleIcon className="w-5 h-5" />

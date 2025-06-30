@@ -1,13 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useNavigate, NavLink, Outlet, Routes, Route, useLocation } from 'react-router-dom';
-import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
+  MegaphoneIcon,
+  UsersIcon,
+  MagnifyingGlassIcon,
+  UserGroupIcon,
+  CalendarIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ExclamationCircleIcon,
   Bars3Icon,
   XMarkIcon,
   ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
+import api from '../../utils/axios';
+import toast from 'react-hot-toast';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate, NavLink, Outlet, Routes, Route, useLocation } from 'react-router-dom';
 import WardenHome from './WardenHome';
 import TakeAttendance from './TakeAttendance';
 import ViewAttendance from './ViewAttendance';
@@ -37,15 +48,283 @@ const PermissionDenied = ({ sectionName }) => {
 };
 
 const WardenDashboard = () => {
-  return <WardenDashboardLayout />;
-};
+  const [loading, setLoading] = useState(true);
+  const [announcements, setAnnouncements] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [filters, setFilters] = useState({
+    search: '',
+    course: '',
+    branch: '',
+    gender: '',
+    category: '',
+    roomNumber: '',
+    batch: '',
+    academicYear: '',
+    hostelStatus: 'Active'
+  });
 
-const WardenDashboardLayout = () => {
-  const { user, logout } = useAuth();
+  // Bulk outing states
+  const [showBulkOuting, setShowBulkOuting] = useState(true);
+  const [bulkOutingStudents, setBulkOutingStudents] = useState([]);
+  const [selectedBulkStudents, setSelectedBulkStudents] = useState([]);
+  const [bulkOutingLoading, setBulkOutingLoading] = useState(false);
+  const [submittingBulkOuting, setSubmittingBulkOuting] = useState(false);
+  const [bulkOutings, setBulkOutings] = useState([]);
+  const [showBulkHistory, setShowBulkHistory] = useState(false);
+  
+  // Bulk outing form data
+  const [bulkOutingForm, setBulkOutingForm] = useState({
+    outingDate: '',
+    reason: ''
+  });
+  
+  // Bulk outing filters
+  const [bulkOutingFilters, setBulkOutingFilters] = useState({
+    course: '',
+    branch: '',
+    gender: '',
+    category: '',
+    roomNumber: '',
+    batch: '',
+    academicYear: '',
+    hostelStatus: 'Active'
+  });
+
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { pathname } = useLocation();
-  
+
+  useEffect(() => {
+    fetchDashboardData();
+    fetchStudents();
+    fetchBulkOutings();
+  }, []);
+
+  useEffect(() => {
+    if (showBulkOuting) {
+      fetchBulkOutingStudents();
+    }
+  }, [bulkOutingFilters]);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch announcements using warden-specific endpoint
+      const announcementsRes = await api.get('/api/announcements/warden');
+
+      if (announcementsRes.data.success) {
+        setAnnouncements(announcementsRes.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudents = async () => {
+    setStudentsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10
+      });
+
+      // Add filters only if they have values
+      if (filters.search) params.append('search', filters.search);
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.batch) params.append('batch', filters.batch);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
+
+      const res = await api.get(`/api/admin/warden/students?${params}`);
+      if (res.data.success) {
+        setStudents(res.data.data.students || []);
+        setTotalPages(res.data.data.totalPages || 1);
+        setTotalStudents(res.data.data.totalStudents || 0);
+      } else {
+        throw new Error(res.data.message || 'Failed to fetch students');
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to fetch students');
+      setStudents([]);
+      setTotalPages(1);
+      setTotalStudents(0);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+  const fetchBulkOutingStudents = async () => {
+    setBulkOutingLoading(true);
+    try {
+      const params = new URLSearchParams();
+      Object.keys(bulkOutingFilters).forEach(key => {
+        if (bulkOutingFilters[key]) {
+          params.append(key, bulkOutingFilters[key]);
+        }
+      });
+
+      const response = await api.get(`/api/bulk-outing/warden/students?${params}`);
+      if (response.data.success) {
+        setBulkOutingStudents(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching bulk outing students:', error);
+      toast.error('Failed to fetch students');
+    } finally {
+      setBulkOutingLoading(false);
+    }
+  };
+
+  const fetchBulkOutings = async () => {
+    try {
+      const response = await api.get('/api/bulk-outing/warden');
+      if (response.data.success) {
+        setBulkOutings(response.data.data.bulkOutings);
+      }
+    } catch (error) {
+      console.error('Error fetching bulk outings:', error);
+      toast.error('Failed to fetch bulk outing history');
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const handleBulkOutingFilterChange = (e) => {
+    const { name, value } = e.target;
+    setBulkOutingFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleBulkOutingFormChange = (e) => {
+    const { name, value } = e.target;
+    setBulkOutingForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handleStudentSelect = (studentId) => {
+    setSelectedBulkStudents(prev => {
+      if (prev.includes(studentId)) {
+        return prev.filter(id => id !== studentId);
+      } else {
+        return [...prev, studentId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedBulkStudents.length === bulkOutingStudents.length) {
+      setSelectedBulkStudents([]);
+    } else {
+      setSelectedBulkStudents(bulkOutingStudents.map(student => student._id));
+    }
+  };
+
+  const handleBulkOutingSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!bulkOutingForm.outingDate || !bulkOutingForm.reason) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (selectedBulkStudents.length === 0) {
+      toast.error('Please select at least one student');
+      return;
+    }
+
+    setSubmittingBulkOuting(true);
+    try {
+      const response = await api.post('/api/bulk-outing/create', {
+        outingDate: bulkOutingForm.outingDate,
+        reason: bulkOutingForm.reason,
+        selectedStudentIds: selectedBulkStudents,
+        filters: bulkOutingFilters
+      });
+
+      if (response.data.success) {
+        toast.success(`Bulk outing request created for ${selectedBulkStudents.length} students`);
+        setBulkOutingForm({ outingDate: '', reason: '' });
+        setSelectedBulkStudents([]);
+        fetchBulkOutings();
+        setShowBulkOuting(false);
+      }
+    } catch (error) {
+      console.error('Error creating bulk outing:', error);
+      toast.error(error.response?.data?.message || 'Failed to create bulk outing request');
+    } finally {
+      setSubmittingBulkOuting(false);
+    }
+  };
+
+  // Clear selected students when filters change
+  useEffect(() => {
+    setSelectedBulkStudents([]);
+  }, [bulkOutingFilters]);
+
+  // Clear selected students when form is hidden
+  useEffect(() => {
+    if (!showBulkOuting) {
+      setSelectedBulkStudents([]);
+    }
+  }, [showBulkOuting]);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [currentPage, filters]);
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Approved':
+        return 'text-green-600 bg-green-50';
+      case 'Rejected':
+        return 'text-red-600 bg-red-50';
+      case 'Pending':
+        return 'text-yellow-600 bg-yellow-50';
+      default:
+        return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Approved':
+        return <CheckCircleIcon className="w-5 h-5" />;
+      case 'Rejected':
+        return <XCircleIcon className="w-5 h-5" />;
+      case 'Pending':
+        return <ExclamationCircleIcon className="w-5 h-5" />;
+      default:
+        return null;
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -77,32 +356,20 @@ const WardenDashboardLayout = () => {
       path: '/warden/dashboard/view-attendance',
       show: true,
       locked: false
-    },
-    {
-      name: 'Bulk Outing',
-      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
-      path: '/warden/dashboard/bulk-outing',
-      show: true,
-      locked: false
-    },
-    {
-      name: 'Notifications',
-      icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
-      path: '/warden/dashboard/notifications',
-      show: true,
-      locked: false
     }
   ];
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
       {/* Mobile Menu Button */}
-          <button
+      <button
         onClick={() => setIsSidebarOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200"
-          >
+      >
         <Bars3Icon className="w-6 h-6 text-gray-600" />
-          </button>
+      </button>
 
       {/* Mobile Sidebar Backdrop */}
       <AnimatePresence>
@@ -127,12 +394,12 @@ const WardenDashboardLayout = () => {
         className="fixed lg:relative top-0 left-0 w-56 h-screen bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
-                <button
+        <button
           onClick={() => setIsSidebarOpen(false)}
           className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-                >
+        >
           <XMarkIcon className="w-6 h-6 text-gray-600" />
-                </button>
+        </button>
 
         {/* Header */}
         <div className="p-4 flex-shrink-0">
@@ -145,9 +412,9 @@ const WardenDashboardLayout = () => {
             <div className="flex-1">
               <h1 className="font-semibold text-xs">Hostel Warden</h1>
               <p className="text-xs text-green-100">Management Portal</p>
-                    </div>
-                    </div>
-                  </div>
+            </div>
+          </div>
+        </div>
 
         {/* Navigation */}
         <div className="flex-1 relative">
@@ -224,10 +491,10 @@ const WardenDashboardLayout = () => {
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-gray-900 truncate">
                 {user?.name || 'Warden'}
-                </div>
+              </div>
               <div className="text-xs text-gray-500 truncate">
                 Warden
-                  </div>
+              </div>
             </div>
           </div>
           <motion.button
@@ -261,10 +528,18 @@ const WardenDashboardLayout = () => {
             <NotificationBell />
           </div>
           <Outlet />
-            </div>
+        </div>
       </main>
     </div>
   );
 };
+
+const WardenDashboardLayout = () => (
+  <Routes>
+    <Route index element={<WardenHome />} />
+    <Route path="take-attendance" element={<TakeAttendance />} />
+    <Route path="view-attendance" element={<ViewAttendance />} />
+  </Routes>
+);
 
 export default WardenDashboard;

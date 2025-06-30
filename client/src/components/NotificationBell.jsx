@@ -17,14 +17,26 @@ const NotificationBell = () => {
   const { user } = useAuth();
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
+  const isWarden = user?.role === 'warden';
 
   const fetchNotifications = async () => {
     try {
       setIsLoading(true);
-      console.log('🔔 NotificationBell: Fetching notifications for role:', isAdmin ? 'admin' : 'student');
+      let endpointPrefix;
+      if (isAdmin) {
+        endpointPrefix = '/api/notifications/admin';
+        console.log('🔔 NotificationBell: Fetching notifications for role: admin');
+      } else if (isWarden) {
+        endpointPrefix = '/api/notifications/warden';
+        console.log('🔔 NotificationBell: Fetching notifications for role: warden');
+      } else {
+        endpointPrefix = '/api/notifications';
+        console.log('🔔 NotificationBell: Fetching notifications for role: student');
+      }
+
       const [notificationsRes, countRes] = await Promise.all([
-        api.get(isAdmin ? '/api/notifications/admin/unread' : '/api/notifications/unread'),
-        api.get(isAdmin ? '/api/notifications/admin/count' : '/api/notifications/count')
+        api.get(`${endpointPrefix}/unread`),
+        api.get(`${endpointPrefix}/count`)
       ]);
 
       console.log('🔔 NotificationBell: Responses:', { notificationsRes: notificationsRes.data, countRes: countRes.data });
@@ -95,7 +107,15 @@ const NotificationBell = () => {
 
   const handleMarkAsRead = async (notificationId) => {
     try {
-      const route = isAdmin ? `/api/notifications/admin/${notificationId}/read` : `/api/notifications/${notificationId}/read`;
+      let route;
+      if (isAdmin) {
+        route = `/api/notifications/admin/${notificationId}/read`;
+      } else if (isWarden) {
+        route = `/api/notifications/warden/${notificationId}/read`;
+      } else {
+        route = `/api/notifications/${notificationId}/read`;
+      }
+      
       await api.patch(route);
       fetchNotifications();
       toast.success('Notification marked as read');
@@ -107,7 +127,15 @@ const NotificationBell = () => {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const route = isAdmin ? '/api/notifications/admin/read-all' : '/api/notifications/read-all';
+      let route;
+      if (isAdmin) {
+        route = '/api/notifications/admin/read-all';
+      } else if (isWarden) {
+        route = '/api/notifications/warden/read-all';
+      } else {
+        route = '/api/notifications/read-all';
+      }
+      
       await api.patch(route);
       setNotifications([]);
       setUnreadCount(0);

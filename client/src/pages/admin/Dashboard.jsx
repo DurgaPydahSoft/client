@@ -17,6 +17,7 @@ import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
 import LeaveManagement from "./LeaveManagement";
 import MenuManagement from './MenuManagement';
+import Attendance from './Attendance';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -211,11 +212,18 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/menu',
       show: true,
       locked: !hasPermission('menu_management')
+    },
+    {
+      name: 'Attendance',
+      icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+      path: '/admin/dashboard/attendance',
+      show: true,
+      locked: !hasPermission('attendance_management')
     }
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50 overflow-hidden">
+    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}
@@ -270,12 +278,12 @@ const AdminDashboard = () => {
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 relative">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Top fade indicator */}
           <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
                id="top-fade"></div>
           
-          <nav className="flex-1 px-4 space-y-2 overflow-y-auto scrollbar-hide h-full" 
+          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible" 
                onScroll={(e) => {
                  const target = e.target;
                  const topFade = document.getElementById('top-fade');
@@ -438,6 +446,7 @@ const AdminDashboardLayout = () => (
     <Route path="announcements" element={<AnnouncementManagement />} />
     <Route path="polls" element={<PollManagement />} />
     <Route path="menu" element={<MenuManagement />} />
+    <Route path="attendance" element={<Attendance />} />
   </Routes>
 );
 
