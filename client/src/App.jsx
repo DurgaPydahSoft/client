@@ -17,7 +17,6 @@ import MyAttendance from './pages/student/MyAttendance';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
-const StudentRegister = lazy(() => import('./pages/StudentRegister'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
 const WardenDashboard = lazy(() => import('./pages/warden/WardenDashboard'));
@@ -51,6 +50,11 @@ const WardenTakeAttendance = lazy(() => import('./pages/warden/TakeAttendance'))
 const WardenViewAttendance = lazy(() => import('./pages/warden/ViewAttendance'));
 const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
+
+// Principal components
+const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
+const PrincipalHome = lazy(() => import('./pages/principal/PrincipalHome'));
+const PrincipalAttendance = lazy(() => import('./pages/principal/PrincipalAttendance'));
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -103,7 +107,6 @@ function App() {
             
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<StudentRegister />} />
             <Route path="leave/qr/:id" element={<LeaveQRDetails />} />
             <Route path="security-dashboard" element={<SecurityDashboard />} />
             
@@ -189,6 +192,23 @@ function App() {
               <Route path="view-attendance" element={<WardenViewAttendance />} />
               <Route path="bulk-outing" element={<BulkOuting />} />
               <Route path="notifications" element={<WardenNotifications />} />
+            </Route>
+
+            {/* Protected principal routes */}
+            <Route
+                path="/principal"
+              element={<Navigate to="/principal/dashboard" replace />}
+            />
+            <Route
+                path="/principal/dashboard/*"
+              element={
+                <ProtectedRoute requireAuth={true} role="principal">
+                  <PrincipalDashboard />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<PrincipalHome />} />
+              <Route path="attendance" element={<PrincipalAttendance />} />
             </Route>
             
             {/* Student reset password route */}

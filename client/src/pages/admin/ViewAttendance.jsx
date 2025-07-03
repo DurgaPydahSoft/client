@@ -43,6 +43,9 @@ const ViewAttendance = () => {
     absent: 0
   });
   const [expandedStudents, setExpandedStudents] = useState(new Set());
+  const [courses, setCourses] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [filteredBranches, setFilteredBranches] = useState([]);
 
   useEffect(() => {
     if (viewMode === 'date') {
@@ -51,6 +54,36 @@ const ViewAttendance = () => {
       fetchAttendanceForRange();
     }
   }, [selectedDate, dateRange, viewMode, filters]);
+
+  useEffect(() => {
+    // Fetch courses and branches on mount
+    const fetchFilters = async () => {
+      try {
+        const [coursesRes, branchesRes] = await Promise.all([
+          api.get('/api/course-management/courses'),
+          api.get('/api/course-management/branches')
+        ]);
+        if (coursesRes.data.success) setCourses(coursesRes.data.data);
+        if (branchesRes.data.success) setBranches(branchesRes.data.data);
+      } catch (err) {
+        toast.error('Failed to fetch filter options');
+        setCourses([]);
+        setBranches([]);
+      }
+    };
+    fetchFilters();
+  }, []);
+
+  // Filter branches when course changes
+  useEffect(() => {
+    if (!filters.course) {
+      setFilteredBranches(branches);
+    } else {
+      setFilteredBranches(branches.filter(b =>
+        b.course === filters.course || (typeof b.course === 'object' && b.course._id === filters.course)
+      ));
+    }
+  }, [filters.course, branches]);
 
   const fetchAttendanceForDate = async () => {
     setLoading(true);
@@ -162,6 +195,20 @@ const ViewAttendance = () => {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  // Helper functions to safely get course and branch names
+  const getCourseName = (course) => {
+    if (!course) return 'N/A';
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string') return course;
+    return 'N/A';
+  };
+  const getBranchName = (branch) => {
+    if (!branch) return 'N/A';
+    if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string') return branch;
+    return 'N/A';
   };
 
   // Organize attendance data by student for date range view
@@ -392,10 +439,9 @@ const ViewAttendance = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Courses</option>
-              <option value="B.Tech">B.Tech</option>
-              <option value="Diploma">Diploma</option>
-              <option value="Pharmacy">Pharmacy</option>
-              <option value="Degree">Degree</option>
+              {courses.map(course => (
+                <option key={course._id} value={course._id}>{course.name} ({course.code})</option>
+              ))}
             </select>
           </div>
 
@@ -408,11 +454,9 @@ const ViewAttendance = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Branches</option>
-              <option value="CSE">CSE</option>
-              <option value="ECE">ECE</option>
-              <option value="EEE">EEE</option>
-              <option value="MECH">MECH</option>
-              <option value="CIVIL">CIVIL</option>
+              {filteredBranches.map(branch => (
+                <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
+              ))}
             </select>
           </div>
 
@@ -533,7 +577,7 @@ const ViewAttendance = () => {
                               {record.student?.name || 'Unknown'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {record.student?.rollNumber || 'N/A'} • {record.student?.course || 'N/A'} {record.student?.year || 'N/A'} • {record.student?.branch || 'N/A'}
+                              {record.student?.rollNumber || 'N/A'} • {getCourseName(record.student?.course)} {record.student?.year || 'N/A'} • {getBranchName(record.student?.branch)}
                             </div>
                             <div className="text-xs text-gray-400">
                               Room {record.student?.roomNumber || 'N/A'} • {record.student?.gender || 'N/A'}
@@ -608,7 +652,7 @@ const ViewAttendance = () => {
                                 {student.name || 'Unknown'}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {student.rollNumber || 'N/A'} • {student.course || 'N/A'} {student.year || 'N/A'} • {student.branch || 'N/A'}
+                                {student.rollNumber || 'N/A'} • {getCourseName(student.course)} {student.year || 'N/A'} • {getBranchName(student.branch)}
                               </div>
                               <div className="text-xs text-gray-400">
                                 Room {student.roomNumber || 'N/A'} • {student.gender || 'N/A'}

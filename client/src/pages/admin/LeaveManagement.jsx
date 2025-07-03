@@ -546,7 +546,7 @@ const LeaveManagement = () => {
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-gray-600">{student.course} - {student.branch}</p>
+                                        <p className="text-xs text-gray-600">{(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}</p>
                                         <p className="text-xs text-gray-500">Room {student.roomNumber}</p>
                                       </div>
                                     </div>

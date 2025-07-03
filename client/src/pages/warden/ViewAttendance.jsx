@@ -45,6 +45,10 @@ const ViewAttendance = () => {
     absent: 0
   });
   const [expandedStudents, setExpandedStudents] = useState(new Set());
+  const [courses, setCourses] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
+  const [filteredBranches, setFilteredBranches] = useState([]);
+  const [loadingFilters, setLoadingFilters] = useState(false);
 
   // Helper to map hostelType to gender
   const getWardenGender = () => {
@@ -55,39 +59,68 @@ const ViewAttendance = () => {
   };
 
   useEffect(() => {
-    if (viewMode === 'date') {
-      fetchAttendanceForDate();
-    } else {
-      fetchAttendanceForRange();
-    }
+    // Add a small delay to prevent rapid successive API calls
+    const timer = setTimeout(() => {
+      if (viewMode === 'date') {
+        fetchAttendanceForDate();
+      } else {
+        fetchAttendanceForRange();
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [selectedDate, dateRange, viewMode, filters]);
+
+  useEffect(() => {
+    fetchFilters();
+  }, []);
 
   const fetchAttendanceForDate = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        date: selectedDate,
-        ...filters
+        date: selectedDate
       });
 
       // Use mapped gender for filtering
       const wardenGender = getWardenGender();
       if (wardenGender) {
-        params.delete('gender');
         params.append('gender', wardenGender);
         console.log('🔍 ViewAttendance: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
       }
 
+      // Add other filters that don't involve course/branch IDs
+      if (filters.studentId) params.append('studentId', filters.studentId);
+      if (filters.status) params.append('status', filters.status);
+
+      console.log('🔍 ViewAttendance: API params for date view:', params.toString());
+      console.log('🔍 ViewAttendance: Current filters:', filters);
+
       const response = await api.get(`/api/attendance/date?${params}`);
       
       if (response.data.success) {
-        // Frontend filtering as fallback - ensure only students of warden's gender are shown
+        // Frontend filtering - ensure only students of warden's gender are shown
         let filteredAttendance = response.data.data.attendance;
         if (wardenGender) {
           filteredAttendance = response.data.data.attendance.filter(record => 
             record.student?.gender === wardenGender
           );
-          console.log('🔍 ViewAttendance: After frontend filtering:', filteredAttendance.length, 'records');
+          console.log('🔍 ViewAttendance: After gender filtering:', filteredAttendance.length, 'records');
+        }
+
+        // Frontend filtering for course and branch
+        if (filters.course) {
+          filteredAttendance = filteredAttendance.filter(record => 
+            record.student?.course?._id === filters.course || record.student?.course === filters.course
+          );
+          console.log('🔍 ViewAttendance: After course filtering:', filteredAttendance.length, 'records');
+        }
+
+        if (filters.branch) {
+          filteredAttendance = filteredAttendance.filter(record => 
+            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
+          );
+          console.log('🔍 ViewAttendance: After branch filtering:', filteredAttendance.length, 'records');
         }
         
         setAttendance(filteredAttendance);
@@ -106,28 +139,48 @@ const ViewAttendance = () => {
     try {
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        ...filters
+        endDate: dateRange.endDate
       });
 
       // Use mapped gender for filtering
       const wardenGender = getWardenGender();
       if (wardenGender) {
-        params.delete('gender');
         params.append('gender', wardenGender);
         console.log('🔍 ViewAttendance: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
       }
 
+      // Add other filters that don't involve course/branch IDs
+      if (filters.studentId) params.append('studentId', filters.studentId);
+      if (filters.status) params.append('status', filters.status);
+
+      console.log('🔍 ViewAttendance: API params for range view:', params.toString());
+      console.log('🔍 ViewAttendance: Current filters:', filters);
+
       const response = await api.get(`/api/attendance/range?${params}`);
       
       if (response.data.success) {
-        // Frontend filtering as fallback - ensure only students of warden's gender are shown
+        // Frontend filtering - ensure only students of warden's gender are shown
         let filteredAttendance = response.data.data.attendance;
         if (wardenGender) {
           filteredAttendance = response.data.data.attendance.filter(record => 
             record.student?.gender === wardenGender
           );
-          console.log('🔍 ViewAttendance: After frontend filtering:', filteredAttendance.length, 'records');
+          console.log('🔍 ViewAttendance: After gender filtering:', filteredAttendance.length, 'records');
+        }
+
+        // Frontend filtering for course and branch
+        if (filters.course) {
+          filteredAttendance = filteredAttendance.filter(record => 
+            record.student?.course?._id === filters.course || record.student?.course === filters.course
+          );
+          console.log('🔍 ViewAttendance: After course filtering:', filteredAttendance.length, 'records');
+        }
+
+        if (filters.branch) {
+          filteredAttendance = filteredAttendance.filter(record => 
+            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
+          );
+          console.log('🔍 ViewAttendance: After branch filtering:', filteredAttendance.length, 'records');
         }
         
         setAttendance(filteredAttendance);
@@ -166,12 +219,54 @@ const ViewAttendance = () => {
     }
   };
 
+  const fetchFilters = async () => {
+    setLoadingFilters(true);
+    try {
+      // Fetch courses
+      const coursesResponse = await api.get('/api/course-management/courses');
+      if (coursesResponse.data.success) {
+        setCourses(coursesResponse.data.data);
+      }
+
+      // Fetch all branches
+      const branchesResponse = await api.get('/api/course-management/branches');
+      if (branchesResponse.data.success) {
+        setAllBranches(branchesResponse.data.data);
+        setFilteredBranches([]); // Initially no branches selected
+      }
+    } catch (error) {
+      console.error('Error fetching filters:', error);
+      toast.error('Failed to fetch filter options');
+    } finally {
+      setLoadingFilters(false);
+    }
+  };
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    // If course changes, update branches dropdown and clear branch selection
+    if (name === 'course') {
+      if (value) {
+        // Filter branches for the selected course
+        const courseBranches = allBranches.filter(branch => branch.course._id === value);
+        setFilteredBranches(courseBranches);
+      } else {
+        // If no course selected, show no branches
+        setFilteredBranches([]);
+      }
+      // Clear branch selection when course changes
+      setFilters(prev => ({
+        ...prev,
+        [name]: value,
+        branch: ''
+      }));
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const getAttendanceStatus = (record) => {
@@ -452,13 +547,15 @@ const ViewAttendance = () => {
                 name="course"
                 value={filters.course}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={loadingFilters}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
               >
-                <option value="">All Courses</option>
-                <option value="B.Tech">B.Tech</option>
-                <option value="Diploma">Diploma</option>
-                <option value="Pharmacy">Pharmacy</option>
-                <option value="Degree">Degree</option>
+                <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
+                {courses.map((course) => (
+                  <option key={course._id} value={course._id}>
+                    {course.name} ({course.code})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -468,14 +565,17 @@ const ViewAttendance = () => {
                 name="branch"
                 value={filters.branch}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                disabled={loadingFilters || !filters.course}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
               >
-                <option value="">All Branches</option>
-                <option value="CSE">CSE</option>
-                <option value="ECE">ECE</option>
-                <option value="EEE">EEE</option>
-                <option value="MECH">MECH</option>
-                <option value="CIVIL">CIVIL</option>
+                <option value="">
+                  {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
+                </option>
+                {filteredBranches.map((branch) => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name} ({branch.code})
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -596,7 +696,7 @@ const ViewAttendance = () => {
                                 {record.student?.name || 'Unknown'}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {record.student?.rollNumber || 'N/A'} • {record.student?.course || 'N/A'} {record.student?.year || 'N/A'} • {record.student?.branch || 'N/A'}
+                                {record.student?.rollNumber || 'N/A'} • {(record.student?.course?.name || record.student?.course || 'N/A')} {record.student?.year || 'N/A'} • {(record.student?.branch?.name || record.student?.branch || 'N/A')}
                               </div>
                               <div className="text-xs text-gray-400">
                                 Room {record.student?.roomNumber || 'N/A'} • {record.student?.gender || 'N/A'}
@@ -671,7 +771,7 @@ const ViewAttendance = () => {
                                   {student.name || 'Unknown'}
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                  {student.rollNumber || 'N/A'} • {student.course || 'N/A'} {student.year || 'N/A'} • {student.branch || 'N/A'}
+                                  {student.rollNumber || 'N/A'} • {(student.course?.name || student.course || 'N/A')} {student.year || 'N/A'} • {(student.branch?.name || student.branch || 'N/A')}
                                 </div>
                                 <div className="text-xs text-gray-400">
                                   Room {student.roomNumber || 'N/A'} • {student.gender || 'N/A'}

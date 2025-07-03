@@ -12,10 +12,12 @@ import {
   CheckIcon,
   ShieldCheckIcon,
   HomeIcon,
-  BuildingOfficeIcon
+  BuildingOfficeIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
+import CourseManagement from './CourseManagement';
 
 const PERMISSIONS = [
   { id: 'room_management', label: 'Room Management' },
@@ -24,7 +26,8 @@ const PERMISSIONS = [
   { id: 'leave_management', label: 'Leave Management' },
   { id: 'announcement_management', label: 'Announcement Management' },
   { id: 'poll_management', label: 'Poll Management' },
-  { id: 'member_management', label: 'Member Management' }
+  { id: 'member_management', label: 'Member Management' },
+  { id: 'menu_management', label: 'Menu Management' }
 ];
 
 const ToggleSwitch = ({ label, checked, onChange }) => (
@@ -55,6 +58,7 @@ const AdminManagement = () => {
   const [activeTab, setActiveTab] = useState('sub-admins');
   const [subAdmins, setSubAdmins] = useState([]);
   const [wardens, setWardens] = useState([]);
+  const [principals, setPrincipals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -63,7 +67,8 @@ const AdminManagement = () => {
     username: '',
     password: '',
     permissions: [],
-    hostelType: ''
+    hostelType: '',
+    course: ''
   });
   const [securitySettings, setSecuritySettings] = useState({
     viewProfilePictures: true,
@@ -72,6 +77,7 @@ const AdminManagement = () => {
   });
   const [securitySettingsLoading, setSecuritySettingsLoading] = useState(true);
   const [securitySettingsError, setSecuritySettingsError] = useState('');
+  const [courses, setCourses] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -80,9 +86,10 @@ const AdminManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [subAdminsRes, wardensRes] = await Promise.all([
+      const [subAdminsRes, wardensRes, principalsRes] = await Promise.all([
         api.get('/api/admin-management/sub-admins'),
-        api.get('/api/admin-management/wardens')
+        api.get('/api/admin-management/wardens'),
+        api.get('/api/admin-management/principals')
       ]);
       
       if (subAdminsRes.data.success) {
@@ -90,6 +97,9 @@ const AdminManagement = () => {
       }
       if (wardensRes.data.success) {
         setWardens(wardensRes.data.data);
+      }
+      if (principalsRes.data.success) {
+        setPrincipals(principalsRes.data.data);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -135,22 +145,33 @@ const AdminManagement = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
     try {
-      const endpoint = activeTab === 'sub-admins' ? '/api/admin-management/sub-admins' : '/api/admin-management/wardens';
+      let endpoint;
+      let requestData;
       
-      // For wardens, ensure hostelType is included
-      const requestData = activeTab === 'wardens' 
-        ? { ...formData, hostelType: formData.hostelType }
-        : formData;
+      if (activeTab === 'sub-admins') {
+        endpoint = '/api/admin-management/sub-admins';
+        requestData = formData;
+      } else if (activeTab === 'wardens') {
+        endpoint = '/api/admin-management/wardens';
+        requestData = { ...formData, hostelType: formData.hostelType };
+      } else if (activeTab === 'principals') {
+        endpoint = '/api/admin-management/principals';
+        requestData = { ...formData, course: formData.course };
+      }
       
       const response = await api.post(endpoint, requestData);
       if (response.data.success) {
-        toast.success(`${activeTab === 'sub-admins' ? 'Sub-admin' : 'Warden'} added successfully`);
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
+                        activeTab === 'wardens' ? 'Warden' : 'Principal';
+        toast.success(`${userType} added successfully`);
         setShowAddModal(false);
-        setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
         fetchData();
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || `Failed to add ${activeTab === 'sub-admins' ? 'sub-admin' : 'warden'}`);
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
+                      activeTab === 'wardens' ? 'warden' : 'principal';
+      toast.error(error.response?.data?.message || `Failed to add ${userType}`);
     }
   };
 
@@ -159,12 +180,8 @@ const AdminManagement = () => {
     try {
       console.log('🔧 Frontend: Sending update data:', formData);
       
-      const endpoint = activeTab === 'sub-admins' 
-        ? `/api/admin-management/sub-admins/${selectedAdmin._id}`
-        : `/api/admin-management/wardens/${selectedAdmin._id}`;
-      
-      // Only send password if it's not empty
-      const updateData = {
+      let endpoint;
+      let updateData = {
         username: formData.username,
         permissions: formData.permissions
       };
@@ -173,42 +190,65 @@ const AdminManagement = () => {
         updateData.password = formData.password;
       }
       
-      // For wardens, include hostelType
-      if (activeTab === 'wardens' && formData.hostelType) {
-        updateData.hostelType = formData.hostelType;
+      if (activeTab === 'sub-admins') {
+        endpoint = `/api/admin-management/sub-admins/${selectedAdmin._id}`;
+      } else if (activeTab === 'wardens') {
+        endpoint = `/api/admin-management/wardens/${selectedAdmin._id}`;
+        if (formData.hostelType) {
+          updateData.hostelType = formData.hostelType;
+        }
+      } else if (activeTab === 'principals') {
+        endpoint = `/api/admin-management/principals/${selectedAdmin._id}`;
+        if (formData.course) {
+          updateData.course = formData.course;
+        }
       }
       
       console.log('🔧 Frontend: Final update data:', updateData);
       
       const response = await api.put(endpoint, updateData);
       if (response.data.success) {
-        toast.success(`${activeTab === 'sub-admins' ? 'Sub-admin' : 'Warden'} updated successfully`);
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
+                        activeTab === 'wardens' ? 'Warden' : 'Principal';
+        toast.success(`${userType} updated successfully`);
         setShowEditModal(false);
         setSelectedAdmin(null);
-        setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
         fetchData();
       }
     } catch (error) {
       console.error('🔧 Frontend: Error updating:', error);
-      toast.error(error.response?.data?.message || `Failed to update ${activeTab === 'sub-admins' ? 'sub-admin' : 'warden'}`);
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
+                      activeTab === 'wardens' ? 'warden' : 'principal';
+      toast.error(error.response?.data?.message || `Failed to update ${userType}`);
     }
   };
 
   const handleDeleteAdmin = async (adminId) => {
-    const userType = activeTab === 'sub-admins' ? 'sub-admin' : 'warden';
+    const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
+                    activeTab === 'wardens' ? 'warden' : 'principal';
     if (!window.confirm(`Are you sure you want to delete this ${userType}?`)) return;
     
     try {
-      const endpoint = activeTab === 'sub-admins' 
-        ? `/api/admin-management/sub-admins/${adminId}`
-        : `/api/admin-management/wardens/${adminId}`;
+      let endpoint;
+      if (activeTab === 'sub-admins') {
+        endpoint = `/api/admin-management/sub-admins/${adminId}`;
+      } else if (activeTab === 'wardens') {
+        endpoint = `/api/admin-management/wardens/${adminId}`;
+      } else if (activeTab === 'principals') {
+        endpoint = `/api/admin-management/principals/${adminId}`;
+      }
       
       const response = await api.delete(endpoint);
       if (response.data.success) {
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
+                        activeTab === 'wardens' ? 'Warden' : 'Principal';
         toast.success(`${userType} deleted successfully`);
         fetchData();
       }
     } catch (error) {
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
+                      activeTab === 'wardens' ? 'warden' : 'principal';
       toast.error(error.response?.data?.message || `Failed to delete ${userType}`);
     }
   };
@@ -219,7 +259,8 @@ const AdminManagement = () => {
       username: admin.username,
       password: '',
       permissions: admin.permissions,
-      hostelType: admin.hostelType || ''
+      hostelType: admin.hostelType || '',
+      course: admin.course?._id || admin.course || ''
     });
     setShowEditModal(true);
   };
@@ -228,7 +269,7 @@ const AdminManagement = () => {
     setShowAddModal(false);
     setShowEditModal(false);
     setSelectedAdmin(null);
-    setFormData({ username: '', password: '', permissions: [], hostelType: '' });
+    setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
   };
 
   const handleSecurityToggle = async (key) => {
@@ -244,10 +285,35 @@ const AdminManagement = () => {
     }
   };
 
+  // Fetch courses when principal tab/modal is open
+  useEffect(() => {
+    if ((activeTab === 'principals') && (showAddModal || showEditModal)) {
+      console.log('🔍 Fetching courses for principal creation...');
+      api.get('/api/course-management/courses')
+        .then(res => {
+          console.log('✅ Courses fetched successfully:', res.data);
+          if (res.data.success) {
+            setCourses(res.data.data);
+            console.log('📚 Courses set in state:', res.data.data);
+          } else {
+            console.error('❌ API returned success: false');
+            setCourses([]);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Error fetching courses:', error);
+          console.error('❌ Error response:', error.response?.data);
+          setCourses([]);
+        });
+    }
+  }, [activeTab, showAddModal, showEditModal]);
+
   if (loading) return <LoadingSpinner />;
 
-  const currentData = activeTab === 'sub-admins' ? subAdmins : wardens;
+  const currentData = activeTab === 'sub-admins' ? subAdmins : 
+                     activeTab === 'wardens' ? wardens : principals;
   const isWardenTab = activeTab === 'wardens';
+  const isPrincipalTab = activeTab === 'principals';
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -257,14 +323,14 @@ const AdminManagement = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Admin Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage sub-admin and warden accounts</p>
+          <p className="text-sm text-gray-500 mt-1">Manage sub-admin, warden, and principal accounts</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           <UserPlusIcon className="w-5 h-5" />
-          Add {isWardenTab ? 'Warden' : 'Sub-Admin'}
+          Add {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
         </button>
       </div>
 
@@ -292,42 +358,70 @@ const AdminManagement = () => {
           <HomeIcon className="w-4 h-4" />
           Wardens
         </button>
+        <button
+          onClick={() => setActiveTab('principals')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'principals'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <AcademicCapIcon className="w-4 h-4" />
+          Principals
+        </button>
+        <button
+          onClick={() => setActiveTab('courses')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+            activeTab === 'courses'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <AcademicCapIcon className="w-4 h-4" />
+          Courses & Branches
+        </button>
       </div>
 
-      {/* Security Settings Section */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mt-8 mb-8">
-        <h2 className="text-lg font-bold text-blue-800 mb-4">Security Settings</h2>
-        {securitySettingsLoading ? (
-          <div className="text-gray-500">Loading...</div>
-        ) : securitySettingsError ? (
-          <div className="text-red-500">{securitySettingsError}</div>
-        ) : (
-          <div className="flex flex-col sm:flex-row gap-6">
-            <ToggleSwitch
-              label="View Profile Pictures"
-              checked={securitySettings.viewProfilePictures}
-              onChange={() => handleSecurityToggle('viewProfilePictures')}
-            />
-            <ToggleSwitch
-              label="View Phone Numbers"
-              checked={securitySettings.viewPhoneNumbers}
-              onChange={() => handleSecurityToggle('viewPhoneNumbers')}
-            />
-            <ToggleSwitch
-              label="View Guardian Images"
-              checked={securitySettings.viewGuardianImages}
-              onChange={() => handleSecurityToggle('viewGuardianImages')}
-            />
+      {/* Course Management Tab */}
+      {activeTab === 'courses' && <CourseManagement />}
+
+      {/* Admin Management Content */}
+      {activeTab !== 'courses' && (
+        <>
+          {/* Security Settings Section */}
+          <div className="bg-white rounded-xl shadow-sm p-6 mt-8 mb-8">
+            <h2 className="text-lg font-bold text-blue-800 mb-4">Security Settings</h2>
+            {securitySettingsLoading ? (
+              <div className="text-gray-500">Loading...</div>
+            ) : securitySettingsError ? (
+              <div className="text-red-500">{securitySettingsError}</div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-6">
+                <ToggleSwitch
+                  label="View Profile Pictures"
+                  checked={securitySettings.viewProfilePictures}
+                  onChange={() => handleSecurityToggle('viewProfilePictures')}
+                />
+                <ToggleSwitch
+                  label="View Phone Numbers"
+                  checked={securitySettings.viewPhoneNumbers}
+                  onChange={() => handleSecurityToggle('viewPhoneNumbers')}
+                />
+                <ToggleSwitch
+                  label="View Guardian Images"
+                  checked={securitySettings.viewGuardianImages}
+                  onChange={() => handleSecurityToggle('viewGuardianImages')}
+                />
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Users List */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          {/* Users List */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
         {currentData.length === 0 ? (
           <div className="p-8 text-center">
             <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">No {isWardenTab ? 'wardens' : 'sub-admins'} found</p>
+            <p className="text-gray-500">No {isWardenTab ? 'wardens' : isPrincipalTab ? 'principals' : 'sub-admins'} found</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -338,6 +432,8 @@ const AdminManagement = () => {
                     <div className="flex items-center gap-3 mb-2">
                       {isWardenTab ? (
                         <HomeIcon className="w-5 h-5 text-green-600" />
+                      ) : isPrincipalTab ? (
+                        <AcademicCapIcon className="w-5 h-5 text-purple-600" />
                       ) : (
                         <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
                       )}
@@ -346,7 +442,7 @@ const AdminManagement = () => {
                         {admin.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    {!isWardenTab && (
+                    {!isWardenTab && !isPrincipalTab && (
                       <div className="flex flex-wrap gap-2">
                         {admin.permissions.map(permission => (
                           <span key={permission} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
@@ -367,6 +463,18 @@ const AdminManagement = () => {
                               : 'bg-pink-50 text-pink-700'
                           }`}>
                             {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {isPrincipalTab && (
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
+                          Principal Permissions
+                        </span>
+                        {admin.course && (
+                          <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
+                            {typeof admin.course === 'object' ? admin.course.name : admin.course}
                           </span>
                         )}
                       </div>
@@ -392,6 +500,8 @@ const AdminManagement = () => {
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Add/Edit Modal */}
       <AnimatePresence>
@@ -410,7 +520,7 @@ const AdminManagement = () => {
             >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">
-                  {showAddModal ? `Add New ${isWardenTab ? 'Warden' : 'Sub-Admin'}` : `Edit ${isWardenTab ? 'Warden' : 'Sub-Admin'}`}
+                  {showAddModal ? `Add New ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Edit ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                 </h2>
                 <button
                   onClick={resetForm}
@@ -423,41 +533,36 @@ const AdminManagement = () => {
               <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
+                    Username <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <UserIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      name="username"
-                      value={formData.username}
-                      onChange={handleFormChange}
-                      required
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter username"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    name="username"
+                    value={formData.username}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter username"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password {showEditModal && '(Leave blank to keep current)'}
+                    Password {showEditModal && <span className="text-gray-500">(leave blank to keep current)</span>}
+                    {showAddModal && <span className="text-red-500">*</span>}
                   </label>
-                  <div className="relative">
-                    <KeyIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleFormChange}
-                      required={!showEditModal}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder={showEditModal ? 'Enter new password' : 'Enter password'}
-                    />
-                  </div>
+                  <input
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleFormChange}
+                    required={showAddModal}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter password"
+                  />
                 </div>
 
-                {!isWardenTab && (
+                {!isWardenTab && !isPrincipalTab && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Permissions
@@ -489,6 +594,15 @@ const AdminManagement = () => {
                   </div>
                 )}
 
+                {isPrincipalTab && (
+                  <div className="p-3 bg-purple-50 rounded-lg">
+                    <p className="text-sm text-purple-700">
+                      <strong>Principal Permissions:</strong> Principals have access to attendance management, 
+                      student oversight, and course-specific analytics.
+                    </p>
+                  </div>
+                )}
+
                 {isWardenTab && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -508,6 +622,32 @@ const AdminManagement = () => {
                   </div>
                 )}
 
+                {isPrincipalTab && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Course <span className="text-red-500">*</span>
+                    </label>
+                                          <select
+                        name="course"
+                        value={formData.course}
+                        onChange={handleFormChange}
+                        required={isPrincipalTab}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Course ({courses.length} available)</option>
+                        {courses.length > 0 ? (
+                          courses.map(course => (
+                            <option key={course._id} value={course._id}>
+                              {course.name} ({course.code})
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>Loading courses...</option>
+                        )}
+                      </select>
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-3 pt-4">
                   <button
                     type="button"
@@ -521,7 +661,7 @@ const AdminManagement = () => {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                   >
                     <CheckIcon className="w-5 h-5" />
-                    {showAddModal ? `Add ${isWardenTab ? 'Warden' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : 'Sub-Admin'}`}
+                    {showAddModal ? `Add ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                   </button>
                 </div>
               </form>

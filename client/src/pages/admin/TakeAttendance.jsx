@@ -33,9 +33,13 @@ const TakeAttendance = () => {
     totalStudents: 0,
     attendanceTaken: 0
   });
+  const [courses, setCourses] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [filteredBranches, setFilteredBranches] = useState([]);
 
   useEffect(() => {
     fetchStudents();
+    fetchFilters();
   }, [selectedDate, filters]);
 
   const fetchStudents = async () => {
@@ -70,6 +74,31 @@ const TakeAttendance = () => {
       setLoading(false);
     }
   };
+
+  const fetchFilters = async () => {
+    try {
+      const [coursesRes, branchesRes] = await Promise.all([
+        api.get('/api/course-management/courses'),
+        api.get('/api/course-management/branches')
+      ]);
+      if (coursesRes.data.success) setCourses(coursesRes.data.data);
+      if (branchesRes.data.success) setBranches(branchesRes.data.data);
+    } catch (err) {
+      toast.error('Failed to fetch filter options');
+      setCourses([]);
+      setBranches([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!filters.course) {
+      setFilteredBranches(branches);
+    } else {
+      setFilteredBranches(branches.filter(b =>
+        b.course === filters.course || (typeof b.course === 'object' && b.course._id === filters.course)
+      ));
+    }
+  }, [filters.course, branches]);
 
   const handleAttendanceChange = (studentId, session, value) => {
     setAttendanceData(prev => ({
@@ -153,6 +182,20 @@ const TakeAttendance = () => {
     }
   };
 
+  // Helper functions to safely get course and branch names
+  const getCourseName = (course) => {
+    if (!course) return 'N/A';
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string') return course;
+    return 'N/A';
+  };
+  const getBranchName = (branch) => {
+    if (!branch) return 'N/A';
+    if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string') return branch;
+    return 'N/A';
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -206,10 +249,9 @@ const TakeAttendance = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Courses</option>
-              <option value="B.Tech">B.Tech</option>
-              <option value="Diploma">Diploma</option>
-              <option value="Pharmacy">Pharmacy</option>
-              <option value="Degree">Degree</option>
+              {courses.map(course => (
+                <option key={course._id} value={course._id}>{course.name} ({course.code})</option>
+              ))}
             </select>
           </div>
 
@@ -222,11 +264,9 @@ const TakeAttendance = () => {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All Branches</option>
-              <option value="CSE">CSE</option>
-              <option value="ECE">ECE</option>
-              <option value="EEE">EEE</option>
-              <option value="MECH">MECH</option>
-              <option value="CIVIL">CIVIL</option>
+              {filteredBranches.map(branch => (
+                <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
+              ))}
             </select>
           </div>
 
@@ -329,7 +369,7 @@ const TakeAttendance = () => {
                             {student.name}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {student.rollNumber} • {student.course} {student.year} • {student.branch}
+                            {student.rollNumber} • {getCourseName(student.course)} {student.year} • {getBranchName(student.branch)}
                           </div>
                           <div className="text-xs text-gray-400">
                             Room {student.roomNumber} • {student.gender}

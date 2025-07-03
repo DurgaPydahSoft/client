@@ -19,6 +19,7 @@ const NotificationBell = () => {
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
   const isWarden = user?.role === 'warden';
+  const isPrincipal = user?.role === 'principal';
 
   const fetchNotifications = async () => {
     try {
@@ -30,6 +31,9 @@ const NotificationBell = () => {
       } else if (isWarden) {
         endpointPrefix = '/api/notifications/warden';
         console.log('🔔 NotificationBell: Fetching notifications for role: warden');
+      } else if (isPrincipal) {
+        endpointPrefix = '/api/notifications/principal';
+        console.log('🔔 NotificationBell: Fetching notifications for role: principal');
       } else {
         endpointPrefix = '/api/notifications';
         console.log('🔔 NotificationBell: Fetching notifications for role: student');
@@ -117,6 +121,8 @@ const NotificationBell = () => {
         route = `/api/notifications/admin/${notificationId}/read`;
       } else if (isWarden) {
         route = `/api/notifications/warden/${notificationId}/read`;
+      } else if (isPrincipal) {
+        route = `/api/notifications/principal/${notificationId}/read`;
       } else {
         route = `/api/notifications/${notificationId}/read`;
       }
@@ -137,6 +143,8 @@ const NotificationBell = () => {
         route = '/api/notifications/admin/read-all';
       } else if (isWarden) {
         route = '/api/notifications/warden/read-all';
+      } else if (isPrincipal) {
+        route = '/api/notifications/principal/read-all';
       } else {
         route = '/api/notifications/read-all';
       }

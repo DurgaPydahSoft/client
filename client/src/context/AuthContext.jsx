@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }) => {
         const userRole = localStorage.getItem('userRole');
         
         let res;
-        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden') {
-          console.log('🔍 Validating admin/warden token...');
+        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal') {
+          console.log('🔍 Validating admin/warden/principal token...');
           res = await api.get('/api/admin-management/validate');
         } else {
           console.log('🔍 Validating student token...');
@@ -91,6 +91,19 @@ export const AuthProvider = ({ children }) => {
       socket.off('notification', handler);
     };
   }, [socketRef, token]);
+
+  // Helper to fetch and set the latest user profile (for students)
+  const fetchAndSetUserProfile = async () => {
+    try {
+      const res = await api.get('/api/students/profile');
+      if (res.data.success && res.data.data) {
+        setUser(res.data.data);
+        localStorage.setItem('user', JSON.stringify(res.data.data));
+      }
+    } catch (err) {
+      console.error('Failed to fetch user profile:', err);
+    }
+  };
 
   const login = async (role, credentials) => {
     try {
@@ -151,6 +164,9 @@ export const AuthProvider = ({ children }) => {
           // Set the password change requirement state
           setRequiresPasswordChange(requiresPasswordChange);
 
+          // Fetch and set the latest profile (populated)
+          await fetchAndSetUserProfile();
+
           // Return a consistent success object
           return { 
             success: true, 
@@ -179,9 +195,11 @@ export const AuthProvider = ({ children }) => {
     toast.success('Logged out successfully');
   };
 
-  const updateUser = (updatedUser) => {
+  const updateUser = async (updatedUser) => {
     setUser(updatedUser);
     localStorage.setItem('user', JSON.stringify(updatedUser));
+    // Fetch and set the latest profile (populated)
+    await fetchAndSetUserProfile();
   };
 
   const hasPermission = (permission) => {
@@ -210,6 +228,10 @@ export const AuthProvider = ({ children }) => {
     return user?.role === 'student';
   };
 
+  const isPrincipal = () => {
+    return user?.role === 'principal';
+  };
+
   const value = {
     user,
     token,
@@ -222,6 +244,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin,
     isWarden,
     isStudent,
+    isPrincipal,
     requiresPasswordChange,
     setRequiresPasswordChange,
     isAuthenticated: !!token && !!user

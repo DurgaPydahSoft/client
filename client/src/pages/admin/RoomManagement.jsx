@@ -1180,7 +1180,7 @@ const RoomManagement = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                              {student.course} - {student.branch}
+                              {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
                             </span>
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                               Year {student.year}

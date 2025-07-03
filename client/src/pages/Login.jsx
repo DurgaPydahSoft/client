@@ -55,7 +55,10 @@ const Login = () => {
           if (result.user.role === 'warden') {
             console.log('Warden detected, navigating to warden dashboard');
             navigate('/warden/dashboard', { replace: true });
-          } else if (result.user.role === 'super_admin' || result.user.role === 'sub_admin') {
+          } else if (result.user.role === 'principal') {
+            console.log('Principal detected, navigating to principal dashboard');
+            navigate('/principal/dashboard', { replace: true });
+          } else if (result.user.role === 'super_admin' || result.user.role === 'sub_admin' || result.user.role === 'admin') {
             console.log('Admin detected, navigating to admin dashboard');
             navigate('/admin/dashboard', { replace: true });
           } else {

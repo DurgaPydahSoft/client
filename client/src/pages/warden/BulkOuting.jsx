@@ -51,6 +51,10 @@ const BulkOuting = () => {
   const [selectedOutingStudents, setSelectedOutingStudents] = useState([]);
   const [selectedOutingDetails, setSelectedOutingDetails] = useState(null);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [courses, setCourses] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
+  const [filteredBranches, setFilteredBranches] = useState([]);
+  const [loadingFilters, setLoadingFilters] = useState(false);
 
   // Helper to map hostelType to gender
   const getWardenGender = () => {
@@ -60,13 +64,31 @@ const BulkOuting = () => {
     return undefined;
   };
 
+  // Helper functions to safely get course and branch names
+  const getCourseName = (course) => {
+    if (!course) return 'N/A';
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string') return course;
+    return 'N/A';
+  };
+  const getBranchName = (branch) => {
+    if (!branch) return 'N/A';
+    if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string') return branch;
+    return 'N/A';
+  };
+
   useEffect(() => {
     if (!showHistory) {
       fetchStudents();
     } else {
       fetchBulkOutings();
     }
-  }, [showHistory, filters]);
+  }, [showHistory]);
+
+  useEffect(() => {
+    fetchFilters();
+  }, []);
 
   useEffect(() => {
     setStats(prev => ({
@@ -135,6 +157,29 @@ const BulkOuting = () => {
     }
   };
 
+  const fetchFilters = async () => {
+    setLoadingFilters(true);
+    try {
+      // Fetch courses
+      const coursesResponse = await api.get('/api/course-management/courses');
+      if (coursesResponse.data.success) {
+        setCourses(coursesResponse.data.data);
+      }
+
+      // Fetch all branches
+      const branchesResponse = await api.get('/api/course-management/branches');
+      if (branchesResponse.data.success) {
+        setAllBranches(branchesResponse.data.data);
+        setFilteredBranches([]); // Initially no branches selected
+      }
+    } catch (error) {
+      console.error('Error fetching filters:', error);
+      toast.error('Failed to fetch filter options');
+    } finally {
+      setLoadingFilters(false);
+    }
+  };
+
   const handleStudentSelection = (studentId, checked) => {
     if (checked) {
       setSelectedStudents(prev => [...prev, studentId]);
@@ -165,8 +210,29 @@ const BulkOuting = () => {
       ...prev,
       [name]: value
     }));
-    // Clear selected students when filters change
-    setSelectedStudents([]);
+    
+    // If course changes, update branches dropdown and clear branch selection
+    if (name === 'course') {
+      if (value) {
+        // Filter branches for the selected course
+        const courseBranches = allBranches.filter(branch => branch.course._id === value);
+        setFilteredBranches(courseBranches);
+      } else {
+        // If no course selected, show no branches
+        setFilteredBranches([]);
+      }
+      // Clear branch selection when course changes
+      setFilters(prev => ({
+        ...prev,
+        branch: ''
+      }));
+    }
+  };
+
+  const applyFilters = async () => {
+    if (!showHistory) {
+      await fetchStudents();
+    }
   };
 
   const handleSubmit = async () => {
@@ -378,13 +444,15 @@ const BulkOuting = () => {
                     name="course"
                     value={filters.course}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    disabled={loadingFilters}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
                   >
-                    <option value="">All Courses</option>
-                    <option value="BTech">BTech</option>
-                    <option value="MTech">MTech</option>
-                    <option value="BBA">BBA</option>
-                    <option value="MBA">MBA</option>
+                    <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
+                    {courses.map((course) => (
+                      <option key={course._id} value={course._id}>
+                        {course.name} ({course.code})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -393,13 +461,17 @@ const BulkOuting = () => {
                     name="branch"
                     value={filters.branch}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    disabled={loadingFilters || !filters.course}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
                   >
-                    <option value="">All Branches</option>
-                    <option value="CSE">CSE</option>
-                    <option value="ECE">ECE</option>
-                    <option value="ME">ME</option>
-                    <option value="CE">CE</option>
+                    <option value="">
+                      {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
+                    </option>
+                    {filteredBranches.map((branch) => (
+                      <option key={branch._id} value={branch._id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -476,6 +548,24 @@ const BulkOuting = () => {
                   </select>
                 </div>
               </div>
+              
+              {/* Apply Filters Button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={applyFilters}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Loading...
+                    </div>
+                  ) : (
+                    'Apply Filters'
+                  )}
+                </button>
+              </div>
             </motion.div>
 
             {/* Student Selection */}
@@ -551,10 +641,10 @@ const BulkOuting = () => {
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {student.course} {student.year}
+                            {getCourseName(student.course)} {student.year}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {student.branch}
+                            {getBranchName(student.branch)}
                           </div>
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -768,10 +858,10 @@ const BulkOuting = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {student.course} {student.year}
+                              {getCourseName(student.course)} {student.year}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {student.branch}
+                              {getBranchName(student.branch)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

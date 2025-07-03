@@ -3,50 +3,56 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserGroupIcon,
   EyeIcon,
-  CheckIcon
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
-import TakeAttendance from './TakeAttendance';
-import ViewAttendance from './ViewAttendance';
+import PrincipalTakeAttendance from './PrincipalTakeAttendance';
+import PrincipalViewAttendance from './PrincipalViewAttendance';
 import SEO from '../../components/SEO';
 
-const Attendance = () => {
-  const [activeTab, setActiveTab] = useState('take');
+const PrincipalAttendance = () => {
+  const [activeTab, setActiveTab] = useState('view');
 
   const tabs = [
-    {
-      id: 'take',
-      name: 'Take Attendance',
-      icon: CheckIcon,
-      description: 'Mark daily attendance for students'
-    },
     {
       id: 'view',
       name: 'View Attendance',
       icon: EyeIcon,
-      description: 'View and analyze attendance records'
+      description: 'View and analyze attendance records for your course'
+    },
+    {
+      id: 'take',
+      name: 'Take Attendance',
+      icon: UserGroupIcon,
+      description: 'Mark attendance for your course students'
     }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SEO title="Attendance Management - Admin Dashboard" />
+      <SEO title="Attendance Management - Principal Dashboard" />
       
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg shadow-sm p-6 mb-6"
+          className="bg-purple-600 rounded-lg shadow-sm p-6 mb-6"
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <UserGroupIcon className="w-6 h-6 text-blue-600" />
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                <UserGroupIcon className="w-6 h-6 text-white" />
                 Attendance Management
               </h1>
-              <p className="text-gray-600 mt-1">
-                Manage student attendance records and daily attendance marking
+              <p className="text-white mt-1">
+                Monitor and analyze student attendance records for your course
               </p>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-lg">
+              <AcademicCapIcon className="w-5 h-5 text-purple-600" />
+              <span className="text-sm font-medium text-purple-700">
+                Course: B.Tech
+              </span>
             </div>
           </div>
         </motion.div>
@@ -69,21 +75,19 @@ const Attendance = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all duration-300 ${
                     isActive
-                      ? tab.id === 'take' 
-                        ? 'bg-emerald-100 text-emerald-700 shadow-md border-2 border-emerald-300'
-                        : 'bg-orange-100 text-orange-700 shadow-md border-2 border-orange-300'
+                      ? tab.id === 'view' 
+                        ? 'bg-purple-100 text-purple-700 shadow-md border-2 border-purple-300'
+                        : 'bg-blue-100 text-blue-700 shadow-md border-2 border-blue-300'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${
                     isActive 
-                      ? tab.id === 'take' ? 'text-emerald-600' : 'text-orange-600'
+                      ? tab.id === 'view' ? 'text-purple-600' : 'text-blue-600'
                       : ''
                   }`} />
                   <span className="hidden sm:inline">{tab.name}</span>
-                  <span className="sm:hidden">
-                    {tab.id === 'take' ? 'Take' : 'View'}
-                  </span>
+                  <span className="sm:hidden">View</span>
                 </button>
               );
             })}
@@ -100,21 +104,21 @@ const Attendance = () => {
             transition={{ duration: 0.3 }}
             className="bg-white rounded-lg shadow-sm overflow-hidden"
           >
-            {activeTab === 'take' ? (
+            {activeTab === 'view' ? (
               <div>
                 
                 <div className="p-0">
-                  <TakeAttendance />
+                  <PrincipalViewAttendance />
                 </div>
               </div>
-            ) : (
+            ) : activeTab === 'take' ? (
               <div>
                 
                 <div className="p-0">
-                  <ViewAttendance />
+                  <PrincipalTakeAttendance />
                 </div>
               </div>
-            )}
+            ) : null}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -122,4 +126,4 @@ const Attendance = () => {
   );
 };
 
-export default Attendance; 
+export default PrincipalAttendance; 

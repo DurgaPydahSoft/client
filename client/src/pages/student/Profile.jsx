@@ -227,6 +227,20 @@ const Profile = () => {
     }
   };
 
+  // Helper functions to safely get course and branch names
+  const getCourseName = (course) => {
+    if (!course) return 'N/A';
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string') return course;
+    return 'N/A';
+  };
+  const getBranchName = (branch) => {
+    if (!branch) return 'N/A';
+    if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string') return branch;
+    return 'N/A';
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -288,11 +302,11 @@ const Profile = () => {
             </div>
             <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Course</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.course}</p>
+              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{getCourseName(user?.course)}</p>
             </div>
             <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Branch</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.branch}</p>
+              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{getBranchName(user?.branch)}</p>
             </div>
           </div>
 

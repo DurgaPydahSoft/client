@@ -6,20 +6,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Course and branch mappings
-const COURSES = {
-  'B.Tech': 'BTECH',
-  'Diploma': 'DIPLOMA',
-  'Pharmacy': 'PHARMACY',
-  'Degree': 'DEGREE'
-};
-
-const BRANCHES = {
-  BTECH: ['CSE', 'ECE', 'EEE', 'MECH', 'CIVIL'],
-  DIPLOMA: ['DAIML', 'DCSE', 'DECE', 'DME', 'DAP', 'D Fisheries', 'D Animal Husbandry'],
-  PHARMACY: ['B-Pharmacy', 'Pharm D', 'Pharm(PB) D', 'Pharmaceutical Analysis', 'Pharmaceutics', 'Pharma Quality Assurance'],
-  DEGREE: ['Agriculture', 'Horticulture', 'Food Technology', 'Fisheries', 'Food Science & Nutrition']
-};
+// Dynamic course and branch data will be fetched from backend
 
 // Room mappings based on gender and category
 const ROOM_MAPPINGS = {
@@ -77,24 +64,13 @@ const BATCHES = [
 ];
 
 // Add function to generate batches based on course duration
-const generateBatches = (course) => {
+const generateBatches = (courseId, courses) => {
   const startFromYear = 2022; // Fixed start year
   const batches = [];
   
-  // Determine course duration based on course type
-  let duration;
-  switch(course) {
-    case 'B.Tech':
-    case 'Pharmacy':
-      duration = 4;
-      break;
-    case 'Diploma':
-    case 'Degree':
-      duration = 3;
-      break;
-    default:
-      duration = 4; // Default to 4 years
-  }
+  // Determine course duration from dynamic course data
+  const course = courses.find(c => c._id === courseId);
+  const duration = course ? course.duration : 4; // Default to 4 years
 
   // Generate batches starting from 2022 for next 10 years
   for (let i = 0; i < 10; i++) {
@@ -193,6 +169,12 @@ const Students = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
 
+  // Dynamic course and branch data
+  const [courses, setCourses] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+
   // Debounce search term
   useEffect(() => {
     const timerId = setTimeout(() => {
@@ -234,6 +216,75 @@ const Students = () => {
     } finally {
       setLoadingEmailStatus(false);
     }
+  };
+
+  // Fetch courses from backend
+  const fetchCourses = async () => {
+    console.log('🔍 Fetching courses...');
+    setLoadingCourses(true);
+    try {
+      const res = await api.get('/api/course-management/courses');
+      console.log('📡 Course API response:', res.data);
+      if (res.data.success) {
+        setCourses(res.data.data);
+        console.log('✅ Courses loaded:', res.data.data.length);
+      } else {
+        console.error('❌ Failed to fetch courses:', res.data.message);
+        toast.error('Failed to fetch courses');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching courses:', err);
+      console.error('❌ Error response:', err.response?.data);
+      toast.error(err.response?.data?.message || 'Error fetching courses');
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
+
+  // Fetch branches for a specific course
+  const fetchBranches = async (courseId) => {
+    if (!courseId) {
+      setBranches([]);
+      return;
+    }
+    
+    console.log('🔍 Fetching branches for course ID:', courseId);
+    setLoadingBranches(true);
+    try {
+      const res = await api.get(`/api/course-management/branches/${courseId}`);
+      console.log('📡 Branch API response:', res.data);
+      if (res.data.success) {
+        setBranches(res.data.data);
+        console.log('✅ Branches loaded:', res.data.data.length);
+      } else {
+        console.error('❌ Failed to fetch branches:', res.data.message);
+        toast.error('Failed to fetch branches');
+      }
+    } catch (err) {
+      console.error('❌ Error fetching branches:', err);
+      console.error('❌ Error response:', err.response?.data);
+      toast.error(err.response?.data?.message || 'Error fetching branches');
+    } finally {
+      setLoadingBranches(false);
+    }
+  };
+
+  // Get course duration for batch generation
+  const getCourseDuration = (courseId) => {
+    const course = courses.find(c => c._id === courseId);
+    return course ? course.duration : 4; // Default to 4 years
+  };
+
+  // Get course name by ID
+  const getCourseName = (courseId) => {
+    const course = courses.find(c => c._id === courseId);
+    return course ? course.name : '';
+  };
+
+  // Get branch name by ID
+  const getBranchName = (branchId) => {
+    const branch = branches.find(b => b._id === branchId);
+    return branch ? branch.name : '';
   };
 
   const fetchStudents = useCallback(async (initialLoad = false) => {
@@ -294,20 +345,34 @@ const Students = () => {
     }
   }, [tab, currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
-  // Check email service status on component mount
+  // Check email service status and fetch courses on component mount
   useEffect(() => {
     checkEmailServiceStatus();
+    fetchCourses();
   }, []);
+
+  // Debug: Log when branches change
+  useEffect(() => {
+    console.log('🔄 Branches state updated:', branches.length, 'branches');
+    if (branches.length > 0) {
+      console.log('📋 Available branches:', branches.map(b => `${b.name} (${b.code})`));
+    }
+  }, [branches]);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
+    console.log('🔄 Form field changed:', name, '=', value);
+    
     setForm(prev => {
       const newForm = { ...prev, [name]: value };
       
       // Reset dependent fields when parent field changes
       if (name === 'course') {
+        console.log('📚 Course changed to:', value);
         newForm.branch = '';
         newForm.batch = ''; // Reset batch when course changes
+        // Fetch branches for the selected course
+        fetchBranches(value);
       }
       if (name === 'gender') {
         newForm.category = '';
@@ -422,9 +487,9 @@ const Students = () => {
     setEditForm({
       name: student.name,
       rollNumber: student.rollNumber,
-      course: student.course,
+      course: student.course?._id || student.course, // Handle both populated and unpopulated data
       year: student.year,
-      branch: student.branch,
+      branch: student.branch?._id || student.branch, // Handle both populated and unpopulated data
       gender: student.gender,
       category: student.category,
       roomNumber: student.roomNumber,
@@ -435,6 +500,12 @@ const Students = () => {
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
     });
+    
+    // Fetch branches for the selected course
+    if (student.course?._id || student.course) {
+      fetchBranches(student.course._id || student.course);
+    }
+    
     setEditModal(true);
   };
 
@@ -447,6 +518,8 @@ const Students = () => {
       if (name === 'course') {
         newForm.branch = '';
         newForm.batch = ''; // Reset batch when course changes
+        // Fetch branches for the selected course
+        fetchBranches(value);
       }
       if (name === 'gender') {
         newForm.category = '';
@@ -527,9 +600,10 @@ const Students = () => {
       // Validate batch
       const [startYear, endYear] = editForm.batch.split('-').map(Number);
       const duration = endYear - startYear;
-      const expectedDuration = editForm.course === 'B.Tech' || editForm.course === 'Pharmacy' ? 4 : 3;
+      const course = courses.find(c => c._id === editForm.course);
+      const expectedDuration = course ? course.duration : 4;
       if (duration !== expectedDuration) {
-        throw new Error(`Invalid batch duration for ${editForm.course}. Must be ${expectedDuration} years.`);
+        throw new Error(`Invalid batch duration for ${course?.name || editForm.course}. Must be ${expectedDuration} years.`);
       }
 
       // Update student without photos (photos are managed separately)
@@ -553,6 +627,8 @@ const Students = () => {
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         newFilters.branch = '';
+        // Fetch branches for the selected course
+        fetchBranches(value);
       }
       if (name === 'gender') {
         newFilters.category = '';
@@ -631,7 +707,27 @@ const Students = () => {
     try {
       const res = await api.post('/api/admin/students/bulk-upload-commit', { students: editablePreviewData });
       if (res.data.success) {
-        toast.success(res.data.message || 'Bulk upload completed successfully!');
+        const { successCount, failureCount, emailResults } = res.data.data;
+        
+        // Enhanced success message with email status
+        let successMessage = `Bulk upload completed successfully! ${successCount} students added.`;
+        
+        if (emailResults) {
+          const { sent, failed, errors } = emailResults;
+          if (sent > 0 && failed === 0) {
+            successMessage += ` All ${sent} email notifications sent successfully.`;
+          } else if (sent > 0 && failed > 0) {
+            successMessage += ` ${sent} emails sent, ${failed} failed. Check details below.`;
+          } else if (sent === 0 && failed > 0) {
+            successMessage += ` All ${failed} email notifications failed, but students were added successfully.`;
+          }
+        }
+        
+        if (failureCount > 0) {
+          successMessage += ` ${failureCount} students failed to add.`;
+        }
+        
+        toast.success(successMessage);
         setBulkUploadResults(res.data.data);
         setShowBulkPreview(false);
         setBulkPreview(null);
@@ -642,11 +738,35 @@ const Students = () => {
         if (tab === 'list') {
           fetchStudents(true);
         }
+        
+        // Show warning if email failures occurred
+        if (emailResults && emailResults.failed > 0) {
+          toast.error(
+            `${emailResults.failed} email(s) failed to send. Students can still login with their generated passwords.`,
+            { duration: 6000 }
+          );
+        }
+        
       } else {
         toast.error(res.data.message || 'Commit failed.');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'An error occurred during commit.');
+      console.error('Bulk upload error:', err);
+      
+      // Enhanced error handling
+      if (err.response?.status === 500) {
+        toast.error('Server error occurred. Please try again or contact support.');
+      } else if (err.response?.status === 413) {
+        toast.error('File too large. Please reduce the number of students or split into smaller batches.');
+      } else if (err.response?.status === 429) {
+        toast.error('Too many requests. Please wait a moment and try again.');
+      } else if (err.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } else if (err.message === 'Network Error') {
+        toast.error('Network connection failed. Please check your internet connection and try again.');
+      } else {
+        toast.error('An unexpected error occurred during bulk upload. Please try again.');
+      }
     } finally {
       setBulkProcessing(false);
     }
@@ -681,11 +801,20 @@ const Students = () => {
     else if (!['Male', 'Female'].includes(Gender)) errors.Gender = 'Invalid gender.';
   
     if (!Course) errors.Course = 'Course is required.';
-    else if (!BRANCHES[COURSES[Course]]) errors.Course = 'Invalid course selected.';
+    else {
+      // For bulk upload, Course might be a name string, so we need to find the course by name
+      const course = courses.find(c => c.name === Course || c._id === Course);
+      if (!course) errors.Course = 'Invalid course selected.';
+    }
   
     if (!Branch) errors.Branch = 'Branch is required.';
-    else if (Course && BRANCHES[COURSES[Course]] && !BRANCHES[COURSES[Course]].includes(Branch)) {
-      errors.Branch = `Invalid branch for ${Course}.`;
+    else if (Course) {
+      // For bulk upload, we need to validate branch against the course
+      const course = courses.find(c => c.name === Course || c._id === Course);
+      if (course) {
+        // This validation will be done on the backend since we don't have branches loaded for all courses
+        // For now, we'll just check if branch is not empty
+      }
     }
   
     if (!Year) errors.Year = 'Year is required.';
@@ -715,7 +844,8 @@ const Students = () => {
     } else {
       const [start, end] = Batch.split('-').map(Number);
       const duration = end - start;
-      const expectedDuration = (Course === 'B.Tech' || Course === 'Pharmacy') ? 4 : 3;
+      const course = courses.find(c => c.name === Course || c._id === Course);
+      const expectedDuration = course ? course.duration : 4;
       if (duration !== expectedDuration) {
         errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
       }
@@ -964,11 +1094,14 @@ const Students = () => {
               value={form.course}
               onChange={handleFormChange}
               required
+              disabled={loadingCourses}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Select Course</option>
-              {Object.keys(COURSES).map(course => (
-                <option key={course} value={course}>{course}</option>
+              <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
+              {courses.map(course => (
+                <option key={course._id} value={course._id}>
+                  {course.name} ({course.code})
+                </option>
               ))}
             </select>
           </div>
@@ -984,7 +1117,7 @@ const Students = () => {
             >
               <option value="">Select Year</option>
               {form.course && Array.from(
-                { length: COURSES[form.course] === 'BTECH' || COURSES[form.course] === 'PHARMACY' ? 4 : 3 },
+                { length: getCourseDuration(form.course) },
                 (_, i) => i + 1
               ).map(year => (
                 <option key={year} value={year}>Year {year}</option>
@@ -998,13 +1131,18 @@ const Students = () => {
               value={form.branch}
               onChange={handleFormChange}
               required
-              disabled={!form.course}
+              disabled={!form.course || loadingBranches}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">Select Branch</option>
-              {form.course && BRANCHES[COURSES[form.course]].map(branch => (
-                <option key={branch} value={branch}>{branch}</option>
-              ))}
+              <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
+              {(() => {
+                console.log('🎯 Rendering branch dropdown with', branches.length, 'branches');
+                return branches.map(branch => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name} ({branch.code})
+                  </option>
+                ));
+              })()}
             </select>
           </div>
           <div>
@@ -1097,7 +1235,7 @@ const Students = () => {
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Batch</option>
-                {form.course && generateBatches(form.course).map(batch => (
+                {form.course && generateBatches(form.course, courses).map(batch => (
                   <option key={batch} value={batch}>{batch}</option>
                 ))}
               </select>
@@ -1272,7 +1410,8 @@ const Students = () => {
     }
 
     const countsByCourse = students.reduce((acc, student) => {
-      acc[student.course] = (acc[student.course] || 0) + 1;
+      const courseName = student.course?.name || getCourseName(student.course);
+      acc[courseName] = (acc[courseName] || 0) + 1;
       return acc;
     }, {});
 
@@ -1349,11 +1488,14 @@ const Students = () => {
                 name="course"
                 value={filters.course}
                 onChange={handleFilterChange}
+                disabled={loadingCourses}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">All Courses</option>
-                {Object.keys(COURSES).map(course => (
-                  <option key={course} value={course}>{course}</option>
+                <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
+                {courses.map(course => (
+                  <option key={course._id} value={course._id}>
+                    {course.name} ({course.code})
+                  </option>
                 ))}
               </select>
             </div>
@@ -1362,12 +1504,14 @@ const Students = () => {
                 name="branch"
                 value={filters.branch}
                 onChange={handleFilterChange}
-                disabled={!filters.course}
+                disabled={!filters.course || loadingBranches}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">All Branches</option>
-                {filters.course && BRANCHES[COURSES[filters.course]].map(branch => (
-                  <option key={branch} value={branch}>{branch}</option>
+                <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
+                {branches.map(branch => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name} ({branch.code})
+                  </option>
                 ))}
               </select>
             </div>
@@ -1428,7 +1572,7 @@ const Students = () => {
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Batches</option>
-                {filters.course && generateBatches(filters.course).map(batch => (
+                {filters.course && generateBatches(filters.course, courses).map(batch => (
                   <option key={batch} value={batch}>{batch}</option>
                 ))}
                 {!filters.course && BATCHES.map(batch => (
@@ -1578,9 +1722,13 @@ const Students = () => {
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.gender}</td>
-                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.course}</td>
+                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {student.course?.name || getCourseName(student.course)}
+                            </td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">Year {student.year}</td>
-                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.branch}</td>
+                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {student.branch?.name || getBranchName(student.branch)}
+                            </td>
                             <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               {student.category === 'A+' ? 'A+ (AC)' : student.category === 'B+' ? 'B+ (AC)' : student.category}
                             </td>
@@ -1802,13 +1950,15 @@ const Students = () => {
                 value={editForm.course}
                 onChange={handleEditFormChange}
                 required
+                disabled={loadingCourses}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Select Course</option>
-                <option value="B.Tech">B.Tech</option>
-                <option value="Diploma">Diploma</option>
-                <option value="Pharmacy">Pharmacy</option>
-                <option value="Degree">Degree</option>
+                <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
+                {courses.map(course => (
+                  <option key={course._id} value={course._id}>
+                    {course.name} ({course.code})
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-1">
@@ -1826,14 +1976,21 @@ const Students = () => {
             </div>
             <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
-              <input
-                type="text"
+              <select
                 name="branch"
                 value={editForm.branch}
                 onChange={handleEditFormChange}
                 required
+                disabled={!editForm.course || loadingBranches}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              >
+                <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
+                {branches.map(branch => (
+                  <option key={branch._id} value={branch._id}>
+                    {branch.name} ({branch.code})
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
@@ -1926,7 +2083,7 @@ const Students = () => {
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Batch</option>
-                {editForm.course && generateBatches(editForm.course).map(batch => (
+                {editForm.course && generateBatches(editForm.course, courses).map(batch => (
                   <option key={batch} value={batch}>{batch}</option>
                 ))}
               </select>
@@ -2203,24 +2360,22 @@ const Students = () => {
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Course ? 'border-red-500' : 'border-gray-300'}`}
                             >
                               <option value="">Select</option>
-                              <option value="B.Tech">B.Tech</option>
-                              <option value="Diploma">Diploma</option>
-                              <option value="Pharmacy">Pharmacy</option>
-                              <option value="Degree">Degree</option>
+                              {courses.map(course => (
+                                <option key={course._id} value={course.name}>
+                                  {course.name} ({course.code})
+                                </option>
+                              ))}
                             </select>
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
+                            <input
+                              type="text"
                               value={student.Branch || ''}
                               onChange={(e) => handleEditField(index, 'Branch', e.target.value)}
                               title={errors.Branch}
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Branch ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              {student.Course && BRANCHES[COURSES[student.Course]]?.map(branch => (
-                                <option key={branch} value={branch}>{branch}</option>
-                              ))}
-                            </select>
+                              placeholder="Enter branch name"
+                            />
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
                             <select
@@ -2230,9 +2385,13 @@ const Students = () => {
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Year ? 'border-red-500' : 'border-gray-300'}`}
                             >
                               <option value="">Select</option>
-                              {student.Course && Array.from({ length: (student.Course === 'B.Tech' || student.Course === 'Pharmacy') ? 4 : 3 }, (_, i) => i + 1).map(year => (
-                                <option key={year} value={year}>Year {year}</option>
-                              ))}
+                              {student.Course && (() => {
+                                const course = courses.find(c => c.name === student.Course);
+                                const duration = course ? course.duration : 4;
+                                return Array.from({ length: duration }, (_, i) => i + 1).map(year => (
+                                  <option key={year} value={year}>Year {year}</option>
+                                ));
+                              })()}
                             </select>
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">

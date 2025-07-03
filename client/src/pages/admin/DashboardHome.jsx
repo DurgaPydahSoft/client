@@ -1223,7 +1223,7 @@ const DashboardHome = () => {
                 </div>
                 <button
                   className="text-sm text-blue-600 hover:underline"
-                  onClick={() => navigate('/admin/announcements')}
+                  onClick={() => navigate('/admin/dashboard/announcements')}
                 >
                   View All
                 </button>
@@ -1252,7 +1252,7 @@ const DashboardHome = () => {
                 </div>
                 <button
                   className="text-sm text-blue-600 hover:underline"
-                  onClick={() => navigate('/admin/polls')}
+                  onClick={() => navigate('/admin/dashboard/polls')}
                 >
                   View All
                 </button>
