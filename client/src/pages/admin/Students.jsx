@@ -161,6 +161,14 @@ const Students = () => {
   const [photoEditGuardianPhoto2Preview, setPhotoEditGuardianPhoto2Preview] = useState(null);
   const [photoEditLoading, setPhotoEditLoading] = useState(false);
 
+  // Missing edit photo state variables
+  const [editStudentPhoto, setEditStudentPhoto] = useState(null);
+  const [editGuardianPhoto1, setEditGuardianPhoto1] = useState(null);
+  const [editGuardianPhoto2, setEditGuardianPhoto2] = useState(null);
+  const [editStudentPhotoPreview, setEditStudentPhotoPreview] = useState(null);
+  const [editGuardianPhoto1Preview, setEditGuardianPhoto1Preview] = useState(null);
+  const [editGuardianPhoto2Preview, setEditGuardianPhoto2Preview] = useState(null);
+
   // Password reset modal states
   const [passwordResetModal, setPasswordResetModal] = useState(false);
   const [passwordResetId, setPasswordResetId] = useState(null);
@@ -244,11 +252,14 @@ const Students = () => {
   // Fetch branches for a specific course
   const fetchBranches = async (courseId) => {
     if (!courseId) {
+      console.log('🔍 No course ID provided, clearing branches');
       setBranches([]);
       return;
     }
     
     console.log('🔍 Fetching branches for course ID:', courseId);
+    console.log('🔍 Available courses:', courses.map(c => ({ id: c._id, name: c.name })));
+    
     setLoadingBranches(true);
     try {
       const res = await api.get(`/api/course-management/branches/${courseId}`);
@@ -263,6 +274,7 @@ const Students = () => {
     } catch (err) {
       console.error('❌ Error fetching branches:', err);
       console.error('❌ Error response:', err.response?.data);
+      console.error('❌ Error status:', err.response?.status);
       toast.error(err.response?.data?.message || 'Error fetching branches');
     } finally {
       setLoadingBranches(false);
@@ -483,6 +495,20 @@ const Students = () => {
   };
 
   const openEditModal = (student) => {
+    console.log('Opening edit modal for student:', student);
+    console.log('Available courses:', courses);
+    console.log('Student course data:', student.course);
+    
+    // Ensure courses are loaded before opening modal
+    if (courses.length === 0) {
+      console.log('Courses not loaded yet, fetching courses first...');
+      fetchCourses().then(() => {
+        // Re-open modal after courses are loaded
+        setTimeout(() => openEditModal(student), 100);
+      });
+      return;
+    }
+    
     setEditId(student._id);
     setEditForm({
       name: student.name,
@@ -502,8 +528,10 @@ const Students = () => {
     });
     
     // Fetch branches for the selected course
-    if (student.course?._id || student.course) {
-      fetchBranches(student.course._id || student.course);
+    const courseId = student.course?._id || student.course;
+    if (courseId) {
+      console.log('Fetching branches for course ID:', courseId);
+      fetchBranches(courseId);
     }
     
     setEditModal(true);
@@ -574,46 +602,210 @@ const Students = () => {
     setEditGuardianPhoto2Preview(null);
   };
 
+  // Helper function to suggest correct batch format
+  const suggestBatchFormat = (courseId, currentBatch) => {
+    const course = courses.find(c => c._id === courseId);
+    if (!course || !currentBatch) return null;
+    
+    const [startYear, endYear] = currentBatch.split('-').map(Number);
+    const actualDuration = endYear - startYear;
+    
+    if (actualDuration !== course.duration) {
+      const correctEndYear = startYear + course.duration;
+      return `${startYear}-${correctEndYear}`;
+    }
+    return null;
+  };
+
+  // Helper function to validate edit form data
+  const validateEditForm = (formData) => {
+    const errors = [];
+
+    // Validate required fields
+    if (!formData.name?.trim()) {
+      errors.push('Name is required');
+    }
+    if (!formData.rollNumber?.trim()) {
+      errors.push('Roll number is required');
+    }
+    if (!formData.course) {
+      errors.push('Course is required');
+    }
+    if (!formData.branch) {
+      errors.push('Branch is required');
+    }
+    if (!formData.gender) {
+      errors.push('Gender is required');
+    }
+    if (!formData.category) {
+      errors.push('Category is required');
+    }
+    if (!formData.roomNumber) {
+      errors.push('Room number is required');
+    }
+
+    // Validate phone numbers
+    if (!/^[0-9]{10}$/.test(formData.studentPhone)) {
+      errors.push('Student phone number must be 10 digits');
+    }
+    if (!/^[0-9]{10}$/.test(formData.parentPhone)) {
+      errors.push('Parent phone number must be 10 digits');
+    }
+
+    // Validate email
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.push('Invalid email address format');
+    }
+
+    // Validate room number
+    const validRooms = ROOM_MAPPINGS[formData.gender]?.[formData.category] || [];
+    if (!validRooms.includes(formData.roomNumber)) {
+      errors.push('Invalid room number for the selected gender and category');
+    }
+
+          // Enhanced batch validation with better error handling
+      if (formData.batch) {
+        // Check if batch format is valid
+        if (!/^\d{4}-\d{4}$/.test(formData.batch)) {
+          errors.push('Invalid batch format. Must be YYYY-YYYY (e.g., 2020-2024)');
+        } else {
+          const [startYear, endYear] = formData.batch.split('-').map(Number);
+          
+          // Basic validation
+          if (startYear >= endYear) {
+            errors.push('Batch start year must be before end year');
+          }
+          
+          if (startYear < 2020 || startYear > 2030) {
+            errors.push('Batch start year must be between 2020 and 2030');
+          }
+
+          const duration = endYear - startYear;
+          const course = courses.find(c => c._id === formData.course);
+          
+          // Only validate duration if we have course data
+          // For existing students, be more lenient with batch validation to avoid breaking existing data
+          if (course && course.duration) {
+            const expectedDuration = course.duration;
+            if (duration !== expectedDuration) {
+              // Show warning but don't block the update for existing students
+              console.warn(`Batch duration mismatch for ${course.name}. Expected ${expectedDuration} years but got ${duration} years.`);
+              // Don't add to errors array - just warn and continue
+            }
+          } else {
+            // If course not found or duration not available, allow common durations (3-4 years)
+            if (duration < 3 || duration > 4) {
+              errors.push(`Invalid batch duration. Must be between 3-4 years, but got ${duration} years.`);
+            }
+          }
+        }
+      }
+
+    return errors;
+  };
+
   const handleEditSubmit = async e => {
     e.preventDefault();
     setEditing(true);
+    
     try {
-      // Validate phone numbers
-      if (!/^[0-9]{10}$/.test(editForm.studentPhone)) {
-        throw new Error('Student phone number must be 10 digits');
+      console.log('Submitting edit form:', editForm);
+      console.log('Available courses:', courses);
+      
+      // Find the current course to understand the expected duration
+      const currentCourse = courses.find(c => c._id === editForm.course);
+      console.log('Current course:', currentCourse);
+      console.log('Current batch:', editForm.batch);
+      
+      if (currentCourse && editForm.batch) {
+        const [startYear, endYear] = editForm.batch.split('-').map(Number);
+        const actualDuration = endYear - startYear;
+        console.log(`Course: ${currentCourse.name}, Expected duration: ${currentCourse.duration}, Actual duration: ${actualDuration}`);
+        
+        // If there's a duration mismatch, show a warning but don't block
+        if (actualDuration !== currentCourse.duration) {
+          console.warn(`Duration mismatch: Expected ${currentCourse.duration} years, got ${actualDuration} years`);
+          toast.warning(`Batch duration (${actualDuration} years) doesn't match course duration (${currentCourse.duration} years). Proceeding anyway.`);
+        }
       }
-      if (!/^[0-9]{10}$/.test(editForm.parentPhone)) {
-        throw new Error('Parent phone number must be 10 digits');
+      
+      // Validate form data
+      const validationErrors = validateEditForm(editForm);
+      if (validationErrors.length > 0) {
+        throw new Error(validationErrors.join('. '));
       }
 
-      // Validate email
-      if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
-        throw new Error('Invalid email address format');
+      // Create a clean form data object for submission
+      const submitData = {
+        name: editForm.name,
+        rollNumber: editForm.rollNumber,
+        course: editForm.course,
+        year: editForm.year,
+        branch: editForm.branch,
+        gender: editForm.gender,
+        category: editForm.category,
+        roomNumber: editForm.roomNumber,
+        studentPhone: editForm.studentPhone,
+        parentPhone: editForm.parentPhone,
+        email: editForm.email,
+        batch: editForm.batch,
+        academicYear: editForm.academicYear,
+        hostelStatus: editForm.hostelStatus
+      };
+
+      // Temporary workaround: If the backend is expecting 3 years but we have a 4-year course,
+      // we might need to adjust the batch format. Let's log this for debugging.
+      if (currentCourse && editForm.batch) {
+        const [startYear, endYear] = editForm.batch.split('-').map(Number);
+        const actualDuration = endYear - startYear;
+        
+        if (actualDuration === 4 && currentCourse.duration === 4) {
+          console.log('✅ Batch format matches course duration (4 years)');
+        } else if (actualDuration === 3 && currentCourse.duration === 3) {
+          console.log('✅ Batch format matches course duration (3 years)');
+        } else {
+          console.warn(`⚠️ Duration mismatch: Course expects ${currentCourse.duration} years, batch has ${actualDuration} years`);
+        }
       }
 
-      // Validate room number
-      const validRooms = ROOM_MAPPINGS[editForm.gender]?.[editForm.category] || [];
-      if (!validRooms.includes(editForm.roomNumber)) {
-        throw new Error('Invalid room number for the selected gender and category');
-      }
-
-      // Validate batch
-      const [startYear, endYear] = editForm.batch.split('-').map(Number);
-      const duration = endYear - startYear;
-      const course = courses.find(c => c._id === editForm.course);
-      const expectedDuration = course ? course.duration : 4;
-      if (duration !== expectedDuration) {
-        throw new Error(`Invalid batch duration for ${course?.name || editForm.course}. Must be ${expectedDuration} years.`);
-      }
+      console.log('Submitting data:', submitData);
 
       // Update student without photos (photos are managed separately)
-      await api.put(`/api/admin/students/${editId}`, editForm);
+      await api.put(`/api/admin/students/${editId}`, submitData);
       toast.success('Student updated successfully');
       setEditModal(false);
       setEditId(null);
       fetchStudents(); // Refresh list
     } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'Failed to update student');
+      console.error('Edit student error:', err);
+      console.error('Edit form data:', editForm);
+      console.error('Available courses:', courses);
+      
+      // Enhanced error handling
+      if (err.response?.status === 400) {
+        const errorMessage = err.response?.data?.message || err.message;
+        console.error('Backend error message:', errorMessage);
+        
+        if (errorMessage.includes('batch') || errorMessage.includes('duration')) {
+          // Show more specific error message with suggestion
+          const currentCourse = courses.find(c => c._id === editForm.course);
+          const suggestedBatch = suggestBatchFormat(editForm.course, editForm.batch);
+          
+          if (currentCourse) {
+            let errorMsg = `Batch validation failed. Course "${currentCourse.name}" requires ${currentCourse.duration} years.`;
+            if (suggestedBatch) {
+              errorMsg += ` Try using: ${suggestedBatch}`;
+            }
+            toast.error(errorMsg);
+          } else {
+            toast.error('Batch validation error. Please check the batch format and course duration.');
+          }
+        } else {
+          toast.error(errorMessage);
+        }
+      } else {
+        toast.error(err.response?.data?.message || err.message || 'Failed to update student');
+      }
     } finally {
       setEditing(false);
     }
@@ -2087,6 +2279,14 @@ const Students = () => {
                   <option key={batch} value={batch}>{batch}</option>
                 ))}
               </select>
+              {editForm.course && (() => {
+                const course = courses.find(c => c._id === editForm.course);
+                return course ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Format: YYYY-YYYY (e.g., 2020-{2020 + course.duration}) for {course.name} ({course.duration} years)
+                  </p>
+                ) : null;
+              })()}
             </div>
             <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Academic Year</label>
