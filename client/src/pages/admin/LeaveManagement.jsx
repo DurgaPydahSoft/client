@@ -520,38 +520,47 @@ const LeaveManagement = () => {
                                 <div className="flex justify-center py-4">
                                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
                                 </div>
-                              ) : outing.students && outing.students.length > 0 ? (
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
-                                  {outing.students.map((student, index) => (
-                                    <div key={student._id || index} className="flex items-center justify-between p-2 bg-white rounded border">
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex-shrink-0 h-8 w-8">
-                                          {student.studentPhoto ? (
-                                            <img
-                                              className="h-8 w-8 rounded-full object-cover"
-                                              src={student.studentPhoto}
-                                              alt={student.name}
-                                            />
-                                          ) : (
-                                            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                                              <span className="text-xs font-medium text-gray-700">
-                                                {student.name?.charAt(0).toUpperCase()}
-                                              </span>
-                                            </div>
-                                          )}
+                              ) : outing.students && Array.isArray(outing.students) && outing.students.length > 0 ? (
+                                (() => {
+                                  const validStudents = outing.students.filter(student => student !== null && student !== undefined);
+                                  return validStudents.length > 0 ? (
+                                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                      {validStudents.map((student, index) => (
+                                      <div key={student._id || index} className="flex items-center justify-between p-2 bg-white rounded border">
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex-shrink-0 h-8 w-8">
+                                            {student.studentPhoto ? (
+                                              <img
+                                                className="h-8 w-8 rounded-full object-cover"
+                                                src={student.studentPhoto}
+                                                alt={student.name || 'Student'}
+                                              />
+                                            ) : (
+                                              <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                                <span className="text-xs font-medium text-gray-700">
+                                                  {(student.name || '?').charAt(0).toUpperCase()}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div>
+                                            <p className="text-sm font-medium text-gray-900">{student.name || 'N/A'}</p>
+                                            <p className="text-xs text-gray-500">{student.rollNumber || 'N/A'}</p>
+                                          </div>
                                         </div>
-                                        <div>
-                                          <p className="text-sm font-medium text-gray-900">{student.name}</p>
-                                          <p className="text-xs text-gray-500">{student.rollNumber}</p>
+                                        <div className="text-right">
+                                          <p className="text-xs text-gray-600">{(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}</p>
+                                          <p className="text-xs text-gray-500">Room {student.roomNumber || 'N/A'}</p>
                                         </div>
                                       </div>
-                                      <div className="text-right">
-                                        <p className="text-xs text-gray-600">{(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}</p>
-                                        <p className="text-xs text-gray-500">Room {student.roomNumber}</p>
-                                      </div>
+                                    ))}
+                                  </div>
+                                  ) : (
+                                    <div className="text-center py-4 text-gray-500">
+                                      <p className="text-sm">No valid student data available</p>
                                     </div>
-                                  ))}
-                                </div>
+                                  );
+                                })()
                               ) : (
                                 <div className="text-center py-4 text-gray-500">
                                   <p className="text-sm">Student details not available</p>

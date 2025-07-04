@@ -41,10 +41,11 @@ const PrincipalHome = () => {
       
       // Extract course ID from course object or use course directly if it's a string
       const courseId = user?.course ? (typeof user.course === 'object' ? user.course._id : user.course) : null;
-      
+      const studentsCountParams = {};
+      if (courseId) studentsCountParams.course = courseId;
       const [statsRes, studentsRes] = await Promise.all([
         api.get(`/api/attendance/principal/stats?date=${today}&course=${courseId}`),
-        api.get(`/api/admin/students/count?course=${courseId}`)
+        api.get(`/api/admin/students/count`, { params: studentsCountParams })
       ]);
 
       if (statsRes.data.success) {

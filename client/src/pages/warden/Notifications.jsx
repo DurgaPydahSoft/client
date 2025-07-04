@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../utils/axios';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const Notifications = () => {
@@ -19,7 +19,7 @@ const Notifications = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await axios.get('/api/notifications/warden');
+      const res = await api.get('/api/notifications/warden');
       // Ensure notifications is always an array
       const notificationsData = res.data.data || res.data || [];
       setNotifications(Array.isArray(notificationsData) ? notificationsData : []);
@@ -33,7 +33,7 @@ const Notifications = () => {
 
   const markAsRead = async (id) => {
     try {
-      await axios.patch(`/api/notifications/warden/${id}/read`);
+      await api.patch(`/api/notifications/warden/${id}/read`);
       fetchNotifications(); // Refresh the list
     } catch (err) {
       setError('Failed to mark notification as read');
@@ -42,7 +42,7 @@ const Notifications = () => {
 
   const markAllAsRead = async () => {
     try {
-      await axios.patch('/api/notifications/warden/read-all');
+      await api.patch('/api/notifications/warden/read-all');
       fetchNotifications(); // Refresh the list
     } catch (err) {
       setError('Failed to mark notifications as read');

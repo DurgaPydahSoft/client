@@ -71,40 +71,32 @@ const PrincipalViewAttendance = () => {
   const fetchAttendanceForDate = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        date: selectedDate,
-        course: user?.course
-      });
-
-      // Add other filters that don't involve course/branch IDs
+      const params = new URLSearchParams({ date: selectedDate });
+      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
+      if (courseId) params.append('course', courseId);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
-
-      console.log('🔍 Fetching attendance with params:', params.toString());
+      console.log('[DEBUG] Fetching attendance for date with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/date?${params}`);
-      
-      console.log('🔍 Attendance response:', response.data);
-      
+      console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
         let attendanceData = response.data.data.attendance;
-        console.log('🔍 Attendance data:', attendanceData);
-
-        // Frontend filtering for branch only (principal is already filtered by course)
+        console.log('[DEBUG] Attendance before branch filter:', attendanceData);
         if (filters.branch) {
           attendanceData = attendanceData.filter(record => 
             record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
           );
-          console.log('🔍 After branch filtering:', attendanceData.length, 'records');
+          console.log('[DEBUG] Attendance after branch filter:', attendanceData);
         }
-
         setAttendance(attendanceData);
         setStatistics(response.data.data.statistics);
       }
     } catch (error) {
-      console.error('Error fetching attendance:', error);
+      console.error('[DEBUG] Error fetching attendance:', error);
       toast.error('Failed to fetch attendance data');
     } finally {
       setLoading(false);
+      console.log('[DEBUG] Loading set to false');
     }
   };
 
@@ -113,28 +105,25 @@ const PrincipalViewAttendance = () => {
     try {
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        course: user?.course
+        endDate: dateRange.endDate
       });
-
-      // Add other filters that don't involve course/branch IDs
+      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
+      if (courseId) params.append('course', courseId);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
-
+      console.log('[DEBUG] Fetching attendance for range with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/range?${params}`);
-      
+      console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
         let attendanceData = response.data.data.attendance;
-
-        // Frontend filtering for branch only (principal is already filtered by course)
+        console.log('[DEBUG] Attendance before branch filter:', attendanceData);
         if (filters.branch) {
           attendanceData = attendanceData.filter(record => 
             record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
           );
+          console.log('[DEBUG] Attendance after branch filter:', attendanceData);
         }
-
         setAttendance(attendanceData);
-        
         // Calculate statistics from attendance data
         const stats = {
           totalStudents: response.data.data.statistics?.totalStudents || attendanceData.length,
@@ -144,12 +133,9 @@ const PrincipalViewAttendance = () => {
           partiallyPresent: 0,
           absent: 0
         };
-
-        // Calculate statistics from the attendance records
         attendanceData.forEach(record => {
           if (record.morning) stats.morningPresent++;
           if (record.evening) stats.eveningPresent++;
-          
           if (record.morning && record.evening) {
             stats.fullyPresent++;
           } else if (record.morning || record.evening) {
@@ -158,14 +144,14 @@ const PrincipalViewAttendance = () => {
             stats.absent++;
           }
         });
-
         setStatistics(stats);
       }
     } catch (error) {
-      console.error('Error fetching attendance:', error);
+      console.error('[DEBUG] Error fetching attendance:', error);
       toast.error('Failed to fetch attendance data');
     } finally {
       setLoading(false);
+      console.log('[DEBUG] Loading set to false');
     }
   };
 

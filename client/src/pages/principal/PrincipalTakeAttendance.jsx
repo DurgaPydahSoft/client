@@ -44,30 +44,23 @@ const PrincipalTakeAttendance = () => {
     setLoading(true);
     try {
       const courseId = typeof user.course === 'object' ? user.course._id : user.course;
-      const params = new URLSearchParams({
-        date: selectedDate,
-        course: courseId
-      });
-
-      // Add other filters that don't involve course/branch IDs
+      const params = new URLSearchParams({ date: selectedDate });
+      if (courseId) params.append('course', courseId);
       if (filters.gender) params.append('gender', filters.gender);
       if (filters.category) params.append('category', filters.category);
-
+      console.log('[DEBUG] Fetching students with params:', params.toString());
       const response = await api.get(`/api/attendance/students?${params}`);
-      
+      console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
         let filteredStudents = response.data.data.students;
-
-        // Frontend filtering for branch only (principal is already filtered by course)
+        console.log('[DEBUG] Students before branch filter:', filteredStudents);
         if (filters.branch) {
           filteredStudents = filteredStudents.filter(student => 
             student.branch?._id === filters.branch || student.branch === filters.branch
           );
         }
-
+        console.log('[DEBUG] Students after branch filter:', filteredStudents);
         setStudents(filteredStudents);
-        
-        // Initialize attendance data
         const initialAttendance = {};
         filteredStudents.forEach(student => {
           initialAttendance[student._id] = {
@@ -79,10 +72,11 @@ const PrincipalTakeAttendance = () => {
         setAttendanceData(initialAttendance);
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
+      console.error('[DEBUG] Error fetching students:', error);
       toast.error('Failed to fetch students data');
     } finally {
       setLoading(false);
+      console.log('[DEBUG] Loading set to false');
     }
   };
 

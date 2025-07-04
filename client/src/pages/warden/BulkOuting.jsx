@@ -613,9 +613,9 @@ const BulkOuting = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {students.map((student, index) => (
+                    {students.filter(student => student !== null && student !== undefined).map((student, index) => (
                       <motion.tr
-                        key={student._id}
+                        key={student._id || `student-${index}`}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.05 }}
@@ -632,26 +632,26 @@ const BulkOuting = () => {
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {student.name}
+                              {student.name || 'Unknown Student'}
                             </div>
                             <div className="text-sm text-gray-500">
-                              {student.rollNumber}
+                              {student.rollNumber || 'N/A'}
                             </div>
                           </div>
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
-                            {getCourseName(student.course)} {student.year}
+                            {getCourseName(student.course)} {student.year || ''}
                           </div>
                           <div className="text-sm text-gray-500">
                             {getBranchName(student.branch)}
                           </div>
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Room {student.roomNumber}
+                          Room {student.roomNumber || 'N/A'}
                         </td>
                         <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {student.phone}
+                          {student.phone || 'N/A'}
                         </td>
                       </motion.tr>
                     ))}
@@ -838,9 +838,9 @@ const BulkOuting = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedOutingStudents.map((student, index) => (
+                      {selectedOutingStudents.filter(student => student !== null && student !== undefined).map((student, index) => (
                         <motion.tr
-                          key={student._id}
+                          key={student._id || `student-${index}`}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
@@ -849,26 +849,26 @@ const BulkOuting = () => {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {student.name}
+                                {student.name || 'Unknown Student'}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {student.rollNumber}
+                                {student.rollNumber || 'N/A'}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {getCourseName(student.course)} {student.year}
+                              {getCourseName(student.course)} {student.year || ''}
                             </div>
                             <div className="text-sm text-gray-500">
                               {getBranchName(student.branch)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Room {student.roomNumber}
+                            Room {student.roomNumber || 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {student.studentPhone}
+                            {student.studentPhone || 'N/A'}
                           </td>
                         </motion.tr>
                       ))}
