@@ -37,12 +37,15 @@ api.interceptors.response.use(
     // Only logout on 401 errors that are authentication-related
     // Skip logout for dashboard data fetching errors to prevent immediate logout
     if (error.response?.status === 401 && !window.location.pathname.includes('/reset-password')) {
-      // Check if this is a dashboard data fetching error
+      // Check if this is a dashboard data fetching error or expected 404
       const isDashboardDataError = error.config?.url?.includes('/admin/students/count') ||
                                   error.config?.url?.includes('/announcements/admin/all') ||
                                   error.config?.url?.includes('/polls/admin/all') ||
                                   error.config?.url?.includes('/admin/members') ||
-                                  error.config?.url?.includes('/complaints/admin/all');
+                                  error.config?.url?.includes('/complaints/admin/all') ||
+                                  error.config?.url?.includes('/api/menu/') ||
+                                  error.config?.url?.includes('/api/menu/today') ||
+                                  error.config?.url?.includes('/api/menu/ratings/stats');
       
       if (isDashboardDataError) {
         console.log('🚨 Dashboard data error - not logging out, just logging error');

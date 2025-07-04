@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../../utils/axios';
 import { toast } from 'react-hot-toast';
 
@@ -42,6 +42,13 @@ const MenuManagement = () => {
   const [notificationLoading, setNotificationLoading] = useState(false);
   const [lastNotificationSent, setLastNotificationSent] = useState(null);
 
+  const isMounted = useRef(false);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
   // Fetch today's menu on mount
   useEffect(() => {
     const fetchTodaysMenu = async () => {
@@ -50,6 +57,10 @@ const MenuManagement = () => {
         const res = await api.get('/api/menu/today');
         setTodaysMenu(res.data.data);
       } catch (err) {
+        // 404 is expected when no menu exists for today
+        if (err.response?.status !== 404) {
+          console.error('Error fetching today\'s menu:', err);
+        }
         setTodaysMenu(null);
       } finally {
         setLoadingToday(false);
@@ -63,9 +74,14 @@ const MenuManagement = () => {
     const fetchRatingStats = async () => {
       setLoadingStats(true);
       try {
-        const res = await api.get('/api/menu/ratings/stats');
+        const today = getTodayISOString();
+        const res = await api.get(`/api/menu/ratings/stats?date=${today}`);
         setRatingStats(res.data.data);
       } catch (err) {
+        // 404 is expected when no menu exists for today
+        if (err.response?.status !== 404) {
+          console.error('Error fetching rating stats:', err);
+        }
         setRatingStats(null);
       } finally {
         setLoadingStats(false);
@@ -76,32 +92,38 @@ const MenuManagement = () => {
 
   // Fetch menu for selected date
   useEffect(() => {
-    fetchMenu();
-    // eslint-disable-next-line
+    if (isMounted.current) {
+      fetchMenu();
+    }
   }, [selectedDate]);
 
   const fetchMenu = async () => {
     setLoading(true);
     try {
       const res = await api.get(`/api/menu/date?date=${normalizeDateInput(selectedDate)}`);
-      setMenu(res.data.data);
-      setEditMenu({ ...res.data.data.meals });
-      setAddInputs({});
-    } catch (err) {
-      setTimeout(() => {
-        setMenu(null);
-        setEditMenu({ breakfast: [], lunch: [], dinner: [] });
+      if (isMounted.current) {
+        setMenu(res.data.data);
+        setEditMenu({ ...res.data.data.meals });
         setAddInputs({});
-      }, 0);
+      }
+    } catch (err) {
       if (err.response?.status === 404) {
-        // No menu for this date: not an error, just info
-        // Optionally: toast('No menu found for this date. You can create one.');
+        if (isMounted.current) {
+          setMenu(null);
+          setEditMenu({ breakfast: [], lunch: [], dinner: [] });
+          setAddInputs({});
+        }
       } else {
         toast.error('Failed to fetch menu');
         console.error(err);
+        if (isMounted.current) {
+          setMenu(null);
+          setEditMenu({ breakfast: [], lunch: [], dinner: [] });
+          setAddInputs({});
+        }
       }
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
@@ -114,7 +136,10 @@ const MenuManagement = () => {
     if (!value) return;
     setEditMenu(prev => {
       const updated = { ...prev };
-      if (updated[meal].includes(value)) {
+      // Case-insensitive check for duplicates
+      const normalizedValue = value.toLowerCase();
+      const normalizedItems = updated[meal].map(item => item.toLowerCase());
+      if (normalizedItems.includes(normalizedValue)) {
         toast.error('Item already exists');
         return updated;
       }
@@ -165,7 +190,10 @@ const MenuManagement = () => {
     if (!value) return;
     setModalEditMenu(prev => {
       const updated = { ...prev };
-      if (updated[meal].includes(value)) {
+      // Case-insensitive check for duplicates
+      const normalizedValue = value.toLowerCase();
+      const normalizedItems = updated[meal].map(item => item.toLowerCase());
+      if (normalizedItems.includes(normalizedValue)) {
         toast.error('Item already exists');
         return updated;
       }
@@ -261,145 +289,144 @@ const MenuManagement = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-2 sm:p-4 md:p-6 mt-2 sm:mt-8">
+    <div className="max-w-7xl mx-auto bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 mt-4 sm:mt-8">
       {/* Today's Menu Section (Read-only, with Update button) */}
-      <div className="mb-4 sm:mb-6">
-        <div className="bg-green-50 rounded-lg p-3 sm:p-4 shadow flex flex-col">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2">
-            <span className="font-bold text-green-900 text-base sm:text-lg">Today's Menu</span>
+      <div className="mb-6 sm:mb-8">
+        <div className="bg-green-50 rounded-lg p-4 sm:p-6 shadow-sm border border-green-100">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+            <div>
+              <h2 className="font-bold text-green-900 text-lg sm:text-xl">Today's Menu</h2>
+              <p className="text-green-700 text-sm mt-1">Current menu for today's meals</p>
+            </div>
             <button
-              className="sm:ml-auto px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 mt-2 sm:mt-0"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
               onClick={openTodayModal}
               disabled={loadingToday}
             >
-              Update
+              Update Menu
             </button>
           </div>
           {loadingToday ? (
-            <div className="text-gray-400 text-sm">Loading menu...</div>
+            <div className="text-gray-500 text-sm">Loading today's menu...</div>
           ) : todaysMenu ? (
-            <div>
-              <div className="mb-1"><span className="font-semibold">Breakfast:</span> {todaysMenu.meals.breakfast.length ? todaysMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}</div>
-              <div className="mb-1"><span className="font-semibold">Lunch:</span> {todaysMenu.meals.lunch.length ? todaysMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}</div>
-              <div className="mb-1"><span className="font-semibold">Dinner:</span> {todaysMenu.meals.dinner.length ? todaysMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <h3 className="font-semibold text-green-800 mb-2">🥞 Breakfast</h3>
+                <div className="text-sm text-gray-700">
+                  {todaysMenu.meals.breakfast.length ? todaysMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <h3 className="font-semibold text-green-800 mb-2">🍛 Lunch</h3>
+                <div className="text-sm text-gray-700">
+                  {todaysMenu.meals.lunch.length ? todaysMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}
+                </div>
+              </div>
+              <div className="bg-white rounded-lg p-3 border border-green-200">
+                <h3 className="font-semibold text-green-800 mb-2">🍽️ Dinner</h3>
+                <div className="text-sm text-gray-700">
+                  {todaysMenu.meals.dinner.length ? todaysMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}
+                </div>
+              </div>
             </div>
           ) : (
-            <div className="text-gray-400 text-sm">No menu set for today.</div>
+            <div className="text-center py-6">
+              <div className="text-gray-400 text-sm">No menu set for today.</div>
+              <button
+                className="mt-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                onClick={openTodayModal}
+              >
+                Create Today's Menu
+              </button>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
-        {/* Left Column - Menu Management */}
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Menu Management</h2>
-          <p className="text-gray-600 mb-4 text-sm sm:text-base">Set the food menu for any day. You can add, edit, or remove items for breakfast, lunch, and dinner.</p>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <label className="font-medium text-sm sm:text-base">Date:</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="border px-3 py-2 rounded shadow-sm text-sm sm:text-base"
-            />
-          </div>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+        {/* Menu Management Column - Takes 2/3 of the space on large screens */}
+        <div className="xl:col-span-2">
+          <div className="bg-blue-50 rounded-lg p-4 sm:p-6 shadow-sm border border-blue-100">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Menu Management</h2>
+                <p className="text-gray-600 text-sm sm:text-base mt-1">Set the food menu for any day. You can add, edit, or remove items for breakfast, lunch, and dinner.</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
+              <label className="font-medium text-sm sm:text-base">Date:</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={e => setSelectedDate(e.target.value)}
+                className="border px-3 py-2 rounded shadow-sm text-sm sm:text-base"
+              />
+            </div>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : (
             <>
-              {/* Table for screens >= 480px */}
-              <div className="hidden xs:block overflow-x-auto">
-                <table className="w-full min-w-[400px] border mb-4 text-xs sm:text-sm">
-                  <thead>
-                    <tr>
-                      <th className="border px-2 py-1">Meal</th>
-                      <th className="border px-2 py-1">Items</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {MEALS.map(meal => (
-                      <tr key={meal}>
-                        <td className="border px-2 py-1 font-semibold capitalize align-top">{meal}</td>
-                        <td className="border px-2 py-1 align-top">
-                          <ul className="mb-2">
-                            {editMenu[meal].map((item, idx) => (
-                              <li key={idx} className="flex items-center gap-2 mb-1">
-                                <span>{item}</span>
-                                <button
-                                  className="text-xs text-red-500 hover:underline"
-                                  onClick={() => handleRemoveItem(meal, idx)}
-                                >Remove</button>
-                              </li>
-                            ))}
-                          </ul>
-                          <form
-                            onSubmit={e => {
-                              e.preventDefault();
-                              handleAddItem(meal);
-                            }}
-                            className="flex flex-col sm:flex-row gap-2"
-                          >
-                            <input
-                              type="text"
-                              placeholder={`Add to ${meal}`}
-                              value={addInputs[meal] || ''}
-                              onChange={e => handleAddInputChange(meal, e.target.value)}
-                              className="border px-2 py-1 rounded text-xs sm:text-sm flex-1"
-                            />
-                            <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs">Add</button>
-                          </form>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {/* Card layout for screens < 480px */}
-              <div className="block xs:hidden space-y-4">
+              {/* Grid layout for all screen sizes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {MEALS.map(meal => (
-                  <div key={meal} className="border rounded-lg p-2 bg-gray-50">
-                    <div className="font-semibold capitalize mb-1 text-sm">{meal}</div>
-                    <ul className="mb-2">
+                  <div key={meal} className="bg-white rounded-lg p-4 border border-blue-200">
+                    <h3 className="font-semibold text-blue-800 mb-3 capitalize flex items-center gap-2">
+                      {meal === 'breakfast' && '🥞'}
+                      {meal === 'lunch' && '🍛'}
+                      {meal === 'dinner' && '🍽️'}
+                      {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                    </h3>
+                    <div className="space-y-2 mb-3">
                       {editMenu[meal].map((item, idx) => (
-                        <li key={idx} className="flex items-center gap-2 mb-1">
-                          <span>{item}</span>
+                        <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-sm text-gray-700">{item}</span>
                           <button
-                            className="text-xs text-red-500 hover:underline"
+                            className="text-red-500 hover:text-red-700 text-lg font-bold"
                             onClick={() => handleRemoveItem(meal, idx)}
-                          >Remove</button>
-                        </li>
+                          >
+                            ×
+                          </button>
+                        </div>
                       ))}
-                    </ul>
+                      {editMenu[meal].length === 0 && (
+                        <div className="text-gray-400 text-sm text-center py-2">No items added</div>
+                      )}
+                    </div>
                     <form
                       onSubmit={e => {
                         e.preventDefault();
                         handleAddItem(meal);
                       }}
-                      className="flex flex-col gap-2"
+                      className="flex flex-col gap-2 mt-2"
                     >
                       <input
                         type="text"
-                        placeholder={`Add to ${meal}`}
+                        placeholder={`Add ${meal} item`}
                         value={addInputs[meal] || ''}
                         onChange={e => handleAddInputChange(meal, e.target.value)}
-                        className="border px-2 py-1 rounded text-xs flex-1"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs">Add</button>
+                      <button
+                        type="submit"
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors mt-1"
+                      >
+                        Add
+                      </button>
                     </form>
                   </div>
                 ))}
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-2">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs sm:text-base"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base disabled:opacity-50"
                   onClick={handleSave}
                   disabled={loading}
                 >
                   Save Menu
                 </button>
                 <button
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs sm:text-base"
+                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm sm:text-base"
                   onClick={fetchMenu}
                   disabled={loading}
                 >
@@ -410,48 +437,33 @@ const MenuManagement = () => {
           )}
         </div>
 
-        {/* Right Column - Rating Statistics */}
-        <div className="mt-6 lg:mt-0">
-          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Rating Statistics</h2>
-          <p className="text-gray-600 mb-4 text-sm sm:text-base">Monitor student feedback and ratings for today's meals.</p>
+        {/* Rating Statistics Column - Takes 1/3 of the space on large screens */}
+        <div className="xl:col-span-1">
+          <div className="bg-purple-50 rounded-lg p-4 sm:p-6 shadow-sm border border-purple-100">
+            <div className="mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-purple-900">Rating Statistics</h2>
+              <p className="text-gray-600 text-sm sm:text-base mt-1">Monitor student feedback and ratings for today's meals.</p>
+            </div>
           {loadingStats ? (
             <div className="text-center py-8">Loading statistics...</div>
           ) : ratingStats ? (
             <div className="space-y-4">
               {['breakfast', 'lunch', 'dinner'].map(mealType => {
-                const stats = ratingStats[mealType];
+                const stats = ratingStats[mealType] || {};
                 const mealEmojis = { breakfast: '🥞', lunch: '🍛', dinner: '🍽️' };
                 return (
-                  <div key={mealType} className="bg-white rounded-lg p-3 sm:p-4 border">
+                  <div key={mealType} className="bg-white rounded-lg p-4 border border-purple-200">
                     <div className="flex items-center gap-2 mb-3">
                       <span className="text-2xl">{mealEmojis[mealType]}</span>
-                      <span className="font-semibold capitalize text-base sm:text-lg">{mealType}</span>
+                      <span className="font-semibold capitalize text-base sm:text-lg text-purple-800">{mealType}</span>
                     </div>
                     {stats.totalRatings > 0 ? (
                       <div>
-                        <div className="text-xl sm:text-2xl font-bold text-blue-600 mb-2">
+                        <div className="text-xl sm:text-2xl font-bold text-purple-600 mb-2">
                           {stats.average}/5 ⭐
                         </div>
                         <div className="text-xs sm:text-sm text-gray-600 mb-3">
                           {stats.totalRatings} rating{stats.totalRatings !== 1 ? 's' : ''}
-                        </div>
-                        <div className="space-y-2">
-                          {[5, 4, 3, 2, 1].map(rating => {
-                            const count = stats.distribution[rating] || 0;
-                            const percentage = stats.totalRatings > 0 ? (count / stats.totalRatings) * 100 : 0;
-                            return (
-                              <div key={rating} className="flex items-center gap-2">
-                                <span className="text-xs sm:text-sm text-gray-600 w-4">{rating}⭐</span>
-                                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="bg-yellow-400 h-2 rounded-full" 
-                                    style={{ width: `${percentage}%` }}
-                                  ></div>
-                                </div>
-                                <span className="text-xs text-gray-500 w-8">{count}</span>
-                              </div>
-                            );
-                          })}
                         </div>
                       </div>
                     ) : (
@@ -466,54 +478,57 @@ const MenuManagement = () => {
           )}
         </div>
       </div>
+    </div>
 
       {/* Menu Notification Management Section */}
-      <div className="mt-6 sm:mt-8">
-        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
-          <h2 className="text-xl sm:text-2xl font-bold mb-2 text-blue-900">Menu Notifications</h2>
-          <p className="text-gray-600 mb-4 text-sm sm:text-base">Send timely notifications to students about meal times.</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="mt-8">
+        <div className="bg-orange-50 rounded-lg p-4 sm:p-6 shadow-sm border border-orange-100">
+          <div className="mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-orange-900">Menu Notifications</h2>
+            <p className="text-gray-600 text-sm sm:text-base mt-1">Send timely notifications to students about meal times.</p>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Next Meal Time */}
-            <div className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 md:mb-0">
-              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">Next Meal Time</h3>
+            <div className="bg-white rounded-lg p-4 border border-orange-200">
+              <h3 className="text-base sm:text-lg font-semibold text-orange-900 mb-3">Next Meal Time</h3>
               {(() => {
                 const nextMeal = getNextMealTime();
                 return (
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{nextMeal.emoji}</span>
+                    <span className="text-3xl">{nextMeal.emoji}</span>
                     <div>
-                      <div className="font-medium text-blue-900 text-sm sm:text-base">{nextMeal.name}</div>
-                      <div className="text-xs sm:text-sm text-blue-600">at {nextMeal.hour}:00</div>
+                      <div className="font-medium text-orange-900 text-sm sm:text-base">{nextMeal.name}</div>
+                      <div className="text-xs sm:text-sm text-orange-600">at {nextMeal.hour}:00</div>
                     </div>
                   </div>
                 );
               })()}
             </div>
             {/* Manual Notification Triggers */}
-            <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-              <h3 className="text-base sm:text-lg font-semibold text-green-900 mb-2">Send Notifications</h3>
-              <p className="text-xs sm:text-sm text-green-700 mb-3">Manually trigger meal notifications to all students</p>
-              <div className="space-y-2">
+            <div className="lg:col-span-2 bg-white rounded-lg p-4 border border-orange-200">
+              <h3 className="text-base sm:text-lg font-semibold text-orange-900 mb-3">Send Notifications</h3>
+              <p className="text-xs sm:text-sm text-orange-700 mb-4">Manually trigger meal notifications to all students</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   onClick={() => handleSendMenuNotification('breakfast')}
                   disabled={notificationLoading}
-                  className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                  className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                 >
-                  🥞 Send Breakfast Notification
+                  🥞 Breakfast
                 </button>
                 <button
                   onClick={() => handleSendMenuNotification('lunch')}
                   disabled={notificationLoading}
-                  className="w-full px-3 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                  className="px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                 >
-                  🍛 Send Lunch Notification
+                  🍛 Lunch
                 </button>
                 <button
                   onClick={() => handleSendMenuNotification('dinner')}
                   disabled={notificationLoading}
-                  className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-base flex items-center gap-2"
+                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
                 >
-                  🍽️ Send Dinner Notification
+                  🍽️ Dinner
                 </button>
               </div>
             </div>
@@ -596,6 +611,7 @@ const MenuManagement = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };
