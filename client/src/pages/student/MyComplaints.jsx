@@ -673,6 +673,40 @@ const MyComplaints = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Assigned Member Information */}
+                    {selected.assignedTo && (
+                      <div className="col-span-1 sm:col-span-2 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                          <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                          <span className="font-medium text-blue-700 text-sm sm:text-base">Assigned Member</span>
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-blue-600 text-sm font-medium">{selected.assignedTo.name}</p>
+                          <div className="flex items-center gap-3 text-xs sm:text-sm text-blue-600">
+                            <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium">
+                              {selected.assignedTo.category}
+                            </span>
+                            {selected.assignedTo.phone && (
+                              <div className="flex items-center gap-1">
+                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                {selected.assignedTo.phone}
+                              </div>
+                            )}
+                            {selected.assignedTo.email && (
+                              <div className="flex items-center gap-1">
+                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                {selected.assignedTo.email}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
                   <div className="mb-4 sm:mb-6">

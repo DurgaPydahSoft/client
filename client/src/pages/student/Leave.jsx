@@ -395,7 +395,7 @@ const Leave = () => {
               {qrModal.leave.applicationType} QR Code
             </h2>
             <QRCode
-              value={`${import.meta.env.VITE_QR_BASE_URL}/leave/qr/${qrModal.leave._id}`}
+              value={`${window.location.origin}/leave/qr/${qrModal.leave._id}`}
               size={200}
             />
             <button
