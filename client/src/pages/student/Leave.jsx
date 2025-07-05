@@ -10,7 +10,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationCircleIcon,
-  ArrowRightIcon
+  ArrowRightIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -35,6 +36,12 @@ const Leave = () => {
     permissionDate: '',
     outTime: '',
     inTime: '',
+    reason: ''
+  });
+
+  // Form data for Stay in Hostel applications
+  const [stayInHostelFormData, setStayInHostelFormData] = useState({
+    stayDate: '',
     reason: ''
   });
   
@@ -94,10 +101,15 @@ const Leave = () => {
           applicationType: 'Leave',
           ...leaveFormData
         };
-      } else {
+      } else if (applicationType === 'Permission') {
         formData = {
           applicationType: 'Permission',
           ...permissionFormData
+        };
+      } else if (applicationType === 'Stay in Hostel') {
+        formData = {
+          applicationType: 'Stay in Hostel',
+          ...stayInHostelFormData
         };
       }
 
@@ -144,17 +156,25 @@ const Leave = () => {
       inTime: '',
       reason: ''
     });
+    setStayInHostelFormData({
+      stayDate: '',
+      reason: ''
+    });
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'Approved':
+      case 'Principal Approved':
         return 'text-green-600 bg-green-50';
       case 'Rejected':
+      case 'Principal Rejected':
         return 'text-red-600 bg-red-50';
       case 'Pending':
       case 'Pending OTP Verification':
         return 'text-yellow-600 bg-yellow-50';
+      case 'Warden Recommended':
+        return 'text-blue-600 bg-blue-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -163,12 +183,16 @@ const Leave = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Approved':
+      case 'Principal Approved':
         return <CheckCircleIcon className="w-5 h-5" />;
       case 'Rejected':
+      case 'Principal Rejected':
         return <XCircleIcon className="w-5 h-5" />;
       case 'Pending':
       case 'Pending OTP Verification':
         return <ExclamationCircleIcon className="w-5 h-5" />;
+      case 'Warden Recommended':
+        return <ArrowRightIcon className="w-5 h-5" />;
       default:
         return null;
     }
@@ -180,6 +204,8 @@ const Leave = () => {
         return 'text-blue-600 bg-blue-50 border-blue-200';
       case 'Permission':
         return 'text-purple-600 bg-purple-50 border-purple-200';
+      case 'Stay in Hostel':
+        return 'text-green-600 bg-green-50 border-green-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -187,7 +213,7 @@ const Leave = () => {
 
   // Helper function to check if QR is available
   const isQrAvailable = (leave) => {
-    if (leave.status !== 'Approved' || leave.visitLocked) {
+    if (leave.status !== 'Approved' || leave.visitLocked || leave.applicationType === 'Stay in Hostel') {
       return false;
     }
     const now = new Date();
@@ -229,9 +255,20 @@ const Leave = () => {
         time: `${leave.outTime} - ${leave.inTime}`,
         duration: '1 day'
       };
+    } else if (leave.applicationType === 'Stay in Hostel') {
+      return {
+        date: new Date(leave.stayDate).toLocaleDateString(),
+        duration: '1 day'
+      };
     }
     return {};
   };
+
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0, 10);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
   return (
     <div className="min-h-screen bg-gray-50 ">
@@ -305,7 +342,7 @@ const Leave = () => {
                                 <span>{displayInfo.duration}</span>
                               </div>
                             </>
-                          ) : (
+                          ) : leave.applicationType === 'Permission' ? (
                             <>
                               <div className="flex items-center gap-1">
                                 <CalendarIcon className="w-4 h-4" />
@@ -314,6 +351,17 @@ const Leave = () => {
                               <div className="flex items-center gap-1">
                                 <ClockIcon className="w-4 h-4" />
                                 <span>Time: {displayInfo.time}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <HomeIcon className="w-4 h-4" />
+                                <span>Date: {displayInfo.date}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <ClockIcon className="w-4 h-4" />
+                                <span>{displayInfo.duration}</span>
                               </div>
                             </>
                           )}
@@ -325,6 +373,26 @@ const Leave = () => {
                           <p className="text-xs sm:text-sm text-red-600">
                             Rejection Reason: {leave.rejectionReason}
                           </p>
+                        )}
+
+                        {/* Show warden recommendation for Stay in Hostel requests */}
+                        {leave.applicationType === 'Stay in Hostel' && leave.wardenRecommendation && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-blue-700">
+                              <strong>Warden Recommendation:</strong> {leave.wardenRecommendation}
+                              {leave.wardenComment && ` - ${leave.wardenComment}`}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Show principal decision for Stay in Hostel requests */}
+                        {leave.applicationType === 'Stay in Hostel' && leave.principalDecision && (
+                          <div className="mt-2 p-2 bg-green-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-green-700">
+                              <strong>Principal Decision:</strong> {leave.principalDecision}
+                              {leave.principalComment && ` - ${leave.principalComment}`}
+                            </p>
+                          </div>
                         )}
                       </div>
                       {/* QR Code Button for Approved Leave/Permission */}
@@ -423,11 +491,11 @@ const Leave = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Application Type
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setApplicationType('Leave')}
-                  className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
+                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
                     applicationType === 'Leave'
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -438,13 +506,24 @@ const Leave = () => {
                 <button
                   type="button"
                   onClick={() => setApplicationType('Permission')}
-                  className={`flex-1 px-4 py-2 rounded-lg border transition-colors ${
+                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
                     applicationType === 'Permission'
                       ? 'bg-purple-600 text-white border-purple-600'
                       : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                   }`}
                 >
                   Permission
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setApplicationType('Stay in Hostel')}
+                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
+                    applicationType === 'Stay in Hostel'
+                      ? 'bg-green-600 text-white border-green-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  Stay in Hostel
                 </button>
               </div>
             </div>
@@ -506,7 +585,7 @@ const Leave = () => {
                     />
                   </div>
                 </>
-              ) : (
+              ) : applicationType === 'Permission' ? (
                 // Permission Application Form
                 <>
                   <div className="mb-4">
@@ -561,6 +640,37 @@ const Leave = () => {
                     />
                   </div>
                 </>
+              ) : (
+                // Stay in Hostel Application Form
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Stay Date
+                    </label>
+                    <input
+                      type="date"
+                      value={stayInHostelFormData.stayDate}
+                      onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, stayDate: e.target.value })}
+                      required
+                      min={todayStr}
+                      max={tomorrowStr}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Reason
+                    </label>
+                    <textarea
+                      value={stayInHostelFormData.reason}
+                      onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, reason: e.target.value })}
+                      required
+                      rows="4"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                      placeholder="Enter your reason for staying in hostel"
+                    />
+                  </div>
+                </>
               )}
               
               <div className="flex justify-end gap-3">
@@ -579,7 +689,9 @@ const Leave = () => {
                   className={`px-4 py-2 text-white rounded-lg transition-colors ${
                     applicationType === 'Leave' 
                       ? 'bg-blue-600 hover:bg-blue-700' 
-                      : 'bg-purple-600 hover:bg-purple-700'
+                      : applicationType === 'Permission'
+                      ? 'bg-purple-600 hover:bg-purple-700'
+                      : 'bg-green-600 hover:bg-green-700'
                   }`}
                 >
                   Submit Request

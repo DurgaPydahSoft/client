@@ -50,11 +50,13 @@ const WardenTakeAttendance = lazy(() => import('./pages/warden/TakeAttendance'))
 const WardenViewAttendance = lazy(() => import('./pages/warden/ViewAttendance'));
 const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
+const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelRequests'));
 
 // Principal components
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
 const PrincipalHome = lazy(() => import('./pages/principal/PrincipalHome'));
 const PrincipalAttendance = lazy(() => import('./pages/principal/PrincipalAttendance'));
+const PrincipalStayInHostelRequests = lazy(() => import('./pages/principal/StayInHostelRequests'));
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -192,6 +194,7 @@ function App() {
               <Route path="view-attendance" element={<WardenViewAttendance />} />
               <Route path="bulk-outing" element={<BulkOuting />} />
               <Route path="notifications" element={<WardenNotifications />} />
+              <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />
             </Route>
 
             {/* Protected principal routes */}
@@ -209,6 +212,7 @@ function App() {
             >
               <Route index element={<PrincipalHome />} />
               <Route path="attendance" element={<PrincipalAttendance />} />
+              <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
             </Route>
             
             {/* Student reset password route */}

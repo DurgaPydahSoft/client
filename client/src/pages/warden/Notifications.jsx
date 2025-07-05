@@ -12,7 +12,11 @@ const Notifications = () => {
     fetchNotifications();
     const handler = () => fetchNotifications();
     window.addEventListener('refresh-notifications', handler);
-    return () => window.removeEventListener('refresh-notifications', handler);
+    const pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
+    return () => {
+      window.removeEventListener('refresh-notifications', handler);
+      clearInterval(pollInterval);
+    };
   }, []);
 
   const fetchNotifications = async () => {

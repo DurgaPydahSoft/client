@@ -7,10 +7,10 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 ## 🚀 Features
 
 ### 🔐 Authentication & Role Management
-- **Multi-level authentication**: Super Admin, Sub Admin, Warden, and Student roles with granular permissions
+- **Multi-level authentication**: Super Admin, Sub Admin, Warden, Principal, and Student roles with granular permissions
 - **JWT-based security**: Secure token-based authentication with session management
 - **Protected routes**: Role-based access control for all sections
-- **Admin management**: Super admins can create, manage, and assign permissions to sub-admins and wardens
+- **Admin management**: Super admins can create, manage, and assign permissions to sub-admins, wardens, and principals
 
 ### 👥 Student Management
 - **Bulk student upload**: Excel-based bulk registration with validation and preview
@@ -48,13 +48,18 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Status management**: Active, scheduled, and ended content states
 
 ### 🚪 Leave Management
+- **Multiple request types**: Leave, Permission, and Stay in Hostel requests
 - **Leave requests**: Student leave application with approval workflow
+- **Permission requests**: Short-term permission with OTP verification
+- **Stay in Hostel requests**: Special requests for students to remain in hostel during specific dates
 - **QR code generation**: Secure QR codes for leave verification
-- **Status tracking**: Pending, Approved, Rejected, Completed states
+- **Status tracking**: Pending, Warden Recommended, Principal Approved/Rejected, Completed states
 - **Security integration**: Gate pass functionality for security staff
+- **Workflow management**: Warden recommendation → Principal approval for Stay in Hostel requests
 
 ### 🏛️ Warden Management
 - **Bulk outing management**: Create and manage bulk outing requests for multiple students
+- **Stay in Hostel requests**: Review and recommend student stay requests
 - **Student oversight**: Comprehensive student management with filtering and search capabilities
 - **Attendance management**: Take and view hostel attendance (morning/evening) for students, with dedicated UI for wardens and admins
 - **Attendance analytics**: View attendance records, filter by date/session, and monitor student presence
@@ -65,10 +70,18 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Student selection tools**: Multi-select functionality for bulk operations
 - **Enhanced notifications**: Real-time, creative notifications for all key events (complaints, announcements, polls, leaves, menu, attendance)
 
+### 🎓 Principal Management
+- **Stay in Hostel approval**: Review and approve/reject student stay requests
+- **Request oversight**: View all pending and recommended stay requests
+- **Attendance monitoring**: Access to attendance records and analytics
+- **Student management**: Comprehensive student oversight capabilities
+- **Dashboard analytics**: Principal-specific dashboard with relevant metrics
+- **Enhanced notifications**: Real-time notifications for stay request updates
+
 ### 🟢 Attendance Management (NEW)
-- **Role-based attendance**: Wardens and Admins can take and view attendance for hostel students (morning/evening sessions)
+- **Role-based attendance**: Wardens, Principals, and Admins can take and view attendance for hostel students (morning/evening sessions)
 - **Student attendance view**: Students can view their own attendance records and history
-- **Modular UI**: Dedicated attendance pages for Admin, Warden, and Student roles
+- **Modular UI**: Dedicated attendance pages for Admin, Warden, Principal, and Student roles
 - **Attendance analytics**: Track attendance trends and generate reports
 - **Real-time updates**: Attendance status updates reflected instantly for all roles
 
@@ -88,7 +101,8 @@ A comprehensive, full-stack web application for managing hostel operations inclu
   - Recent activity feeds
   - Long-pending complaint alerts
   - Poll and announcement widgets
-- **Warden dashboard**: Student oversight and bulk outing management
+- **Warden dashboard**: Student oversight, bulk outing management, and stay request review
+- **Principal dashboard**: Stay request approval and student oversight
 - **Student dashboard**: Personal complaint tracking, announcements, and polls
 - **Export capabilities**: PDF generation for reports and student lists
 
@@ -105,7 +119,7 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 
 ### For Super Admins
 - **Complete system access**: All features and admin management
-- **User management**: Create, edit, and manage sub-admins and wardens
+- **User management**: Create, edit, and manage sub-admins, wardens, and principals
 - **Permission control**: Granular permission assignment
 - **System monitoring**: Full analytics and system health
 
@@ -119,6 +133,7 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 ### For Wardens
 - **Student oversight**: Comprehensive student management and monitoring
 - **Bulk outing management**: Create and manage bulk outing requests
+- **Stay in Hostel requests**: Review and recommend student stay requests
 - **Attendance management**: Take and view attendance for hostel students (morning/evening)
 - **Attendance analytics**: View and filter attendance records
 - **Student filtering**: Advanced filtering by course, branch, gender, category, room
@@ -127,11 +142,19 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Bulk operations**: Multi-select functionality for student management
 - **Enhanced notifications**: Receive real-time, creative notifications for all key events
 
+### For Principals
+- **Stay in Hostel approval**: Review and approve/reject student stay requests
+- **Request oversight**: View all pending and recommended stay requests with filtering
+- **Attendance monitoring**: Access to attendance records and analytics
+- **Student management**: Comprehensive student oversight capabilities
+- **Dashboard analytics**: Principal-specific dashboard with relevant metrics
+- **Enhanced notifications**: Real-time notifications for stay request updates
+
 ### For Students
 - **Self-service portal**: Profile management and photo updates
 - **Complaint submission**: Category-based complaint creation
 - **Status tracking**: Real-time complaint progress monitoring
-- **Leave requests**: Application and approval tracking
+- **Leave requests**: Application and approval tracking for Leave, Permission, and Stay in Hostel
 - **Attendance view**: View personal attendance records and history
 - **Engagement**: Announcements, polls, and notifications
 
@@ -203,6 +226,13 @@ hostel-complaint-management/
 │   │   │   │   ├── WardenDashboard.jsx
 │   │   │   │   ├── TakeAttendance.jsx     # Warden: Take attendance
 │   │   │   │   ├── ViewAttendance.jsx     # Warden: View attendance
+│   │   │   │   ├── StayInHostelRequests.jsx # Warden: Review stay requests
+│   │   │   │   └── ...
+│   │   │   ├── principal/         # Principal dashboard pages
+│   │   │   │   ├── Dashboard.jsx
+│   │   │   │   ├── StayInHostelRequests.jsx # Principal: Approve stay requests
+│   │   │   │   ├── TakeAttendance.jsx      # Principal: Take attendance
+│   │   │   │   ├── ViewAttendance.jsx      # Principal: View attendance
 │   │   │   │   └── ...
 │   │   │   └── security/          # Security dashboard
 │   │   ├── context/               # React context providers
@@ -393,6 +423,8 @@ Based on the development roadmap:
 12. **Warden Notifications**: Real-time notifications for warden-specific events
 13. **Student Attendance**: Track student attendance and presence in hostel (ENHANCED)
 14. **Warden Reports**: Comprehensive reporting for warden activities
+15. **Stay in Hostel Analytics**: Enhanced reporting and analytics for stay requests
+16. **Principal Dashboard Enhancements**: More comprehensive principal oversight features
 
 ---
 

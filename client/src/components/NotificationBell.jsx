@@ -88,13 +88,26 @@ const NotificationBell = () => {
     fetchNotifications();
     checkPermissionStatus();
     setNotificationStatus(notificationManager.getStatus());
-    
+
+    // Set up polling for real-time updates
+    const pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
+
+    // Listen for push-triggered refresh
+    const handler = () => fetchNotifications();
+    window.addEventListener('refresh-notifications', handler);
+
     // Set up menu notification timer for students
+    let menuInterval;
     if (user?.role === 'student') {
       updateNextMealTime();
-      const interval = setInterval(updateNextMealTime, 60000); // Update every minute
-      return () => clearInterval(interval);
+      menuInterval = setInterval(updateNextMealTime, 60000); // Update every minute
     }
+
+    return () => {
+      clearInterval(pollInterval);
+      if (menuInterval) clearInterval(menuInterval);
+      window.removeEventListener('refresh-notifications', handler);
+    };
   }, [user]);
 
   // Auto-close notification panel after 7 seconds

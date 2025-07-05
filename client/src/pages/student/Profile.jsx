@@ -231,12 +231,14 @@ const Profile = () => {
   const getCourseName = (course) => {
     if (!course) return 'N/A';
     if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string' && course.length === 24) return 'N/A'; // likely ObjectId
     if (typeof course === 'string') return course;
     return 'N/A';
   };
   const getBranchName = (branch) => {
     if (!branch) return 'N/A';
     if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string' && branch.length === 24) return 'N/A'; // likely ObjectId
     if (typeof branch === 'string') return branch;
     return 'N/A';
   };
@@ -330,56 +332,8 @@ const Profile = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="flex-1">
                   <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Year</h3>
-                  {editing ? (
-                    <select
-                      value={year}
-                      onChange={(e) => setYear(e.target.value)}
-                      className="w-full mt-1 block pl-3 pr-10 py-2 text-sm sm:text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 rounded-md"
-                    >
-                      {Array.from(
-                        { length: user?.course === 'B.Tech' || user?.course === 'Pharmacy' ? 4 : 3 },
-                        (_, i) => i + 1
-                      ).map((y) => (
-                        <option key={y} value={y}>
-                          Year {y}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">Year {user?.year || 'Not specified'}</p>
-                  )}
+                  <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">Year {user?.year || 'Not specified'}</p>
                 </div>
-                {editing ? (
-                  <div className="flex gap-2 mt-2 sm:mt-0">
-                    <button
-                      onClick={() => {
-                        setYear(user?.year);
-                        setEditing(false);
-                      }}
-                      className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm text-gray-600 hover:text-gray-800"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleYearChange}
-                      disabled={saving || year === user?.year}
-                      className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm rounded-md ${
-                        saving || year === user?.year
-                          ? 'bg-gray-300 cursor-not-allowed'
-                          : 'bg-blue-600 text-white hover:bg-blue-700'
-                      }`}
-                    >
-                      {saving ? 'Saving...' : 'Save'}
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="text-blue-600 hover:text-blue-700 text-xs sm:text-sm font-medium mt-2 sm:mt-0"
-                  >
-                    Edit
-                  </button>
-                )}
               </div>
             </div>
           </div>
