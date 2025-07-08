@@ -405,7 +405,7 @@ class NotificationManager {
       
       const notificationData = {
         title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
-        message: `Check today's ${mealType} menu and rate your meal.`,
+        message: `🍽️ check out today's menu! Tap to see what's cooking.`,
         type: 'menu',
         mealType: mealType,
         url: '/student', // Redirect to student dashboard

@@ -9,55 +9,22 @@ import jsPDF from 'jspdf';
 import { UserIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
 
 const TimelineItem = ({ status, timestamp, note, assignedTo, isLast }) => (
-  <div className="relative flex gap-3">
-    {/* Timeline line */}
-    <div className="flex flex-col items-center">
-      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-        status === 'Resolved' ? 'bg-green-100 text-green-600' :
-        status === 'In Progress' ? 'bg-blue-100 text-blue-600' :
-        status === 'Pending' ? 'bg-yellow-100 text-yellow-600' :
-        'bg-gray-100 text-gray-600'
-      }`}>
-        {status === 'Resolved' ? (
-          <CheckCircleIcon className="w-4 h-4" />
-        ) : status === 'In Progress' ? (
-          <ClockIcon className="w-4 h-4" />
-        ) : status === 'Pending' ? (
-          <ExclamationCircleIcon className="w-4 h-4" />
-        ) : (
-          <UserIcon className="w-4 h-4" />
-        )}
-      </div>
-      {!isLast && (
-        <div className="w-0.5 h-full bg-gray-200 my-1" />
-      )}
+  <div className="group relative py-3 pl-8 sm:pl-32">
+    <div className="mb-1 flex flex-col items-start before:absolute before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 sm:flex-row sm:before:left-0 sm:before:ml-[6.5rem] sm:after:left-0 sm:after:ml-[6.5rem]">
+      <time className="left-0 mb-3 inline-flex h-6 w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase sm:absolute sm:mb-0">
+        {new Date(timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+      </time>
+      <div className="text-base sm:text-xl font-bold text-slate-900">{status}</div>
     </div>
-
-    {/* Content */}
-    <div className="flex-1 pb-4">
-      <div className="bg-white rounded-lg border border-gray-100 shadow-sm p-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-            status === 'Resolved' ? 'bg-green-100 text-green-800' :
-            status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-            status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {status}
-          </span>
-          <span className="text-xs text-gray-500">
-            {new Date(timestamp).toLocaleString()}
-          </span>
-        </div>
-        <p className="text-sm text-gray-700 mb-1">{note}</p>
-        {assignedTo && (
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            <UserIcon className="w-3 h-3" />
-            <span>Assigned to: {assignedTo.name}</span>
-          </div>
-        )}
+    {note && note.trim() && (
+      <div className="text-slate-500 text-sm mb-1">{note}</div>
+    )}
+    {assignedTo && (
+      <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+        <span>Assigned to: {assignedTo.name}</span>
+        {assignedTo.category && <span className="text-xs text-gray-500">({assignedTo.category})</span>}
       </div>
-    </div>
+    )}
   </div>
 );
 
@@ -194,6 +161,9 @@ const MyComplaints = () => {
           new Date(a.timestamp) - new Date(b.timestamp)
         );
         
+        console.log('Timeline data received:', sortedTimeline);
+        console.log('Timeline entries with notes:', sortedTimeline.filter(entry => entry.note));
+        
         setTimeline(sortedTimeline);
       } else {
         console.error('Invalid timeline data format:', res.data);
@@ -259,6 +229,30 @@ const MyComplaints = () => {
               : c
           )
         );
+
+        // Refresh timeline to show any status changes from feedback
+        try {
+          const timelineRes = await api.get(`/api/complaints/${selected._id}/timeline`);
+          if (timelineRes.data?.success && timelineRes.data.data) {
+            const { timeline: timelineData, currentAssignedTo } = timelineRes.data.data;
+            const sortedTimeline = timelineData.sort((a, b) => 
+              new Date(a.timestamp) - new Date(b.timestamp)
+            );
+            setTimeline(sortedTimeline);
+            
+            // Update selected complaint with new status if changed
+            if (timelineData.length > 0) {
+              const latestStatus = timelineData[timelineData.length - 1].status;
+              setSelected(prev => ({
+                ...prev,
+                currentStatus: latestStatus,
+                assignedTo: currentAssignedTo
+              }));
+            }
+          }
+        } catch (timelineError) {
+          console.error('Error refreshing timeline after feedback:', timelineError);
+        }
 
         toast.success('Feedback submitted successfully');
         setFeedback('');
@@ -544,7 +538,7 @@ const MyComplaints = () => {
 
                 <p className="text-gray-600 text-sm line-clamp-3 mb-4">{c.description}</p>
 
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
                   {c.feedback && (
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                       c.feedback.isSatisfied ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -552,12 +546,17 @@ const MyComplaints = () => {
                       {c.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}
                     </span>
                   )}
-                  
+                  {/* Show feedback required badge if resolved and feedback is missing */}
+                  {!c.feedback && c.currentStatus === 'Resolved' && (
+                    <span className="w-full sm:w-auto text-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse break-words sm:ml-2">
+                      Feedback required to close this complaint
+                    </span>
+                  )}
                   <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => openDetails(c)}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="mt-2 sm:mt-0 text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
                   >
                     View Details
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

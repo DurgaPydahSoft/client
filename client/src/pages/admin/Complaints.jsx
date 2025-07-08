@@ -8,6 +8,25 @@ import SEO from '../../components/SEO';
 
 const STATUS_OPTIONS = ['All', 'Received', 'Pending', 'In Progress', 'Resolved', 'Closed'];
 
+// Function to get valid next statuses based on current status
+const getValidNextStatuses = (currentStatus, isReopened = false) => {
+  switch (currentStatus) {
+    case 'Received':
+      return ['Pending', 'In Progress', 'Resolved'];
+    case 'Pending':
+      return ['In Progress', 'Resolved'];
+    case 'In Progress':
+      return ['Resolved'];
+    case 'Resolved':
+      // If reopened, can go back to Pending, otherwise can be Closed
+      return isReopened ? ['Pending'] : ['Closed'];
+    case 'Closed':
+      return []; // No further status changes allowed
+    default:
+      return ['Pending', 'In Progress', 'Resolved'];
+  }
+};
+
 const STATUS_COLORS = {
   'Received': 'bg-blue-100 text-blue-800',
   'Pending': 'bg-yellow-100 text-yellow-800',
@@ -115,9 +134,9 @@ const Complaints = () => {
     try {
       // Build query parameters
       const params = new URLSearchParams();
-      if (filterStatus !== 'All') params.append('status', filterStatus);
-      if (filterCategory !== 'All') params.append('category', filterCategory);
-      if (filterSubCategory !== 'All') params.append('subCategory', filterSubCategory);
+      if (filterStatus && filterStatus !== 'All') params.append('status', filterStatus);
+      if (filterCategory && filterCategory !== 'All') params.append('category', filterCategory);
+      if (filterSubCategory && filterSubCategory !== 'All' && filterCategory === 'Maintenance') params.append('subCategory', filterSubCategory);
       if (filterDateRange.from) params.append('fromDate', filterDateRange.from);
       if (filterDateRange.to) params.append('toDate', filterDateRange.to);
       if (searchQuery) params.append('search', searchQuery);
@@ -182,7 +201,8 @@ const Complaints = () => {
     }
 
     setSelected(complaint);
-    setStatus(complaint.currentStatus || 'Received');
+            const validNextStatuses = getValidNextStatuses(complaint.currentStatus, complaint.isReopened);
+        setStatus(validNextStatuses.length > 0 ? validNextStatuses[0] : '');
     setNote('');
     setSelectedMember(complaint.assignedTo?._id || '');
     setTimeline([]);
@@ -212,6 +232,10 @@ const Complaints = () => {
       
       // Sort timeline by date (oldest first)
       timelineData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+      
+      console.log('Admin timeline data received:', timelineData);
+      console.log('Admin timeline entries with notes:', timelineData.filter(entry => entry.note));
+      
       setTimeline(timelineData);
     } catch (err) {
       console.error('Error fetching timeline:', err);
@@ -269,10 +293,37 @@ const Complaints = () => {
 
       if (statusRes.data.success) {
         toast.success('Status updated successfully');
+        
         // Refresh the complaints list
         await fetchComplaints();
-        // Close the modal
-        setSelected(null);
+        
+        // Refresh the timeline for the current complaint
+        if (selected) {
+          try {
+            const timelineRes = await api.get(`/api/complaints/admin/${complaintId}/timeline`);
+            if (timelineRes.data?.success) {
+              const timelineData = Array.isArray(timelineRes.data.data) ? timelineRes.data.data : timelineRes.data.data?.timeline || [];
+              timelineData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+              setTimeline(timelineData);
+              
+              // Update the selected complaint with new status
+              setSelected(prev => ({
+                ...prev,
+                currentStatus: status,
+                assignedTo: status === 'In Progress'
+                  ? Object.values(members).flat().find(m => m._id === selectedMember)
+                  : null
+              }));
+            }
+          } catch (timelineError) {
+            console.error('Error refreshing timeline:', timelineError);
+          }
+        }
+        
+        // Keep modal open for 2 seconds to show updated timeline, then close
+        setTimeout(() => {
+          setSelected(null);
+        }, 2000);
       } else {
         throw new Error(statusRes.data.message || 'Failed to update status');
       }
@@ -852,49 +903,22 @@ const Complaints = () => {
               ) : (
                 <div className="space-y-4">
                   {timeline.map((t, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        {t.status === "Received" && (
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                          </svg>
-                        )}
-                        {t.status === "Pending" && (
-                          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
-                        {t.status === "In Progress" && (
-                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                          </svg>
-                        )}
-                        {t.status === "Resolved" && (
-                          <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
+                    <div key={i} className="group relative py-3 pl-8 sm:pl-32">
+                      <div className="mb-1 flex flex-col items-start before:absolute before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 sm:flex-row sm:before:left-0 sm:before:ml-[6.5rem] sm:after:left-0 sm:after:ml-[6.5rem]">
+                        <time className="left-0 mb-3 inline-flex h-6 w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase sm:absolute sm:mb-0">
+                          {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+                        </time>
+                        <div className="text-base sm:text-xl font-bold text-slate-900">{t.status}</div>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[t.status]}`}>
-                            {t.status}
-                          </span>
-                          <span className="text-sm text-gray-500">
-                            {new Date(t.timestamp).toLocaleString()}
-                          </span>
-                          {t.assignedTo && (
-                            <div className="flex items-center gap-1 text-sm text-gray-600">
-                              <UserIcon className="w-4 h-4" />
-                              <span>Assigned to: {t.assignedTo.name}</span>
-                              <span className="text-xs text-gray-500">({t.assignedTo.category})</span>
-                            </div>
-                          )}
+                      {t.note && t.note.trim() && (
+                        <div className="text-slate-500 text-sm mb-1">{t.note}</div>
+                      )}
+                      {t.assignedTo && (
+                        <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+                          <span>Assigned to: {t.assignedTo.name}</span>
+                          {t.assignedTo.category && <span className="text-xs text-gray-500">({t.assignedTo.category})</span>}
                         </div>
-                        {t.note && (
-                          <p className="mt-1 text-sm text-gray-600">{t.note}</p>
-                        )}
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -902,8 +926,38 @@ const Complaints = () => {
             </div>
 
             {/* Update Form */}
-            {!selected.isLockedForUpdates && (
+            {selected.currentStatus === 'Closed' && (
+              <div className="mt-6 border-t pt-6">
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                    <span className="text-sm font-medium text-gray-700">Complaint Closed</span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-600">
+                    This complaint has been closed and no further status updates are allowed.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
               <form className="space-y-4 mt-6 border-t pt-6" onSubmit={handleStatusUpdate}>
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium text-gray-700">Current Status:</span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                      {selected.currentStatus}
+                    </span>
+                    {selected.isReopened && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        🔄 Reopened
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-600">
+                    Available next statuses: {getValidNextStatuses(selected.currentStatus, selected.isReopened).join(', ')}
+                  </div>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Update Status</label>
                   <select 
@@ -912,7 +966,8 @@ const Complaints = () => {
                     onChange={e => setStatus(e.target.value)} 
                     required
                   >
-                    {STATUS_OPTIONS.filter(opt => opt !== 'All').map(opt => (
+                    <option value="">Select next status</option>
+                    {getValidNextStatuses(selected.currentStatus, selected.isReopened).map(opt => (
                       <option key={`status-${opt}`} value={opt}>{opt}</option>
                     ))}
                   </select>

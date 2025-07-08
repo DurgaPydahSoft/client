@@ -247,7 +247,7 @@ const MenuManagement = () => {
       const response = await api.post('/api/notifications/send-menu-all', {
         mealType,
         title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
-        message: `Check today's ${mealType} menu and rate your meal.`,
+        message: `🍽️ check out today's menu! Tap to see what's cooking.`,
         url: '/student'
       });
 
