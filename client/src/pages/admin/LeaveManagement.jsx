@@ -27,9 +27,11 @@ const LeaveManagement = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [activeTab, setActiveTab] = useState('leaves'); // 'leaves' or 'bulk-outings'
   const [filters, setFilters] = useState({
-    status: '',
+    status: 'Pending OTP Verification',
     applicationType: '',
-    page: 1
+    page: 1,
+    fromDate: '',
+    toDate: ''
   });
   const [expandedBulkOutings, setExpandedBulkOutings] = useState(new Set());
   const [loadingStudentDetails, setLoadingStudentDetails] = useState(new Set());
@@ -45,7 +47,12 @@ const LeaveManagement = () => {
   const fetchLeaves = async () => {
     try {
       console.log('Fetching leaves with filters:', filters);
-      const response = await api.get('/api/admin/leave/all', { params: filters });
+      const params = { ...filters };
+      if (!params.status) delete params.status;
+      if (!params.applicationType) delete params.applicationType;
+      if (!params.fromDate) delete params.fromDate;
+      if (!params.toDate) delete params.toDate;
+      const response = await api.get('/api/admin/leave/all', { params });
       console.log('Leave response:', response.data);
       if (response.data.success) {
         setLeaves(response.data.data.leaves);
@@ -68,7 +75,12 @@ const LeaveManagement = () => {
   const fetchBulkOutings = async () => {
     setBulkOutingsLoading(true);
     try {
-      const response = await api.get('/api/bulk-outing/admin', { params: filters });
+      const params = { ...filters };
+      if (!params.status) delete params.status;
+      if (!params.applicationType) delete params.applicationType;
+      if (!params.fromDate) delete params.fromDate;
+      if (!params.toDate) delete params.toDate;
+      const response = await api.get('/api/bulk-outing/admin', { params });
       if (response.data.success) {
         setBulkOutings(response.data.data.bulkOutings);
       }
@@ -245,6 +257,15 @@ const LeaveManagement = () => {
     });
   };
 
+  const handleTabSwitch = (tab) => {
+    setActiveTab(tab);
+    setFilters(f => ({
+      ...f,
+      status: tab === 'leaves' ? 'Pending OTP Verification' : '',
+      page: 1
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -256,10 +277,26 @@ const LeaveManagement = () => {
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-wrap items-center">
+            <label className="text-sm text-gray-600">From:</label>
+            <input
+              type="date"
+              value={filters.fromDate}
+              onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value, page: 1 }))}
+              className="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              style={{ minWidth: 120 }}
+            />
+            <label className="text-sm text-gray-600">To:</label>
+            <input
+              type="date"
+              value={filters.toDate}
+              onChange={e => setFilters(f => ({ ...f, toDate: e.target.value, page: 1 }))}
+              className="px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              style={{ minWidth: 120 }}
+            />
             <select
               value={filters.applicationType}
-              onChange={(e) => setFilters({ ...filters, applicationType: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Types</option>
@@ -268,7 +305,7 @@ const LeaveManagement = () => {
             </select>
             <select
               value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Status</option>
@@ -283,7 +320,7 @@ const LeaveManagement = () => {
         {/* Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
           <button
-            onClick={() => setActiveTab('leaves')}
+            onClick={() => handleTabSwitch('leaves')}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === 'leaves'
                 ? 'border-blue-500 text-blue-600'
@@ -293,7 +330,7 @@ const LeaveManagement = () => {
             Individual Requests
           </button>
           <button
-            onClick={() => setActiveTab('bulk-outings')}
+            onClick={() => handleTabSwitch('bulk-outings')}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               activeTab === 'bulk-outings'
                 ? 'border-blue-500 text-blue-600'
@@ -356,6 +393,11 @@ const LeaveManagement = () => {
                               <PhoneIcon className="w-4 h-4" />
                               <span>{leave.parentPhone || 'N/A'}</span>
                             </div>
+                            {leave.student?.gender && (
+                              <div className="flex items-center gap-1 text-sm text-gray-600">
+                                <span>Gender: {leave.student.gender === 'Male' ? 'Male' : 'Female'}</span>
+                              </div>
+                            )}
                           </div>
 
                           {/* Date/Time Information */}
@@ -621,13 +663,54 @@ const LeaveManagement = () => {
             <p className="text-sm text-gray-600 mb-4">
               Enter the OTP sent to the parent's phone number: {selectedLeave.parentPhone}
             </p>
-            <input
-              type="text"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              placeholder="Enter OTP"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4"
-            />
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-xs text-blue-700">
+                <strong>Note:</strong> The OTP (4 digits) was sent in both Telugu and English to the parent's phone.
+              </p>
+            </div>
+            {/* OTP Input Boxes */}
+            <div className="flex justify-center gap-2 mb-4">
+              {[0, 1, 2, 3].map((idx) => (
+                <input
+                  key={idx}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={otp[idx] || ''}
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    if (!val) return;
+                    const newOtp = otp.split('');
+                    newOtp[idx] = val;
+                    setOtp(newOtp.join('').slice(0, 4));
+                    // Auto-focus next
+                    const next = document.getElementById(`otp-input-${idx + 1}`);
+                    if (next && val) next.focus();
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace') {
+                      if (otp[idx]) {
+                        // Clear current digit only
+                        const newOtp = otp.split('');
+                        newOtp[idx] = '';
+                        setOtp(newOtp.join(''));
+                        e.preventDefault();
+                      } else if (idx > 0) {
+                        // Move focus to previous box
+                        const prev = document.getElementById(`otp-input-${idx - 1}`);
+                        if (prev) prev.focus();
+                      }
+                    }
+                  }}
+                  id={`otp-input-${idx}`}
+                  name={`otp-${idx}`}
+                  autoComplete="one-time-code"
+                  className="w-12 h-12 text-2xl text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  style={{ letterSpacing: '2px' }}
+                  autoFocus={idx === 0}
+                />
+              ))}
+            </div>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
@@ -641,6 +724,7 @@ const LeaveManagement = () => {
               <button
                 onClick={handleVerifyOTP}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                disabled={otp.length !== 4 || !/^[0-9]{4}$/.test(otp)}
               >
                 Verify & Approve
               </button>

@@ -58,6 +58,8 @@ const RoomManagement = () => {
   const [bulkMonth, setBulkMonth] = useState('');
   const [bulkRate, setBulkRate] = useState('');
   const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [roomStats, setRoomStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const fetchRooms = async () => {
     try {
@@ -97,6 +99,24 @@ const RoomManagement = () => {
     }
   };
 
+  const fetchRoomStats = async () => {
+    try {
+      console.log('📊 Fetching room stats');
+      const response = await api.get('/api/admin/rooms/stats');
+      console.log('📊 Room stats response:', response.data);
+      if (response.data.success) {
+        setRoomStats(response.data.data);
+      } else {
+        throw new Error('Failed to fetch room stats');
+      }
+    } catch (error) {
+      console.error('📊 Error fetching room stats:', error);
+      toast.error('Failed to fetch room statistics');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   const handleBulkBillChange = (roomId, field, value) => {
     setBulkBillData(prevData =>
       prevData.map(bill => {
@@ -110,6 +130,7 @@ const RoomManagement = () => {
 
   useEffect(() => {
     fetchRooms();
+    fetchRoomStats();
   }, [filters]);
 
   useEffect(() => {
@@ -635,6 +656,96 @@ const RoomManagement = () => {
           </button>
         </div>
       </div>
+
+      {/* Room Statistics */}
+      {!statsLoading && roomStats && viewMode === 'card' && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Room Statistics</h2>
+          
+          {/* Overall Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{roomStats.overall.totalRooms}</div>
+              <div className="text-sm text-gray-600">Total Rooms</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{roomStats.overall.activeRooms}</div>
+              <div className="text-sm text-gray-600">Active Rooms</div>
+            </div>
+            <div className="bg-purple-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">{roomStats.overall.totalBeds}</div>
+              <div className="text-sm text-gray-600">Total Beds</div>
+            </div>
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">{roomStats.overall.filledBeds}</div>
+              <div className="text-sm text-gray-600">Filled Beds</div>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="text-2xl font-bold text-gray-600">{roomStats.overall.availableBeds}</div>
+              <div className="text-sm text-gray-600">Available Beds</div>
+            </div>
+          </div>
+
+          {/* Bed Occupancy Rate */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-gray-700">Bed Occupancy Rate</span>
+              <span className="text-sm font-semibold text-gray-900">
+                {roomStats.overall.totalBeds > 0 
+                  ? Math.round((roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100)
+                  : 0}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ 
+                  width: `${roomStats.overall.totalBeds > 0 
+                    ? (roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100 
+                    : 0}%` 
+                }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Stats by Gender */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {roomStats.byGender.map((genderStat) => (
+              <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">{genderStat.gender} Students</h3>
+                
+                {/* Gender Summary */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-blue-600">{genderStat.totalBeds}</div>
+                    <div className="text-xs text-gray-600">Total Beds</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-green-600">{genderStat.filledBeds}</div>
+                    <div className="text-xs text-gray-600">Filled</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xl font-bold text-gray-600">{genderStat.availableBeds}</div>
+                    <div className="text-xs text-gray-600">Available</div>
+                  </div>
+                </div>
+
+                {/* Category Breakdown */}
+                <div className="space-y-2">
+                  {genderStat.categories.map((category) => (
+                    <div key={category.category} className="flex justify-between items-center text-sm">
+                      <span className="font-medium text-gray-700">Category {category.category}</span>
+                      <span className="text-gray-600">
+                        {category.filledBeds}/{category.totalBeds} beds
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6">

@@ -22,6 +22,7 @@ const Leave = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [qrModal, setQrModal] = useState({ open: false, leave: null });
   const [applicationType, setApplicationType] = useState('Leave');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Form data for Leave applications
   const [leaveFormData, setLeaveFormData] = useState({
@@ -84,6 +85,14 @@ const Leave = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
       let formData;
       if (applicationType === 'Leave') {
@@ -94,6 +103,7 @@ const Leave = () => {
 
         if (hours < 16 || (hours === 16 && minutes <= 30)) {
           toast.error('Gate Pass time must be after 4:30 PM.');
+          setIsSubmitting(false);
           return; // Stop submission
         }
         
@@ -118,7 +128,11 @@ const Leave = () => {
       console.log('Submit response:', response.data);
       
       if (response.data.success) {
-        toast.success(response.data.data.message || 'Request submitted successfully');
+        if (applicationType !== 'Stay in Hostel') {
+          toast.success('Request submitted successfully. OTP (4 digits) has been sent to your parent\'s phone in both Telugu and English.');
+        } else {
+          toast.success(response.data.data.message || 'Request submitted successfully');
+        }
         setShowRequestModal(false);
         resetFormData();
         fetchLeaves();
@@ -140,6 +154,8 @@ const Leave = () => {
       } else {
         toast.error(error.response?.data?.message || 'Failed to submit request');
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -160,6 +176,7 @@ const Leave = () => {
       stayDate: '',
       reason: ''
     });
+    setIsSubmitting(false);
   };
 
   const getStatusColor = (status) => {
@@ -579,10 +596,19 @@ const Leave = () => {
                       value={leaveFormData.reason}
                       onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
                       required
-                      rows="4"
+                      maxLength={100}
+                      rows="3"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your reason for leave"
+                      placeholder="Enter your reason for leave (max 100 characters)"
                     />
+                    <div className="flex justify-between items-center mt-1">
+                      <span className="text-xs text-gray-500">
+                        Keep it brief and specific
+                      </span>
+                      <span className={`text-xs ${leaveFormData.reason.length > 90 ? 'text-red-500' : 'text-gray-500'}`}>
+                        {leaveFormData.reason.length}/100
+                      </span>
+                    </div>
                   </div>
                 </>
               ) : applicationType === 'Permission' ? (
@@ -686,15 +712,25 @@ const Leave = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isSubmitting}
                   className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                    applicationType === 'Leave' 
+                    isSubmitting
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : applicationType === 'Leave' 
                       ? 'bg-blue-600 hover:bg-blue-700' 
                       : applicationType === 'Permission'
                       ? 'bg-purple-600 hover:bg-purple-700'
                       : 'bg-green-600 hover:bg-green-700'
                   }`}
                 >
-                  Submit Request
+                  {isSubmitting ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      Submitting...
+                    </div>
+                  ) : (
+                    'Submit Request'
+                  )}
                 </button>
               </div>
             </form>
