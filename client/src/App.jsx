@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedSection from './components/ProtectedSection';
 import React from 'react';
-import Profile from './pages/student/Profile';
 import { HelmetProvider } from 'react-helmet-async';
 import RouteLoading from './components/RouteLoading';
 import LeaveQRDetails from './pages/student/LeaveQRDetails';
@@ -13,7 +12,6 @@ import PushNotificationInitializer from './components/PushNotificationInitialize
 import MenuManagement from './pages/admin/MenuManagement';
 import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
-import MyAttendance from './pages/student/MyAttendance';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -25,6 +23,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 // Admin components
 const Students = lazy(() => import('./pages/admin/Students'));
 const Complaints = lazy(() => import('./pages/admin/Complaints'));
+const FoundLostManagement = lazy(() => import('./pages/admin/FoundLostManagement'));
 const Announcements = lazy(() => import('./pages/admin/Announcements'));
 const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
@@ -34,15 +33,13 @@ const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
 const MemberManagement = lazy(() => import('./pages/admin/MemberManagement'));
 const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
+const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 
 // Student components
-const RaiseComplaint = lazy(() => import('./pages/student/RaiseComplaint'));
-const MyComplaints = lazy(() => import('./pages/student/MyComplaints'));
-const Leave = lazy(() => import('./pages/student/Leave'));
-const StudentAnnouncements = lazy(() => import('./pages/student/Announcements'));
-const StudentNotifications = lazy(() => import('./pages/student/Notifications'));
-const Polls = lazy(() => import('./pages/student/Polls'));
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
+const ElectricityPayment = lazy(() => import('./pages/student/ElectricityPayment'));
+const PaymentHistory = lazy(() => import('./pages/student/PaymentHistory'));
+const PaymentStatus = lazy(() => import('./pages/student/PaymentStatus'));
 
 // Warden components
 const WardenHome = lazy(() => import('./pages/warden/WardenHome'));
@@ -51,6 +48,7 @@ const WardenViewAttendance = lazy(() => import('./pages/warden/ViewAttendance'))
 const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
 const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelRequests'));
+const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
 
 // Principal components
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
@@ -146,6 +144,7 @@ function App() {
                   <Complaints />
                 </ProtectedSection>
               } />
+              <Route path="foundlost" element={<FoundLostManagement />} />
               <Route path="announcements" element={
                 <ProtectedSection permission="announcement_management" sectionName="Announcements">
                   <Announcements />
@@ -174,6 +173,11 @@ function App() {
                   <Attendance />
                 </ProtectedSection>
               } />
+              <Route path="fee-management" element={
+                <ProtectedSection permission="fee_management" sectionName="Fee Management">
+                  <AdminFeeManagement />
+                </ProtectedSection>
+              } />
             </Route>
 
             {/* Protected warden routes */}
@@ -195,6 +199,7 @@ function App() {
               <Route path="bulk-outing" element={<BulkOuting />} />
               <Route path="notifications" element={<WardenNotifications />} />
               <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />
+              <Route path="fee-management" element={<WardenFeeManagement />} />
             </Route>
 
             {/* Protected principal routes */}
@@ -233,17 +238,25 @@ function App() {
                   <StudentDashboard />
                 </ProtectedRoute>
               }
-            >
-              <Route index element={<div>Welcome, Student! Select a feature from the sidebar.</div>} />
-              <Route path="raise" element={<RaiseComplaint />} />
-              <Route path="my-complaints" element={<MyComplaints />} />
-              <Route path="leave" element={<Leave />} />
-              <Route path="announcements" element={<StudentAnnouncements />} />
-              <Route path="notifications" element={<StudentNotifications />} />
-              <Route path="polls" element={<Polls />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="attendance" element={<MyAttendance />} />
-            </Route>
+            />
+            
+            {/* Student payment routes */}
+            <Route
+              path="/student/electricity-payment/:billId?"
+              element={
+                <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
+                  <ElectricityPayment />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/payment-status/:paymentId?"
+              element={
+                <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
+                  <PaymentStatus />
+                </ProtectedRoute>
+              }
+            />
             
             {/* 404 */}
             <Route path="*" element={<NotFound />} />

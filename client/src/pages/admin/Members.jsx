@@ -26,7 +26,7 @@ const Members = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/api/admin/members');
+      const res = await api.get('/api/members');
       if (res.data.success) {
         setMembers(res.data.data.members);
       } else {
@@ -49,7 +49,7 @@ const Members = () => {
     e.preventDefault();
     setAdding(true);
     try {
-      const response = await api.post('/api/admin/members', form);
+      const response = await api.post('/api/members', form);
       if (response.data.success) {
         toast.success('Member added successfully');
         setForm({ name: '', email: '', phone: '', category: '', subCategory: '' });
@@ -69,7 +69,7 @@ const Members = () => {
     if (!window.confirm('Delete this member?')) return;
     setDeletingId(id);
     try {
-      const response = await api.delete(`/api/admin/members/${id}`);
+      const response = await api.delete(`/api/members/${id}`);
       if (response.data.success) {
         toast.success('Member deleted successfully');
         fetchMembers();

@@ -12,6 +12,7 @@ import WardenHome from './WardenHome';
 import TakeAttendance from './TakeAttendance';
 import ViewAttendance from './ViewAttendance';
 import NotificationBell from '../../components/NotificationBell';
+import FeeManagement from './FeeManagement';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -96,6 +97,13 @@ const WardenDashboardLayout = () => {
       name: 'Stay in Hostel Requests',
       icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2 M12 12v3 M12 12a2 2 0 100-4 2 2 0 000 4z',
       path: '/warden/dashboard/stay-in-hostel-requests',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'Fee Management',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
+      path: '/warden/dashboard/fee-management',
       show: true,
       locked: false
     }

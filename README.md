@@ -35,6 +35,18 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Analytics dashboard**: Interactive charts, KPIs, and trend analysis
 - **Long-pending alerts**: Automatic identification of overdue complaints
 
+### 🤖 AI-Powered Complaint Routing (NEW)
+- **Smart assignment**: AI automatically assigns complaints to the most suitable staff members based on expertise and workload
+- **Category-based AI**: Enable/disable AI routing for specific complaint categories (Canteen, Internet, Maintenance, Others)
+- **Performance optimization**: AI considers member efficiency, current workload, and historical performance
+- **Auto-assignment**: Automatic member assignment with configurable thresholds and workload limits
+- **Real-time processing**: Instant AI processing when complaints are submitted
+- **Manual override**: Admins can manually trigger AI processing for existing complaints
+- **AI configuration panel**: Comprehensive settings for fine-tuning AI behavior
+- **Performance analytics**: Track AI processing success rates, average processing time, and total processed complaints
+- **Workload balancing**: Ensures fair distribution of complaints across available staff members
+- **Efficiency tracking**: Monitors member performance and adjusts assignments accordingly
+
 ### 👨‍💼 Member Management
 - **Category-based staff**: Assign staff members to specific complaint categories
 - **Performance tracking**: Member assignment heatmap with resolution rates
@@ -85,6 +97,18 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Attendance analytics**: Track attendance trends and generate reports
 - **Real-time updates**: Attendance status updates reflected instantly for all roles
 
+### 💰 Hostel Fee Reminder Module (NEW)
+- **Automated fee reminders**: Automatic reminder generation at 5, 90, and 210 days after student registration
+- **Term-wise fee tracking**: Track payment status for three terms (Term 1, Term 2, Term 3)
+- **Fee structure management**: Admin can set hostel fees per academic year and category (A+, A, B+, B, C)
+- **Dynamic fee calculation**: System automatically calculates term fees (40%, 30%, 30%) from total fee
+- **Payment status updates**: Real-time payment status tracking with visual indicators
+- **Fee statistics**: Comprehensive analytics showing paid, pending, and overdue amounts
+- **Student fee dashboard**: Students can view their fee status, payment history, and pending amounts
+- **Admin fee management**: Complete fee structure CRUD operations with category-based filtering
+- **Notification integration**: Fee reminders integrated with the notification system
+- **Fee total summary**: Visual progress indicators showing payment completion percentage
+
 ### 🔔 Advanced Notification System
 - **OneSignal integration**: Reliable push notifications for all platforms
 - **Real-time updates**: Socket.IO for instant notification delivery
@@ -122,13 +146,16 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **User management**: Create, edit, and manage sub-admins, wardens, and principals
 - **Permission control**: Granular permission assignment
 - **System monitoring**: Full analytics and system health
+- **Fee system oversight**: Complete fee structure management and fee reminder system administration
 
 ### For Sub Admins
 - **Assigned permissions**: Access only to authorized sections
 - **Student management**: Bulk upload, individual management, batch operations
-- **Complaint handling**: Assignment, status updates, resolution tracking
+- **Complaint handling**: Assignment, status updates, resolution tracking with AI-powered routing
+- **AI configuration**: Configure AI settings for complaint assignment and performance optimization
 - **Room management**: Room allocation, billing, student tracking
 - **Content management**: Announcements, polls, member assignments
+- **Fee management**: Complete fee structure management with category-based fee setting and fee reminder oversight
 
 ### For Wardens
 - **Student oversight**: Comprehensive student management and monitoring
@@ -156,6 +183,7 @@ A comprehensive, full-stack web application for managing hostel operations inclu
 - **Status tracking**: Real-time complaint progress monitoring
 - **Leave requests**: Application and approval tracking for Leave, Permission, and Stay in Hostel
 - **Attendance view**: View personal attendance records and history
+- **Hostel fee management**: View fee status, payment history, and pending amounts with visual progress indicators
 - **Engagement**: Announcements, polls, and notifications
 
 ---
@@ -205,6 +233,7 @@ hostel-complaint-management/
 │   │   │   ├── LoadingSpinner.jsx
 │   │   │   ├── NotificationBell.jsx
 │   │   │   ├── PushNotificationInitializer.jsx
+│   │   │   ├── AIConfigPanel.jsx   # AI configuration panel
 │   │   │   └── ...
 │   │   ├── pages/                  # Page components
 │   │   │   ├── admin/             # Admin dashboard pages
@@ -213,6 +242,7 @@ hostel-complaint-management/
 │   │   │   │   ├── Complaints.jsx
 │   │   │   │   ├── RoomManagement.jsx
 │   │   │   │   ├── LeaveManagement.jsx
+│   │   │   │   ├── FeeManagement.jsx       # Admin: Fee structure and reminder management
 │   │   │   │   ├── TakeAttendance.jsx      # Admin: Take attendance
 │   │   │   │   ├── ViewAttendance.jsx      # Admin: View attendance
 │   │   │   │   └── ...
@@ -221,6 +251,7 @@ hostel-complaint-management/
 │   │   │   │   ├── RaiseComplaint.jsx
 │   │   │   │   ├── Leave.jsx
 │   │   │   │   ├── MyAttendance.jsx        # Student: View own attendance
+│   │   │   │   ├── HostelFee.jsx           # Student: View fee status and payments
 │   │   │   │   └── ...
 │   │   │   ├── warden/            # Warden dashboard pages
 │   │   │   │   ├── WardenDashboard.jsx
@@ -253,6 +284,8 @@ hostel-complaint-management/
 │   │   │   ├── notificationController.js
 │   │   │   ├── wardenController.js
 │   │   │   ├── attendanceController.js    # Attendance controller (NEW)
+│   │   │   ├── feeReminderController.js   # Fee reminder controller (NEW)
+│   │   │   ├── feeStructureController.js  # Fee structure controller (NEW)
 │   │   │   └── ...
 │   │   ├── models/                # MongoDB models
 │   │   │   ├── User.js
@@ -262,6 +295,8 @@ hostel-complaint-management/
 │   │   │   ├── Notification.js
 │   │   │   ├── BulkOuting.js
 │   │   │   ├── Attendance.js             # Attendance model (NEW)
+│   │   │   ├── FeeReminder.js            # Fee reminder model (NEW)
+│   │   │   ├── FeeStructure.js           # Fee structure model (NEW)
 │   │   │   └── ...
 │   │   ├── routes/                # API routes
 │   │   │   ├── adminRoutes.js
@@ -269,6 +304,9 @@ hostel-complaint-management/
 │   │   │   ├── roomRoutes.js
 │   │   │   ├── wardenRoutes.js
 │   │   │   ├── attendanceRoutes.js       # Attendance routes (NEW)
+│   │   │   ├── feeReminderRoutes.js      # Fee reminder routes (NEW)
+│   │   │   ├── feeStructureRoutes.js     # Fee structure routes (NEW)
+│   │   │   ├── aiRoutes.js               # AI configuration routes (NEW)
 │   │   │   └── ...
 │   │   ├── middleware/            # Custom middleware
 │   │   │   └── authMiddleware.js
@@ -348,6 +386,12 @@ npm run dev
   - Username: `admin`
   - Password: `admin123`
 
+### 5. Configure AI Features (Optional)
+- Access the AI Configuration Panel from the Complaints page
+- Enable AI routing for specific complaint categories
+- Configure member efficiency thresholds and workload limits
+- Monitor AI performance through the analytics dashboard
+
 ---
 
 ## 🔧 Environment Configuration
@@ -405,7 +449,17 @@ npm run build
 
 ---
 
-## 📋 Upcoming Features
+## 📋 Recent Features & Upcoming Enhancements
+
+### ✅ Recently Implemented
+1. **🤖 AI-Powered Complaint Routing**: Smart complaint assignment with performance optimization
+2. **📊 Enhanced Analytics**: Comprehensive dashboard with real-time metrics and AI performance tracking
+3. **🟢 Attendance Management**: Role-based attendance tracking for all user types
+4. **💰 Hostel Fee Reminder Module**: Complete fee management system with automated reminders and term-wise tracking
+5. **🔔 Advanced Notifications**: Real-time push notifications with OneSignal integration
+6. **🎨 UI/UX Improvements**: Reduced font sizes in student dashboard sidebar for better space utilization
+
+### 🚧 Upcoming Features
 
 Based on the development roadmap:
 
@@ -425,6 +479,9 @@ Based on the development roadmap:
 14. **Warden Reports**: Comprehensive reporting for warden activities
 15. **Stay in Hostel Analytics**: Enhanced reporting and analytics for stay requests
 16. **Principal Dashboard Enhancements**: More comprehensive principal oversight features
+17. **Fee Payment Integration**: Online payment gateway integration for fee payments
+18. **Fee Reminder Automation**: Enhanced automated reminder scheduling and delivery
+19. **Fee Analytics Dashboard**: Advanced fee analytics with payment trends and forecasting
 
 ---
 

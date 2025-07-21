@@ -158,10 +158,11 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
   // Build analytics per member
   const memberStats = useMemo(() => {
     return members.map(member => {
+      const memberId = member._id || member.id;
+      
       // Get all complaints assigned to this specific member
       const assigned = complaints.filter(c => {
         if (!c.assignedTo) return false;
-        const memberId = member._id || member.id;
         const assignedToId = c.assignedTo._id || c.assignedTo.id;
         return memberId && assignedToId && memberId === assignedToId;
       });
@@ -169,6 +170,7 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
       // Calculate statistics for this member
     const resolved = assigned.filter(c => c.currentStatus === 'Resolved');
       const active = assigned.filter(c => c.currentStatus === 'In Progress');
+      const pending = assigned.filter(c => c.currentStatus === 'Pending');
     const rate = assigned.length ? ((resolved.length / assigned.length) * 100).toFixed(0) : '-';
       
     return {
@@ -178,8 +180,7 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
       resolved: resolved.length,
         active: active.length,
       rate,
-        // Add additional metrics
-        pending: assigned.filter(c => c.currentStatus === 'Pending').length,
+        pending: pending.length,
         reopened: assigned.filter(c => c.isReopened).length
     };
     }).sort((a, b) => b.assigned - a.assigned); // Sort by number of assignments
@@ -206,7 +207,14 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
           </tr>
         </thead>
             <tbody className="divide-y divide-gray-100">
-          {memberStats.map((m, i) => (
+          {memberStats.length === 0 ? (
+            <tr>
+              <td colSpan="7" className="px-3 py-4 text-center text-gray-500">
+                No members found
+              </td>
+            </tr>
+          ) : (
+            memberStats.map((m, i) => (
                 <tr key={i} className="hover:bg-green-50 transition-colors">
                   <td className="px-3 py-2 font-medium text-gray-900 sticky left-0 bg-white">{m.name}</td>
                   <td className="px-3 py-2 text-gray-600">{m.category}</td>
@@ -239,7 +247,8 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
                     {m.rate === '-' ? '-' : `${m.rate}%`}
                   </td>
             </tr>
-          ))}
+            ))
+          )}
         </tbody>
       </table>
         </div>
@@ -330,7 +339,7 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
 
   const fetchMembers = async () => {
     try {
-      const res = await api.get('/api/admin/members');
+      const res = await api.get('/api/members');
       if (!res.data.success) {
         throw new Error(res.data.message || 'Failed to load members data');
       }
@@ -834,7 +843,7 @@ const DashboardHome = () => {
           api.get('/api/admin/students/count'),
           api.get('/api/announcements/admin/all'),
           api.get('/api/polls/admin/all'),
-          api.get('/api/admin/members')
+          api.get('/api/members')
         ]);
 
         console.log('📊 API Responses:');

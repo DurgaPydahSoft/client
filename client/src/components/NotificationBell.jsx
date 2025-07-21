@@ -342,6 +342,8 @@ const NotificationBell = () => {
         return '📊';
       case 'leave':
         return '🏠';
+      case 'foundlost':
+        return '🔍';
       case 'system':
         return '🔔';
       default:

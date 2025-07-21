@@ -19,9 +19,9 @@ const TimelineItem = ({ status, timestamp, note, assignedTo, isLast }) => (
     {note && note.trim() && (
       <div className="text-slate-500 text-sm mb-1">{note}</div>
     )}
-    {assignedTo && (
+        {assignedTo && (
       <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-        <span>Assigned to: {assignedTo.name}</span>
+            <span>Assigned to: {assignedTo.name}</span>
         {assignedTo.category && <span className="text-xs text-gray-500">({assignedTo.category})</span>}
       </div>
     )}

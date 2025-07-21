@@ -45,7 +45,10 @@ api.interceptors.response.use(
                                   error.config?.url?.includes('/complaints/admin/all') ||
                                   error.config?.url?.includes('/api/menu/') ||
                                   error.config?.url?.includes('/api/menu/today') ||
-                                  error.config?.url?.includes('/api/menu/ratings/stats');
+                                  error.config?.url?.includes('/api/menu/ratings/stats') ||
+                                  error.config?.url?.includes('/api/payments/') ||
+                                  error.config?.url?.includes('/api/rooms/student/electricity-bills') ||
+                                  error.config?.url?.includes('/api/admin/rooms');
       
       if (isDashboardDataError) {
         console.log('🚨 Dashboard data error - not logging out, just logging error');

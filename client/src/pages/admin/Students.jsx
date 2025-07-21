@@ -29,9 +29,9 @@ const CATEGORIES = ['A+', 'A', 'B+', 'B'];
 const ROOM_NUMBERS = Array.from({ length: 11 }, (_, i) => (i + 30).toString());
 
 const TABS = [
-  { label: 'Add Student', value: 'add', icon: <UserPlusIcon className="w-5 h-5" /> },
-  { label: 'Bulk Upload', value: 'bulkUpload', icon: <ArrowUpTrayIcon className="w-5 h-5" /> },
   { label: 'All Students', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
+  { label: 'Bulk Upload', value: 'bulkUpload', icon: <ArrowUpTrayIcon className="w-5 h-5" /> },
+  { label: 'Add Student', value: 'add', icon: <UserPlusIcon className="w-5 h-5" /> },
 ];
 
 const initialForm = {
@@ -94,7 +94,7 @@ const generateAcademicYears = () => {
 };
 
 const Students = () => {
-  const [tab, setTab] = useState('add');
+  const [tab, setTab] = useState('list');
   const [form, setForm] = useState(initialForm);
   const [adding, setAdding] = useState(false);
   const [students, setStudents] = useState([]);
@@ -1237,10 +1237,10 @@ const Students = () => {
   };
 
   const renderAddStudentForm = () => (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
+    <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-blue-800">Add New Student</h2>
       <form onSubmit={handleAddStudent} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
             <input
@@ -3547,21 +3547,47 @@ const Students = () => {
 
   return (
     <div className="p-2 sm:p-4 md:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0">
-      <div className="flex flex-wrap gap-2 sm:gap-4 mb-4 sm:mb-6">
-        {TABS.map(t => (
-          <button
-            key={t.value}
-            className={`flex items-center space-x-2 px-2 sm:px-4 py-2 rounded-lg transition-all duration-200 text-sm sm:text-base ${
-              tab === t.value 
-              ? 'bg-blue-600 text-white shadow-lg scale-105' 
-              : 'bg-white text-gray-600 hover:bg-gray-50 shadow-md'
-            }`}
-            onClick={() => setTab(t.value)}
-          >
-            {t.icon}
-            <span>{t.label}</span>
-          </button>
-        ))}
+      {/* Enhanced Tab Navigation */}
+      <div className="mb-6 sm:mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 sm:p-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
+            {TABS.map(t => (
+              <button
+                key={t.value}
+                className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${
+                  tab === t.value 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105' 
+                    : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                }`}
+                onClick={() => setTab(t.value)}
+              >
+                {/* Active indicator */}
+                {tab === t.value && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg"></div>
+                )}
+                
+                {/* Content */}
+                <div className={`relative z-10 flex items-center space-x-2 ${
+                  tab === t.value ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
+                }`}>
+                  <div className={`transition-all duration-300 ${
+                    tab === t.value 
+                      ? 'text-white transform scale-110' 
+                      : 'text-gray-500 group-hover:text-blue-500 group-hover:scale-110'
+                  }`}>
+                    {t.icon}
+                  </div>
+                  <span className="font-medium">{t.label}</span>
+                </div>
+                
+                {/* Hover effect */}
+                {tab !== t.value && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {tab === 'add' && renderAddStudentForm()}

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { FunnelIcon, XMarkIcon, ClockIcon, UserIcon, CheckCircleIcon, ExclamationCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { FunnelIcon, XMarkIcon, ClockIcon, UserIcon, CheckCircleIcon, ExclamationCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon, CogIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useLocation } from 'react-router-dom';
 import SEO from '../../components/SEO';
+import AIConfigPanel from '../../components/AIConfigPanel';
 
 const STATUS_OPTIONS = ['All', 'Received', 'Pending', 'In Progress', 'Resolved', 'Closed'];
 
@@ -114,6 +115,16 @@ const Complaints = () => {
     pages: 0
   });
 
+  // AI configuration state
+  const [aiConfig, setAiConfig] = useState(null);
+  const [aiStats, setAiStats] = useState({
+    totalProcessed: 0,
+    averageProcessingTime: 0,
+    successRate: 0,
+    totalComplaints: 0
+  });
+  const [showAIConfig, setShowAIConfig] = useState(false);
+
   useEffect(() => {
     // Apply filters from navigation state if available
     if (location.state?.filters) {
@@ -126,6 +137,8 @@ const Complaints = () => {
     
     fetchComplaints();
     fetchMembers();
+    fetchAIConfig();
+    fetchAIStats();
   }, [location.state]);
 
   const fetchComplaints = async () => {
@@ -163,7 +176,7 @@ const Complaints = () => {
 
   const fetchMembers = async () => {
     try {
-      const res = await api.get('/api/admin/members');
+      const res = await api.get('/api/members');
       console.log('Members response:', res.data);
       
       if (!res.data.success) {
@@ -183,6 +196,80 @@ const Complaints = () => {
       console.error('Error fetching members:', err);
       toast.error(err.message || 'Failed to fetch members');
       setMembers({});
+    }
+  };
+
+  const fetchAIConfig = async () => {
+    try {
+      const response = await api.get('/api/complaints/admin/ai/config');
+      if (response.data.success) {
+        setAiConfig(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching AI config:', error);
+    }
+  };
+
+  const fetchAIStats = async () => {
+    try {
+      const response = await api.get('/api/complaints/admin/ai/stats');
+      if (response.data.success) {
+        setAiStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching AI stats:', error);
+    }
+  };
+
+  const quickAISetup = async () => {
+    try {
+      const response = await api.post('/api/complaints/admin/ai/quick-setup');
+      if (response.data.success) {
+        toast.success('AI enabled successfully!');
+        await fetchAIConfig();
+        await fetchAIStats();
+      }
+    } catch (error) {
+      console.error('Error enabling AI:', error);
+      toast.error('Failed to enable AI');
+    }
+  };
+
+  const toggleAI = async (enabled) => {
+    try {
+      const response = await api.post('/api/complaints/admin/ai/toggle', { enabled });
+      if (response.data.success) {
+        toast.success(`AI ${enabled ? 'enabled' : 'disabled'} successfully!`);
+        await fetchAIConfig();
+        await fetchAIStats();
+      }
+    } catch (error) {
+      console.error('Error toggling AI:', error);
+      toast.error(`Failed to ${enabled ? 'enable' : 'disable'} AI`);
+    }
+  };
+
+
+
+  const handleManualAIProcessing = async (complaintId) => {
+    try {
+      toast.loading('Processing with AI...');
+      const res = await api.post(`/api/complaints/admin/${complaintId}/ai-process`);
+      
+      if (res.data.success) {
+        toast.success('AI processing completed successfully!');
+        // Refresh the complaints list
+        await fetchComplaints();
+        // Close the modal
+        setSelected(null);
+      } else {
+        throw new Error(res.data.message || 'AI processing failed');
+      }
+    } catch (error) {
+      console.error('Error in manual AI processing:', error);
+      toast.error(error.response?.data?.message || 'AI processing failed');
+    } finally {
+      toast.dismiss();
     }
   };
 
@@ -322,7 +409,7 @@ const Complaints = () => {
         
         // Keep modal open for 2 seconds to show updated timeline, then close
         setTimeout(() => {
-          setSelected(null);
+        setSelected(null);
         }, 2000);
       } else {
         throw new Error(statusRes.data.message || 'Failed to update status');
@@ -644,6 +731,46 @@ const Complaints = () => {
                     {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length}
                   </span>
                 </div>
+
+                <div className="flex items-center gap-3">
+                  {/* AI Status Display */}
+                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border">
+                    <div className={`w-2 h-2 rounded-full ${aiConfig?.isEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                    <span className="text-sm font-medium text-gray-700">
+                      AI: {aiConfig?.isEnabled ? 'ON' : 'OFF'}
+                    </span>
+              </div>
+
+                  {/* AI Toggle Switch */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">AI Routing</span>
+                    <button
+                      onClick={() => toggleAI(!aiConfig?.isEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        aiConfig?.isEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          aiConfig?.isEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {/* AI Config Button */}
+                  {aiConfig?.isEnabled && (
+                    <button
+                      onClick={() => setShowAIConfig(true)}
+                      className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1.5 rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center gap-2"
+                    >
+                      <CogIcon className="w-4 h-4" />
+                      <span className="text-sm font-medium">Configure</span>
+                    </button>
+                  )}
+                  
+
+                </div>
               </div>
             </div>
           </div>
@@ -787,7 +914,18 @@ const Complaints = () => {
             </button>
 
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Complaint Details</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">Complaint Details</h2>
+                {selected.currentStatus === 'Received' && !selected.aiProcessed && (
+                  <button
+                    onClick={() => handleManualAIProcessing(selected._id)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2"
+                  >
+                    <CogIcon className="w-4 h-4" />
+                    Process with AI
+                  </button>
+                )}
+              </div>
               <p className="text-base text-gray-600">{selected.description}</p>
               {selected.imageUrl && (
                 <div className="mt-4">
@@ -913,12 +1051,12 @@ const Complaints = () => {
                       {t.note && t.note.trim() && (
                         <div className="text-slate-500 text-sm mb-1">{t.note}</div>
                       )}
-                      {t.assignedTo && (
+                          {t.assignedTo && (
                         <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-                          <span>Assigned to: {t.assignedTo.name}</span>
+                              <span>Assigned to: {t.assignedTo.name}</span>
                           {t.assignedTo.category && <span className="text-xs text-gray-500">({t.assignedTo.category})</span>}
-                        </div>
-                      )}
+                            </div>
+                          )}
                     </div>
                   ))}
                 </div>
@@ -1066,6 +1204,11 @@ const Complaints = () => {
         </div>
       )}
     </div>
+
+      {/* AI Configuration Modal */}
+      {showAIConfig && (
+        <AIConfigPanel onClose={() => setShowAIConfig(false)} />
+      )}
     </>
   );
 };

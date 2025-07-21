@@ -15,7 +15,10 @@ import {
   MegaphoneIcon,
   ChartBarIcon,
   UserIcon,
-  BoltIcon
+  BoltIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import RaiseComplaint from './RaiseComplaint';
 import MyComplaints from './MyComplaints';
@@ -28,6 +31,9 @@ import SEO from '../../components/SEO';
 import Leave from './Leave';
 import MealRating from '../../components/MealRating';
 import MyAttendance from './MyAttendance';
+import FoundLost from './FoundLost';
+import HostelFee from './HostelFee';
+import PaymentHistory from './PaymentHistory';
 
 const navItems = [
   {
@@ -58,6 +64,24 @@ const navItems = [
     name: "Leave",
     path: "leave",
     icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+    notificationType: null
+  },
+  {
+    name: "Found & Lost",
+    path: "foundlost",
+    icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+    notificationType: null
+  },
+  {
+    name: "Hostel Fee",
+    path: "hostel-fee",
+    icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1",
+    notificationType: 'fee_reminder'
+  },
+  {
+    name: "Payment History",
+    path: "payment-history",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
     notificationType: null
   },
   {
@@ -246,7 +270,7 @@ const StudentDashboardLayout = () => {
 
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="p-8 font-extrabold text-2xl tracking-wide flex items-center gap-2 flex-shrink-0"
+          className="p-6 font-bold text-xl tracking-wide flex items-center gap-2 flex-shrink-0"
         >
           <svg
             className="w-8 h-8 text-cyan-300"
@@ -277,9 +301,9 @@ const StudentDashboardLayout = () => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all duration-300 ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
                     isActive
-                      ? "bg-white/10 text-white shadow-lg font-bold"
+                      ? "bg-white/10 text-white shadow-lg font-semibold"
                       : "text-white/90 hover:bg-white/10 hover:text-white hover:shadow-md"
                   }`
                 }
@@ -340,7 +364,7 @@ const StudentDashboardLayout = () => {
               {user?.name?.charAt(0).toUpperCase()}
             </motion.div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white truncate">
+              <div className="text-xs font-semibold text-white truncate">
                 {user?.name}
               </div>
               <div className="text-xs text-cyan-200/90 truncate">
@@ -352,7 +376,7 @@ const StudentDashboardLayout = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md"
           >
             <svg
               className="w-5 h-5"
@@ -413,13 +437,25 @@ const DashboardHome = () => {
   const [announcements, setAnnouncements] = useState([]);
   const [electricityBills, setElectricityBills] = useState([]);
   const [showBillModal, setShowBillModal] = useState(false);
-  // Today's menu state
-  const [todaysMenu, setTodaysMenu] = useState(null);
-  const [loadingMenu, setLoadingMenu] = useState(true);
-  // Modal state for today's menu
   const [showMenuModal, setShowMenuModal] = useState(false);
+  const [todaysMenu, setTodaysMenu] = useState(null);
   const [modalMenu, setModalMenu] = useState(null);
+  const [loadingMenu, setLoadingMenu] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
+
+  // Function to refresh electricity bills data
+  const refreshElectricityBills = async () => {
+    try {
+      console.log('🔄 Refreshing electricity bills data...');
+      const billsRes = await api.get('/api/rooms/student/electricity-bills');
+      if (billsRes.data.success) {
+        setElectricityBills(billsRes.data.data);
+        console.log('✅ Electricity bills data refreshed:', billsRes.data.data);
+      }
+    } catch (err) {
+      console.error('❌ Error refreshing electricity bills:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -439,6 +475,33 @@ const DashboardHome = () => {
       }
     };
     fetchData();
+  }, []);
+
+  // Refresh bills data when component becomes visible (user returns from payment)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // User returned to the tab, refresh bills data
+        refreshElectricityBills();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Also refresh when user focuses on the window
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshElectricityBills();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   useEffect(() => {
@@ -562,6 +625,7 @@ const DashboardHome = () => {
             </svg>
             <span className="text-xs sm:text-sm">Today's Menu</span>
           </motion.button>
+
         </div>
       </div>
 
@@ -706,55 +770,147 @@ const DashboardHome = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Electricity Bills - Room {user?.roomNumber}</h2>
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
+                    <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Electricity Bills</h2>
+                    <p className="text-sm sm:text-base text-gray-600">Room {user?.roomNumber} • Manage your electricity payments</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={refreshElectricityBills}
+                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                    title="Refresh bills"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  </motion.button>
                 <button
                   onClick={() => setShowBillModal(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                    <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
+                </div>
               </div>
 
               {electricityBills.length === 0 ? (
-                <div className="text-center py-8">
-                  <BoltIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">No electricity bills found</p>
+                <div className="text-center py-8 sm:py-12">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                    <BoltIcon className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No Electricity Bills</h3>
+                  <p className="text-sm sm:text-base text-gray-500">You don't have any electricity bills yet.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm border">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="px-4 py-2 border">Month</th>
-                        <th className="px-4 py-2 border">Start Units</th>
-                        <th className="px-4 py-2 border">End Units</th>
-                        <th className="px-4 py-2 border">Consumption</th>
-                        <th className="px-4 py-2 border">Rate/Unit</th>
-                        <th className="px-4 py-2 border">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                <div className="space-y-3 sm:space-y-4">
                       {electricityBills.map((bill, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 border">{bill.month}</td>
-                          <td className="px-4 py-2 border">{bill.startUnits}</td>
-                          <td className="px-4 py-2 border">{bill.endUnits}</td>
-                          <td className="px-4 py-2 border">{bill.consumption !== undefined ? bill.consumption : bill.endUnits - bill.startUnits}</td>
-                          <td className="px-4 py-2 border">₹{bill.rate}</td>
-                          <td className="px-4 py-2 border">₹{bill.total}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    <motion.div
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.1 }}
+                      className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300"
+                    >
+                      {/* Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Electricity Bill</h3>
+                            <p className="text-xs sm:text-sm text-gray-600">Room {user?.roomNumber} • {bill.month}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Status Badge */}
+                        <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
+                          bill.paymentStatus === 'paid' 
+                            ? 'text-green-700 bg-green-100 border border-green-200' 
+                            : bill.paymentStatus === 'pending'
+                            ? 'text-yellow-700 bg-yellow-100 border border-yellow-200'
+                            : 'text-red-700 bg-red-100 border border-red-200'
+                        }`}>
+                          {bill.paymentStatus === 'paid' ? (
+                            <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          ) : bill.paymentStatus === 'pending' ? (
+                            <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          ) : (
+                            <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          )}
+                          {bill.paymentStatus === 'paid' ? 'Paid' : bill.paymentStatus === 'pending' ? 'Pending' : 'Unpaid'}
+                        </span>
+                      </div>
+
+                      {/* Bill Details Grid */}
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                        <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
+                          <p className="text-xs text-gray-500 mb-1">Start Units</p>
+                          <p className="text-sm sm:text-lg font-semibold text-gray-900">{bill.startUnits}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
+                          <p className="text-xs text-gray-500 mb-1">End Units</p>
+                          <p className="text-sm sm:text-lg font-semibold text-gray-900">{bill.endUnits}</p>
+                        </div>
+                        <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
+                          <p className="text-xs text-gray-500 mb-1">Consumption</p>
+                          <p className="text-sm sm:text-lg font-semibold text-blue-600">
+                            {bill.consumption !== undefined ? bill.consumption : bill.endUnits - bill.startUnits} units
+                          </p>
+                        </div>
+                        <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
+                          <p className="text-xs text-gray-500 mb-1">Rate/Unit</p>
+                          <p className="text-sm sm:text-lg font-semibold text-gray-900">₹{bill.rate}</p>
+                        </div>
+                      </div>
+
+                      {/* Total Amount and Actions */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 sm:pt-4 border-t border-yellow-200 gap-3">
+                        <div>
+                          <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Amount</p>
+                          <p className="text-xl sm:text-2xl font-bold text-yellow-700">₹{bill.total}</p>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                          {bill.paymentStatus === 'paid' && bill.paidAt && (
+                            <div className="text-center sm:text-right">
+                              <p className="text-xs text-gray-500">Paid on</p>
+                              <p className="text-xs sm:text-sm font-medium text-green-700">
+                                {new Date(bill.paidAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          )}
+                          
+                          {bill.paymentStatus !== 'paid' && (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => window.location.href = `/student/electricity-payment/${bill._id}`}
+                              className="px-4 sm:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base"
+                            >
+                              Pay Now
+                            </motion.button>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               )}
             </motion.div>
@@ -862,10 +1018,13 @@ const StudentDashboard = () => (
       <Route index element={<DashboardHome />} />
       <Route path="raise" element={<RaiseComplaint />} />
       <Route path="my-complaints" element={<MyComplaints />} />
-        <Route path="leave" element={<Leave />} />
+      <Route path="leave" element={<Leave />} />
+      <Route path="foundlost" element={<FoundLost />} />
+      <Route path="hostel-fee" element={<HostelFee />} />
+      <Route path="payment-history" element={<PaymentHistory />} />
       <Route path="announcements" element={<Announcements />} />
       <Route path="polls" element={<Polls />} />
-        <Route path="profile" element={<Profile />} />
+      <Route path="profile" element={<Profile />} />
       <Route path="attendance" element={<MyAttendance />} />
     </Route>
   </Routes>

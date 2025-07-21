@@ -39,7 +39,7 @@ const MemberManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/api/admin/members');
+      const res = await api.get('/api/members');
       if (res.data.success) {
         setMembers(res.data.data.members);
         // Set first category as selected by default if none selected
@@ -68,7 +68,7 @@ const MemberManagement = () => {
     }
 
     try {
-      const res = await api.post('/api/admin/members', formData);
+      const res = await api.post('/api/members', formData);
       if (res.data.success) {
         toast.success(res.data.message);
         setShowAddModal(false);
@@ -95,7 +95,7 @@ const MemberManagement = () => {
     }
 
     try {
-      const res = await api.put(`/api/admin/members/${selectedMember.id}`, formData);
+      const res = await api.put(`/api/members/${selectedMember.id}`, formData);
       if (res.data.success) {
         toast.success('Member updated successfully');
         setShowEditModal(false);
@@ -120,7 +120,7 @@ const MemberManagement = () => {
     if (!window.confirm('Are you sure you want to delete this member?')) return;
 
     try {
-      const res = await api.delete(`/api/admin/members/${memberId}`);
+      const res = await api.delete(`/api/members/${memberId}`);
       if (res.data.success) {
         toast.success('Member deleted successfully');
         fetchMembers();

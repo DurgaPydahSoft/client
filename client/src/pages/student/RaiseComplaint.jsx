@@ -32,6 +32,7 @@ const RaiseComplaint = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [aiProcessing, setAiProcessing] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -101,6 +102,14 @@ const RaiseComplaint = () => {
       });
       
       if (response.data.success) {
+        if (response.data.data.aiProcessing) {
+          // Show AI processing state
+          setAiProcessing(true);
+          toast.success('Complaint submitted! AI is finding the best person to help you...');
+          
+          // Poll for AI completion
+          pollAIProcessing(response.data.data._id);
+        } else {
         toast.success('Complaint submitted successfully');
         setForm({ category: '', subCategory: '', description: '' });
         setImage(null);
@@ -113,6 +122,7 @@ const RaiseComplaint = () => {
         setTimeout(() => {
           navigate('/student/my-complaints');
         }, 1000);
+        }
       }
     } catch (err) {
       console.error('Error submitting complaint:', err);
@@ -130,6 +140,25 @@ const RaiseComplaint = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const pollAIProcessing = async (complaintId) => {
+    const interval = setInterval(async () => {
+      try {
+        const response = await api.get(`/api/complaints/${complaintId}`);
+        if (response.data.data.aiProcessed) {
+          clearInterval(interval);
+          setAiProcessing(false);
+          toast.success('Complaint assigned! Check your complaints for updates.');
+          navigate('/student/my-complaints');
+        }
+      } catch (error) {
+        clearInterval(interval);
+        setAiProcessing(false);
+        toast.error('AI processing failed. Admin will handle manually.');
+        navigate('/student/my-complaints');
+      }
+    }, 2000); // Poll every 2 seconds
   };
 
   return (
@@ -314,6 +343,19 @@ const RaiseComplaint = () => {
           </div>
         </div>
       </motion.div>
+
+      {/* AI Processing Overlay */}
+      {aiProcessing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 text-center max-w-md mx-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-lg font-semibold mb-2">AI Processing Your Request</h3>
+            <p className="text-gray-600">
+              Please wait, we are processing your request and finding the best person to resolve your issue...
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
