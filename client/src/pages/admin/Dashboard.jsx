@@ -7,7 +7,9 @@ import {
   Bars3Icon,
   XMarkIcon,
   LockClosedIcon,
-  ShieldExclamationIcon
+  ShieldExclamationIcon,
+  ChevronDownIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import ComplaintList from './ComplaintList';
 import MemberManagement from './MemberManagement';
@@ -19,6 +21,9 @@ import LeaveManagement from "./LeaveManagement";
 import MenuManagement from './MenuManagement';
 import Attendance from './Attendance';
 import FeeManagement from './FeeManagement';
+import FeatureControls from './FeatureControls';
+import RoomManagement from './RoomManagement';
+import ElectricityBills from './ElectricityBills';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -66,6 +71,7 @@ const AdminDashboard = () => {
     announcement: false,
     poll: false
   });
+  const [expandedMenus, setExpandedMenus] = useState({});
   const { pathname } = useLocation();
   
   const handleLogout = () => {
@@ -73,9 +79,24 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
-  // Close sidebar when route changes
+  const toggleSubmenu = (menuName) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuName]: !prev[menuName]
+    }));
+  };
+
+  // Close sidebar when route changes and auto-expand submenus
   useEffect(() => {
     setIsSidebarOpen(false);
+    
+    // Auto-expand Rooms submenu if on rooms-related pages
+    if (pathname.startsWith('/admin/dashboard/rooms')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Rooms': true
+      }));
+    }
   }, [pathname]);
 
   useEffect(() => {
@@ -156,7 +177,20 @@ const AdminDashboard = () => {
       icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
       path: '/admin/dashboard/rooms',
       show: true,
-      locked: !hasPermission('room_management')
+      locked: !hasPermission('room_management'),
+      hasSubmenu: true,
+      submenu: [
+        {
+          name: 'Room Management',
+          path: '/admin/dashboard/rooms/management',
+          icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4'
+        },
+        {
+          name: 'Electricity Bills',
+          path: '/admin/dashboard/rooms/electricity',
+          icon: 'M13 10V3L4 14h7v7l9-11h-7z'
+        }
+      ]
     },
     {
       name: 'Students',
@@ -234,6 +268,13 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/attendance',
       show: true,
       locked: !hasPermission('attendance_management')
+    },
+    {
+      name: 'Feature Controls',
+      icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
+      path: '/admin/dashboard/feature-controls',
+      show: true,
+      locked: false
     }
   ];
 
@@ -340,8 +381,84 @@ const AdminDashboard = () => {
                     </div>
                     <span className="flex-1 text-sm font-normal">{item.name}</span>
                   </div>
+                ) : item.hasSubmenu ? (
+                  // Submenu item
+                  <div>
+                    <button
+                      onClick={() => toggleSubmenu(item.name)}
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
+                        pathname.startsWith(item.path)
+                          ? "bg-blue-50 text-blue-700 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d={item.icon}
+                          />
+                        </svg>
+                        <span>{item.name}</span>
+                      </div>
+                      {expandedMenus[item.name] ? (
+                        <ChevronDownIcon className="w-4 h-4" />
+                      ) : (
+                        <ChevronRightIcon className="w-4 h-4" />
+                      )}
+                    </button>
+                    
+                    {/* Submenu items */}
+                    <AnimatePresence>
+                      {expandedMenus[item.name] && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="ml-6 mt-1 space-y-1"
+                        >
+                          {item.submenu.map((subItem, subIndex) => (
+                            <NavLink
+                              key={subItem.name}
+                              to={subItem.path}
+                              className={({ isActive }) =>
+                                `flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-normal transition-all duration-300 ${
+                                  isActive
+                                    ? "bg-blue-50 text-blue-700 shadow-sm"
+                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                }`
+                              }
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d={subItem.icon}
+                                />
+                              </svg>
+                              <span>{subItem.name}</span>
+                            </NavLink>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 ) : (
-                  // Active item - normal NavLink
+                  // Regular item - normal NavLink
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
@@ -463,6 +580,9 @@ const AdminDashboardLayout = () => (
     <Route path="menu" element={<MenuManagement />} />
     <Route path="attendance" element={<Attendance />} />
     <Route path="fee-management" element={<FeeManagement />} />
+    <Route path="feature-controls" element={<FeatureControls />} />
+    <Route path="rooms/management" element={<RoomManagement />} />
+    <Route path="rooms/electricity" element={<ElectricityBills />} />
   </Routes>
 );
 

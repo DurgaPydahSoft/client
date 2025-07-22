@@ -53,11 +53,6 @@ const RoomManagement = () => {
   const [editBillPreview, setEditBillPreview] = useState(null);
   const [realTimePreview, setRealTimePreview] = useState(null);
   const [editRealTimePreview, setEditRealTimePreview] = useState(null);
-  const [viewMode, setViewMode] = useState('card'); // 'card' or 'table'
-  const [bulkBillData, setBulkBillData] = useState([]);
-  const [bulkMonth, setBulkMonth] = useState('');
-  const [bulkRate, setBulkRate] = useState('');
-  const [isSavingBulk, setIsSavingBulk] = useState(false);
   const [roomStats, setRoomStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -65,8 +60,7 @@ const RoomManagement = () => {
     try {
       console.log('🏠 Fetching rooms with filters:', filters);
       const params = {
-        ...filters,
-        includeLastBill: true // Always fetch last bill for bulk mode
+        ...filters
       };
       const response = await api.get('/api/admin/rooms', { params });
       console.log('🏠 Rooms response:', response.data);
@@ -74,18 +68,7 @@ const RoomManagement = () => {
         const fetchedRooms = response.data.data.rooms || [];
         setRooms(fetchedRooms);
 
-        // Initialize bulk billing data
-        const bulkData = fetchedRooms.map(room => ({
-          roomId: room._id,
-          roomNumber: room.roomNumber,
-          gender: room.gender,
-          category: room.category,
-          startUnits: room.lastBill?.endUnits || '',
-          endUnits: '',
-          rate: '',
-          isEdited: false
-        }));
-        setBulkBillData(bulkData);
+
 
       } else {
         throw new Error('Failed to fetch rooms');
@@ -117,16 +100,7 @@ const RoomManagement = () => {
     }
   };
 
-  const handleBulkBillChange = (roomId, field, value) => {
-    setBulkBillData(prevData =>
-      prevData.map(bill => {
-        if (bill.roomId === roomId) {
-          return { ...bill, [field]: value, isEdited: true };
-        }
-        return bill;
-      })
-    );
-  };
+
 
   useEffect(() => {
     fetchRooms();
@@ -568,49 +542,7 @@ const RoomManagement = () => {
     }));
   };
 
-  const handleSaveBulkBills = async () => {
-    if (!bulkMonth) {
-      toast.error('Please select a billing month.');
-      return;
-    }
 
-    const billsToSave = bulkBillData.filter(bill => bill.isEdited && bill.endUnits && (Number(bill.endUnits) >= Number(bill.startUnits)));
-
-    if (billsToSave.length === 0) {
-      toast.error('No valid bills to save. Please enter end units for at least one room.');
-      return;
-    }
-
-    setIsSavingBulk(true);
-    try {
-      const payload = {
-        month: bulkMonth,
-        bills: billsToSave.map(b => ({
-          roomId: b.roomId,
-          startUnits: Number(b.startUnits),
-          endUnits: Number(b.endUnits),
-          rate: b.rate !== '' ? Number(b.rate) : undefined,
-        }))
-      };
-
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/rooms/bulk-electricity-bills`, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      toast.success(`${billsToSave.length} bills saved successfully!`);
-      
-      // Refetch rooms to update last bill info
-      fetchRooms();
-
-    } catch (error) {
-      console.error('Error saving bulk bills:', error);
-      toast.error(error.response?.data?.message || 'Failed to save bulk bills.');
-    } finally {
-      setIsSavingBulk(false);
-    }
-  };
 
   if (loading) return <LoadingSpinner />;
 
@@ -633,32 +565,10 @@ const RoomManagement = () => {
         </button>
       </div>
 
-      {/* View Mode Toggle */}
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
-          <button
-            onClick={() => setViewMode('card')}
-            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${
-              viewMode === 'card' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'
-            }`}
-          >
-            <Squares2X2Icon className="w-5 h-5 inline-block mr-1" />
-            Card View
-          </button>
-          <button
-            onClick={() => setViewMode('table')}
-            className={`px-3 py-1 text-sm font-semibold rounded-md transition-colors ${
-              viewMode === 'table' ? 'bg-white text-blue-600 shadow' : 'text-gray-600'
-            }`}
-          >
-            <TableCellsIcon className="w-5 h-5 inline-block mr-1" />
-            Bulk Billing
-          </button>
-        </div>
-      </div>
+
 
       {/* Room Statistics */}
-      {!statsLoading && roomStats && viewMode === 'card' && (
+      {!statsLoading && roomStats && (
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Room Statistics</h2>
           
@@ -805,210 +715,108 @@ const RoomManagement = () => {
         </div>
       </div>
 
-      {viewMode === 'card' ? (
-        // Card View (Existing layout)
-        <div className="space-y-8">
-          {Object.entries(groupedRooms).map(([key, rooms]) => {
-            const [gender, category] = key.split('-');
-            return (
-              <div key={key} className="space-y-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {gender} - Category {category}
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rooms.map((room) => (
-                    <motion.div
-                      key={room._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div
-                          className="flex-1 cursor-pointer"
-                          onClick={() => handleRoomClick(room)}
+      {/* Room Management Table */}
+      <div className="space-y-8">
+        {Object.entries(groupedRooms).map(([key, rooms]) => {
+          const [gender, category] = key.split('-');
+          return (
+            <div key={key} className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {gender} - Category {category}
+              </h2>
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Room Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Bed Count
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Students
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {rooms.map((room) => (
+                        <motion.tr
+                          key={room._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="hover:bg-gray-50 transition-colors"
                         >
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            Room {room.roomNumber}
-                          </h3>
-                          <p className="text-sm text-gray-500">
-                            {room.studentCount || 0} Students
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-2 items-end">
-                          <button
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
-                          >
-                            <PencilIcon className="w-5 h-5" />
-                          </button>
-                          <button
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
-                          >
-                            <TrashIcon className="w-5 h-5" />
-                          </button>
-                          <button
-                            className="w-full sm:w-auto mt-2 sm:mt-0 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm font-semibold"
-                            onClick={(e) => { e.stopPropagation(); openBillModal(room); }}
-                          >
-                            Electricity Bill
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <BuildingOfficeIcon className="w-5 h-5" />
-                        <span>{room.isActive ? 'Active' : 'Inactive'}</span>
-                        <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">Beds: {room.bedCount}</span>
-                      </div>
-                    </motion.div>
-                  ))}
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div
+                              className="cursor-pointer"
+                              onClick={() => handleRoomClick(room)}
+                            >
+                              <div className="text-sm font-semibold text-gray-900">
+                                Room {room.roomNumber}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <BuildingOfficeIcon className="w-4 h-4 text-gray-400" />
+                              <span className={`text-sm px-2 py-1 rounded-full ${
+                                room.isActive 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {room.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                              {room.bedCount} Beds
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <UserGroupIcon className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-900">
+                                {room.studentCount || 0} Students
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <button
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
+                                title="Edit Room"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
+                                title="Delete Room"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        // Table View for Bulk Billing
-        <div className="bg-white rounded-xl shadow-sm p-4">
-          <h2 className="text-xl font-bold mb-4">Bulk Electricity Billing</h2>
-          
-          {/* Global Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Billing Month</label>
-              <input 
-                type="month" 
-                value={bulkMonth}
-                onChange={(e) => setBulkMonth(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Default Rate/Unit</label>
-              <input 
-                type="number" 
-                placeholder="e.g., 5"
-                value={bulkRate}
-                onChange={(e) => setBulkRate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={handleSaveBulkBills}
-                disabled={isSavingBulk}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
-              >
-                {isSavingBulk ? 'Saving...' : 'Save All Bills'}
-              </button>
-            </div>
-          </div>
-
-          {/* Billing Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Units</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Units</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consumption</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {bulkBillData
-                  .filter(bill => {
-                    if (filters.gender && bill.gender !== filters.gender) return false;
-                    if (filters.category && bill.category !== filters.category) return false;
-                    return true;
-                  })
-                  .map(bill => {
-                    const room = rooms.find(r => r._id === bill.roomId);
-                    const existingBill = bulkMonth ? room?.electricityBills.find(b => b.month === bulkMonth) : null;
-                    const isAlreadyBilled = !!existingBill;
-
-                    let startUnits, endUnits, rate, consumption, total, isValid;
-
-                    if (isAlreadyBilled) {
-                      startUnits = existingBill.startUnits;
-                      endUnits = existingBill.endUnits;
-                      rate = existingBill.rate;
-                      consumption = existingBill.consumption;
-                      total = existingBill.total;
-                      isValid = true;
-                    } else {
-                      startUnits = Number(bill.startUnits) || 0;
-                      endUnits = Number(bill.endUnits) || 0;
-                      rate = Number(bill.rate) || Number(bulkRate) || 5;
-                      
-                      isValid = endUnits >= startUnits;
-
-                      if (isValid) {
-                        consumption = endUnits - startUnits;
-                        total = consumption * rate;
-                      } else {
-                        consumption = 0;
-                        total = 0;
-                      }
-                    }
-
-                    return (
-                      <tr key={bill.roomId} className={`${isAlreadyBilled ? 'bg-green-100' : (bill.isEdited ? 'bg-blue-50' : '')}`}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {bill.roomNumber}
-                          <div className="flex items-center mt-1">
-                            <span className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</span>
-                            {isAlreadyBilled && (
-                              <span className="ml-2 px-2 py-0.5 text-xs text-white bg-green-600 rounded-full">Billed</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <input
-                            type="number"
-                            value={isAlreadyBilled ? startUnits : bill.startUnits}
-                            onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
-                            disabled={isAlreadyBilled}
-                            className="w-24 p-1 border border-gray-300 rounded disabled:bg-gray-200"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <input
-                            type="number"
-                            placeholder="New reading"
-                            value={isAlreadyBilled ? endUnits : bill.endUnits}
-                            onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                            disabled={isAlreadyBilled}
-                            className={`w-24 p-1 border rounded ${!isValid && !isAlreadyBilled ? 'border-red-500' : 'border-gray-300'} disabled:bg-gray-200`}
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          <input
-                            type="number"
-                            placeholder={bulkRate || 'Default'}
-                            value={isAlreadyBilled ? rate : bill.rate}
-                            onChange={(e) => handleBulkBillChange(bill.roomId, 'rate', e.target.value)}
-                            disabled={isAlreadyBilled}
-                            className="w-20 p-1 border border-gray-300 rounded disabled:bg-gray-200"
-                          />
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm ${!isValid && !isAlreadyBilled ? 'text-red-500' : 'text-gray-900'}`}>
-                          {isValid ? consumption : 'Invalid'}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${!isValid && !isAlreadyBilled ? 'text-red-500' : 'text-green-600'}`}>
-                          ₹{isValid ? total.toFixed(2) : '0.00'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {/* Add Room Modal */}
       <AnimatePresence>

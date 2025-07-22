@@ -29,11 +29,13 @@ const Notifications = lazy(() => import('./pages/admin/Notifications'));
 const DashboardHome = lazy(() => import('./pages/admin/DashboardHome'));
 const PollManagement = lazy(() => import('./pages/admin/PollManagement'));
 const RoomManagement = lazy(() => import('./pages/admin/RoomManagement'));
+const ElectricityBills = lazy(() => import('./pages/admin/ElectricityBills'));
 const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
 const MemberManagement = lazy(() => import('./pages/admin/MemberManagement'));
 const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
+const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
@@ -124,11 +126,17 @@ function App() {
               }
             >
               <Route index element={<DashboardHome />} />
-              <Route path="rooms" element={
+              <Route path="rooms/management" element={
                 <ProtectedSection permission="room_management" sectionName="Room Management">
                   <RoomManagement />
                 </ProtectedSection>
               } />
+              <Route path="rooms/electricity" element={
+                <ProtectedSection permission="room_management" sectionName="Electricity Bills">
+                  <ElectricityBills />
+                </ProtectedSection>
+              } />
+              <Route path="rooms" element={<Navigate to="/admin/dashboard/rooms/management" replace />} />
               <Route path="students" element={
                 <ProtectedSection permission="student_management" sectionName="Student Management">
                   <Students />
@@ -178,6 +186,7 @@ function App() {
                   <AdminFeeManagement />
                 </ProtectedSection>
               } />
+              <Route path="feature-controls" element={<FeatureControls />} />
             </Route>
 
             {/* Protected warden routes */}

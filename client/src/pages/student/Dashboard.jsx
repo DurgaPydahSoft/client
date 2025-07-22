@@ -34,81 +34,93 @@ import MyAttendance from './MyAttendance';
 import FoundLost from './FoundLost';
 import HostelFee from './HostelFee';
 import PaymentHistory from './PaymentHistory';
+import useFeatureToggles from '../../hooks/useFeatureToggles';
+import FeatureProtectedRoute from '../../components/FeatureProtectedRoute';
 
 const navItems = [
   {
     name: "Overview",
     path: "/student",
+    feature: "overview",
     icon: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     notificationType: null
   },
   {
     name: "Raise Complaint",
     path: "raise",
+    feature: "raiseComplaint",
     icon: "M12 6v6m0 0v6m0-6h6m-6 0H6",
     notificationType: null
   },
   {
     name: "My Complaints",
     path: "my-complaints",
+    feature: "myComplaints",
     icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
     notificationType: 'complaint'
   },
   {
     name: 'Attendance',
     path: 'attendance',
+    feature: "attendance",
     icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
     notificationType: null
   },
   {
     name: "Leave",
     path: "leave",
+    feature: "leave",
     icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     notificationType: null
   },
   {
     name: "Found & Lost",
     path: "foundlost",
+    feature: "foundLost",
     icon: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
     notificationType: null
   },
   {
     name: "Hostel Fee",
     path: "hostel-fee",
+    feature: "hostelFee",
     icon: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1",
     notificationType: 'fee_reminder'
   },
   {
     name: "Payment History",
     path: "payment-history",
+    feature: "paymentHistory",
     icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
     notificationType: null
   },
   {
     name: "Announcements",
     path: "announcements",
+    feature: "announcements",
     icon: "M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z",
     notificationType: 'announcement'
   },
   {
     name: "Polls",
     path: "polls",
+    feature: "polls",
     icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
     notificationType: 'poll'
   },
-  
   {
     name: 'Profile',
     path: 'profile',
+    feature: "profile",
     icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
     notificationType: null
   }
-  
 ];
 
 const StudentDashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { isFeatureEnabled, loading: featureLoading, featureToggles } = useFeatureToggles();
   const [metrics, setMetrics] = useState({
     totalComplaints: 0,
     resolved: 0,
@@ -228,6 +240,18 @@ const StudentDashboardLayout = () => {
     );
   }
 
+  // Show loading state while feature toggles are being fetched
+  if (featureLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading features...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50 overflow-hidden">
       {/* Mobile Menu Button */}
@@ -291,7 +315,9 @@ const StudentDashboardLayout = () => {
         </motion.div>
 
         <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
-          {navItems.map((item, index) => (
+          {navItems
+            .filter(item => !item.feature || isFeatureEnabled(item.feature))
+            .map((item, index) => (
             <motion.div
               key={item.path}
               initial={{ x: -20, opacity: 0 }}
@@ -1016,16 +1042,56 @@ const StudentDashboard = () => (
   <Routes>
     <Route element={<StudentDashboardLayout />}>
       <Route index element={<DashboardHome />} />
-      <Route path="raise" element={<RaiseComplaint />} />
-      <Route path="my-complaints" element={<MyComplaints />} />
-      <Route path="leave" element={<Leave />} />
-      <Route path="foundlost" element={<FoundLost />} />
-      <Route path="hostel-fee" element={<HostelFee />} />
-      <Route path="payment-history" element={<PaymentHistory />} />
-      <Route path="announcements" element={<Announcements />} />
-      <Route path="polls" element={<Polls />} />
-      <Route path="profile" element={<Profile />} />
-      <Route path="attendance" element={<MyAttendance />} />
+      <Route path="raise" element={
+        <FeatureProtectedRoute feature="raiseComplaint">
+          <RaiseComplaint />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="my-complaints" element={
+        <FeatureProtectedRoute feature="myComplaints">
+          <MyComplaints />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="leave" element={
+        <FeatureProtectedRoute feature="leave">
+          <Leave />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="foundlost" element={
+        <FeatureProtectedRoute feature="foundLost">
+          <FoundLost />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="hostel-fee" element={
+        <FeatureProtectedRoute feature="hostelFee">
+          <HostelFee />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="payment-history" element={
+        <FeatureProtectedRoute feature="paymentHistory">
+          <PaymentHistory />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="announcements" element={
+        <FeatureProtectedRoute feature="announcements">
+          <Announcements />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="polls" element={
+        <FeatureProtectedRoute feature="polls">
+          <Polls />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="profile" element={
+        <FeatureProtectedRoute feature="profile">
+          <Profile />
+        </FeatureProtectedRoute>
+      } />
+      <Route path="attendance" element={
+        <FeatureProtectedRoute feature="attendance">
+          <MyAttendance />
+        </FeatureProtectedRoute>
+      } />
     </Route>
   </Routes>
   </>

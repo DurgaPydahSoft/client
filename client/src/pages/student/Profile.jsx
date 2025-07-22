@@ -303,6 +303,10 @@ const Profile = () => {
               <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.rollNumber}</p>
             </div>
             <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Hostel ID</h3>
+              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.hostelId || 'Not assigned'}</p>
+            </div>
+            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
               <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Course</h3>
               <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{getCourseName(user?.course)}</p>
             </div>
