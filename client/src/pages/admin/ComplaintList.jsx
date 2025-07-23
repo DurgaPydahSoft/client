@@ -31,7 +31,7 @@ const ComplaintList = () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get('/api/complaints');
+      const res = await api.get('/api/complaints/admin/all');
       if (res.data.success) {
         setComplaints(res.data.data.complaints);
       }
@@ -51,7 +51,15 @@ const ComplaintList = () => {
     try {
       const res = await api.get('/api/members');
       if (res.data.success) {
-        setMembers(res.data.data.members);
+        // Group members by category
+        const groupedMembers = res.data.data.members.reduce((acc, member) => {
+          if (!acc[member.category]) {
+            acc[member.category] = [];
+          }
+          acc[member.category].push(member);
+          return acc;
+        }, {});
+        setMembers(groupedMembers);
       }
     } catch (err) {
       console.error('Error fetching members:', err);
@@ -65,7 +73,7 @@ const ComplaintList = () => {
 
   const handleStatusChange = async (complaintId, newStatus) => {
     try {
-      const res = await api.put(`/api/complaints/${complaintId}/status`, {
+      const res = await api.put(`/api/complaints/admin/${complaintId}/status`, {
         status: newStatus
       });
       if (res.data.success) {
@@ -84,8 +92,10 @@ const ComplaintList = () => {
 
   const handleAssignMember = async (complaintId, memberId) => {
     try {
-      const res = await api.put(`/api/complaints/${complaintId}/assign`, {
-        memberId
+      const res = await api.put(`/api/complaints/admin/${complaintId}/status`, {
+        status: 'In Progress',
+        memberId: memberId,
+        note: 'Member assigned to complaint'
       });
       if (res.data.success) {
         toast.success('Member assigned successfully');
@@ -208,11 +218,11 @@ const ComplaintList = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                          complaint.status
+                          complaint.currentStatus
                         )}`}
                       >
-                        {getStatusIcon(complaint.status)}
-                        <span className="ml-1">{complaint.status}</span>
+                        {getStatusIcon(complaint.currentStatus)}
+                        <span className="ml-1">{complaint.currentStatus}</span>
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -259,6 +269,26 @@ const ComplaintList = () => {
                       >
                         <td colSpan="6" className="px-6 py-4">
                           <div className="space-y-4">
+                            {/* Student Details */}
+                            <div>
+                              <h4 className="text-sm font-medium text-gray-900 mb-2">
+                                Student Details
+                              </h4>
+                              <div className="bg-gray-50 p-3 rounded-lg">
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">Name:</span> {complaint.student.name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">Roll No:</span> {complaint.student.rollNumber}
+                                </p>
+                                {complaint.student.studentPhone && (
+                                  <p className="text-sm text-gray-600">
+                                    <span className="font-medium">Phone:</span> {complaint.student.studentPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
                             <div>
                               <h4 className="text-sm font-medium text-gray-900 mb-2">
                                 Full Description
@@ -269,7 +299,7 @@ const ComplaintList = () => {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
-                              {complaint.status !== 'Resolved' && (
+                              {complaint.currentStatus !== 'Resolved' && (
                                 <button
                                   onClick={() => handleStatusChange(complaint._id, 'Resolved')}
                                   className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -278,7 +308,7 @@ const ComplaintList = () => {
                                   Mark as Resolved
                                 </button>
                               )}
-                              {complaint.status !== 'Rejected' && (
+                              {complaint.currentStatus !== 'Rejected' && (
                                 <button
                                   onClick={() => handleStatusChange(complaint._id, 'Rejected')}
                                   className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -287,7 +317,7 @@ const ComplaintList = () => {
                                   Reject
                                 </button>
                               )}
-                              {complaint.status === 'Pending' && (
+                              {complaint.currentStatus === 'Pending' && (
                                 <button
                                   onClick={() => handleStatusChange(complaint._id, 'In Progress')}
                                   className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

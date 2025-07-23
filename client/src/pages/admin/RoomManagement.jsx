@@ -716,14 +716,14 @@ const RoomManagement = () => {
       </div>
 
       {/* Room Management Table */}
-      <div className="space-y-8">
-        {Object.entries(groupedRooms).map(([key, rooms]) => {
-          const [gender, category] = key.split('-');
-          return (
-            <div key={key} className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {gender} - Category {category}
-              </h2>
+        <div className="space-y-8">
+          {Object.entries(groupedRooms).map(([key, rooms]) => {
+            const [gender, category] = key.split('-');
+            return (
+              <div key={key} className="space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {gender} - Category {category}
+                </h2>
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -747,20 +747,20 @@ const RoomManagement = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {rooms.map((room) => (
+                  {rooms.map((room) => (
                         <motion.tr
-                          key={room._id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
+                      key={room._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
                           className="hover:bg-gray-50 transition-colors"
-                        >
+                    >
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div
+                        <div
                               className="cursor-pointer"
-                              onClick={() => handleRoomClick(room)}
-                            >
+                          onClick={() => handleRoomClick(room)}
+                        >
                               <div className="text-sm font-semibold text-gray-900">
-                                Room {room.roomNumber}
+                            Room {room.roomNumber}
                               </div>
                             </div>
                           </td>
@@ -785,38 +785,38 @@ const RoomManagement = () => {
                             <div className="flex items-center gap-2">
                               <UserGroupIcon className="w-4 h-4 text-gray-400" />
                               <span className="text-sm text-gray-900">
-                                {room.studentCount || 0} Students
+                            {room.studentCount || 0} Students
                               </span>
-                            </div>
+                        </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                              <button
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
+                          <button
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
                                 title="Edit Room"
-                              >
+                          >
                                 <PencilIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
+                          </button>
+                          <button
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
                                 title="Delete Room"
-                              >
+                          >
                                 <TrashIcon className="w-4 h-4" />
-                              </button>
-                            </div>
+                          </button>
+                        </div>
                           </td>
                         </motion.tr>
-                      ))}
+                  ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+        </div>
+                    );
+                  })}
+          </div>
 
       {/* Add Room Modal */}
       <AnimatePresence>

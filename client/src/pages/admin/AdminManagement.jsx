@@ -92,14 +92,20 @@ const AdminManagement = () => {
         api.get('/api/admin-management/principals')
       ]);
       
+      console.log('🔍 Admin data responses:', {
+        subAdmins: subAdminsRes.data,
+        wardens: wardensRes.data,
+        principals: principalsRes.data
+      });
+      
       if (subAdminsRes.data.success) {
-        setSubAdmins(subAdminsRes.data.data);
+        setSubAdmins(subAdminsRes.data.data || []);
       }
       if (wardensRes.data.success) {
-        setWardens(wardensRes.data.data);
+        setWardens(wardensRes.data.data || []);
       }
       if (principalsRes.data.success) {
-        setPrincipals(principalsRes.data.data);
+        setPrincipals(principalsRes.data.data || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -258,7 +264,7 @@ const AdminManagement = () => {
     setFormData({
       username: admin.username,
       password: '',
-      permissions: admin.permissions,
+      permissions: admin.permissions || [],
       hostelType: admin.hostelType || '',
       course: admin.course?._id || admin.course || ''
     });
@@ -425,7 +431,7 @@ const AdminManagement = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {currentData.map((admin) => (
+            {currentData.filter(admin => admin && admin._id).map((admin) => (
               <div key={admin._id} className="p-6 hover:bg-gray-50 transition-colors">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1">
@@ -444,7 +450,7 @@ const AdminManagement = () => {
                     </div>
                     {!isWardenTab && !isPrincipalTab && (
                       <div className="flex flex-wrap gap-2">
-                        {admin.permissions.map(permission => (
+                        {admin.permissions && admin.permissions.map(permission => (
                           <span key={permission} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
                             {PERMISSIONS.find(p => p.id === permission)?.label || permission}
                           </span>

@@ -949,8 +949,8 @@ const Complaints = () => {
                 </div>
                 <p className="text-base text-gray-600">{selected.student?.name}</p>
                 <p className="text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
-                {selected.student?.phone && (
-                  <p className="text-sm text-gray-500">Phone: {selected.student.phone}</p>
+                {selected.student?.studentPhone && (
+                  <p className="text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
                 )}
               </div>
 

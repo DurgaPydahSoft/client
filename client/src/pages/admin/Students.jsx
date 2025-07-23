@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -64,6 +64,29 @@ const BATCHES = [
   '2030-2034'
 ];
 
+// Helper to normalize course names for frontend matching (same as backend)
+const normalizeCourseName = (courseName) => {
+  if (!courseName) return courseName;
+  
+  const courseUpper = courseName.toUpperCase();
+  
+  // Map common variations to database names
+  if (courseUpper === 'BTECH' || courseUpper === 'B.TECH' || courseUpper === 'B TECH') {
+    return 'B.Tech';
+  }
+  if (courseUpper === 'DIPLOMA') {
+    return 'Diploma';
+  }
+  if (courseUpper === 'PHARMACY') {
+    return 'Pharmacy';
+  }
+  if (courseUpper === 'DEGREE') {
+    return 'Degree';
+  }
+  
+  return courseName; // Return original if no mapping found
+};
+
 // Add function to generate batches based on course duration
 const generateBatches = (courseId, courses) => {
   const startFromYear = 2022; // Fixed start year
@@ -122,6 +145,7 @@ const Students = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [courseCounts, setCourseCounts] = useState({});
   const [generatedPassword, setGeneratedPassword] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
@@ -141,6 +165,9 @@ const Students = () => {
   // Email service status
   const [emailServiceStatus, setEmailServiceStatus] = useState(null);
   const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
+  
+  // Temp students gender filter
+  const [tempStudentsGenderFilter, setTempStudentsGenderFilter] = useState('all');
 
   // Photo upload states
   const [studentPhoto, setStudentPhoto] = useState(null);
@@ -182,6 +209,14 @@ const Students = () => {
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+  // Room availability states
+  const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [showRoomViewModal, setShowRoomViewModal] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [roomStudents, setRoomStudents] = useState([]);
+  const [loadingRoomStudents, setLoadingRoomStudents] = useState(false);
+
   // Dynamic course and branch data
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -204,6 +239,7 @@ const Students = () => {
     try {
       const res = await api.get('/api/admin/students/temp-summary');
       if (res.data.success) {
+        console.log('Temp students data:', res.data.data);
         setTempStudentsSummary(res.data.data);
       } else {
         toast.error('Failed to fetch temporary students summary.');
@@ -212,6 +248,30 @@ const Students = () => {
       toast.error(err.response?.data?.message || 'Error fetching temporary students summary.');
     } finally {
       setLoadingTempSummary(false);
+    }
+  };
+
+  // Fetch total course counts
+  const fetchCourseCounts = async () => {
+    try {
+      const params = new URLSearchParams();
+      
+      // Add filters only if they have values (excluding search and pagination)
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.batch) params.append('batch', filters.batch);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
+
+      const res = await api.get(`/api/admin/students/course-counts?${params}`);
+      if (res.data.success) {
+        setCourseCounts(res.data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching course counts:', err);
     }
   };
 
@@ -304,6 +364,55 @@ const Students = () => {
     return branch ? branch.name : '';
   };
 
+  // Fetch rooms with bed availability
+  const fetchRoomsWithAvailability = async (gender, category) => {
+    if (!gender || !category) {
+      setRoomsWithAvailability([]);
+      return;
+    }
+
+    setLoadingRooms(true);
+    try {
+      const params = new URLSearchParams({
+        gender: gender,
+        category: category
+      });
+      
+      const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
+      if (res.data.success) {
+        setRoomsWithAvailability(res.data.data.rooms || []);
+      } else {
+        console.error('Failed to fetch rooms with availability:', res.data.message);
+        toast.error('Failed to fetch room availability');
+      }
+    } catch (err) {
+      console.error('Error fetching rooms with availability:', err);
+      toast.error('Error fetching room availability');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  // Handle room view modal
+  const handleRoomView = async (room) => {
+    setSelectedRoom(room);
+    setLoadingRoomStudents(true);
+    try {
+      const response = await api.get(`/api/admin/rooms/${room._id}/students`);
+      if (response.data.success) {
+        setRoomStudents(response.data.data.students);
+      } else {
+        throw new Error('Failed to fetch students');
+      }
+    } catch (error) {
+      console.error('Error fetching room students:', error);
+      toast.error('Failed to fetch student details');
+    } finally {
+      setLoadingRoomStudents(false);
+      setShowRoomViewModal(true);
+    }
+  };
+
   const fetchStudents = useCallback(async (initialLoad = false) => {
     if (initialLoad) {
       setLoading(true);
@@ -357,6 +466,7 @@ const Students = () => {
   useEffect(() => {
     if (tab === 'list') {
       fetchStudents(true); // Pass true for initialLoad to use setLoading
+      fetchCourseCounts(); // Fetch course counts
     } else if (tab === 'bulkUpload') {
       fetchTempStudentsSummary();
     }
@@ -375,6 +485,15 @@ const Students = () => {
       console.log('📋 Available branches:', branches.map(b => `${b.name} (${b.code})`));
     }
   }, [branches]);
+
+  // Fetch rooms with availability when gender or category changes
+  useEffect(() => {
+    if (form.gender && form.category) {
+      fetchRoomsWithAvailability(form.gender, form.category);
+    } else {
+      setRoomsWithAvailability([]);
+    }
+  }, [form.gender, form.category]);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
@@ -888,21 +1007,40 @@ const Students = () => {
   };
 
   const handleConfirmBulkUpload = async () => {
-    const hasErrors = previewErrors.some(errors => Object.keys(errors).length > 0);
-    if (hasErrors) {
-      toast.error('Please fix all validation errors before confirming.');
+    if (!editablePreviewData || editablePreviewData.length === 0) {
+      toast.error('No students to upload.');
       return;
     }
 
-    if (!editablePreviewData || editablePreviewData.length === 0) {
-      toast.error('No valid students to upload.');
+    // Filter out rows with errors
+    const validStudents = editablePreviewData.filter((_, index) => 
+      !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
+    );
+    
+    const invalidCount = editablePreviewData.length - validStudents.length;
+    
+    if (validStudents.length === 0) {
+      toast.error('No valid students to upload. Please fix the errors or remove invalid rows.');
       return;
+    }
+
+    // Show warning if some rows will be skipped
+    if (invalidCount > 0) {
+      const shouldProceed = window.confirm(
+        `${invalidCount} row(s) have validation errors and will be skipped.\n\n` +
+        `Only ${validStudents.length} valid student(s) will be uploaded.\n\n` +
+        `Do you want to proceed with the upload?`
+      );
+      
+      if (!shouldProceed) {
+        return;
+      }
     }
     setBulkProcessing(true);
     setBulkUploadResults(null);
 
     try {
-      const res = await api.post('/api/admin/students/bulk-upload-commit', { students: editablePreviewData });
+      const res = await api.post('/api/admin/students/bulk-upload-commit', { students: validStudents });
       if (res.data.success) {
         const { successCount, failureCount, emailResults } = res.data.data;
         
@@ -982,9 +1120,21 @@ const Students = () => {
   };
 
   const getCategoryOptions = (gender) => {
-    return gender === 'Male' 
-      ? ['A+', 'A', 'B+', 'B']
-      : ['A+', 'A', 'B', 'C'];
+    // Case-insensitive gender handling
+    if (!gender) return ['A+', 'A', 'B+', 'B', 'C'];
+    
+    const genderUpper = gender.toUpperCase();
+    const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
+    const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
+    
+    if (isMale) {
+      return ['A+', 'A', 'B+', 'B'];
+    } else if (isFemale) {
+      return ['A+', 'A', 'B', 'C'];
+    } else {
+      // Default to all categories if gender is not recognized
+      return ['A+', 'A', 'B+', 'B', 'C'];
+    }
   };
 
   const validateStudentRow = (student) => {
@@ -995,56 +1145,126 @@ const Students = () => {
     if (!RollNumber) errors.RollNumber = 'Roll number is required.';
   
     if (!Gender) errors.Gender = 'Gender is required.';
-    else if (!['Male', 'Female'].includes(Gender)) errors.Gender = 'Invalid gender.';
+    else {
+      // Case-insensitive gender validation
+      const genderUpper = Gender.toUpperCase();
+      if (!['MALE', 'FEMALE', 'M', 'F', 'BOY', 'GIRL'].includes(genderUpper)) {
+        errors.Gender = 'Invalid gender. Must be Male/Female/M/F/Boy/Girl.';
+      }
+    }
   
     if (!Course) errors.Course = 'Course is required.';
     else {
-      // For bulk upload, Course might be a name string, so we need to find the course by name
-      const course = courses.find(c => c.name === Course || c._id === Course);
-      if (!course) errors.Course = 'Invalid course selected.';
+      // Normalize course name for validation (same as backend)
+      const normalizedCourse = normalizeCourseName(Course);
+      const course = courses.find(c => c.name === normalizedCourse);
+      if (!course) errors.Course = `Course "${Course}" (normalized to "${normalizedCourse}") not found.`;
     }
   
     if (!Branch) errors.Branch = 'Branch is required.';
     else if (Course) {
       // For bulk upload, we need to validate branch against the course
-      const course = courses.find(c => c.name === Course || c._id === Course);
+      const normalizedCourse = normalizeCourseName(Course);
+      const course = courses.find(c => c.name === normalizedCourse);
       if (course) {
         // This validation will be done on the backend since we don't have branches loaded for all courses
         // For now, we'll just check if branch is not empty
       }
     }
   
-    if (!Year) errors.Year = 'Year is required.';
+    // Year is optional for bulk upload, but if provided must be valid
+    if (Year) {
+      const yearNum = parseInt(Year, 10);
+      if (isNaN(yearNum) || yearNum < 1 || yearNum > 10) {
+        errors.Year = 'Year must be a number between 1 and 10.';
+      }
+    }
   
     if (!Category) errors.Category = 'Category is required.';
-    else if (Gender && !(getCategoryOptions(Gender).includes(Category))) {
-      errors.Category = `Invalid category for ${Gender}.`;
+    else {
+      // Case-insensitive category validation
+      const categoryUpper = Category.toUpperCase();
+      const validCategories = ['A+', 'A', 'B+', 'B', 'C'];
+      const validCategoryUpper = ['A+', 'A', 'B+', 'B', 'C'];
+      
+      if (!validCategoryUpper.includes(categoryUpper) && 
+          !['A PLUS', 'A_PLUS', 'B PLUS', 'B_PLUS'].includes(categoryUpper)) {
+        errors.Category = 'Invalid category. Must be A+, A, B+, B, or C.';
+      } else if (Gender) {
+        // Check gender-specific categories
+        const genderUpper = Gender.toUpperCase();
+        const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
+        const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
+        
+        if (isMale && categoryUpper === 'C') {
+          errors.Category = 'Category C is not valid for Male students.';
+        } else if (isFemale && categoryUpper === 'B+') {
+          errors.Category = 'Category B+ is not valid for Female students.';
+        }
+      }
     }
   
     if (!RoomNumber) errors.RoomNumber = 'Room number is required.';
-    else if (Gender && Category && ROOM_MAPPINGS[Gender]?.[Category] && !ROOM_MAPPINGS[Gender][Category].includes(String(RoomNumber))) {
-      errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+    else if (Gender && Category) {
+      // Case-insensitive gender and category handling for room validation
+      const genderUpper = Gender.toUpperCase();
+      const categoryUpper = Category.toUpperCase();
+      
+      // Normalize gender for room mapping
+      let normalizedGender = 'Male'; // default
+      if (['FEMALE', 'F', 'GIRL'].includes(genderUpper)) {
+        normalizedGender = 'Female';
+      }
+      
+      // Normalize category for room mapping
+      let normalizedCategory = 'A'; // default
+      if (categoryUpper === 'A+') normalizedCategory = 'A+';
+      else if (categoryUpper === 'A') normalizedCategory = 'A';
+      else if (categoryUpper === 'B+') normalizedCategory = 'B+';
+      else if (categoryUpper === 'B') normalizedCategory = 'B';
+      else if (categoryUpper === 'C') normalizedCategory = 'C';
+      
+      const validRooms = ROOM_MAPPINGS[normalizedGender]?.[normalizedCategory];
+      if (validRooms && !validRooms.includes(String(RoomNumber))) {
+        errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+      }
     }
   
-    if (!StudentPhone) errors.StudentPhone = 'Student phone is required.';
-    else if (!/^[0-9]{10}$/.test(StudentPhone)) errors.StudentPhone = 'Must be 10 digits.';
+    // Student phone is optional for bulk upload, but if provided must be valid
+    if (StudentPhone && !/^[0-9]{10}$/.test(StudentPhone)) {
+      errors.StudentPhone = 'Must be 10 digits.';
+    }
   
     if (!ParentPhone) errors.ParentPhone = 'Parent phone is required.';
     else if (!/^[0-9]{10}$/.test(ParentPhone)) errors.ParentPhone = 'Must be 10 digits.';
   
-    if (!Email) errors.Email = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(Email)) errors.Email = 'Invalid email format.';
+    if (Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(Email)) errors.Email = 'Invalid email format.';
   
     if (!Batch) errors.Batch = 'Batch is required.';
-    else if (!/^\d{4}-\d{4}$/.test(Batch)) {
-      errors.Batch = 'Format must be YYYY-YYYY.';
-    } else {
-      const [start, end] = Batch.split('-').map(Number);
-      const duration = end - start;
-      const course = courses.find(c => c.name === Course || c._id === Course);
-      const expectedDuration = course ? course.duration : 4;
-      if (duration !== expectedDuration) {
-        errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
+    else {
+      // Handle both YYYY-YYYY and YYYY formats
+      if (/^\d{4}$/.test(Batch)) {
+        // Single year provided - validate it's a reasonable year
+        const startYear = parseInt(Batch, 10);
+        if (startYear < 2000 || startYear > 2100) {
+          errors.Batch = 'Starting year must be between 2000-2100.';
+        }
+      } else if (!/^\d{4}-\d{4}$/.test(Batch)) {
+        errors.Batch = 'Format must be YYYY-YYYY or just YYYY.';
+      } else {
+        // Full batch format provided - validate duration
+        const [start, end] = Batch.split('-').map(Number);
+        const duration = end - start;
+        // Use case-insensitive course matching
+        const course = courses.find(c => 
+          c.name.toLowerCase() === Course.toLowerCase() || 
+          c._id === Course ||
+          c.name.toUpperCase() === Course.toUpperCase()
+        );
+        const expectedDuration = course ? course.duration : 4;
+        if (duration !== expectedDuration) {
+          errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
+        }
       }
     }
   
@@ -1196,32 +1416,104 @@ const Students = () => {
 
     const doc = new jsPDF();
     
+    // Filter students based on gender filter
+    const filteredStudents = tempStudentsSummary.filter(student => 
+      tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
+    );
+    
     // Add title
     doc.setFontSize(16);
     doc.text('Students Pending Password Reset', 14, 15);
     
+    // Add filter info
+    doc.setFontSize(10);
+    const filterText = tempStudentsGenderFilter === 'all' 
+      ? 'All Students' 
+      : `${tempStudentsGenderFilter} Students Only`;
+    doc.text(`Filter: ${filterText}`, 14, 22);
+    
     // Add summary
     doc.setFontSize(12);
-    doc.text(`Total Students Pending: ${tempStudentsSummary.length}`, 14, 25);
+    doc.text(`Total Students Pending: ${filteredStudents.length}`, 14, 30);
 
-    // Add students table
-    const tableData = tempStudentsSummary.map(student => [
-      student.name,
-      student.hostelId || 'N/A',
-      student.rollNumber,
-      student.generatedPassword,
-      student.studentPhone,
-      new Date(student.createdAt).toLocaleDateString()
-    ]);
+    // Separate male and female students if showing all
+    if (tempStudentsGenderFilter === 'all') {
+      const maleStudents = filteredStudents.filter(student => student.gender === 'Male');
+      const femaleStudents = filteredStudents.filter(student => student.gender === 'Female');
+      
+      let currentY = 40;
+      
+      // Male Students Section
+      if (maleStudents.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Male Students', 14, currentY);
+        currentY += 8;
+        
+        const maleTableData = maleStudents.map(student => [
+          student.name,
+          student.hostelId || 'N/A',
+          student.rollNumber,
+          student.generatedPassword,
+          student.studentPhone,
+          new Date(student.createdAt).toLocaleDateString()
+        ]);
 
-    autoTable(doc, {
-      startY: 35,
-      head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-      styles: { fontSize: 10 }
-    });
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
+          body: maleTableData,
+          theme: 'grid',
+          headStyles: { fillColor: [41, 128, 185] },
+          styles: { fontSize: 9 }
+        });
+        
+        currentY = doc.lastAutoTable.finalY + 10;
+      }
+      
+      // Female Students Section
+      if (femaleStudents.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Female Students', 14, currentY);
+        currentY += 8;
+        
+        const femaleTableData = femaleStudents.map(student => [
+          student.name,
+          student.hostelId || 'N/A',
+          student.rollNumber,
+          student.generatedPassword,
+          student.studentPhone,
+          new Date(student.createdAt).toLocaleDateString()
+        ]);
+
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
+          body: femaleTableData,
+          theme: 'grid',
+          headStyles: { fillColor: [155, 89, 182] },
+          styles: { fontSize: 9 }
+        });
+      }
+    } else {
+      // Single gender table
+      const tableData = filteredStudents.map(student => [
+        student.name,
+        student.hostelId || 'N/A',
+        student.rollNumber,
+        student.generatedPassword,
+        student.studentPhone,
+        new Date(student.createdAt).toLocaleDateString()
+      ]);
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185] },
+        styles: { fontSize: 10 }
+      });
+    }
 
     return doc;
   };
@@ -1383,19 +1675,41 @@ const Students = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
-            <select
-              name="roomNumber"
-              value={form.roomNumber}
-              onChange={handleFormChange}
-              required
-              disabled={!form.gender || !form.category}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Room</option>
-              {form.gender && form.category && ROOM_MAPPINGS[form.gender][form.category].map(room => (
-                <option key={room} value={room}>Room {room}</option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                name="roomNumber"
+                value={form.roomNumber}
+                onChange={handleFormChange}
+                required
+                disabled={!form.gender || !form.category || loadingRooms}
+                className="flex-1 px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Room</option>
+                {loadingRooms ? (
+                  <option value="" disabled>Loading rooms...</option>
+                ) : (
+                  roomsWithAvailability.map(room => (
+                    <option key={room._id} value={room.roomNumber}>
+                      Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
+                    </option>
+                  ))
+                )}
+              </select>
+              {form.roomNumber && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const selectedRoom = roomsWithAvailability.find(r => r.roomNumber === form.roomNumber);
+                    if (selectedRoom) {
+                      handleRoomView(selectedRoom);
+                    }
+                  }}
+                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  View
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
@@ -1424,15 +1738,16 @@ const Students = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
             <input
               type="email"
               name="email"
               value={form.email}
               onChange={handleFormChange}
-              required
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter email address (optional)"
             />
+            <p className="text-xs text-gray-500 mt-1">Credentials will be sent to this email if provided</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
@@ -1620,12 +1935,8 @@ const Students = () => {
       return <div className="text-center text-red-600 py-4">{error}</div>;
     }
 
-    const countsByCourse = students.reduce((acc, student) => {
-      const courseName = student.course?.name || getCourseName(student.course);
-      acc[courseName] = (acc[courseName] || 0) + 1;
-      return acc;
-    }, {});
-
+    // Keep the functionality for later use but don't display
+    const countsByCourse = courseCounts;
     const countsByBatch = students.reduce((acc, student) => {
       acc[student.batch] = (acc[student.batch] || 0) + 1;
       return acc;
@@ -1650,32 +1961,7 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Count Display - Made responsive */}
-          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Students by Course</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.entries(countsByCourse).map(([course, count]) => (
-                  <div key={course} className="flex justify-between items-center bg-white p-2 rounded">
-                    <span className="text-sm text-gray-600 truncate">{course}</span>
-                    <span className="text-sm font-medium text-gray-900 ml-2">{count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Students by Batch</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {Object.entries(countsByBatch).map(([batch, count]) => (
-                  <div key={batch} className="flex justify-between items-center bg-white p-2 rounded">
-                    <span className="text-sm text-gray-600 truncate">{batch}</span>
-                    <span className="text-sm font-medium text-gray-900 ml-2">{count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
 
           {/* Filters - Made responsive */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -2496,14 +2782,14 @@ const Students = () => {
               />
             </div>
             <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Email (Optional)</label>
               <input
                 type="email"
                 name="email"
                 value={editForm.email}
                 onChange={handleEditFormChange}
-                required
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter email address (optional)"
               />
             </div>
             <div className="space-y-1">
@@ -2682,7 +2968,7 @@ const Students = () => {
                 <li>• RoomNumber (Based on gender and category)</li>
                 <li>• StudentPhone (10-digit mobile number)</li>
                 <li>• ParentPhone (10-digit mobile number)</li>
-                <li>• Email (Valid email address)</li>
+                <li>• Email (Optional - Valid email address for credential delivery)</li>
                 <li>• Batch (Format based on course duration):
                   <ul className="ml-4 mt-1 space-y-1">
                     <li>- B.Tech/Pharmacy: YYYY-YYYY (4 years, e.g., 2020-2024)</li>
@@ -2691,6 +2977,7 @@ const Students = () => {
                 </li>
                 <li>• AcademicYear (e.g., 2023-2024)</li>
                 <li>• <strong>Hostel ID will be automatically generated</strong> based on gender (BH for Male, GH for Female)</li>
+                <li>• <strong>Password will be automatically generated</strong> and sent to email if provided</li>
               </ul>
             </div>
 
@@ -2726,15 +3013,52 @@ const Students = () => {
             </div>
           )}
 
+          {/* Validation Summary */}
+          {(() => {
+            const validCount = editablePreviewData.filter((_, index) => 
+              !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
+            ).length;
+            const invalidCount = editablePreviewData.length - validCount;
+            
+            return (
+              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-md font-medium text-gray-800">Validation Summary</h4>
+                  <div className="text-sm text-gray-600">
+                    Click on any cell to edit • Changes are saved automatically
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-green-50 p-3 rounded-lg">
+                    <div className="text-sm font-medium text-green-800">Valid Students</div>
+                    <div className="text-2xl font-bold text-green-600">{validCount}</div>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded-lg">
+                    <div className="text-sm font-medium text-red-800">Invalid Rows</div>
+                    <div className="text-2xl font-bold text-red-600">{invalidCount}</div>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-sm font-medium text-blue-800">Total Rows</div>
+                    <div className="text-2xl font-bold text-blue-600">{editablePreviewData.length}</div>
+                  </div>
+                </div>
+                {invalidCount > 0 && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mr-2" />
+                      <div className="text-sm text-yellow-800">
+                        <strong>Note:</strong> {invalidCount} row(s) have validation errors and will be skipped during upload. 
+                        Only valid students will be added to the system.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Editable Students Table */}
           <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="text-md font-medium text-green-700">Students to Upload ({editablePreviewData.length})</h4>
-              <div className="text-sm text-gray-500">
-                Click on any cell to edit • Changes are saved automatically
-              </div>
-            </div>
-            
             {editablePreviewData.length > 0 ? (
               <div className="overflow-x-auto border rounded-lg">
                 <table className="min-w-[1500px] divide-y divide-gray-200">
@@ -2807,7 +3131,7 @@ const Students = () => {
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
                             <select
-                              value={student.Course || ''}
+                              value={normalizeCourseName(student.Course) || ''}
                               onChange={(e) => handleEditField(index, 'Course', e.target.value)}
                               title={errors.Course}
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Course ? 'border-red-500' : 'border-gray-300'}`}
@@ -2839,7 +3163,8 @@ const Students = () => {
                             >
                               <option value="">Select</option>
                               {student.Course && (() => {
-                                const course = courses.find(c => c.name === student.Course);
+                                const normalizedCourse = normalizeCourseName(student.Course);
+                                const course = courses.find(c => c.name === normalizedCourse);
                                 const duration = course ? course.duration : 4;
                                 return Array.from({ length: duration }, (_, i) => i + 1).map(year => (
                                   <option key={year} value={year}>Year {year}</option>
@@ -2963,7 +3288,11 @@ const Students = () => {
                         <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.data.RollNumber}</td>
                         <td className="px-4 py-2 text-sm text-red-600">
                           <ul className="list-disc list-inside">
-                            {item.errors.map((err, i) => <li key={i}>{err}</li>)}
+                            {Object.entries(item.errors).map(([field, error], i) => (
+                              <li key={i}>
+                                <span className="font-medium">{field}:</span> {error}
+                              </li>
+                            ))}
                           </ul>
                         </td>
                       </tr>
@@ -2983,14 +3312,14 @@ const Students = () => {
             </button>
             <button
               onClick={handleConfirmBulkUpload}
-              disabled={bulkProcessing || editablePreviewData.length === 0 || previewErrors.some(e => Object.keys(e).length > 0)}
+              disabled={bulkProcessing || editablePreviewData.length === 0}
               className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                (bulkProcessing || editablePreviewData.length === 0 || previewErrors.some(e => Object.keys(e).length > 0))
+                (bulkProcessing || editablePreviewData.length === 0)
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700'
               }`}
             >
-              {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.length} Students`}
+              {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.filter((_, index) => !previewErrors[index] || Object.keys(previewErrors[index]).length === 0).length} Valid Students`}
             </button>
           </div>
         </div>
@@ -3128,6 +3457,29 @@ const Students = () => {
         )}
       </div>
       
+      {/* Gender Filter */}
+      {tempStudentsSummary.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Filter by Gender:</label>
+            <select
+              value={tempStudentsGenderFilter}
+              onChange={(e) => setTempStudentsGenderFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Students</option>
+              <option value="Male">Male Students</option>
+              <option value="Female">Female Students</option>
+            </select>
+          </div>
+          <div className="text-sm text-gray-600">
+            Showing {tempStudentsSummary.filter(student => 
+              tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
+            ).length} of {tempStudentsSummary.length} students
+          </div>
+        </div>
+      )}
+      
       {loadingTempSummary ? (
         <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>
       ) : tempStudentsSummary.length === 0 ? (
@@ -3147,7 +3499,9 @@ const Students = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {tempStudentsSummary.map(student => (
+              {tempStudentsSummary
+                .filter(student => tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter)
+                .map(student => (
                 <tr key={student._id}>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
                   <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
@@ -3810,7 +4164,7 @@ const Students = () => {
       {/* Enhanced Tab Navigation */}
       <div className="mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 sm:p-2">
-          <div className="flex flex-wrap gap-1 sm:gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
             {TABS.map(t => (
               <button
                 key={t.value}
@@ -3868,6 +4222,133 @@ const Students = () => {
         onRenew={handleRenewBatches}
       />
       {passwordResetModal && renderPasswordResetModal()}
+      
+      {/* Room View Modal */}
+      {showRoomViewModal && selectedRoom && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Room {selectedRoom.roomNumber} Details
+              </h2>
+              <button
+                onClick={() => setShowRoomViewModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Room Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Room Information</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Room Number:</span>
+                    <span className="font-medium">{selectedRoom.roomNumber}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Gender:</span>
+                    <span className="font-medium">{selectedRoom.gender}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Category:</span>
+                    <span className="font-medium">{selectedRoom.category}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Beds:</span>
+                    <span className="font-medium">{selectedRoom.bedCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Occupied Beds:</span>
+                    <span className="font-medium">{selectedRoom.studentCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Available Beds:</span>
+                    <span className="font-medium text-green-600">{selectedRoom.availableBeds}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Occupancy Rate:</span>
+                    <span className="font-medium">{selectedRoom.occupancyRate}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">Bed Status</h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700">Available Beds</span>
+                    <div className="flex gap-1">
+                      {Array.from({ length: selectedRoom.availableBeds }, (_, i) => (
+                        <div key={i} className="w-4 h-4 bg-green-500 rounded-sm"></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-700">Occupied Beds</span>
+                    <div className="flex gap-1">
+                      {Array.from({ length: selectedRoom.studentCount }, (_, i) => (
+                        <div key={i} className="w-4 h-4 bg-red-500 rounded-sm"></div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Students List */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Students in Room</h3>
+              {loadingRoomStudents ? (
+                <div className="flex justify-center py-8">
+                  <LoadingSpinner size="sm" />
+                </div>
+              ) : !roomStudents || roomStudents.length === 0 ? (
+                <div className="text-center py-8">
+                  <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500">No students assigned to this room</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {roomStudents.map((student) => (
+                    <div
+                      key={student._id}
+                      className="bg-gray-50 rounded-lg p-4 flex items-start gap-4"
+                    >
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <UserIcon className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{student.name}</h3>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <AcademicCapIcon className="w-4 h-4" />
+                            <span>Roll No: {student.rollNumber}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <PhoneIcon className="w-4 h-4" />
+                            <span>Phone: {student.studentPhone}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
+                            </span>
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              Year {student.year}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
