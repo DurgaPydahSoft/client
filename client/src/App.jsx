@@ -152,14 +152,22 @@ function App() {
                   <Complaints />
                 </ProtectedSection>
               } />
-              <Route path="foundlost" element={<FoundLostManagement />} />
+              <Route path="foundlost" element={
+                <ProtectedSection permission="found_lost_management" sectionName="Found & Lost Management">
+                  <FoundLostManagement />
+                </ProtectedSection>
+              } />
               <Route path="announcements" element={
                 <ProtectedSection permission="announcement_management" sectionName="Announcements">
                   <Announcements />
                 </ProtectedSection>
               } />
               <Route path="notifications" element={<Notifications />} />
-              <Route path="members" element={<MemberManagement />} />
+              <Route path="members" element={
+                <ProtectedSection permission="member_management" sectionName="Member Management">
+                  <MemberManagement />
+                </ProtectedSection>
+              } />
               <Route path="polls" element={
                 <ProtectedSection permission="poll_management" sectionName="Polls">
                   <PollManagement />
@@ -175,7 +183,11 @@ function App() {
                   <AdminManagement />
                 </ProtectedSection>
               } />
-              <Route path="menu" element={<MenuManagement />} />
+              <Route path="menu" element={
+                <ProtectedSection permission="menu_management" sectionName="Menu Management">
+                  <MenuManagement />
+                </ProtectedSection>
+              } />
               <Route path="attendance" element={
                 <ProtectedSection permission="attendance_management" sectionName="Attendance Management">
                   <Attendance />

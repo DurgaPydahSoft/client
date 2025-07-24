@@ -35,6 +35,8 @@ const LeaveManagement = () => {
   });
   const [expandedBulkOutings, setExpandedBulkOutings] = useState(new Set());
   const [loadingStudentDetails, setLoadingStudentDetails] = useState(new Set());
+  const [studentDetailsModal, setStudentDetailsModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     if (activeTab === 'leaves') {
@@ -266,6 +268,11 @@ const LeaveManagement = () => {
     }));
   };
 
+  const openStudentDetailsModal = (student) => {
+    setSelectedStudent(student);
+    setStudentDetailsModal(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -383,7 +390,15 @@ const LeaveManagement = () => {
                           <div className="flex flex-wrap items-center gap-4 mb-3">
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <UserIcon className="w-4 h-4" />
-                              <span>{leave.student?.name || 'N/A'}</span>
+                              <button
+                                onClick={() => leave.student && openStudentDetailsModal(leave.student)}
+                                className={`hover:text-blue-600 hover:underline transition-colors ${
+                                  leave.student ? 'cursor-pointer' : 'cursor-default'
+                                }`}
+                                disabled={!leave.student}
+                              >
+                                {leave.student?.name || 'N/A'}
+                              </button>
                             </div>
                             <div className="flex items-center gap-1 text-sm text-gray-600">
                               <AcademicCapIcon className="w-4 h-4" />
@@ -767,6 +782,188 @@ const LeaveManagement = () => {
               </button>
             </div>
           </motion.div>
+        </div>
+      )}
+
+      {/* Student Details Modal */}
+      {studentDetailsModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-6xl w-full max-h-[95vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-800">Student Details</h3>
+              <button
+                onClick={() => setStudentDetailsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(95vh-140px)]">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - Photo and Basic Info */}
+                <div className="lg:col-span-1">
+                  {/* Student Photo */}
+                  <div className="flex justify-center mb-6">
+                    {selectedStudent.studentPhoto ? (
+                      <img
+                        src={selectedStudent.studentPhoto}
+                        alt={selectedStudent.name}
+                        className="w-40 h-40 rounded-full object-cover border-4 border-gray-200 shadow-lg"
+                      />
+                    ) : (
+                      <div className="w-40 h-40 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-4xl font-bold shadow-lg">
+                        {selectedStudent.name?.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Basic Information */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4">Basic Information</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Name:</span>
+                        <span className="font-medium text-gray-900">{selectedStudent.name}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Roll Number:</span>
+                        <span className="font-medium text-gray-900">{selectedStudent.rollNumber}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Hostel ID:</span>
+                        <span className="font-medium text-gray-900">{selectedStudent.hostelId || 'Not assigned'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Gender:</span>
+                        <span className="font-medium text-gray-900">{selectedStudent.gender}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Columns - Academic, Contact, and Hostel Info */}
+                <div className="lg:col-span-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Academic Information */}
+                    <div className="bg-blue-50 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        Academic Information
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Course:</span>
+                          <span className="font-medium text-blue-900">{selectedStudent.course?.name || selectedStudent.course}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Branch:</span>
+                          <span className="font-medium text-blue-900">{selectedStudent.branch?.name || selectedStudent.branch}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Year:</span>
+                          <span className="font-medium text-blue-900">Year {selectedStudent.year}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Category:</span>
+                          <span className="font-medium text-blue-900">{selectedStudent.category === 'A+' ? 'A+ (AC)' : selectedStudent.category === 'B+' ? 'B+ (AC)' : selectedStudent.category}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Batch:</span>
+                          <span className="font-medium text-blue-900">{selectedStudent.batch}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-blue-700">Academic Year:</span>
+                          <span className="font-medium text-blue-900">{selectedStudent.academicYear}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="bg-green-50 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        Contact Information
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-green-700">Student Phone:</span>
+                          <span className="font-medium text-green-900">{selectedStudent.studentPhone}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-green-700">Parent Phone:</span>
+                          <span className="font-medium text-green-900">{selectedStudent.parentPhone}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-green-700">Email:</span>
+                          <span className="font-medium text-green-900 break-all">{selectedStudent.email}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hostel Information */}
+                    <div className="bg-purple-50 rounded-lg p-4">
+                      <h4 className="text-lg font-semibold text-purple-800 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        Hostel Information
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-purple-700">Room Number:</span>
+                          <span className="font-medium text-purple-900">Room {selectedStudent.roomNumber}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-purple-700">Hostel Status:</span>
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            selectedStudent.hostelStatus === 'Active' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {selectedStudent.hostelStatus}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-purple-700">Graduation Status:</span>
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            selectedStudent.graduationStatus === 'Graduated' 
+                              ? 'bg-blue-100 text-blue-800' 
+                              : selectedStudent.graduationStatus === 'Dropped'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {selectedStudent.graduationStatus}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setStudentDetailsModal(false)}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

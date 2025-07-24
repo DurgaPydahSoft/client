@@ -27,7 +27,11 @@ const PERMISSIONS = [
   { id: 'announcement_management', label: 'Announcement Management' },
   { id: 'poll_management', label: 'Poll Management' },
   { id: 'member_management', label: 'Member Management' },
-  { id: 'menu_management', label: 'Menu Management' }
+  { id: 'menu_management', label: 'Menu Management' },
+  { id: 'course_management', label: 'Course Management' },
+  { id: 'attendance_management', label: 'Attendance Management' },
+  { id: 'found_lost_management', label: 'Found & Lost Management' },
+  { id: 'fee_management', label: 'Fee Management' }
 ];
 
 const ToggleSwitch = ({ label, checked, onChange }) => (
@@ -68,7 +72,8 @@ const AdminManagement = () => {
     password: '',
     permissions: [],
     hostelType: '',
-    course: ''
+    course: '',
+    leaveManagementCourses: [] // New field for course selection
   });
   const [securitySettings, setSecuritySettings] = useState({
     viewProfilePictures: true,
@@ -134,18 +139,41 @@ const AdminManagement = () => {
     const { name, value, type, checked } = e.target;
     
     if (type === 'checkbox') {
-      setFormData(prev => ({
-        ...prev,
-        permissions: checked 
+      setFormData(prev => {
+        const newPermissions = checked 
           ? [...prev.permissions, value]
-          : prev.permissions.filter(p => p !== value)
-      }));
+          : prev.permissions.filter(p => p !== value);
+        
+        // If leave_management is being unchecked, clear course selections
+        if (value === 'leave_management' && !checked) {
+          return {
+            ...prev,
+            permissions: newPermissions,
+            leaveManagementCourses: []
+          };
+        }
+        
+        return {
+          ...prev,
+          permissions: newPermissions
+        };
+      });
     } else {
       setFormData(prev => ({
         ...prev,
         [name]: value
       }));
     }
+  };
+
+  // Handle course selection for leave management
+  const handleCourseSelection = (courseId, checked) => {
+    setFormData(prev => ({
+      ...prev,
+      leaveManagementCourses: checked 
+        ? [...prev.leaveManagementCourses, courseId]
+        : prev.leaveManagementCourses.filter(id => id !== courseId)
+    }));
   };
 
   const handleAddAdmin = async (e) => {
@@ -156,7 +184,10 @@ const AdminManagement = () => {
       
       if (activeTab === 'sub-admins') {
         endpoint = '/api/admin-management/sub-admins';
-        requestData = formData;
+        requestData = {
+          ...formData,
+          leaveManagementCourses: formData.leaveManagementCourses
+        };
       } else if (activeTab === 'wardens') {
         endpoint = '/api/admin-management/wardens';
         requestData = { ...formData, hostelType: formData.hostelType };
@@ -171,7 +202,7 @@ const AdminManagement = () => {
                         activeTab === 'wardens' ? 'Warden' : 'Principal';
         toast.success(`${userType} added successfully`);
         setShowAddModal(false);
-        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
+        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '', leaveManagementCourses: [] });
         fetchData();
       }
     } catch (error) {
@@ -198,6 +229,7 @@ const AdminManagement = () => {
       
       if (activeTab === 'sub-admins') {
         endpoint = `/api/admin-management/sub-admins/${selectedAdmin._id}`;
+        updateData.leaveManagementCourses = formData.leaveManagementCourses;
       } else if (activeTab === 'wardens') {
         endpoint = `/api/admin-management/wardens/${selectedAdmin._id}`;
         if (formData.hostelType) {
@@ -219,7 +251,7 @@ const AdminManagement = () => {
         toast.success(`${userType} updated successfully`);
         setShowEditModal(false);
         setSelectedAdmin(null);
-        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
+        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '', leaveManagementCourses: [] });
         fetchData();
       }
     } catch (error) {
@@ -266,7 +298,8 @@ const AdminManagement = () => {
       password: '',
       permissions: admin.permissions || [],
       hostelType: admin.hostelType || '',
-      course: admin.course?._id || admin.course || ''
+      course: admin.course?._id || admin.course || '',
+      leaveManagementCourses: admin.leaveManagementCourses || []
     });
     setShowEditModal(true);
   };
@@ -275,7 +308,7 @@ const AdminManagement = () => {
     setShowAddModal(false);
     setShowEditModal(false);
     setSelectedAdmin(null);
-    setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '' });
+    setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '', leaveManagementCourses: [] });
   };
 
   const handleSecurityToggle = async (key) => {
@@ -291,10 +324,10 @@ const AdminManagement = () => {
     }
   };
 
-  // Fetch courses when principal tab/modal is open
+  // Fetch courses when principal tab/modal is open or when sub-admin modal is open
   useEffect(() => {
-    if ((activeTab === 'principals') && (showAddModal || showEditModal)) {
-      console.log('🔍 Fetching courses for principal creation...');
+    if ((activeTab === 'principals' || activeTab === 'sub-admins') && (showAddModal || showEditModal)) {
+      console.log('🔍 Fetching courses for admin creation...');
       api.get('/api/course-management/courses')
         .then(res => {
           console.log('✅ Courses fetched successfully:', res.data);
@@ -516,29 +549,29 @@ const AdminManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-md"
-            >
+                      <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-2 sm:mx-4 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
+          >
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                   {showAddModal ? `Add New ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Edit ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
               
-              <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-4">
+              <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Username <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -547,14 +580,14 @@ const AdminManagement = () => {
                     value={formData.username}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter username"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Password {showEditModal && <span className="text-gray-500">(leave blank to keep current)</span>}
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Password {showEditModal && <span className="text-gray-500 text-xs sm:text-sm">(leave blank to keep current)</span>}
                     {showAddModal && <span className="text-red-500">*</span>}
                   </label>
                   <input
@@ -563,36 +596,67 @@ const AdminManagement = () => {
                     value={formData.password}
                     onChange={handleFormChange}
                     required={showAddModal}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter password"
                   />
                 </div>
 
                 {!isWardenTab && !isPrincipalTab && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                       Permissions
                     </label>
-                    <div className="space-y-2">
+                    <div className="space-y-1 sm:space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
                       {PERMISSIONS.map(permission => (
-                        <label key={permission.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            value={permission.id}
-                            checked={formData.permissions.includes(permission.id)}
-                            onChange={handleFormChange}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">{permission.label}</span>
-                        </label>
+                        <div key={permission.id}>
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              value={permission.id}
+                              checked={formData.permissions.includes(permission.id)}
+                              onChange={handleFormChange}
+                              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
+                          </label>
+                          
+                          {/* Course selection for Leave Management */}
+                          {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
+                            <div className="ml-4 sm:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                              <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
+                                Select Courses for Leave Management Access
+                              </label>
+                              <div className="space-y-1 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto">
+                                {courses.length > 0 ? (
+                                  courses.map(course => (
+                                    <label key={course._id} className="flex items-center gap-1 sm:gap-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.leaveManagementCourses.includes(course._id)}
+                                        onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
+                                        className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                      />
+                                      <span className="text-xs text-blue-700 truncate">{course.name}</span>
+                                    </label>
+                                  ))
+                                ) : (
+                                  <p className="text-xs text-blue-600">Loading courses...</p>
+                                )}
+                              </div>
+                              {formData.leaveManagementCourses.length === 0 && (
+                                <p className="text-xs text-red-600 mt-1">Please select at least one course</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
                 )}
 
                 {isWardenTab && (
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-700">
+                  <div className="p-2 sm:p-3 bg-green-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-green-700">
                       <strong>Warden Permissions:</strong> Wardens have access to student oversight, 
                       complaint management, leave approval, room monitoring, announcements, 
                       discipline management, and attendance tracking.
@@ -601,8 +665,8 @@ const AdminManagement = () => {
                 )}
 
                 {isPrincipalTab && (
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <p className="text-sm text-purple-700">
+                  <div className="p-2 sm:p-3 bg-purple-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-purple-700">
                       <strong>Principal Permissions:</strong> Principals have access to attendance management, 
                       student oversight, and course-specific analytics.
                     </p>
@@ -611,7 +675,7 @@ const AdminManagement = () => {
 
                 {isWardenTab && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Hostel Type <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -619,7 +683,7 @@ const AdminManagement = () => {
                       value={formData.hostelType}
                       onChange={handleFormChange}
                       required={isWardenTab}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Hostel Type</option>
                       <option value="boys">Boys Hostel</option>
@@ -630,43 +694,43 @@ const AdminManagement = () => {
 
                 {isPrincipalTab && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Course <span className="text-red-500">*</span>
                     </label>
-                                          <select
-                        name="course"
-                        value={formData.course}
-                        onChange={handleFormChange}
-                        required={isPrincipalTab}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Course ({courses.length} available)</option>
-                        {courses.length > 0 ? (
-                          courses.map(course => (
-                            <option key={course._id} value={course._id}>
-                              {course.name} ({course.code})
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>Loading courses...</option>
-                        )}
-                      </select>
+                    <select
+                      name="course"
+                      value={formData.course}
+                      onChange={handleFormChange}
+                      required={isPrincipalTab}
+                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Course ({courses.length} available)</option>
+                      {courses.length > 0 ? (
+                        courses.map(course => (
+                          <option key={course._id} value={course._id}>
+                            {course.name} ({course.code})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Loading courses...</option>
+                      )}
+                    </select>
                   </div>
                 )}
 
-                <div className="flex justify-end gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-3 sm:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
                   >
-                    <CheckIcon className="w-5 h-5" />
+                    <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                     {showAddModal ? `Add ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                   </button>
                 </div>
