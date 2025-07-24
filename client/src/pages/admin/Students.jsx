@@ -1226,8 +1226,8 @@ const Students = () => {
       
       const validRooms = ROOM_MAPPINGS[normalizedGender]?.[normalizedCategory];
       if (validRooms && !validRooms.includes(String(RoomNumber))) {
-        errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
-      }
+      errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+    }
     }
   
     // Student phone is optional for bulk upload, but if provided must be valid
@@ -1251,19 +1251,19 @@ const Students = () => {
         }
       } else if (!/^\d{4}-\d{4}$/.test(Batch)) {
         errors.Batch = 'Format must be YYYY-YYYY or just YYYY.';
-      } else {
+    } else {
         // Full batch format provided - validate duration
-        const [start, end] = Batch.split('-').map(Number);
-        const duration = end - start;
+      const [start, end] = Batch.split('-').map(Number);
+      const duration = end - start;
         // Use case-insensitive course matching
         const course = courses.find(c => 
           c.name.toLowerCase() === Course.toLowerCase() || 
           c._id === Course ||
           c.name.toUpperCase() === Course.toUpperCase()
         );
-        const expectedDuration = course ? course.duration : 4;
-        if (duration !== expectedDuration) {
-          errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
+      const expectedDuration = course ? course.duration : 4;
+      if (duration !== expectedDuration) {
+        errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
         }
       }
     }
@@ -1450,15 +1450,15 @@ const Students = () => {
         currentY += 8;
         
         const maleTableData = maleStudents.map(student => [
-          student.name,
+      student.name,
           student.hostelId || 'N/A',
-          student.rollNumber,
-          student.generatedPassword,
-          student.studentPhone,
-          new Date(student.createdAt).toLocaleDateString()
-        ]);
+      student.rollNumber,
+      student.generatedPassword,
+      student.studentPhone,
+      new Date(student.createdAt).toLocaleDateString()
+    ]);
 
-        autoTable(doc, {
+    autoTable(doc, {
           startY: currentY,
           head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
           body: maleTableData,
@@ -1508,11 +1508,11 @@ const Students = () => {
       autoTable(doc, {
         startY: 40,
         head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [41, 128, 185] },
-        styles: { fontSize: 10 }
-      });
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [41, 128, 185] },
+      styles: { fontSize: 10 }
+    });
     }
 
     return doc;
@@ -1676,15 +1676,15 @@ const Students = () => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
             <div className="flex gap-2">
-              <select
-                name="roomNumber"
-                value={form.roomNumber}
-                onChange={handleFormChange}
-                required
+            <select
+              name="roomNumber"
+              value={form.roomNumber}
+              onChange={handleFormChange}
+              required
                 disabled={!form.gender || !form.category || loadingRooms}
                 className="flex-1 px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Room</option>
+            >
+              <option value="">Select Room</option>
                 {loadingRooms ? (
                   <option value="" disabled>Loading rooms...</option>
                 ) : (
@@ -1694,7 +1694,7 @@ const Students = () => {
                     </option>
                   ))
                 )}
-              </select>
+            </select>
               {form.roomNumber && (
                 <button
                   type="button"
@@ -3025,9 +3025,9 @@ const Students = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-md font-medium text-gray-800">Validation Summary</h4>
                   <div className="text-sm text-gray-600">
-                    Click on any cell to edit • Changes are saved automatically
-                  </div>
-                </div>
+                Click on any cell to edit • Changes are saved automatically
+              </div>
+            </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-green-50 p-3 rounded-lg">
                     <div className="text-sm font-medium text-green-800">Valid Students</div>

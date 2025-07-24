@@ -9,12 +9,16 @@ import {
   AcademicCapIcon,
   LockClosedIcon,
   ArrowRightOnRectangleIcon,
-  HomeIcon
+  HomeIcon,
+  EyeIcon,
+  EyeSlashIcon
 } from '@heroicons/react/24/outline';
 
 const Login = () => {
   const [role, setRole] = useState('student');
   const [form, setForm] = useState({ rollNumber: '', password: '', username: '', adminPassword: '' });
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [showStudentPassword, setShowStudentPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -94,6 +98,20 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-blue-50 p-4">
+      <style>{`
+        input[type="password"]::-ms-reveal,
+        input[type="password"]::-ms-clear {
+          display: none !important;
+        }
+        input[type="password"]::-webkit-contacts-auto-fill-button,
+        input[type="password"]::-webkit-credentials-auto-fill-button {
+          display: none !important;
+        }
+        input[type="password"]::-webkit-outer-spin-button,
+        input[type="password"]::-webkit-inner-spin-button {
+          display: none !important;
+        }
+      `}</style>
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -199,14 +217,30 @@ const Login = () => {
                         <LockClosedIcon className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        type="password"
+                        className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        type={showAdminPassword ? "text" : "password"}
                         name="adminPassword"
                         placeholder="Enter admin password"
                         value={form.adminPassword}
                         onChange={handleChange}
                         required
+                        style={{ 
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          appearance: 'none'
+                        }}
                       />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowAdminPassword(!showAdminPassword)}
+                      >
+                        {showAdminPassword ? (
+                          <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors duration-200" />
+                        ) : (
+                          <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors duration-200" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </>
@@ -239,14 +273,30 @@ const Login = () => {
                         <LockClosedIcon className="h-5 w-5 text-gray-400" />
                       </div>
                       <input
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                        type="password"
+                        className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        type={showStudentPassword ? "text" : "password"}
                         name="password"
                         placeholder="Enter your password"
                         value={form.password}
                         onChange={handleChange}
                         required
+                        style={{ 
+                          WebkitAppearance: 'none',
+                          MozAppearance: 'none',
+                          appearance: 'none'
+                        }}
                       />
+                      <button
+                        type="button"
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        onClick={() => setShowStudentPassword(!showStudentPassword)}
+                      >
+                        {showStudentPassword ? (
+                          <EyeSlashIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors duration-200" />
+                        ) : (
+                          <EyeIcon className="h-5 w-5 text-gray-400 hover:text-gray-600 transition-colors duration-200" />
+                        )}
+                      </button>
                     </div>
                   </div>
                 </>
