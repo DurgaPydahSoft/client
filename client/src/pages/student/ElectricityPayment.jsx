@@ -360,8 +360,12 @@ const ElectricityPayment = () => {
                 
                 <div className="border-t pt-3 sm:pt-4">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0">
-                    <span className="text-base sm:text-lg font-semibold text-gray-900">Total Amount:</span>
-                    <span className="text-xl sm:text-2xl font-bold text-blue-600">₹{billData.total}</span>
+                    <span className="text-base sm:text-lg font-semibold text-gray-900">Total Room Bill:</span>
+                    <span className="font-medium text-sm sm:text-base">₹{billData.total}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-0">
+                    <span className="text-sm sm:text-base text-blue-700 font-semibold">Your Share:</span>
+                    <span className="font-bold text-blue-700 text-lg sm:text-xl">₹{billData.studentShare}</span>
                   </div>
                 </div>
 
@@ -517,7 +521,7 @@ const ElectricityPayment = () => {
                       <span className="ml-2">Processing...</span>
                     </div>
                   ) : (
-                    `Pay ₹${billData?.total || 0}`
+                    `Pay ₹${billData?.studentShare || 0}`
                   )}
                 </button>
 

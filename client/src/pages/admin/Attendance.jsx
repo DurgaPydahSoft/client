@@ -15,7 +15,7 @@ const Attendance = () => {
   const tabs = [
     {
       id: 'take',
-      name: 'Take Attendance',
+      name: 'Mark Attendance',
       icon: CheckIcon,
       description: 'Mark daily attendance for students'
     },

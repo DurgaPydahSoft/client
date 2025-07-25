@@ -5,11 +5,21 @@ import {
   EyeIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
 import PrincipalTakeAttendance from './PrincipalTakeAttendance';
 import PrincipalViewAttendance from './PrincipalViewAttendance';
 import SEO from '../../components/SEO';
 
+// Helper function to get course name consistently
+const getCourseName = (course) => {
+  if (!course) return 'Course Management';
+  if (typeof course === 'object' && course.name) return course.name;
+  if (typeof course === 'string') return course;
+  return 'Course Management';
+};
+
 const PrincipalAttendance = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('view');
 
   const tabs = [
@@ -51,7 +61,7 @@ const PrincipalAttendance = () => {
             <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-lg">
               <AcademicCapIcon className="w-5 h-5 text-purple-600" />
               <span className="text-sm font-medium text-purple-700">
-                Course: B.Tech
+                Course: {getCourseName(user?.course)}
               </span>
             </div>
           </div>

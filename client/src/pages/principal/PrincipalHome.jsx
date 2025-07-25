@@ -16,6 +16,14 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
 
+// Helper function to get course name consistently
+const getCourseName = (course) => {
+  if (!course) return 'Course Management';
+  if (typeof course === 'object' && course.name) return course.name;
+  if (typeof course === 'string') return course;
+  return 'Course Management';
+};
+
 const PrincipalHome = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -39,13 +47,10 @@ const PrincipalHome = () => {
       // Fetch attendance stats for today
       const today = new Date().toISOString().split('T')[0];
       
-      // Extract course ID from course object or use course directly if it's a string
-      const courseId = user?.course ? (typeof user.course === 'object' ? user.course._id : user.course) : null;
-      const studentsCountParams = {};
-      if (courseId) studentsCountParams.course = courseId;
+      // Server already filters by course for principals, no need to pass course parameter
       const [statsRes, studentsRes] = await Promise.all([
-        api.get(`/api/attendance/principal/stats?date=${today}&course=${courseId}`),
-        api.get(`/api/admin/students/count`, { params: studentsCountParams })
+        api.get(`/api/attendance/principal/stats?date=${today}`),
+        api.get(`/api/attendance/principal/students/count`)
       ]);
 
       if (statsRes.data.success) {
@@ -106,13 +111,13 @@ const PrincipalHome = () => {
                 Principal Dashboard
               </h1>
               <p className="text-gray-600 mt-1">
-                Welcome back, {user?.name || 'Principal'}! Here's an overview of your {user?.course ? (typeof user.course === 'object' ? user.course.name : user.course) : 'course'} management.
+                Welcome back, {user?.name || 'Principal'}! Here's an overview of your {getCourseName(user?.course)} management.
               </p>
             </div>
             <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-lg">
               <AcademicCapIcon className="w-5 h-5 text-purple-600" />
               <span className="text-sm font-medium text-purple-700">
-                {user?.course ? (typeof user.course === 'object' ? user.course.name : user.course) : 'Course Management'}
+                {getCourseName(user?.course)}
               </span>
             </div>
           </div>
@@ -272,7 +277,7 @@ const PrincipalHome = () => {
             <div>
               <h3 className="font-medium text-gray-900 mb-2">Course Details</h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <p><span className="font-medium">Course:</span> {user?.course ? (typeof user.course === 'object' ? user.course.name : user.course) : 'Not specified'}</p>
+                <p><span className="font-medium">Course:</span> {getCourseName(user?.course)}</p>
                 <p><span className="font-medium">Total Students:</span> {stats.totalStudents}</p>
                 <p><span className="font-medium">Today's Attendance:</span> {stats.attendanceRate}%</p>
               </div>

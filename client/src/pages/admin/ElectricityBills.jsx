@@ -14,14 +14,30 @@ import {
   AcademicCapIcon,
   PhoneIcon,
   TableCellsIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const ElectricityBills = () => {
   console.log('⚡ ElectricityBills component loaded');
+  
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const canManageBills = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
+  
+  console.log('🔐 Electricity Bills Permissions:', {
+    user: user?.username,
+    role: user?.role,
+    isSuperAdmin,
+    canManageBills,
+    permissions: user?.permissions,
+    accessLevels: user?.permissionAccessLevels
+  });
   
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +112,11 @@ const ElectricityBills = () => {
   };
 
   const handleSaveBulkBills = async () => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to manage electricity bills');
+      return;
+    }
+    
     if (!bulkMonth) {
       toast.error('Please select a billing month.');
       return;
@@ -239,10 +260,15 @@ const ElectricityBills = () => {
           <div className="flex items-end">
             <button
               onClick={handleSaveBulkBills}
-              disabled={isSavingBulk}
-              className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400"
+              disabled={isSavingBulk || !canManageBills}
+              className={`w-full px-4 py-2 rounded-lg transition-colors ${
+                canManageBills && !isSavingBulk
+                  ? 'bg-green-600 text-white hover:bg-green-700' 
+                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
+              title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
             >
-              {isSavingBulk ? 'Saving...' : 'Save All Bills'}
+              {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
             </button>
           </div>
         </div>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useAuth } from '../../context/AuthContext';
+import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 // Dynamic course and branch data will be fetched from backend
 
@@ -118,6 +120,25 @@ const generateAcademicYears = () => {
 };
 
 const Students = () => {
+  console.log('👥 Students component loaded');
+  
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const canEditStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'edit');
+  const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
+  const canAddStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'create');
+  
+  console.log('🔐 Student Management Permissions:', {
+    user: user?.username,
+    role: user?.role,
+    isSuperAdmin,
+    canEditStudent,
+    canDeleteStudent,
+    canAddStudent,
+    permissions: user?.permissions,
+    accessLevels: user?.permissionAccessLevels
+  });
+  
   const [tab, setTab] = useState('list');
   const [form, setForm] = useState(initialForm);
   const [adding, setAdding] = useState(false);
@@ -177,6 +198,13 @@ const Students = () => {
   const [guardianPhoto1Preview, setGuardianPhoto1Preview] = useState(null);
   const [guardianPhoto2Preview, setGuardianPhoto2Preview] = useState(null);
 
+  // Camera states
+  const [showCamera, setShowCamera] = useState(false);
+  const [cameraType, setCameraType] = useState(null); // 'student', 'guardian1', 'guardian2'
+  const [stream, setStream] = useState(null);
+  const [videoRef, setVideoRef] = useState(null);
+  const [cameraReady, setCameraReady] = useState(false);
+
   // Photo edit modal states (separate from edit modal)
   const [photoEditModal, setPhotoEditModal] = useState(false);
   const [photoEditId, setPhotoEditId] = useState(null);
@@ -233,6 +261,38 @@ const Students = () => {
       clearTimeout(timerId);
     };
   }, [filters.search]);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
+
+  // Handle video element setup when camera is shown
+  useEffect(() => {
+    if (showCamera && stream && videoRef) {
+      console.log('📸 Setting up video element');
+      videoRef.srcObject = stream;
+      videoRef.onloadedmetadata = () => {
+        console.log('📸 Video metadata loaded in useEffect');
+        videoRef.play();
+        setCameraReady(true);
+      };
+      
+      // Fallback: if video doesn't load within 3 seconds, try to set ready anyway
+      const timeout = setTimeout(() => {
+        if (!cameraReady && videoRef) {
+          console.log('📸 Fallback: setting camera ready after timeout');
+          setCameraReady(true);
+        }
+      }, 3000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [showCamera, stream, videoRef, cameraReady]);
 
   const fetchTempStudentsSummary = async () => {
     setLoadingTempSummary(true);
@@ -563,8 +623,157 @@ const Students = () => {
     setGuardianPhoto2Preview(null);
   };
 
+  // Camera functions
+  const startCamera = async (type) => {
+    try {
+      console.log('📸 Starting camera for type:', type);
+      setCameraReady(false);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        } 
+      });
+      console.log('📸 Camera stream obtained:', mediaStream);
+      setStream(mediaStream);
+      setCameraType(type);
+      setShowCamera(true);
+      
+      // Set video source after component mounts
+      setTimeout(() => {
+        if (videoRef) {
+          console.log('📸 Setting video source');
+          videoRef.srcObject = mediaStream;
+          videoRef.onloadedmetadata = () => {
+            console.log('📸 Video metadata loaded');
+            videoRef.play();
+            setCameraReady(true);
+          };
+        } else {
+          console.log('📸 Video ref not available yet');
+        }
+      }, 100);
+    } catch (error) {
+      console.error('❌ Error accessing camera:', error);
+      toast.error('Unable to access camera. Please check permissions.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setShowCamera(false);
+    setCameraType(null);
+    setVideoRef(null);
+    setCameraReady(false);
+  };
+
+  const capturePhoto = () => {
+    console.log('📸 Capturing photo...', { videoRef: !!videoRef, cameraType, videoWidth: videoRef?.videoWidth, videoHeight: videoRef?.videoHeight });
+    
+    if (!videoRef || !cameraType) {
+      console.error('❌ Missing videoRef or cameraType');
+      toast.error('Camera not ready. Please try again.');
+      return;
+    }
+
+    if (!videoRef.videoWidth || !videoRef.videoHeight) {
+      console.error('❌ Video dimensions not available');
+      console.log('📸 Video element state:', {
+        readyState: videoRef.readyState,
+        networkState: videoRef.networkState,
+        paused: videoRef.paused,
+        ended: videoRef.ended
+      });
+      toast.error('Video not loaded. Please wait a moment and try again.');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Set canvas dimensions to match video
+    canvas.width = videoRef.videoWidth;
+    canvas.height = videoRef.videoHeight;
+    
+    console.log('📸 Canvas dimensions:', canvas.width, 'x', canvas.height);
+    
+    try {
+      // Draw video frame to canvas
+      context.drawImage(videoRef, 0, 0, canvas.width, canvas.height);
+      
+      // Convert canvas to blob
+      canvas.toBlob((blob) => {
+        if (blob) {
+          console.log('📸 Photo captured successfully, blob size:', blob.size);
+          const file = new File([blob], `camera_${cameraType}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+          
+          // Create preview URL
+          const previewUrl = URL.createObjectURL(blob);
+          
+          // Set photo based on camera type
+          switch (cameraType) {
+            case 'student':
+              setStudentPhoto(file);
+              setStudentPhotoPreview(previewUrl);
+              console.log('📸 Student photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            case 'guardian1':
+              setGuardianPhoto1(file);
+              setGuardianPhoto1Preview(previewUrl);
+              console.log('📸 Guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            case 'guardian2':
+              setGuardianPhoto2(file);
+              setGuardianPhoto2Preview(previewUrl);
+              console.log('📸 Guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            case 'edit_student':
+              setPhotoEditStudentPhoto(file);
+              setPhotoEditStudentPhotoPreview(previewUrl);
+              console.log('📸 Edit student photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            case 'edit_guardian1':
+              setPhotoEditGuardianPhoto1(file);
+              setPhotoEditGuardianPhoto1Preview(previewUrl);
+              console.log('📸 Edit guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            case 'edit_guardian2':
+              setPhotoEditGuardianPhoto2(file);
+              setPhotoEditGuardianPhoto2Preview(previewUrl);
+              console.log('📸 Edit guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
+              break;
+            default:
+              console.log('📸 Unknown camera type:', cameraType);
+              break;
+          }
+          
+          // Stop camera
+          stopCamera();
+          toast.success('Photo captured successfully!');
+        } else {
+          console.error('❌ Failed to create blob from canvas');
+          toast.error('Failed to capture photo. Please try again.');
+        }
+      }, 'image/jpeg', 0.8);
+    } catch (error) {
+      console.error('❌ Error capturing photo:', error);
+      toast.error('Error capturing photo. Please try again.');
+    }
+  };
+
   const handleAddStudent = async e => {
     e.preventDefault();
+    
+    // Check permission before proceeding
+    if (!canAddStudent) {
+      toast.error('You do not have permission to add students');
+      return;
+    }
+    
     setAdding(true);
     try {
       const formData = new FormData();
@@ -605,6 +814,12 @@ const Students = () => {
   };
 
   const handleDelete = async id => {
+    // Check permission before proceeding
+    if (!canDeleteStudent) {
+      toast.error('You do not have permission to delete students');
+      return;
+    }
+    
     if (!window.confirm('Are you sure you want to delete this student?')) return;
     setDeletingId(id);
     try {
@@ -619,6 +834,12 @@ const Students = () => {
   };
 
   const openEditModal = (student) => {
+    // Check permission before proceeding
+    if (!canEditStudent) {
+      toast.error('You do not have permission to edit students');
+      return;
+    }
+    
     console.log('Opening edit modal for student:', student);
     console.log('Available courses:', courses);
     console.log('Student course data:', student.course);
@@ -971,6 +1192,13 @@ const Students = () => {
 
   const handleBulkUpload = async (e) => {
     e.preventDefault();
+    
+    // Check permission before proceeding
+    if (!canAddStudent) {
+      toast.error('You do not have permission to add students');
+      return;
+    }
+    
     if (!bulkFile) {
       toast.error('Please select an Excel file to upload.');
       return;
@@ -1007,6 +1235,12 @@ const Students = () => {
   };
 
   const handleConfirmBulkUpload = async () => {
+    // Check permission before proceeding
+    if (!canAddStudent) {
+      toast.error('You do not have permission to add students');
+      return;
+    }
+    
     if (!editablePreviewData || editablePreviewData.length === 0) {
       toast.error('No students to upload.');
       return;
@@ -1791,114 +2025,144 @@ const Students = () => {
             {/* Student Photo */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    {studentPhotoPreview ? (
-                      <div className="relative">
-                        <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setStudentPhoto(null);
-                            setStudentPhotoPreview(null);
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                        >
-                          <XCircleIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Click to upload</p>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoChange(e, 'student')}
-                  />
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {studentPhotoPreview ? (
+                        <div className="relative">
+                          <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setStudentPhoto(null);
+                              setStudentPhotoPreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoChange(e, 'student')}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startCamera('student')}
+                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
 
             {/* Guardian Photo 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    {guardianPhoto1Preview ? (
-                      <div className="relative">
-                        <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setGuardianPhoto1(null);
-                            setGuardianPhoto1Preview(null);
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                        >
-                          <XCircleIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Click to upload</p>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoChange(e, 'guardian1')}
-                  />
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {guardianPhoto1Preview ? (
+                        <div className="relative">
+                          <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setGuardianPhoto1(null);
+                              setGuardianPhoto1Preview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoChange(e, 'guardian1')}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startCamera('guardian1')}
+                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
 
             {/* Guardian Photo 2 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
-              <div className="flex items-center justify-center w-full">
-                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    {guardianPhoto2Preview ? (
-                      <div className="relative">
-                        <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setGuardianPhoto2(null);
-                            setGuardianPhoto2Preview(null);
-                          }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                        >
-                          <XCircleIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                        <p className="text-sm text-gray-500">Click to upload</p>
-                      </>
-                    )}
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoChange(e, 'guardian2')}
-                  />
-                </label>
+              <div className="space-y-2">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      {guardianPhoto2Preview ? (
+                        <div className="relative">
+                          <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setGuardianPhoto2(null);
+                              setGuardianPhoto2Preview(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                          >
+                            <XCircleIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                          <p className="text-sm text-gray-500">Click to upload</p>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoChange(e, 'guardian2')}
+                    />
+                  </label>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => startCamera('guardian2')}
+                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2248,25 +2512,47 @@ const Students = () => {
                             </td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex space-x-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openEditModal(student);
-                                  }}
-                                  className="p-1.5 text-blue-600 hover:text-blue-800 rounded-lg hover:bg-blue-50 transition-colors"
-                                >
-                                  <PencilSquareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDelete(student._id);
-                                  }}
-                                  disabled={deletingId === student._id}
-                                  className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                                >
-                                  <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                </button>
+                                {canEditStudent ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEditModal(student);
+                                    }}
+                                    className="p-1.5 text-blue-600 hover:text-blue-800 rounded-lg hover:bg-blue-50 transition-colors"
+                                    title="Edit student"
+                                  >
+                                    <PencilSquareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Edit access restricted"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                )}
+                                {canDeleteStudent ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(student._id);
+                                    }}
+                                    disabled={deletingId === student._id}
+                                    className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                                    title="Delete student"
+                                  >
+                                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Delete access restricted"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -3756,114 +4042,144 @@ const Students = () => {
               {/* Student Photo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {photoEditStudentPhotoPreview ? (
-                        <div className="relative">
-                          <img src={photoEditStudentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPhotoEditStudentPhoto(null);
-                              setPhotoEditStudentPhotoPreview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoEditChange(e, 'student')}
-                    />
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {photoEditStudentPhotoPreview ? (
+                          <div className="relative">
+                            <img src={photoEditStudentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPhotoEditStudentPhoto(null);
+                                setPhotoEditStudentPhotoPreview(null);
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <XCircleIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500">Click to upload</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoEditChange(e, 'student')}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startCamera('edit_student')}
+                    className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                  >
+                    <CameraIcon className="w-4 h-4" />
+                    <span>Take Photo</span>
+                  </button>
                 </div>
               </div>
 
               {/* Guardian Photo 1 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {photoEditGuardianPhoto1Preview ? (
-                        <div className="relative">
-                          <img src={photoEditGuardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPhotoEditGuardianPhoto1(null);
-                              setPhotoEditGuardianPhoto1Preview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoEditChange(e, 'guardian1')}
-                    />
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {photoEditGuardianPhoto1Preview ? (
+                          <div className="relative">
+                            <img src={photoEditGuardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPhotoEditGuardianPhoto1(null);
+                                setPhotoEditGuardianPhoto1Preview(null);
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <XCircleIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500">Click to upload</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoEditChange(e, 'guardian1')}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startCamera('edit_guardian1')}
+                    className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                  >
+                    <CameraIcon className="w-4 h-4" />
+                    <span>Take Photo</span>
+                  </button>
                 </div>
               </div>
 
               {/* Guardian Photo 2 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {photoEditGuardianPhoto2Preview ? (
-                        <div className="relative">
-                          <img src={photoEditGuardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setPhotoEditGuardianPhoto2(null);
-                              setPhotoEditGuardianPhoto2Preview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoEditChange(e, 'guardian2')}
-                    />
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-center w-full">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {photoEditGuardianPhoto2Preview ? (
+                          <div className="relative">
+                            <img src={photoEditGuardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setPhotoEditGuardianPhoto2(null);
+                                setPhotoEditGuardianPhoto2Preview(null);
+                              }}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                            >
+                              <XCircleIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
+                            <p className="text-sm text-gray-500">Click to upload</p>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoEditChange(e, 'guardian2')}
+                      />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => startCamera('edit_guardian2')}
+                    className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                  >
+                    <CameraIcon className="w-4 h-4" />
+                    <span>Take Photo</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -4155,6 +4471,87 @@ const Students = () => {
     )
   );
 
+  // Camera Modal Component
+  const renderCameraModal = () => (
+    showCamera && (
+      <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 w-full max-w-2xl mx-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-800">
+              Take Photo - {
+                cameraType === 'student' ? 'Student' : 
+                cameraType === 'guardian1' ? 'Guardian 1' : 
+                cameraType === 'guardian2' ? 'Guardian 2' :
+                cameraType === 'edit_student' ? 'Student (Edit)' :
+                cameraType === 'edit_guardian1' ? 'Guardian 1 (Edit)' :
+                cameraType === 'edit_guardian2' ? 'Guardian 2 (Edit)' : 'Photo'
+              }
+            </h3>
+            <button
+              onClick={stopCamera}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="relative">
+            {!cameraReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg z-10">
+                <div className="text-center text-white">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                  <p>Loading camera...</p>
+                </div>
+              </div>
+            )}
+            
+            <video
+              ref={(el) => setVideoRef(el)}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-96 bg-gray-900 rounded-lg"
+              style={{ transform: 'scaleX(-1)' }} // Mirror the video
+              onLoadedMetadata={() => {
+                if (videoRef && stream) {
+                  videoRef.play();
+                  setCameraReady(true);
+                }
+              }}
+            />
+            
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-2 border-white border-dashed rounded-lg p-4 opacity-50">
+                <div className="w-32 h-40 border-2 border-white rounded-lg"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-center space-x-4 mt-4">
+            <button
+              onClick={capturePhoto}
+              disabled={!cameraReady}
+              className={`px-6 py-3 rounded-lg flex items-center space-x-2 ${
+                cameraReady 
+                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
+            >
+              <CameraIcon className="w-5 h-5" />
+              <span>{cameraReady ? 'Capture Photo' : 'Loading...'}</span>
+            </button>
+            <button
+              onClick={stopCamera}
+              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
   if (loading && tab === 'list' && !tableLoading) { 
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
@@ -4165,16 +4562,25 @@ const Students = () => {
       <div className="mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 sm:p-2">
           <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
-            {TABS.map(t => (
-              <button
-                key={t.value}
-                className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${
-                  tab === t.value 
-                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105' 
-                    : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                }`}
-                onClick={() => setTab(t.value)}
-              >
+            {TABS.map(t => {
+              // Check if tab should be shown based on permissions
+              if (t.value === 'add' && !canAddStudent) {
+                return null; // Hide Add Student tab if no permission
+              }
+              if (t.value === 'bulkUpload' && !canAddStudent) {
+                return null; // Hide Bulk Upload tab if no permission
+              }
+              
+              return (
+                <button
+                  key={t.value}
+                  className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${
+                    tab === t.value 
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105' 
+                      : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                  }`}
+                  onClick={() => setTab(t.value)}
+                >
                 {/* Active indicator */}
                 {tab === t.value && (
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg"></div>
@@ -4199,7 +4605,8 @@ const Students = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 )}
               </button>
-            ))}
+            );
+            })}
           </div>
         </div>
       </div>
@@ -4222,6 +4629,7 @@ const Students = () => {
         onRenew={handleRenewBatches}
       />
       {passwordResetModal && renderPasswordResetModal()}
+      {renderCameraModal()}
       
       {/* Room View Modal */}
       {showRoomViewModal && selectedRoom && (
@@ -4240,7 +4648,7 @@ const Students = () => {
             </div>
 
             {/* Room Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="mb-6">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h3 className="text-lg font-semibold text-gray-900 mb-3">Room Information</h3>
                 <div className="space-y-2 text-sm">
@@ -4271,28 +4679,6 @@ const Students = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Occupancy Rate:</span>
                     <span className="font-medium">{selectedRoom.occupancyRate}%</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold text-blue-900 mb-3">Bed Status</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-blue-700">Available Beds</span>
-                    <div className="flex gap-1">
-                      {Array.from({ length: selectedRoom.availableBeds }, (_, i) => (
-                        <div key={i} className="w-4 h-4 bg-green-500 rounded-sm"></div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-blue-700">Occupied Beds</span>
-                    <div className="flex gap-1">
-                      {Array.from({ length: selectedRoom.studentCount }, (_, i) => (
-                        <div key={i} className="w-4 h-4 bg-red-500 rounded-sm"></div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               </div>

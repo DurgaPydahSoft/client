@@ -173,8 +173,8 @@ const Announcements = () => {
                       return (
                         <div>
                           {description.split('\n').map((line, i) => (
-                            <p key={i} className="mb-2 sm:mb-3 last:mb-0 leading-relaxed break-words whitespace-pre-wrap">{line}</p>
-                          ))}
+                    <p key={i} className="mb-2 sm:mb-3 last:mb-0 leading-relaxed break-words whitespace-pre-wrap">{line}</p>
+                  ))}
                         </div>
                       );
                     }

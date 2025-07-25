@@ -71,24 +71,24 @@ const PrincipalViewAttendance = () => {
   const fetchAttendanceForDate = async () => {
     setLoading(true);
     try {
+      // Server already filters by course for principals, no need to pass course parameter
       const params = new URLSearchParams({ date: selectedDate });
-      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
-      if (courseId) params.append('course', courseId);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       console.log('[DEBUG] Fetching attendance for date with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/date?${params}`);
       console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        let attendanceData = response.data.data.attendance;
+        let attendanceData = response.data.data.attendance; // Access the attendance array
         console.log('[DEBUG] Attendance before branch filter:', attendanceData);
         if (filters.branch) {
           attendanceData = attendanceData.filter(record => 
-            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
+            record.branch?._id === filters.branch || record.branch === filters.branch
           );
           console.log('[DEBUG] Attendance after branch filter:', attendanceData);
         }
         setAttendance(attendanceData);
+        // Use server-provided statistics
         setStatistics(response.data.data.statistics);
       }
     } catch (error) {
@@ -103,12 +103,11 @@ const PrincipalViewAttendance = () => {
   const fetchAttendanceForRange = async () => {
     setLoading(true);
     try {
+      // Server already filters by course for principals, no need to pass course parameter
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
-      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
-      if (courseId) params.append('course', courseId);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       console.log('[DEBUG] Fetching attendance for range with params:', params.toString());
@@ -124,27 +123,8 @@ const PrincipalViewAttendance = () => {
           console.log('[DEBUG] Attendance after branch filter:', attendanceData);
         }
         setAttendance(attendanceData);
-        // Calculate statistics from attendance data
-        const stats = {
-          totalStudents: response.data.data.statistics?.totalStudents || attendanceData.length,
-          morningPresent: 0,
-          eveningPresent: 0,
-          fullyPresent: 0,
-          partiallyPresent: 0,
-          absent: 0
-        };
-        attendanceData.forEach(record => {
-          if (record.morning) stats.morningPresent++;
-          if (record.evening) stats.eveningPresent++;
-          if (record.morning && record.evening) {
-            stats.fullyPresent++;
-          } else if (record.morning || record.evening) {
-            stats.partiallyPresent++;
-          } else {
-            stats.absent++;
-          }
-        });
-        setStatistics(stats);
+        // Use server-provided statistics
+        setStatistics(response.data.data.statistics);
       }
     } catch (error) {
       console.error('[DEBUG] Error fetching attendance:', error);

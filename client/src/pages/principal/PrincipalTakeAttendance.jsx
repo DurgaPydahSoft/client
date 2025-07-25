@@ -43,16 +43,15 @@ const PrincipalTakeAttendance = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
-      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
+      // Use principal-specific endpoint - server already filters by course
       const params = new URLSearchParams({ date: selectedDate });
-      if (courseId) params.append('course', courseId);
       if (filters.gender) params.append('gender', filters.gender);
       if (filters.category) params.append('category', filters.category);
       console.log('[DEBUG] Fetching students with params:', params.toString());
-      const response = await api.get(`/api/attendance/students?${params}`);
+      const response = await api.get(`/api/attendance/principal/date?${params}`);
       console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        let filteredStudents = response.data.data.students;
+        let filteredStudents = response.data.data.attendance; // Access the attendance array
         console.log('[DEBUG] Students before branch filter:', filteredStudents);
         if (filters.branch) {
           filteredStudents = filteredStudents.filter(student => 
@@ -64,9 +63,9 @@ const PrincipalTakeAttendance = () => {
         const initialAttendance = {};
         filteredStudents.forEach(student => {
           initialAttendance[student._id] = {
-            morning: student.attendance?.morning || false,
-            evening: student.attendance?.evening || false,
-            notes: student.attendance?.notes || ''
+            morning: student.morning || false,
+            evening: student.evening || false,
+            notes: student.notes || ''
           };
         });
         setAttendanceData(initialAttendance);

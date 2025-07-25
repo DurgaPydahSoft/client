@@ -14,14 +14,36 @@ import {
   AcademicCapIcon,
   PhoneIcon,
   TableCellsIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
+import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const RoomManagement = () => {
   console.log('🏠 RoomManagement component loaded');
+  
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'super_admin';
+  const canAddRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'create');
+  const canEditRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
+  const canDeleteRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'delete');
+  const canManageBills = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
+  
+  console.log('🔐 Room Management Permissions:', {
+    user: user?.username,
+    role: user?.role,
+    isSuperAdmin,
+    canAddRoom,
+    canEditRoom,
+    canDeleteRoom,
+    canManageBills,
+    permissions: user?.permissions,
+    accessLevels: user?.permissionAccessLevels
+  });
   
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -140,6 +162,12 @@ const RoomManagement = () => {
 
   const handleAddRoom = async (e) => {
     e.preventDefault();
+    
+    if (!canAddRoom) {
+      toast.error('You do not have permission to add rooms');
+      return;
+    }
+    
     try {
       await api.post('/api/admin/rooms', formData);
       toast.success('Room added successfully');
@@ -153,6 +181,12 @@ const RoomManagement = () => {
 
   const handleEditRoom = async (e) => {
     e.preventDefault();
+    
+    if (!canEditRoom) {
+      toast.error('You do not have permission to edit rooms');
+      return;
+    }
+    
     try {
       await api.put(`/api/admin/rooms/${selectedRoom._id}`, formData);
       toast.success('Room updated successfully');
@@ -166,6 +200,11 @@ const RoomManagement = () => {
   };
 
   const handleDeleteRoom = async (roomId) => {
+    if (!canDeleteRoom) {
+      toast.error('You do not have permission to delete rooms');
+      return;
+    }
+    
     if (!window.confirm('Are you sure you want to delete this room?')) return;
     
     try {
@@ -374,6 +413,11 @@ const RoomManagement = () => {
   };
 
   const handleBillConfirm = async () => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to manage electricity bills');
+      return;
+    }
+    
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
@@ -494,6 +538,11 @@ const RoomManagement = () => {
   };
 
   const handleEditBillConfirm = async () => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to manage electricity bills');
+      return;
+    }
+    
     try {
       const payload = {
         month: editBillPreview.month,
@@ -558,9 +607,15 @@ const RoomManagement = () => {
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={!canAddRoom}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            canAddRoom 
+              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+          }`}
+          title={!canAddRoom ? 'You need full access to add rooms' : 'Add new room'}
         >
-          <PlusIcon className="w-5 h-5" />
+          {!canAddRoom ? <LockClosedIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
           Add Room
         </button>
       </div>
@@ -791,20 +846,40 @@ const RoomManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-2">
-                          <button
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
-                                title="Edit Room"
-                          >
-                                <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
-                                title="Delete Room"
-                          >
-                                <TrashIcon className="w-4 h-4" />
-                          </button>
+                          {canEditRoom ? (
+                            <button
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
+                              title="Edit Room"
+                            >
+                              <PencilIcon className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              className="p-2 text-gray-400 cursor-not-allowed"
+                              disabled
+                              title="You need full access to edit rooms"
+                            >
+                              <LockClosedIcon className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canDeleteRoom ? (
+                            <button
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
+                              title="Delete Room"
+                            >
+                              <TrashIcon className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              className="p-2 text-gray-400 cursor-not-allowed"
+                              disabled
+                              title="You need full access to delete rooms"
+                            >
+                              <LockClosedIcon className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                           </td>
                         </motion.tr>

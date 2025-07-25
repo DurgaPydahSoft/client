@@ -906,11 +906,23 @@ const DashboardHome = () => {
                         </div>
                       </div>
 
+                      {/* Bill Amounts */}
+                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-yellow-200 mb-4 sm:mb-6">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-2">
+                          <p className="text-xs sm:text-sm text-gray-600">Total Room Bill:</p>
+                          <p className="text-sm sm:text-base font-medium text-gray-900">₹{bill.total}</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
+                          <p className="text-xs sm:text-sm text-blue-700 font-semibold">Your Share:</p>
+                          <p className="text-lg sm:text-xl font-bold text-blue-700">₹{bill.studentShare}</p>
+                        </div>
+                      </div>
+
                       {/* Total Amount and Actions */}
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 sm:pt-4 border-t border-yellow-200 gap-3">
                         <div>
-                          <p className="text-xs sm:text-sm text-gray-600 mb-1">Total Amount</p>
-                          <p className="text-xl sm:text-2xl font-bold text-yellow-700">₹{bill.total}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 mb-1">Your Payment</p>
+                          <p className="text-xl sm:text-2xl font-bold text-yellow-700">₹{bill.studentShare}</p>
                         </div>
                         
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
@@ -930,7 +942,7 @@ const DashboardHome = () => {
                               onClick={() => window.location.href = `/student/electricity-payment/${bill._id}`}
                               className="px-4 sm:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base"
                             >
-                              Pay Now
+                              Pay ₹{bill.studentShare}
                             </motion.button>
                           )}
                         </div>

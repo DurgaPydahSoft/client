@@ -125,7 +125,11 @@ function App() {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<DashboardHome />} />
+              <Route index element={
+                <ProtectedSection permission="dashboard_home" sectionName="Dashboard Home">
+                  <DashboardHome />
+                </ProtectedSection>
+              } />
               <Route path="rooms/management" element={
                 <ProtectedSection permission="room_management" sectionName="Room Management">
                   <RoomManagement />
@@ -143,12 +147,12 @@ function App() {
                 </ProtectedSection>
               } />
               <Route path="complaints" element={
-                <ProtectedSection permission="complaint_management" sectionName="Complaints">
+                <ProtectedSection permission="maintenance_ticket_management" sectionName="Complaints">
                   <Complaints />
                 </ProtectedSection>
               } />
               <Route path="complaints/details/:id" element={
-                <ProtectedSection permission="complaint_management" sectionName="Complaints">
+                <ProtectedSection permission="maintenance_ticket_management" sectionName="Complaints">
                   <Complaints />
                 </ProtectedSection>
               } />
@@ -164,7 +168,7 @@ function App() {
               } />
               <Route path="notifications" element={<Notifications />} />
               <Route path="members" element={
-                <ProtectedSection permission="member_management" sectionName="Member Management">
+                <ProtectedSection permission="maintenance_ticket_management" sectionName="Member Management">
                   <MemberManagement />
                 </ProtectedSection>
               } />
@@ -198,7 +202,11 @@ function App() {
                   <AdminFeeManagement />
                 </ProtectedSection>
               } />
-              <Route path="feature-controls" element={<FeatureControls />} />
+              <Route path="feature-controls" element={
+                <ProtectedSection permission="feature_controls" sectionName="Feature Controls">
+                  <FeatureControls />
+                </ProtectedSection>
+              } />
             </Route>
 
             {/* Protected warden routes */}

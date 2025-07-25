@@ -13,6 +13,14 @@ import PrincipalHome from './PrincipalHome';
 import PrincipalAttendance from './PrincipalAttendance';
 import NotificationBell from '../../components/NotificationBell';
 
+// Helper function to get course name consistently
+const getCourseName = (course) => {
+  if (!course) return 'Course Management';
+  if (typeof course === 'object' && course.name) return course.name;
+  if (typeof course === 'string') return course;
+  return 'Course Management';
+};
+
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
   return (
@@ -224,7 +232,7 @@ const PrincipalDashboard = () => {
             </div>
             <div className="flex-1">
               <h1 className="font-semibold text-xs">Principal Portal</h1>
-              <p className="text-xs text-purple-100">{user?.course ? (typeof user.course === 'object' ? user.course.name : user.course) : 'Course Management'}</p>
+              <p className="text-xs text-purple-100">{getCourseName(user?.course)}</p>
             </div>
           </div>
         </div>
@@ -348,7 +356,7 @@ const PrincipalDashboard = () => {
                 {user?.name || 'Principal'}
               </div>
               <div className="text-xs text-gray-500 truncate">
-                {user?.course ? `${typeof user.course === 'object' ? user.course.name : user.course} Principal` : 'Principal'}
+                {user?.course ? `${getCourseName(user?.course)} Principal` : 'Principal'}
               </div>
             </div>
           </div>
