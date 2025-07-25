@@ -40,9 +40,11 @@ const TYPES = [
 
 const STATUSES = [
   { value: 'all', label: 'All Status' },
+  { value: 'pending', label: 'Pending Approval' },
   { value: 'active', label: 'Active' },
   { value: 'claimed', label: 'Claimed' },
-  { value: 'closed', label: 'Closed' }
+  { value: 'closed', label: 'Closed' },
+  { value: 'rejected', label: 'Rejected' }
 ];
 
 const FoundLostManagement = () => {
@@ -59,7 +61,7 @@ const FoundLostManagement = () => {
   // Filters
   const [filterType, setFilterType] = useState('all');
   const [filterCategory, setFilterCategory] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Pagination
@@ -164,12 +166,16 @@ const FoundLostManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
       case 'active':
         return 'bg-green-100 text-green-800';
       case 'claimed':
         return 'bg-blue-100 text-blue-800';
       case 'closed':
         return 'bg-gray-100 text-gray-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -218,7 +224,9 @@ const FoundLostManagement = () => {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
           >
-            <option value="active">Active</option>
+            <option value="pending">Pending Approval</option>
+            <option value="active">Approve (Active)</option>
+            <option value="rejected">Reject</option>
             <option value="claimed">Claimed</option>
             <option value="closed">Closed</option>
           </select>
@@ -279,9 +287,11 @@ const FoundLostManagement = () => {
               {post.type === 'found' ? '🔍 Found' : '❓ Lost'}
             </span>
             <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
+              {post.status === 'pending' && '⏳ Pending'}
               {post.status === 'active' && '🟢 Active'}
               {post.status === 'claimed' && '✅ Claimed'}
               {post.status === 'closed' && '🔒 Closed'}
+              {post.status === 'rejected' && '❌ Rejected'}
             </span>
           </div>
         </div>
@@ -388,19 +398,19 @@ const FoundLostManagement = () => {
   };
 
   const StatCard = ({ title, value, icon: Icon, color, change }) => (
-    <div className={`bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 hover:shadow-md transition-shadow duration-200`}>
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-2 sm:p-3 hover:shadow-md transition-shadow duration-200`}>
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{title}</p>
-          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mt-1">{value}</p>
+          <p className="text-xs font-medium text-gray-600 truncate">{title}</p>
+          <p className="text-sm sm:text-base font-bold text-gray-900 mt-1">{value}</p>
           {change && (
-            <p className={`text-xs sm:text-sm mt-1 ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <p className={`text-xs mt-1 ${change > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {change > 0 ? '+' : ''}{change} from last week
             </p>
           )}
         </div>
-        <div className={`p-1.5 sm:p-2 lg:p-3 rounded-lg ${color} flex-shrink-0`}>
-          <Icon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+        <div className={`p-1 sm:p-1.5 rounded-lg ${color} flex-shrink-0`}>
+          <Icon className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
         </div>
       </div>
     </div>
@@ -440,7 +450,7 @@ const FoundLostManagement = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 py-4 sm:py-6">
           {/* Analytics */}
           {!analyticsLoading && analytics && (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
               <StatCard
                 title="Total Posts"
                 value={analytics.totalPosts}
@@ -460,9 +470,15 @@ const FoundLostManagement = () => {
                 color="bg-orange-500"
               />
               <StatCard
+                title="Pending Approval"
+                value={analytics.pendingPosts}
+                icon={ClockIcon}
+                color="bg-yellow-500"
+              />
+              <StatCard
                 title="Active Posts"
                 value={analytics.activePosts}
-                icon={ClockIcon}
+                icon={CheckIcon}
                 color="bg-purple-500"
               />
             </div>
@@ -629,7 +645,11 @@ const FoundLostManagement = () => {
                   {selectedPost.type === 'found' ? 'Found' : 'Lost'}
                 </span>
                 <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getStatusColor(selectedPost.status)}`}>
-                  {selectedPost.status}
+                  {selectedPost.status === 'pending' && '⏳ Pending'}
+                  {selectedPost.status === 'active' && '🟢 Active'}
+                  {selectedPost.status === 'claimed' && '✅ Claimed'}
+                  {selectedPost.status === 'closed' && '🔒 Closed'}
+                  {selectedPost.status === 'rejected' && '❌ Rejected'}
                 </span>
               </div>
 

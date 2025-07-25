@@ -177,7 +177,7 @@ const FoundLost = () => {
       });
 
       if (response.data.success) {
-        toast.success('Post created successfully');
+        toast.success('Post created successfully and is pending admin approval');
         setShowCreateModal(false);
         fetchPosts(searchQuery, filterType, filterCategory, currentPage);
         fetchMyPosts();
@@ -263,12 +263,16 @@ const FoundLost = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
       case 'active':
         return 'bg-green-100 text-green-800';
       case 'claimed':
         return 'bg-blue-100 text-blue-800';
       case 'closed':
         return 'bg-gray-100 text-gray-800';
+      case 'rejected':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -300,9 +304,11 @@ const FoundLost = () => {
               {post.type === 'found' ? '🔍 Found' : '❓ Lost'}
             </span>
             <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(post.status)}`}>
+              {post.status === 'pending' && '⏳ Pending Approval'}
               {post.status === 'active' && '🟢 Active'}
               {post.status === 'claimed' && '✅ Claimed'}
               {post.status === 'closed' && '🔒 Closed'}
+              {post.status === 'rejected' && '❌ Rejected'}
             </span>
           </div>
         </div>
@@ -367,7 +373,7 @@ const FoundLost = () => {
               <span>View Details</span>
             </button>
             
-            {post.student?._id === user?._id && post.status === 'active' && (
+            {post.student?._id === user?._id && (post.status === 'active' || post.status === 'pending') && (
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => openEdit(post)}
@@ -753,9 +759,11 @@ const FoundLost = () => {
                   {selectedPost.type === 'found' ? '🔍 Found' : '❓ Lost'}
                 </span>
                 <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(selectedPost.status)}`}>
+                  {selectedPost.status === 'pending' && '⏳ Pending Approval'}
                   {selectedPost.status === 'active' && '🟢 Active'}
                   {selectedPost.status === 'claimed' && '✅ Claimed'}
                   {selectedPost.status === 'closed' && '🔒 Closed'}
+                  {selectedPost.status === 'rejected' && '❌ Rejected'}
                 </span>
               </div>
 

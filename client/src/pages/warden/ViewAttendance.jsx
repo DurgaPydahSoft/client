@@ -8,6 +8,7 @@ import {
   ClockIcon,
   SunIcon,
   MoonIcon,
+  StarIcon,
   FunnelIcon,
   EyeIcon,
   ChartBarIcon,
@@ -190,6 +191,7 @@ const ViewAttendance = () => {
           totalStudents: response.data.data.totalRecords || filteredAttendance.length,
           morningPresent: 0,
           eveningPresent: 0,
+          nightPresent: 0,
           fullyPresent: 0,
           partiallyPresent: 0,
           absent: 0
@@ -199,10 +201,11 @@ const ViewAttendance = () => {
         filteredAttendance.forEach(record => {
           if (record.morning) stats.morningPresent++;
           if (record.evening) stats.eveningPresent++;
+          if (record.night) stats.nightPresent++;
           
-          if (record.morning && record.evening) {
+          if (record.morning && record.evening && record.night) {
             stats.fullyPresent++;
-          } else if (record.morning || record.evening) {
+          } else if (record.morning || record.evening || record.night) {
             stats.partiallyPresent++;
           } else {
             stats.absent++;
@@ -270,8 +273,8 @@ const ViewAttendance = () => {
   };
 
   const getAttendanceStatus = (record) => {
-    if (record.morning && record.evening) return 'Present';
-    if (record.morning || record.evening) return 'Partial';
+    if (record.morning && record.evening && record.night) return 'Present';
+    if (record.morning || record.evening || record.night) return 'Partial';
     return 'Absent';
   };
 
@@ -342,7 +345,7 @@ const ViewAttendance = () => {
     // Calculate attendance percentage for each student
     studentMap.forEach(studentData => {
       const { totalDays, presentDays, partialDays } = studentData.summary;
-      const effectivePresentDays = presentDays + (partialDays * 0.5); // Count partial as 0.5
+      const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 (1/3 of a day)
       studentData.summary.attendancePercentage = totalDays > 0 
         ? Math.round((effectivePresentDays / totalDays) * 100) 
         : 0;
@@ -435,7 +438,7 @@ const ViewAttendance = () => {
               <ChartBarIcon className="w-5 h-5 text-green-600" />
               Attendance Statistics
             </h2>
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
               <div className="text-center">
                 <p className="text-sm text-gray-500">Total Students</p>
                 <p className="text-2xl font-bold text-green-600">{statistics.totalStudents}</p>
@@ -447,6 +450,10 @@ const ViewAttendance = () => {
               <div className="text-center">
                 <p className="text-sm text-gray-500">Evening Present</p>
                 <p className="text-2xl font-bold text-purple-600">{statistics.eveningPresent}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">Night Present</p>
+                <p className="text-2xl font-bold text-indigo-600">{statistics.nightPresent}</p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Fully Present</p>
@@ -638,6 +645,10 @@ const ViewAttendance = () => {
                         Evening
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <StarIcon className="w-4 h-4 inline mr-1" />
+                        Night
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -715,6 +726,14 @@ const ViewAttendance = () => {
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {record.evening ? (
+                            <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                          ) : (
+                            <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          )}
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {record.night ? (
                             <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                           ) : (
                             <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
@@ -833,7 +852,7 @@ const ViewAttendance = () => {
                             exit={{ opacity: 0, height: 0 }}
                             className="bg-gray-50"
                           >
-                            <td colSpan="6" className="px-6 py-4">
+                            <td colSpan="7" className="px-6 py-4">
                               <div className="bg-white rounded-lg border border-gray-200 p-4">
                                 <h4 className="text-sm font-medium text-gray-900 mb-3">Daily Attendance Details</h4>
                                 <div className="overflow-x-auto">
@@ -843,6 +862,7 @@ const ViewAttendance = () => {
                                         <th className="px-3 py-2 text-left">Date</th>
                                         <th className="px-3 py-2 text-center">Morning</th>
                                         <th className="px-3 py-2 text-center">Evening</th>
+                                        <th className="px-3 py-2 text-center">Night</th>
                                         <th className="px-3 py-2 text-center">Status</th>
                                         <th className="px-3 py-2 text-left">Notes</th>
                                       </tr>
@@ -864,6 +884,13 @@ const ViewAttendance = () => {
                                             </td>
                                             <td className="px-3 py-2 text-center">
                                               {attRecord.evening ? (
+                                                <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                                              ) : (
+                                                <XMarkIcon className="w-4 h-4 text-red-600 mx-auto" />
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-2 text-center">
+                                              {attRecord.night ? (
                                                 <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
                                               ) : (
                                                 <XMarkIcon className="w-4 h-4 text-red-600 mx-auto" />

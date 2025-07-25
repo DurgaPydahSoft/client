@@ -903,32 +903,33 @@ const Complaints = () => {
 
       {/* Details Modal */}
       {selected && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-2xl relative animate-fade-in-up max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-2xl relative animate-fade-in-up max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <button
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              className="absolute top-2 sm:top-4 right-2 sm:right-4 p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
               onClick={() => setSelected(null)}
               disabled={updating}
             >
-              <XMarkIcon className="w-6 h-6" />
+              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">Complaint Details</h2>
+            <div className="mb-4 sm:mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Complaint Details</h2>
                 {selected.currentStatus === 'Received' && !selected.aiProcessed && (
                   <button
                     onClick={() => handleManualAIProcessing(selected._id)}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
                   >
                     <CogIcon className="w-4 h-4" />
-                    Process with AI
+                    <span className="hidden xs:inline">Process with AI</span>
+                    <span className="xs:hidden">AI Process</span>
                   </button>
                 )}
               </div>
-              <p className="text-base text-gray-600">{selected.description}</p>
+              <p className="text-sm sm:text-base text-gray-600">{selected.description}</p>
               {selected.imageUrl && (
-                <div className="mt-4">
+                <div className="mt-3 sm:mt-4">
                   <div className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200">
                     <img
                       src={selected.imageUrl}
@@ -936,35 +937,35 @@ const Complaints = () => {
                       className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <p className="mt-2 text-sm text-gray-500">Complaint Image</p>
+                  <p className="mt-2 text-xs sm:text-sm text-gray-500">Complaint Image</p>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <UserIcon className="w-5 h-5 text-gray-500" />
-                  <span className="text-base font-medium text-gray-700">Student Details</span>
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                  <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                  <span className="text-sm sm:text-base font-medium text-gray-700">Student Details</span>
                 </div>
-                <p className="text-base text-gray-600">{selected.student?.name}</p>
-                <p className="text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
+                <p className="text-sm sm:text-base text-gray-600">{selected.student?.name}</p>
+                <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
                 {selected.student?.studentPhone && (
-                  <p className="text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
+                  <p className="text-xs sm:text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
                 )}
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <div className="flex items-center gap-2 mb-3">
-                  <ClockIcon className="w-5 h-5 text-gray-500" />
-                  <span className="text-base font-medium text-gray-700">Status Information</span>
+              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                  <span className="text-sm sm:text-base font-medium text-gray-700">Status Information</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
                     {selected.currentStatus}
                   </span>
                   {selected.isReopened && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                    <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
                       Reopened
                     </span>
                   )}
@@ -974,21 +975,21 @@ const Complaints = () => {
 
             {/* Assigned Member Information */}
             {selected.assignedTo && (
-              <div className="mb-6">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <UserIcon className="w-5 h-5 text-blue-500" />
-                    <span className="text-base font-medium text-blue-700">Assigned Member</span>
+              <div className="mb-4 sm:mb-6">
+                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                    <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
+                    <span className="text-sm sm:text-base font-medium text-blue-700">Assigned Member</span>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-base text-blue-600 font-medium">{selected.assignedTo.name}</p>
-                    <div className="flex items-center gap-4 text-sm text-blue-600">
-                      <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium">
+                    <p className="text-sm sm:text-base text-blue-600 font-medium">{selected.assignedTo.name}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-blue-600">
+                      <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium w-fit">
                         {selected.assignedTo.category}
                       </span>
                       {selected.assignedTo.phone && (
                         <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                           </svg>
                           {selected.assignedTo.phone}
@@ -996,7 +997,7 @@ const Complaints = () => {
                       )}
                       {selected.assignedTo.email && (
                         <div className="flex items-center gap-1">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
                           {selected.assignedTo.email}
@@ -1008,48 +1009,48 @@ const Complaints = () => {
               </div>
             )}
 
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <CheckCircleIcon className="w-5 h-5 text-gray-500" />
-                <span className="text-base font-medium text-gray-700">Feedback</span>
+            <div className="mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                <span className="text-sm sm:text-base font-medium text-gray-700">Feedback</span>
               </div>
               {selected.feedback ? (
                 <div className={`flex items-center gap-2 ${
                   selected.feedback.isSatisfied ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {selected.feedback.isSatisfied ? (
-                    <CheckCircleIcon className="w-5 h-5" />
+                    <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   ) : (
-                    <ExclamationCircleIcon className="w-5 h-5" />
+                    <ExclamationCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
-                  {selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}
+                  <span className="text-sm sm:text-base">{selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}</span>
                 </div>
               ) : (
-                <p className="text-gray-500">No feedback provided yet</p>
+                <p className="text-sm sm:text-base text-gray-500">No feedback provided yet</p>
               )}
             </div>
 
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <ClockIcon className="w-5 h-5 text-gray-500" />
-                <span className="text-base font-medium text-gray-700">Timeline</span>
+            <div className="mb-4 sm:mb-6">
+              <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                <span className="text-sm sm:text-base font-medium text-gray-700">Timeline</span>
               </div>
               {timelineLoading ? (
                 <div className="flex justify-center py-4">
                   <LoadingSpinner size="sm" />
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {timeline.map((t, i) => (
-                    <div key={i} className="group relative py-3 pl-8 sm:pl-32">
-                      <div className="mb-1 flex flex-col items-start before:absolute before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 sm:flex-row sm:before:left-0 sm:before:ml-[6.5rem] sm:after:left-0 sm:after:ml-[6.5rem]">
-                        <time className="left-0 mb-3 inline-flex h-6 w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase sm:absolute sm:mb-0">
+                    <div key={i} className="group relative py-2 sm:py-3 pl-6 sm:pl-8 lg:pl-32">
+                      <div className="mb-1 flex flex-col items-start before:absolute before:left-1 sm:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1 sm:after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 lg:flex-row lg:before:left-0 lg:before:ml-[6.5rem] lg:after:left-0 lg:after:ml-[6.5rem]">
+                        <time className="left-0 mb-2 sm:mb-3 inline-flex h-5 sm:h-6 w-20 sm:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase lg:absolute lg:mb-0">
                           {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
                         </time>
-                        <div className="text-base sm:text-xl font-bold text-slate-900">{t.status}</div>
+                        <div className="text-sm sm:text-base lg:text-xl font-bold text-slate-900">{t.status}</div>
                       </div>
                       {t.note && t.note.trim() && (
-                        <div className="text-slate-500 text-sm mb-1">{t.note}</div>
+                        <div className="text-slate-500 text-xs sm:text-sm mb-1">{t.note}</div>
                       )}
                           {t.assignedTo && (
                         <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
@@ -1065,13 +1066,13 @@ const Complaints = () => {
 
             {/* Update Form */}
             {selected.currentStatus === 'Closed' && (
-              <div className="mt-6 border-t pt-6">
-                <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="mt-4 sm:mt-6 border-t pt-4 sm:pt-6">
+                <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-gray-700">Complaint Closed</span>
+                    <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                    <span className="text-xs sm:text-sm font-medium text-gray-700">Complaint Closed</span>
                   </div>
-                  <p className="mt-1 text-sm text-gray-600">
+                  <p className="mt-1 text-xs sm:text-sm text-gray-600">
                     This complaint has been closed and no further status updates are allowed.
                   </p>
                 </div>

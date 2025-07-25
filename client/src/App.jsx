@@ -36,6 +36,7 @@ const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
+const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
 
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
@@ -110,7 +111,6 @@ function App() {
             {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="leave/qr/:id" element={<LeaveQRDetails />} />
-            <Route path="security-dashboard" element={<SecurityDashboard />} />
             
             {/* Protected admin routes */}
             <Route
@@ -205,6 +205,16 @@ function App() {
               <Route path="feature-controls" element={
                 <ProtectedSection permission="feature_controls" sectionName="Feature Controls">
                   <FeatureControls />
+                </ProtectedSection>
+              } />
+              <Route path="security" element={
+                <ProtectedSection permission="security_management" sectionName="Security Dashboard">
+                  <SecurityDashboard />
+                </ProtectedSection>
+              } />
+              <Route path="security/settings" element={
+                <ProtectedSection permission="security_management" sectionName="Security Settings">
+                  <SecuritySettings />
                 </ProtectedSection>
               } />
             </Route>

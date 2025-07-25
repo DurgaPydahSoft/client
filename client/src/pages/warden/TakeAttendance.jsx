@@ -8,6 +8,7 @@ import {
   ClockIcon,
   SunIcon,
   MoonIcon,
+  StarIcon,
   FunnelIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
@@ -146,6 +147,7 @@ const TakeAttendance = () => {
           initialAttendance[student._id] = {
             morning: student.attendance?.morning || false,
             evening: student.attendance?.evening || false,
+            night: student.attendance?.night || false,
             notes: ''
           };
         });
@@ -245,6 +247,7 @@ const TakeAttendance = () => {
         studentId,
         morning: data.morning,
         evening: data.evening,
+        night: data.night,
         notes: data.notes
       }));
 
@@ -269,8 +272,8 @@ const TakeAttendance = () => {
     const attendance = attendanceData[student._id];
     if (!attendance) return 'Absent';
     
-    if (attendance.morning && attendance.evening) return 'Present';
-    if (attendance.morning || attendance.evening) return 'Partial';
+    if (attendance.morning && attendance.evening && attendance.night) return 'Present';
+    if (attendance.morning || attendance.evening || attendance.night) return 'Partial';
     return 'Absent';
   };
 
@@ -313,10 +316,10 @@ const TakeAttendance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+    <div className="min-h-screen bg-gray-50">
       <SEO title="Take Attendance - Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto p-3 sm:p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -332,16 +335,15 @@ const TakeAttendance = () => {
               <p className="text-gray-600 mt-1 text-sm sm:text-base">
                 Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
               </p>
-              
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 text-center sm:text-right">
-              <div>
-                <p className="text-sm text-gray-500">Total Students</p>
-                <p className="text-2xl font-bold text-green-600">{stats.totalStudents}</p>
+            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-4 text-center sm:text-right">
+              <div className="bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:p-0">
+                <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.totalStudents}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Attendance Taken</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
+              <div className="bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:p-0">
+                <p className="text-xs sm:text-sm text-gray-500">Attendance Taken</p>
+                <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
               </div>
             </div>
           </div>
@@ -354,7 +356,7 @@ const TakeAttendance = () => {
           transition={{ delay: 0.1 }}
           className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
             {/* Date Selector */}
             <div className="sm:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -472,25 +474,44 @@ const TakeAttendance = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-4 sm:mb-6"
+          className="mb-4 sm:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
         >
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md font-medium"
-          >
-            {submitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving Attendance...
-              </>
-            ) : (
-              <>
-                <CheckIcon className="w-5 h-5" />
-                Save Attendance ({students.length} students)
-              </>
-            )}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <button
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-base"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving Attendance...</span>
+                </>
+                              ) : (
+                  <>
+                    <CheckIcon className="w-6 h-6" />
+                    <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
+                    <span className="sm:hidden">Save Attendance</span>
+                  </>
+                )}
+            </button>
+            
+            {/* Quick Stats */}
+            <div className="flex justify-between sm:hidden text-sm text-gray-600 bg-white rounded-lg p-3 border border-gray-200">
+              <div className="text-center">
+                <div className="font-semibold text-green-600">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
+                <div className="text-xs">Present</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-yellow-600">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
+                <div className="text-xs">Partial</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-red-600">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
+                <div className="text-xs">Absent</div>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         {/* Students List - Mobile Optimized */}
@@ -501,9 +522,25 @@ const TakeAttendance = () => {
           className="bg-white rounded-lg shadow-sm overflow-hidden"
         >
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Students ({students.length})
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Students ({students.length})
+              </h2>
+              <div className="hidden sm:flex items-center gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span>Present: {students.filter(s => getAttendanceStatus(s) === 'Present').length}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <span>Partial: {students.filter(s => getAttendanceStatus(s) === 'Partial').length}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span>Absent: {students.filter(s => getAttendanceStatus(s) === 'Absent').length}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Mobile Card View */}
@@ -517,21 +554,26 @@ const TakeAttendance = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="p-4 hover:bg-gray-50"
+                    className="p-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                   >
                     {/* Student Info */}
-                    <div className="mb-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-sm font-medium text-gray-900">{student.name}</h3>
-                          <p className="text-xs text-gray-500">
+                    <div className="mb-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base font-semibold text-gray-900 truncate">{student.name}</h3>
+                          {/* Mobile: Show only course and room */}
+                          <p className="text-sm text-gray-600 mt-1 sm:hidden">
+                            {getCourseName(student.course)} {student.year} • Room {student.roomNumber}
+                          </p>
+                          {/* Desktop: Show full details */}
+                          <p className="hidden sm:block text-sm text-gray-600 mt-1">
                             {student.rollNumber} • {getCourseName(student.course)} {student.year} • {getBranchName(student.branch)}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="hidden sm:block text-xs text-gray-500 mt-1">
                             Room {student.roomNumber} • {student.gender}
                           </p>
                         </div>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${getStatusColor(status)}`}>
                           {getStatusIcon(status)}
                           <span className="ml-1">{status}</span>
                         </span>
@@ -539,8 +581,8 @@ const TakeAttendance = () => {
                     </div>
 
                     {/* Attendance Controls */}
-                    <div className="grid grid-cols-2 gap-3 mb-3">
-                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-2">
                           <SunIcon className="w-4 h-4 text-yellow-600" />
                           <span className="text-sm font-medium">Morning</span>
@@ -553,7 +595,7 @@ const TakeAttendance = () => {
                         />
                       </div>
                       
-                      <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-2">
                           <MoonIcon className="w-4 h-4 text-blue-600" />
                           <span className="text-sm font-medium">Evening</span>
@@ -565,16 +607,30 @@ const TakeAttendance = () => {
                           className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                       </div>
+
+                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <StarIcon className="w-4 h-4 text-purple-600" />
+                          <span className="text-sm font-medium">Night</span>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={attendanceData[student._id]?.night || false}
+                          onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
+                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                        />
+                      </div>
                     </div>
 
                     {/* Notes */}
-                    <div>
+                    <div className="mt-4">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
                       <input
                         type="text"
                         value={attendanceData[student._id]?.notes || ''}
                         onChange={(e) => handleNotesChange(student._id, e.target.value)}
-                        placeholder="Add notes..."
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Add notes for this student..."
+                        className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       />
                     </div>
                   </motion.div>
@@ -599,6 +655,10 @@ const TakeAttendance = () => {
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       <MoonIcon className="w-4 h-4 inline mr-1" />
                       Evening
+                    </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <StarIcon className="w-4 h-4 inline mr-1" />
+                      Night
                     </th>
                     <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
@@ -649,6 +709,15 @@ const TakeAttendance = () => {
                             type="checkbox"
                             checked={attendanceData[student._id]?.evening || false}
                             onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
+                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          />
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <input
+                            type="checkbox"
+                            checked={attendanceData[student._id]?.night || false}
+                            onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
                             className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                           />
                         </td>

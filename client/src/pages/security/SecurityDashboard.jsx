@@ -301,7 +301,7 @@ const SecurityDashboard = () => {
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
   return (
-    <div className="min-h-screen bg-gradient-to-t from-blue-50 to-blue-200">
+    <div className="min-h-screen bg-gradient-to-t ">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         <SEO 
           title="Security Dashboard"
@@ -769,7 +769,7 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm w-full">
             <InfoField icon={<UserIcon />} label="Name" value={student.name} />
             <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
-            <InfoField icon={<TagIcon />} label="Course" value={`${student.course} - ${student.branch}`} />
+            <InfoField icon={<TagIcon />} label="Course" value={`${student.course?.name || student.course} - ${student.branch?.name || student.branch}`} />
             <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
             <InfoField icon={<PhoneIcon />} label="Student Phone" value={securitySettings.viewPhoneNumbers ? student.studentPhone : 'Hidden by admin'} />
             <InfoField icon={<PhoneIcon />} label="Parent Phone" value={securitySettings.viewPhoneNumbers ? student.parentPhone : 'Hidden by admin'} />

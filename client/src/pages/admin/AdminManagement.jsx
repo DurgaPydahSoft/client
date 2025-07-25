@@ -130,18 +130,10 @@ const AdminManagement = () => {
     course: '',
     leaveManagementCourses: [] // New field for course selection
   });
-  const [securitySettings, setSecuritySettings] = useState({
-    viewProfilePictures: true,
-    viewPhoneNumbers: true,
-    viewGuardianImages: true
-  });
-  const [securitySettingsLoading, setSecuritySettingsLoading] = useState(true);
-  const [securitySettingsError, setSecuritySettingsError] = useState('');
   const [courses, setCourses] = useState([]);
 
   useEffect(() => {
     fetchData();
-    fetchSecuritySettings();
   }, []);
 
   const fetchData = async () => {
@@ -175,20 +167,7 @@ const AdminManagement = () => {
     }
   };
 
-  const fetchSecuritySettings = async () => {
-    setSecuritySettingsLoading(true);
-    setSecuritySettingsError('');
-    try {
-      const res = await api.get('/api/security-settings');
-      if (res.data.success) {
-        setSecuritySettings(res.data.data);
-      }
-    } catch (err) {
-      setSecuritySettingsError('Failed to load security settings');
-    } finally {
-      setSecuritySettingsLoading(false);
-    }
-  };
+
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -413,18 +392,7 @@ const AdminManagement = () => {
     setFormData({ username: '', password: '', permissions: [], permissionAccessLevels: {}, hostelType: '', course: '', leaveManagementCourses: [] });
   };
 
-  const handleSecurityToggle = async (key) => {
-    const updated = { ...securitySettings, [key]: !securitySettings[key] };
-    setSecuritySettings(updated);
-    try {
-      await api.post('/api/security-settings', updated);
-      toast.success('Security settings updated');
-    } catch (err) {
-      toast.error('Failed to update security settings');
-      // Optionally revert UI
-      fetchSecuritySettings();
-    }
-  };
+
 
   // Fetch courses when principal tab/modal is open or when sub-admin modal is open
   useEffect(() => {
@@ -529,33 +497,7 @@ const AdminManagement = () => {
       {/* Admin Management Content */}
       {activeTab !== 'courses' && (
         <>
-          {/* Security Settings Section */}
-          <div className="bg-white rounded-xl shadow-sm p-6 mt-8 mb-8">
-            <h2 className="text-lg font-bold text-blue-800 mb-4">Security Settings</h2>
-            {securitySettingsLoading ? (
-              <div className="text-gray-500">Loading...</div>
-            ) : securitySettingsError ? (
-              <div className="text-red-500">{securitySettingsError}</div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-6">
-                <ToggleSwitch
-                  label="View Profile Pictures"
-                  checked={securitySettings.viewProfilePictures}
-                  onChange={() => handleSecurityToggle('viewProfilePictures')}
-                />
-                <ToggleSwitch
-                  label="View Phone Numbers"
-                  checked={securitySettings.viewPhoneNumbers}
-                  onChange={() => handleSecurityToggle('viewPhoneNumbers')}
-                />
-                <ToggleSwitch
-                  label="View Guardian Images"
-                  checked={securitySettings.viewGuardianImages}
-                  onChange={() => handleSecurityToggle('viewGuardianImages')}
-                />
-              </div>
-            )}
-          </div>
+          
 
           {/* Users List */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
