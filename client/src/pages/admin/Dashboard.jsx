@@ -406,11 +406,31 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50 relative">
+      <style>{`
+        .scrollbar-visible::-webkit-scrollbar {
+          width: 4px;
+        }
+        .scrollbar-visible::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-visible::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 2px;
+        }
+        .scrollbar-visible::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.2);
+        }
+        @media (max-width: 1024px) {
+          .scrollbar-visible::-webkit-scrollbar {
+            width: 6px;
+          }
+        }
+      `}</style>
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200 border border-gray-200"
       >
         <Bars3Icon className="w-6 h-6 text-gray-600" />
       </button>
@@ -435,15 +455,9 @@ const AdminDashboard = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-56 lg:w-64 xl:w-72 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 w-72 sm:w-80 lg:w-64 xl:w-72 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none overflow-hidden"
       >
-        {/* Mobile Close Button */}
-        <button
-          onClick={() => setIsSidebarOpen(false)}
-          className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-        >
-          <XMarkIcon className="w-6 h-6 text-gray-600" />
-        </button>
+
 
         {/* Header */}
         <div className="p-4 flex-shrink-0">
@@ -461,12 +475,12 @@ const AdminDashboard = () => {
         </div>
 
         {/* Navigation */}
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 relative">
           {/* Top fade indicator */}
           <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
                id="top-fade"></div>
           
-          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible" 
+          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible pb-4" 
                onScroll={(e) => {
                  const target = e.target;
                  const topFade = document.getElementById('top-fade');
@@ -653,7 +667,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* User Profile and Logout */}
-        <div className="p-4 border-t border-gray-100 flex-shrink-0">
+        <div className="p-4 border-t border-gray-100 flex-shrink-0 bg-white">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
               {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
@@ -697,7 +711,7 @@ const AdminDashboard = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300 shadow hover:shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-300 shadow hover:shadow-md mt-2"
           >
             <svg
               className="w-4 h-4"
@@ -723,7 +737,9 @@ const AdminDashboard = () => {
           <div className="flex justify-end mb-4">
             <NotificationBell />
           </div>
-          <Outlet />
+          <div className="min-h-[calc(100vh-120px)]">
+            <Outlet />
+          </div>
         </div>
       </main>
       

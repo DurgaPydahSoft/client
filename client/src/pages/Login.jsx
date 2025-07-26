@@ -23,11 +23,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // iOS/Safari detection
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const isIOSSafari = isSafari && isIOS;
-  const isIOSChrome = /CriOS/.test(navigator.userAgent);
+
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -35,10 +31,8 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     
-    // iOS-specific loading message
-    const loadingMessage = (isIOS || isIOSSafari || isIOSChrome)
-      ? 'Please wait 30-40 seconds. iOS may take longer to establish connection...' 
-      : 'Please wait at least 30-40 seconds because sometimes the server faces huge loads';
+    // Loading message
+    const loadingMessage = 'Please wait at least 30-40 seconds because sometimes the server faces huge loads';
     
     toast(loadingMessage, { 
       icon: '⏳',
@@ -100,26 +94,16 @@ const Login = () => {
     } catch (err) {
       console.error('Login error:', err);
       
-      // iOS-specific error handling
+      // Error handling
       let errorMessage = err.response?.data?.message || 'Login failed';
       
-      if (isIOS || isIOSSafari || isIOSChrome) {
-        console.log('🦁 iOS login error detected');
-        
-        if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
-          errorMessage = 'Connection issue on iOS. Please check your internet connection and try again. If the problem persists, try refreshing the page.';
-        } else if (err.message.includes('timeout')) {
-          errorMessage = 'Request timed out on iOS. Please try again or check your internet connection.';
-        } else if (err.message.includes('Connection issue')) {
-          errorMessage = err.message; // Use the specific message from AuthContext
-        } else if (err.message.includes('CORS') || err.message.includes('preflight')) {
-          errorMessage = 'iOS security policy is blocking the request. Please try refreshing the page or use a different browser.';
-        }
-      } else {
-        // Handle CORS errors for all browsers
-        if (err.message.includes('CORS') || err.message.includes('preflight')) {
-          errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page.';
-        }
+      // Handle CORS errors for all browsers
+      if (err.message.includes('CORS') || err.message.includes('preflight')) {
+        errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page.';
+      } else if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
+        errorMessage = 'Connection issue. Please check your internet connection and try again.';
+      } else if (err.message.includes('timeout')) {
+        errorMessage = 'Request timed out. Please try again or check your internet connection.';
       }
       
       toast.error(errorMessage);
@@ -156,13 +140,7 @@ const Login = () => {
         }
       `}</style>
       
-      {/* Safari-specific warning */}
-      {isSafari && (
-        <div className="fixed top-4 left-4 right-4 z-50 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-          <p className="font-medium">Safari Browser Detected</p>
-          <p>Push notifications are disabled in Safari for security reasons. The app will work normally with database notifications only.</p>
-        </div>
-      )}
+
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
