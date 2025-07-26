@@ -23,8 +23,11 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Safari detection
-  const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+  // iOS/Safari detection
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  const isIOSSafari = isSafari && isIOS;
+  const isIOSChrome = /CriOS/.test(navigator.userAgent);
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -32,9 +35,9 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     
-    // Safari-specific loading message
-    const loadingMessage = isSafari 
-      ? 'Please wait 30-40 seconds. Safari may take longer to establish connection...' 
+    // iOS-specific loading message
+    const loadingMessage = (isIOS || isIOSSafari || isIOSChrome)
+      ? 'Please wait 30-40 seconds. iOS may take longer to establish connection...' 
       : 'Please wait at least 30-40 seconds because sometimes the server faces huge loads';
     
     toast(loadingMessage, { 
@@ -97,20 +100,20 @@ const Login = () => {
     } catch (err) {
       console.error('Login error:', err);
       
-      // Safari-specific error handling
+      // iOS-specific error handling
       let errorMessage = err.response?.data?.message || 'Login failed';
       
-      if (isSafari) {
-        console.log('🦁 Safari login error detected');
+      if (isIOS || isIOSSafari || isIOSChrome) {
+        console.log('🦁 iOS login error detected');
         
         if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
-          errorMessage = 'Connection issue in Safari. Please check your internet connection and try again. If the problem persists, try refreshing the page.';
+          errorMessage = 'Connection issue on iOS. Please check your internet connection and try again. If the problem persists, try refreshing the page.';
         } else if (err.message.includes('timeout')) {
-          errorMessage = 'Request timed out in Safari. Please try again or check your internet connection.';
+          errorMessage = 'Request timed out on iOS. Please try again or check your internet connection.';
         } else if (err.message.includes('Connection issue')) {
           errorMessage = err.message; // Use the specific message from AuthContext
         } else if (err.message.includes('CORS') || err.message.includes('preflight')) {
-          errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page or use a different browser.';
+          errorMessage = 'iOS security policy is blocking the request. Please try refreshing the page or use a different browser.';
         }
       } else {
         // Handle CORS errors for all browsers

@@ -3,8 +3,11 @@ import { toast } from 'react-hot-toast';
 // OneSignal configuration
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
-// Safari detection
+// Improved iOS/Safari detection
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const isIOSSafari = isSafari && isIOS;
+const isIOSChrome = /CriOS/.test(navigator.userAgent);
 
 class NotificationManager {
   constructor() {
@@ -20,8 +23,8 @@ class NotificationManager {
     console.log('  - NODE_ENV:', import.meta.env.MODE);
     console.log('  - Browser Safari:', isSafari ? '🦁 Yes' : '❌ No');
     
-    if (isSafari) {
-      console.log('🦁 Safari detected - OneSignal will be disabled');
+    if (isIOSSafari && !isIOSChrome) {
+      console.log('🦁 iOS Safari detected - OneSignal will be disabled');
       console.log('🦁 Notifications will use database fallback only');
       this.isInitialized = true; // Mark as initialized to prevent retries
       return;
@@ -48,9 +51,9 @@ class NotificationManager {
         return true;
       }
 
-      // Skip OneSignal initialization for Safari
-      if (isSafari) {
-        console.log('🦁 Safari detected - skipping OneSignal initialization');
+      // Skip OneSignal initialization for iOS Safari only (not iOS Chrome)
+      if (isIOSSafari && !isIOSChrome) {
+        console.log('🦁 iOS Safari detected - skipping OneSignal initialization');
         console.log('🦁 Notifications will use database fallback only');
         this.isInitialized = true;
         return false;

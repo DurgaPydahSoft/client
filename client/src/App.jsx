@@ -12,6 +12,8 @@ import PushNotificationInitializer from './components/PushNotificationInitialize
 import MenuManagement from './pages/admin/MenuManagement';
 import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
+import IOSErrorBoundary from './components/IOSErrorBoundary';
+import IOSDebugPanel from './components/IOSDebugPanel';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -102,8 +104,9 @@ function App() {
   return (
     <HelmetProvider>
     <ErrorBoundary>
-      <AuthProvider>
-        <PushNotificationInitializer />
+      <IOSErrorBoundary>
+        <AuthProvider>
+          <PushNotificationInitializer />
           <Suspense fallback={<RouteLoading />}>
           <Routes>
             {/* Home page */}
@@ -306,7 +309,11 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
-      </AuthProvider>
+        </AuthProvider>
+      </IOSErrorBoundary>
+      
+      {/* iOS Debug Panel - always available on iOS devices */}
+      <IOSDebugPanel />
     </ErrorBoundary>
     </HelmetProvider>
   );

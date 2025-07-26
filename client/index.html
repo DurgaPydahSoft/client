@@ -53,16 +53,27 @@
       // Global variable to track service worker registration
       window.serviceWorkerRegistration = null;
       
-      // Safari detection
+      // Improved iOS/Safari detection
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isIOSSafari = isSafari && isIOS;
+      const isIOSChrome = /CriOS/.test(navigator.userAgent);
+      
+      console.log('🦁 Browser detection:', {
+        userAgent: navigator.userAgent,
+        isSafari,
+        isIOS,
+        isIOSSafari,
+        isIOSChrome
+      });
       
       // Improved service worker registration
       async function registerServiceWorker() {
-        // Skip service worker registration for Safari
-        if (isSafari) {
-          console.log('🦁 Safari detected - skipping OneSignal service worker registration');
-          return null;
-        }
+              // Skip service worker registration for iOS Safari only (not iOS Chrome)
+      if (isIOSSafari && !isIOSChrome) {
+        console.log('🦁 iOS Safari detected - skipping OneSignal service worker registration');
+        return null;
+      }
         
         if ('serviceWorker'in navigator) {
           try {
@@ -94,9 +105,9 @@
 
       // Initialize OneSignal after service worker is ready
       async function initializeOneSignal() {
-        // Skip OneSignal initialization for Safari
-        if (isSafari) {
-          console.log('🦁 Safari detected - skipping OneSignal initialization');
+        // Skip OneSignal initialization for iOS Safari only (not iOS Chrome)
+        if (isIOSSafari && !isIOSChrome) {
+          console.log('🦁 iOS Safari detected - skipping OneSignal initialization');
           console.log('🦁 Push notifications will use database fallback only');
           return;
         }

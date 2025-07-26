@@ -21,23 +21,27 @@ export const AuthProvider = ({ children }) => {
   const [skipValidation, setSkipValidation] = useState(false);
   const socketRef = useSocket(token);
 
-  // Safari-specific initialization
+  // iOS/Safari-specific initialization
   useEffect(() => {
-    // Check if we're in Safari
-    const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
-    if (isSafari) {
-      console.log('🦁 Safari browser detected - applying Safari-specific auth handling');
+    // Check if we're on iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOSSafari = isSafari && isIOS;
+    const isIOSChrome = /CriOS/.test(navigator.userAgent);
+    
+    if (isIOS || isIOSSafari || isIOSChrome) {
+      console.log('🦁 iOS device detected - applying iOS-specific auth handling');
       
       // Ensure localStorage is available and working
       try {
-        const testKey = '__safari_test__';
+        const testKey = '__ios_test__';
         localStorage.setItem(testKey, 'test');
         localStorage.removeItem(testKey);
-        console.log('🦁 Safari localStorage is working');
+        console.log('🦁 iOS localStorage is working');
       } catch (error) {
-        console.warn('🦁 Safari localStorage test failed:', error);
+        console.warn('🦁 iOS localStorage test failed:', error);
         // Fallback to sessionStorage if localStorage fails
-        console.log('🦁 Falling back to sessionStorage for Safari');
+        console.log('🦁 Falling back to sessionStorage for iOS');
       }
     }
   }, []);
@@ -83,6 +87,18 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('🔍 Token validation failed:', error.response?.data || error.message);
+        
+        // Enhanced iOS error logging for authentication
+        if (isIOS || isIOSSafari || isIOSChrome) {
+          console.error('🦁 iOS Authentication Error:', {
+            error: error.message,
+            response: error.response?.data,
+            status: error.response?.status,
+            url: error.config?.url,
+            timestamp: new Date().toISOString(),
+            pathname: window.location.pathname
+          });
+        }
         
         // Clear invalid token and user data using safe localStorage
         setToken(null);
@@ -203,11 +219,19 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('AuthContext: Login error:', error);
       
-      // Safari-specific error handling
-      if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
-        console.log('🦁 Safari login error - providing specific error message');
+      // Enhanced iOS error handling and logging
+      if (isIOS || isIOSSafari || isIOSChrome) {
+        console.error('🦁 iOS Login Error:', {
+          error: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          url: error.config?.url,
+          timestamp: new Date().toISOString(),
+          pathname: window.location.pathname
+        });
+        
         if (error.message.includes('Network Error') || error.code === 'ERR_NETWORK') {
-          throw new Error('Connection issue. Please check your internet connection and try again.');
+          throw new Error('Connection issue on iOS. Please check your internet connection and try again.');
         }
       }
       

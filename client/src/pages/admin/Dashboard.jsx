@@ -87,8 +87,11 @@ const AdminDashboard = () => {
   const [expandedMenus, setExpandedMenus] = useState({});
   const { pathname } = useLocation();
   
-  // Safari detection - memoized to prevent unnecessary re-renders
+  // iOS/Safari detection - memoized to prevent unnecessary re-renders
+  const isIOS = useMemo(() => /iPad|iPhone|iPod/.test(navigator.userAgent), []);
   const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
+  const isIOSSafari = useMemo(() => isSafari && isIOS, [isSafari, isIOS]);
+  const isIOSChrome = useMemo(() => /CriOS/.test(navigator.userAgent), []);
   
   // Define these variables before useEffect hooks that use them
   const isSuperAdmin = user?.role === 'super_admin';

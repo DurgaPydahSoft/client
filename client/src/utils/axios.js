@@ -52,10 +52,19 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Safari-specific request headers (only add if not already present)
-    if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+    // iOS/Safari-specific request headers (only add if not already present)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOSSafari = isSafari && isIOS;
+    const isIOSChrome = /CriOS/.test(navigator.userAgent);
+    
+    if (isIOS || isIOSSafari || isIOSChrome) {
       if (!config.headers['X-Requested-With']) {
         config.headers['X-Requested-With'] = 'XMLHttpRequest';
+      }
+      // Add iOS-specific headers for better compatibility
+      if (!config.headers['Accept']) {
+        config.headers['Accept'] = 'application/json, text/plain, */*';
       }
     }
     
@@ -71,29 +80,58 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   error => {
-    console.error('🚨 API Error:', error.response?.data || error.message);
-    console.error('🚨 API Error URL:', error.config?.url);
-    console.error('🚨 API Error Method:', error.config?.method);
-    console.error('🚨 API Error Status:', error.response?.status);
-    console.error('🚨 API Error Headers:', error.config?.headers);
-    console.error('🚨 Current pathname:', window.location.pathname);
-    console.error('🚨 Browser:', navigator.userAgent);
+    // Enhanced iOS error logging
+    const errorDetails = {
+      message: error.response?.data || error.message,
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      headers: error.config?.headers,
+      pathname: window.location.pathname,
+      userAgent: navigator.userAgent,
+      timestamp: new Date().toISOString(),
+      isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+      isSafari: /^((?!chrome|android).)*safari/i.test(navigator.userAgent),
+      isIOSChrome: /CriOS/.test(navigator.userAgent)
+    };
+
+    console.error('🚨 API Error Details:', errorDetails);
     
-    // Safari-specific error handling
-    if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
-      console.log('🚨 Safari browser detected - applying Safari-specific error handling');
+    // Store error in localStorage for debugging
+    try {
+      const errorLog = JSON.parse(localStorage.getItem('ios_error_log') || '[]');
+      errorLog.push(errorDetails);
+      if (errorLog.length > 10) errorLog.shift(); // Keep only last 10 errors
+      localStorage.setItem('ios_error_log', JSON.stringify(errorLog));
+    } catch (e) {
+      console.warn('Could not save error to localStorage:', e);
+    }
+    
+    // iOS/Safari-specific error handling
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOSSafari = isSafari && isIOS;
+    const isIOSChrome = /CriOS/.test(navigator.userAgent);
+    
+    if (isIOS || isIOSSafari || isIOSChrome) {
+      console.log('🚨 iOS device detected - applying iOS-specific error handling');
       
-      // Handle Safari CORS issues
+      // Handle iOS network issues
       if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
-        console.log('🚨 Safari network error detected - this might be a CORS issue');
-        // Don't logout on network errors in Safari, just show a user-friendly message
-        return Promise.reject(new Error('Network connection issue. Please check your internet connection and try again.'));
+        console.log('🚨 iOS network error detected - this might be a connection issue');
+        return Promise.reject(new Error('Network connection issue on iOS. Please check your internet connection and try again.'));
       }
       
       // Handle CORS preflight errors specifically
       if (error.message.includes('CORS') || error.message.includes('preflight')) {
-        console.log('🚨 Safari CORS preflight error detected');
-        return Promise.reject(new Error('Browser security policy is blocking the request. Please try refreshing the page or use a different browser.'));
+        console.log('🚨 iOS CORS preflight error detected');
+        return Promise.reject(new Error('iOS security policy is blocking the request. Please try refreshing the page or use a different browser.'));
+      }
+      
+      // Handle iOS-specific timeout issues
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        console.log('🚨 iOS timeout error detected');
+        return Promise.reject(new Error('Request timed out on iOS. Please try again or check your internet connection.'));
       }
     }
     
