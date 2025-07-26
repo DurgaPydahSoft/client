@@ -762,6 +762,9 @@ const DashboardHome = () => {
   const [selectedDays, setSelectedDays] = useState(null);
   const navigate = useNavigate();
 
+  // Safari detection
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
   // Calculate complaints by threshold
   const complaintsByThreshold = useMemo(() => {
     const now = new Date();
@@ -837,70 +840,95 @@ const DashboardHome = () => {
       try {
         console.log('📊 DashboardHome mounted - fetching data from APIs');
         
-        // Fetch all data in parallel
-        const [complaintsRes, studentsRes, announcementsRes, pollsRes, membersRes] = await Promise.all([
+        // Safari-specific logging
+        if (isSafari) {
+          console.log('🦁 Safari detected - applying Safari-specific error handling');
+        }
+        
+        // Fetch all data in parallel with Safari-specific error handling
+        const apiCalls = [
           api.get('/api/complaints/admin/all'),
           api.get('/api/admin/students/count'),
           api.get('/api/announcements/admin/all'),
           api.get('/api/polls/admin/all'),
           api.get('/api/members')
-        ]);
+        ];
+
+        // Add Safari-specific timeout handling
+        const timeoutDuration = isSafari ? 45000 : 30000; // Longer timeout for Safari
+        
+        const [complaintsRes, studentsRes, announcementsRes, pollsRes, membersRes] = await Promise.allSettled(
+          apiCalls.map(call => 
+            Promise.race([
+              call,
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+              )
+            ])
+          )
+        );
 
         console.log('📊 API Responses:');
-        console.log('Complaints:', complaintsRes.data);
-        console.log('Students:', studentsRes.data);
-        console.log('Announcements:', announcementsRes.data);
-        console.log('Polls:', pollsRes.data);
-        console.log('Members:', membersRes.data);
+        console.log('Complaints:', complaintsRes.status === 'fulfilled' ? complaintsRes.value.data : 'Failed');
+        console.log('Students:', studentsRes.status === 'fulfilled' ? studentsRes.value.data : 'Failed');
+        console.log('Announcements:', announcementsRes.status === 'fulfilled' ? announcementsRes.value.data : 'Failed');
+        console.log('Polls:', pollsRes.status === 'fulfilled' ? pollsRes.value.data : 'Failed');
+        console.log('Members:', membersRes.status === 'fulfilled' ? membersRes.value.data : 'Failed');
 
-        // Set complaints data
-        if (complaintsRes.data.success) {
-          setComplaints(complaintsRes.data.data.complaints || []);
-          console.log('📊 Set complaints:', complaintsRes.data.data.complaints?.length || 0);
+        // Set complaints data with Safari-specific error handling
+        if (complaintsRes.status === 'fulfilled' && complaintsRes.value.data.success) {
+          setComplaints(complaintsRes.value.data.data.complaints || []);
+          console.log('📊 Set complaints:', complaintsRes.value.data.data.complaints?.length || 0);
         } else {
-          console.error('Failed to fetch complaints:', complaintsRes.data);
+          console.error('Failed to fetch complaints:', complaintsRes.status === 'fulfilled' ? complaintsRes.value.data : complaintsRes.reason);
           setComplaints([]);
         }
 
-        // Set students count
-        if (studentsRes.data.success) {
-          setTotalStudents(studentsRes.data.data.count || 0);
-          console.log('📊 Set students count:', studentsRes.data.data.count || 0);
+        // Set students count with Safari-specific error handling
+        if (studentsRes.status === 'fulfilled' && studentsRes.value.data.success) {
+          setTotalStudents(studentsRes.value.data.data.count || 0);
+          console.log('📊 Set students count:', studentsRes.value.data.data.count || 0);
         } else {
-          console.error('Failed to fetch students count:', studentsRes.data);
+          console.error('Failed to fetch students count:', studentsRes.status === 'fulfilled' ? studentsRes.value.data : studentsRes.reason);
           setTotalStudents(0);
         }
 
-        // Set announcements data
-        if (announcementsRes.data.success) {
-          setAnnouncements(announcementsRes.data.data || []);
-          console.log('📊 Set announcements:', announcementsRes.data.data?.length || 0);
+        // Set announcements data with Safari-specific error handling
+        if (announcementsRes.status === 'fulfilled' && announcementsRes.value.data.success) {
+          setAnnouncements(announcementsRes.value.data.data || []);
+          console.log('📊 Set announcements:', announcementsRes.value.data.data?.length || 0);
         } else {
-          console.error('Failed to fetch announcements:', announcementsRes.data);
+          console.error('Failed to fetch announcements:', announcementsRes.status === 'fulfilled' ? announcementsRes.value.data : announcementsRes.reason);
           setAnnouncements([]);
         }
 
-        // Set polls data
-        if (pollsRes.data.success) {
-          setPolls(pollsRes.data.data || []);
-          console.log('📊 Set polls:', pollsRes.data.data?.length || 0);
+        // Set polls data with Safari-specific error handling
+        if (pollsRes.status === 'fulfilled' && pollsRes.value.data.success) {
+          setPolls(pollsRes.value.data.data || []);
+          console.log('📊 Set polls:', pollsRes.value.data.data?.length || 0);
         } else {
-          console.error('Failed to fetch polls:', pollsRes.data);
+          console.error('Failed to fetch polls:', pollsRes.status === 'fulfilled' ? pollsRes.value.data : pollsRes.reason);
           setPolls([]);
         }
 
-        // Set members data
-        if (membersRes.data.success) {
-          setMembers(membersRes.data.data.members || []);
-          console.log('📊 Set members:', membersRes.data.data.members?.length || 0);
+        // Set members data with Safari-specific error handling
+        if (membersRes.status === 'fulfilled' && membersRes.value.data.success) {
+          setMembers(membersRes.value.data.data.members || []);
+          console.log('📊 Set members:', membersRes.value.data.data.members?.length || 0);
         } else {
-          console.error('Failed to fetch members:', membersRes.data);
+          console.error('Failed to fetch members:', membersRes.status === 'fulfilled' ? membersRes.value.data : membersRes.reason);
           setMembers([]);
         }
         
         console.log('📊 Dashboard data fetched successfully');
       } catch (err) {
         console.error('📊 Error in fetchData:', err);
+        
+        // Safari-specific error handling
+        if (isSafari) {
+          console.log('🦁 Safari error detected - setting default values');
+        }
+        
         // Set default values on error
         setComplaints([]);
         setTotalStudents(0);
@@ -912,7 +940,7 @@ const DashboardHome = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [isSafari]);
 
   // Helper to get start date for week/month
   const getTimeframeStartDate = () => {

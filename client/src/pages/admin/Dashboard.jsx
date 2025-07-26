@@ -158,19 +158,37 @@ const AdminDashboard = () => {
       try {
         console.log('🔔 Fetching admin notification count...');
         
-        const [countRes, unreadRes] = await Promise.all([
-          api.get('/api/notifications/admin/count'),
-          api.get('/api/notifications/admin/unread')
+        // Safari detection
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        // Safari-specific timeout handling
+        const timeoutDuration = isSafari ? 45000 : 30000;
+        
+        const [countRes, unreadRes] = await Promise.allSettled([
+          Promise.race([
+            api.get('/api/notifications/admin/count'),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+            )
+          ]),
+          Promise.race([
+            api.get('/api/notifications/admin/unread'),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+            )
+          ])
         ]);
 
-        if (countRes.data.success) {
-          const newCount = countRes.data.count;
+        if (countRes.status === 'fulfilled' && countRes.value.data.success) {
+          const newCount = countRes.value.data.count;
           setNotificationCount(newCount);
           console.log('🔔 Admin notification count:', newCount);
+        } else {
+          console.error('Failed to fetch notification count:', countRes.status === 'fulfilled' ? countRes.value.data : countRes.reason);
         }
 
-        if (unreadRes.data.success) {
-          const unreadNotifications = unreadRes.data.data;
+        if (unreadRes.status === 'fulfilled' && unreadRes.value.data.success) {
+          const unreadNotifications = unreadRes.value.data.data;
           
           // Check for specific notification types
           const hasComplaints = unreadNotifications.some(n => n.type === 'complaint');
@@ -188,9 +206,18 @@ const AdminDashboard = () => {
             announcement: hasAnnouncements,
             poll: hasPolls
           });
+        } else {
+          console.error('Failed to fetch unread notifications:', unreadRes.status === 'fulfilled' ? unreadRes.value.data : unreadRes.reason);
         }
       } catch (err) {
         console.error('🔔 Failed to fetch notification count:', err);
+        
+        // Safari-specific error handling
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        if (isSafari) {
+          console.log('🦁 Safari notification error - setting defaults');
+        }
+        
         // Don't let notification errors cause logout - just set defaults
         setNotificationCount(0);
         setNotificationStates({

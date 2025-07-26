@@ -17,6 +17,9 @@ const NotificationBell = () => {
   const [nextMealTime, setNextMealTime] = useState(null);
   const { user } = useAuth();
 
+  // Safari detection
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
   const isWarden = user?.role === 'warden';
   const isPrincipal = user?.role === 'principal';
@@ -39,23 +42,39 @@ const NotificationBell = () => {
         console.log('🔔 NotificationBell: Fetching notifications for role: student');
       }
 
-      const [notificationsRes, countRes] = await Promise.all([
-        api.get(`${endpointPrefix}/unread`),
-        api.get(`${endpointPrefix}/count`)
+      // Safari-specific timeout handling
+      const timeoutDuration = isSafari ? 45000 : 30000;
+      
+      const [notificationsRes, countRes] = await Promise.allSettled([
+        Promise.race([
+          api.get(`${endpointPrefix}/unread`),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+          )
+        ]),
+        Promise.race([
+          api.get(`${endpointPrefix}/count`),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+          )
+        ])
       ]);
 
-      console.log('🔔 NotificationBell: Responses:', { notificationsRes: notificationsRes.data, countRes: countRes.data });
+      console.log('🔔 NotificationBell: Responses:', { 
+        notificationsRes: notificationsRes.status === 'fulfilled' ? notificationsRes.value.data : 'Failed',
+        countRes: countRes.status === 'fulfilled' ? countRes.value.data : 'Failed'
+      });
 
-      if (notificationsRes.data.success) {
-        const newNotifications = notificationsRes.data.data;
+      if (notificationsRes.status === 'fulfilled' && notificationsRes.value.data.success) {
+        const newNotifications = notificationsRes.value.data.data;
         setNotifications(newNotifications);
         if (newNotifications.length > 0) {
           setHasNewNotification(true);
         }
       }
 
-      if (countRes.data.success) {
-        const newCount = countRes.data.count;
+      if (countRes.status === 'fulfilled' && countRes.value.data.success) {
+        const newCount = countRes.value.data.count;
         if (newCount > unreadCount) {
           setHasNewNotification(true);
         }
@@ -63,6 +82,12 @@ const NotificationBell = () => {
       }
     } catch (err) {
       console.error('🔔 NotificationBell: Failed to fetch notifications:', err);
+      
+      // Safari-specific error handling
+      if (isSafari) {
+        console.log('🦁 Safari notification error - setting defaults');
+      }
+      
       // Don't let notification errors cause logout - just set defaults
       setNotifications([]);
       setUnreadCount(0);
