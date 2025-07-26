@@ -32,6 +32,21 @@ if (isIOSDevice) {
   });
 }
 
+// Check Notification API availability and log it
+if (typeof Notification === 'undefined') {
+  console.warn('🦁 Notification API is not available in this browser');
+  // Create a mock Notification object to prevent errors
+  window.Notification = {
+    permission: 'denied',
+    requestPermission: async () => 'denied'
+  };
+} else {
+  console.log('🦁 Notification API is available:', {
+    permission: Notification.permission,
+    supported: typeof Notification.requestPermission === 'function'
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>

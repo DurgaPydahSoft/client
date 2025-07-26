@@ -198,6 +198,12 @@ class NotificationManager {
 
       console.log('🔔 Requesting notification permission...');
 
+      // Check if Notification API is available
+      if (typeof Notification === 'undefined') {
+        console.warn('🔔 Notification API not supported in this browser');
+        return { oneSignal: false, legacy: false };
+      }
+
       // Use the new OneSignal v16 notification permission API with error handling
       try {
         const permission = await this.oneSignal.Notifications.requestPermission();
@@ -238,6 +244,11 @@ class NotificationManager {
   async isEnabled() {
     try {
       if (!this.isInitialized || !this.oneSignal) {
+        return false;
+      }
+
+      // Check if Notification API is available
+      if (typeof Notification === 'undefined') {
         return false;
       }
 

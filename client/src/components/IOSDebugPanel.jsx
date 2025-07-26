@@ -105,7 +105,7 @@ const IOSDebugPanel = ({ error, errorInfo, isVisible = false }) => {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-md">
+    <div className="fixed bottom-2 right-2 z-50 w-full max-w-sm sm:max-w-md">
       <div className="bg-red-600 text-white rounded-lg shadow-lg overflow-hidden">
         {/* Header */}
         <div className="px-4 py-3 bg-red-700 flex items-center justify-between">
@@ -139,7 +139,7 @@ const IOSDebugPanel = ({ error, errorInfo, isVisible = false }) => {
 
         {/* Debug Info */}
         {isExpanded && (
-          <div className="px-4 py-3 bg-white text-gray-800 max-h-96 overflow-y-auto">
+          <div className="px-4 py-3 bg-white text-gray-800 max-h-64 sm:max-h-96 overflow-y-auto">
             <h3 className="font-semibold mb-3">System Information:</h3>
             
             {/* Basic Info */}
@@ -217,7 +217,7 @@ const IOSDebugPanel = ({ error, errorInfo, isVisible = false }) => {
             {/* Raw Debug Info */}
             <div className="mt-4">
               <h4 className="font-semibold mb-2">Raw Debug Info:</h4>
-              <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+              <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto max-h-32">
                 {JSON.stringify(debugInfo, null, 2)}
               </pre>
             </div>
@@ -225,61 +225,61 @@ const IOSDebugPanel = ({ error, errorInfo, isVisible = false }) => {
         )}
 
         {/* Actions */}
-        <div className="px-4 py-2 bg-gray-50 flex space-x-2 flex-wrap">
-          <button
-            onClick={() => window.location.reload()}
-            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-          >
-            Refresh
-          </button>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
-              alert('Debug info copied to clipboard!');
-            }}
-            className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700"
-          >
-            Copy Info
-          </button>
-          <button
-            onClick={() => logIOSInfo()}
-            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-          >
-            Log to Console
-          </button>
-          <button
-            onClick={() => setShowErrorLog(!showErrorLog)}
-            className="px-3 py-1 bg-orange-600 text-white text-sm rounded hover:bg-orange-700"
-          >
-            {showErrorLog ? 'Hide' : 'Show'} Errors ({errorLog.length})
-          </button>
-          <button
-            onClick={() => {
-              clearErrorLog();
-              setErrorLog([]);
-              alert('Error log cleared!');
-            }}
-            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
-          >
-            Clear Errors
-          </button>
-          <button
-            onClick={() => {
-              const debugMode = localStorage.getItem('ios_debug_mode') === 'true';
-              localStorage.setItem('ios_debug_mode', !debugMode);
-              window.location.reload();
-            }}
-            className="px-3 py-1 bg-purple-600 text-white text-sm rounded hover:bg-purple-700"
-          >
-            {localStorage.getItem('ios_debug_mode') === 'true' ? 'Disable' : 'Enable'} Debug
-          </button>
+        <div className="px-4 py-2 bg-gray-50 flex space-x-1 sm:space-x-2 flex-wrap gap-1">
+                      <button
+              onClick={() => window.location.reload()}
+              className="px-2 sm:px-3 py-1 bg-blue-600 text-white text-xs sm:text-sm rounded hover:bg-blue-700"
+            >
+              Refresh
+            </button>
+                      <button
+              onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+                alert('Debug info copied to clipboard!');
+              }}
+              className="px-2 sm:px-3 py-1 bg-gray-600 text-white text-xs sm:text-sm rounded hover:bg-gray-700"
+            >
+              Copy Info
+            </button>
+                      <button
+              onClick={() => logIOSInfo()}
+              className="px-2 sm:px-3 py-1 bg-green-600 text-white text-xs sm:text-sm rounded hover:bg-green-700"
+            >
+              Log to Console
+            </button>
+                      <button
+              onClick={() => setShowErrorLog(!showErrorLog)}
+              className="px-2 sm:px-3 py-1 bg-orange-600 text-white text-xs sm:text-sm rounded hover:bg-orange-700"
+            >
+              {showErrorLog ? 'Hide' : 'Show'} Errors ({errorLog.length})
+            </button>
+                      <button
+              onClick={() => {
+                clearErrorLog();
+                setErrorLog([]);
+                alert('Error log cleared!');
+              }}
+              className="px-2 sm:px-3 py-1 bg-red-600 text-white text-xs sm:text-sm rounded hover:bg-red-700"
+            >
+              Clear Errors
+            </button>
+                      <button
+              onClick={() => {
+                const debugMode = localStorage.getItem('ios_debug_mode') === 'true';
+                localStorage.setItem('ios_debug_mode', !debugMode);
+                window.location.reload();
+              }}
+              className="px-2 sm:px-3 py-1 bg-purple-600 text-white text-xs sm:text-sm rounded hover:bg-purple-700"
+            >
+              {localStorage.getItem('ios_debug_mode') === 'true' ? 'Disable' : 'Enable'} Debug
+            </button>
         </div>
 
         {/* Error Log */}
         {showErrorLog && errorLog.length > 0 && (
           <div className="px-4 py-3 bg-yellow-50 border-t border-yellow-200">
-            <h3 className="font-semibold text-yellow-800 mb-2">Recent API Errors ({errorLog.length}):</h3>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
+            <h3 className="font-semibold text-yellow-800 mb-2 text-sm">Recent API Errors ({errorLog.length}):</h3>
+            <div className="space-y-2 max-h-32 sm:max-h-48 overflow-y-auto">
               {errorLog.map((err, index) => (
                 <div key={index} className="text-xs bg-yellow-100 p-2 rounded">
                   <div><strong>Time:</strong> {new Date(err.timestamp).toLocaleTimeString()}</div>
