@@ -25,13 +25,6 @@ export default defineConfig({
         },
       },
     },
-    // Safari-specific optimizations
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false, // Keep console logs for debugging
-      },
-    },
   },
   // Ensure service worker is served from root
   publicDir: 'public',
