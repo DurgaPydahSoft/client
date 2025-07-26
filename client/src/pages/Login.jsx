@@ -23,14 +23,21 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  // Safari detection
+  const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
     
-    // Show interactive message about server load
-    toast('Please wait at least 30-40 seconds because sometimes the server faces huge loads', { 
+    // Safari-specific loading message
+    const loadingMessage = isSafari 
+      ? 'Please wait 30-40 seconds. Safari may take longer to establish connection...' 
+      : 'Please wait at least 30-40 seconds because sometimes the server faces huge loads';
+    
+    toast(loadingMessage, { 
       icon: '⏳',
       duration: 4000,
       style: {
@@ -89,7 +96,29 @@ const Login = () => {
       }
     } catch (err) {
       console.error('Login error:', err);
-      const errorMessage = err.response?.data?.message || 'Login failed';
+      
+      // Safari-specific error handling
+      let errorMessage = err.response?.data?.message || 'Login failed';
+      
+      if (isSafari) {
+        console.log('🦁 Safari login error detected');
+        
+        if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
+          errorMessage = 'Connection issue in Safari. Please check your internet connection and try again. If the problem persists, try refreshing the page.';
+        } else if (err.message.includes('timeout')) {
+          errorMessage = 'Request timed out in Safari. Please try again or check your internet connection.';
+        } else if (err.message.includes('Connection issue')) {
+          errorMessage = err.message; // Use the specific message from AuthContext
+        } else if (err.message.includes('CORS') || err.message.includes('preflight')) {
+          errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page or use a different browser.';
+        }
+      } else {
+        // Handle CORS errors for all browsers
+        if (err.message.includes('CORS') || err.message.includes('preflight')) {
+          errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page.';
+        }
+      }
+      
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -111,7 +140,27 @@ const Login = () => {
         input[type="password"]::-webkit-inner-spin-button {
           display: none !important;
         }
+        
+        /* Safari-specific styles */
+        @supports (-webkit-appearance: none) {
+          input {
+            -webkit-appearance: none;
+            border-radius: 8px;
+          }
+          button {
+            -webkit-appearance: none;
+          }
+        }
       `}</style>
+      
+      {/* Safari-specific warning */}
+      {isSafari && (
+        <div className="fixed top-4 left-4 right-4 z-50 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+          <p className="font-medium">Safari Browser Detected</p>
+          <p>If you experience login issues, please ensure you have a stable internet connection and try refreshing the page.</p>
+        </div>
+      )}
+      
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -205,6 +254,7 @@ const Login = () => {
                         value={form.username}
                         onChange={handleChange}
                         required
+                        autoComplete="username"
                       />
                     </div>
                   </div>
@@ -224,6 +274,7 @@ const Login = () => {
                         value={form.adminPassword}
                         onChange={handleChange}
                         required
+                        autoComplete="current-password"
                         style={{ 
                           WebkitAppearance: 'none',
                           MozAppearance: 'none',
@@ -261,6 +312,7 @@ const Login = () => {
                         value={form.rollNumber}
                         onChange={handleChange}
                         required
+                        autoComplete="username"
                       />
                     </div>
                   </div>
@@ -280,6 +332,7 @@ const Login = () => {
                         value={form.password}
                         onChange={handleChange}
                         required
+                        autoComplete="current-password"
                         style={{ 
                           WebkitAppearance: 'none',
                           MozAppearance: 'none',
@@ -312,7 +365,7 @@ const Login = () => {
                 {loading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Signing In...</span>
+                    <span>{isSafari ? 'Connecting...' : 'Signing In...'}</span>
                   </div>
                 ) : (
                   <>

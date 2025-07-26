@@ -17,6 +17,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    target: 'es2015', // Better Safari compatibility
     rollupOptions: {
       output: {
         manualChunks: {
@@ -24,8 +25,23 @@ export default defineConfig({
         },
       },
     },
+    // Safari-specific optimizations
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: false, // Keep console logs for debugging
+      },
+    },
   },
   // Ensure service worker is served from root
   publicDir: 'public',
   base: '/',
+  // Safari-specific optimizations
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom', 'axios'],
+  },
+  // Add Safari-specific headers
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
+  },
 }); 

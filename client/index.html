@@ -5,6 +5,48 @@
     <link rel="icon" type="image/svg+xml" href="./PYDAHSOFT LOGO.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- Safari-specific meta tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Pydah Hostel">
+    
+    <!-- Safari polyfills and compatibility fixes -->
+    <script>
+      // Safari localStorage polyfill and compatibility fixes
+      (function() {
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        if (isSafari) {
+          console.log('🦁 Safari detected - applying compatibility fixes');
+          
+          // Ensure localStorage is available
+          if (typeof localStorage === 'undefined') {
+            console.warn('🦁 localStorage not available, using sessionStorage fallback');
+            window.localStorage = window.sessionStorage;
+          }
+          
+          // Fix for Safari's strict CORS handling
+          if (window.fetch) {
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+              // Add Safari-specific headers
+              if (!options.headers) {
+                options.headers = {};
+              }
+              options.headers['X-Requested-With'] = 'XMLHttpRequest';
+              
+              return originalFetch(url, options);
+            };
+          }
+          
+          // Fix for Safari's Promise handling
+          if (!window.Promise) {
+            console.warn('🦁 Promise not available - this might cause issues');
+          }
+        }
+      })();
+    </script>
+    
     <!-- OneSignal SDK v16 - Improved Service Worker Registration -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <script>

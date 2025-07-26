@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
-import api from '../utils/axios';
+import api, { safeLocalStorage } from '../utils/axios';
 
 const AuthContext = createContext();
 
@@ -15,11 +15,32 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(safeLocalStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [skipValidation, setSkipValidation] = useState(false);
   const socketRef = useSocket(token);
+
+  // Safari-specific initialization
+  useEffect(() => {
+    // Check if we're in Safari
+    const isSafari = navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome');
+    if (isSafari) {
+      console.log('🦁 Safari browser detected - applying Safari-specific auth handling');
+      
+      // Ensure localStorage is available and working
+      try {
+        const testKey = '__safari_test__';
+        localStorage.setItem(testKey, 'test');
+        localStorage.removeItem(testKey);
+        console.log('🦁 Safari localStorage is working');
+      } catch (error) {
+        console.warn('🦁 Safari localStorage test failed:', error);
+        // Fallback to sessionStorage if localStorage fails
+        console.log('🦁 Falling back to sessionStorage for Safari');
+      }
+    }
+  }, []);
 
   // Validate token on mount and token change
   useEffect(() => {
@@ -38,7 +59,7 @@ export const AuthProvider = ({ children }) => {
 
       try {
         console.log('🔍 Starting token validation...');
-        const userRole = localStorage.getItem('userRole');
+        const userRole = safeLocalStorage.getItem('userRole');
         
         let res;
         if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal') {
@@ -54,21 +75,21 @@ export const AuthProvider = ({ children }) => {
           console.log('🔍 Token validation successful:', freshUser);
           setUser(freshUser);
           
-          // Update local storage to match validated data
-          localStorage.setItem('user', JSON.stringify(freshUser));
-          localStorage.setItem('userRole', freshUser.role);
+          // Update local storage to match validated data using safe localStorage
+          safeLocalStorage.setItem('user', JSON.stringify(freshUser));
+          safeLocalStorage.setItem('userRole', freshUser.role);
         } else {
           throw new Error('Invalid token validation response');
         }
       } catch (error) {
         console.error('🔍 Token validation failed:', error.response?.data || error.message);
         
-        // Clear invalid token and user data
+        // Clear invalid token and user data using safe localStorage
         setToken(null);
         setUser(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('userRole');
+        safeLocalStorage.removeItem('token');
+        safeLocalStorage.removeItem('user');
+        safeLocalStorage.removeItem('userRole');
         
       } finally {
         setLoading(false);
@@ -98,7 +119,7 @@ export const AuthProvider = ({ children }) => {
       const res = await api.get('/api/students/profile');
       if (res.data.success && res.data.data) {
         setUser(res.data.data);
-        localStorage.setItem('user', JSON.stringify(res.data.data));
+        safeLocalStorage.setItem('user', JSON.stringify(res.data.data));
       }
     } catch (err) {
       console.error('Failed to fetch user profile:', err);
@@ -120,15 +141,15 @@ export const AuthProvider = ({ children }) => {
         console.log('AuthContext: Admin data received:', admin);
         console.log('AuthContext: Admin role:', admin.role);
         
-        // Store admin data with the actual role from backend
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(admin));
-        localStorage.setItem('userRole', admin.role); // Use actual role instead of hardcoding 'admin'
+        // Store admin data with the actual role from backend using safe localStorage
+        const tokenStored = safeLocalStorage.setItem('token', newToken);
+        const userStored = safeLocalStorage.setItem('user', JSON.stringify(admin));
+        const roleStored = safeLocalStorage.setItem('userRole', admin.role);
         
         console.log('AuthContext: Data stored in localStorage:');
-        console.log('AuthContext: - token:', localStorage.getItem('token') ? 'stored' : 'not stored');
-        console.log('AuthContext: - user:', localStorage.getItem('user'));
-        console.log('AuthContext: - userRole:', localStorage.getItem('userRole'));
+        console.log('AuthContext: - token stored:', tokenStored);
+        console.log('AuthContext: - user stored:', userStored);
+        console.log('AuthContext: - userRole stored:', roleStored);
         
         // Set skip validation BEFORE setting token to prevent immediate validation
         setSkipValidation(true);
@@ -151,10 +172,12 @@ export const AuthProvider = ({ children }) => {
         if (response.data.success) {
           const { token: newToken, student: studentUser, requiresPasswordChange } = response.data.data;
           
-          // Always set the token and user data to establish a session
-          localStorage.setItem('token', newToken);
-          localStorage.setItem('user', JSON.stringify(studentUser));
-          localStorage.setItem('userRole', 'student');
+          // Always set the token and user data to establish a session using safe localStorage
+          const tokenStored = safeLocalStorage.setItem('token', newToken);
+          const userStored = safeLocalStorage.setItem('user', JSON.stringify(studentUser));
+          const roleStored = safeLocalStorage.setItem('userRole', 'student');
+          
+          console.log('AuthContext: Student data stored:', { tokenStored, userStored, roleStored });
           
           setSkipValidation(true);
           setToken(newToken);
@@ -179,14 +202,23 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('AuthContext: Login error:', error);
+      
+      // Safari-specific error handling
+      if (navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome')) {
+        console.log('🦁 Safari login error - providing specific error message');
+        if (error.message.includes('Network Error') || error.code === 'ERR_NETWORK') {
+          throw new Error('Connection issue. Please check your internet connection and try again.');
+        }
+      }
+      
       throw error;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('userRole');
+    safeLocalStorage.removeItem('token');
+    safeLocalStorage.removeItem('user');
+    safeLocalStorage.removeItem('userRole');
     setToken(null);
     setUser(null);
     setRequiresPasswordChange(false);
@@ -197,9 +229,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateUser = async (updatedUser) => {
     setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    // Fetch and set the latest profile (populated)
-    await fetchAndSetUserProfile();
+    safeLocalStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   const hasPermission = (permission) => {
