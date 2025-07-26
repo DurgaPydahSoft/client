@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       socket.off('notification', handler);
     };
-  }, [socketRef, token]);
+  }, [token]); // Removed socketRef dependency to prevent infinite re-renders in Safari
 
   // Helper to fetch and set the latest user profile (for students)
   const fetchAndSetUserProfile = async () => {

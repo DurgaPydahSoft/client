@@ -762,8 +762,8 @@ const DashboardHome = () => {
   const [selectedDays, setSelectedDays] = useState(null);
   const navigate = useNavigate();
 
-  // Safari detection
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  // Safari detection - memoized to prevent unnecessary re-renders
+  const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
   // Calculate complaints by threshold
   const complaintsByThreshold = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BellIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,8 +17,8 @@ const NotificationBell = () => {
   const [nextMealTime, setNextMealTime] = useState(null);
   const { user } = useAuth();
 
-  // Safari detection
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  // Safari detection - memoized to prevent unnecessary re-renders
+  const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin' || user?.role === 'sub_admin';
   const isWarden = user?.role === 'warden';

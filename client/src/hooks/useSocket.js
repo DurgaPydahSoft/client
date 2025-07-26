@@ -1,13 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 
 const SOCKET_URL = import.meta.env.VITE_API_URL;
 
-// Safari detection
-const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
 export const useSocket = (token) => {
   const socketRef = useRef(null);
+
+  // Safari detection - memoized to prevent unnecessary re-renders
+  const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
   useEffect(() => {
     if (!token) return;

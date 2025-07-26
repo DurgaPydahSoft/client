@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, Link, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
@@ -87,6 +87,9 @@ const AdminDashboard = () => {
   const [expandedMenus, setExpandedMenus] = useState({});
   const { pathname } = useLocation();
   
+  // Safari detection - memoized to prevent unnecessary re-renders
+  const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
+  
   // Define these variables before useEffect hooks that use them
   const isSuperAdmin = user?.role === 'super_admin';
   const checkPermission = (permission) => {
@@ -158,9 +161,6 @@ const AdminDashboard = () => {
       try {
         console.log('🔔 Fetching admin notification count...');
         
-        // Safari detection
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
         // Safari-specific timeout handling
         const timeoutDuration = isSafari ? 45000 : 30000;
         
@@ -213,7 +213,6 @@ const AdminDashboard = () => {
         console.error('🔔 Failed to fetch notification count:', err);
         
         // Safari-specific error handling
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         if (isSafari) {
           console.log('🦁 Safari notification error - setting defaults');
         }
