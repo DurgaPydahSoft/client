@@ -124,31 +124,16 @@ const ViewAttendance = () => {
         const attendanceData = response.data.data.attendance;
         setAttendance(attendanceData);
         
-        // Calculate statistics from attendance data
-        const stats = {
+        // Use statistics from backend
+        setStatistics(response.data.data.statistics || {
           totalStudents: response.data.data.totalRecords || attendanceData.length,
           morningPresent: 0,
           eveningPresent: 0,
+          nightPresent: 0,
           fullyPresent: 0,
           partiallyPresent: 0,
           absent: 0
-        };
-
-        // Calculate statistics from the attendance records
-        attendanceData.forEach(record => {
-          if (record.morning) stats.morningPresent++;
-          if (record.evening) stats.eveningPresent++;
-          
-          if (record.morning && record.evening) {
-            stats.fullyPresent++;
-          } else if (record.morning || record.evening) {
-            stats.partiallyPresent++;
-          } else {
-            stats.absent++;
-          }
         });
-
-        setStatistics(stats);
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
