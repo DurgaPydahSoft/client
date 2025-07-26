@@ -28,6 +28,52 @@ const FAQ = () => {
       isSpecial: true
     },
     {
+      id: 'how-to-raise-complaint',
+      question: 'How do I raise a complaint?',
+      answer: 'Go to "Raise Complaint" in your dashboard, select the category (Canteen, Internet, Maintenance, or Others), provide a detailed description, and optionally attach an image. Submit the form and your complaint will be automatically processed.',
+      isSpecial: true
+    },
+    {
+      id: 'complaint-categories',
+      question: 'What are the complaint categories available?',
+      answer: 'There are four main categories: 1) Canteen - for food quality, service, or facility issues, 2) Internet - for connectivity or speed problems, 3) Maintenance - with subcategories for Housekeeping, Plumbing, and Electricity, and 4) Others - for any other hostel-related issues.'
+    },
+    {
+      id: 'complaint-status-flow',
+      question: 'What are the different complaint statuses?',
+      answer: 'Complaints go through these statuses: 1) Received - when first submitted, 2) Pending - under review, 3) In Progress - assigned to staff and being worked on, 4) Resolved - issue has been fixed, and 5) Closed - final status after resolution.'
+    },
+    {
+      id: 'complaint-resolution-time',
+      question: 'How long does it take to resolve a complaint?',
+      answer: 'Most complaints are resolved within 2-3 business days. Simple issues like internet problems may be resolved faster, while complex maintenance issues might take longer. You can track the progress in "My Complaints" section.'
+    },
+    {
+      id: 'complaint-assignment',
+      question: 'How are complaints assigned to staff?',
+      answer: 'Complaints are automatically assigned to appropriate staff members based on the category. Maintenance complaints are assigned to relevant maintenance staff, canteen issues to food service staff, and internet problems to IT support.'
+    },
+    {
+      id: 'complaint-feedback',
+      question: 'How do I provide feedback on resolved complaints?',
+      answer: 'Once a complaint is marked as "Resolved", you can provide feedback in the "My Complaints" section. You can rate your satisfaction (Satisfied/Not Satisfied) and add optional comments about the resolution quality.'
+    },
+    {
+      id: 'complaint-tracking',
+      question: 'How can I track my complaint progress?',
+      answer: 'Go to "My Complaints" in your dashboard to see all your complaints with their current status, timeline of updates, and assigned staff. You can also view detailed information by clicking on any complaint.'
+    },
+    {
+      id: 'complaint-image',
+      question: 'Can I attach images to my complaint?',
+      answer: 'Yes, you can attach one image (up to 5MB) to your complaint. This helps staff better understand the issue. Supported formats are JPG, PNG, and GIF. Images are optional but recommended for maintenance and facility issues.'
+    },
+    {
+      id: 'complaint-updates',
+      question: 'How do I know when my complaint is updated?',
+      answer: 'You will receive notifications when your complaint status changes or when staff adds notes. You can also check the timeline in "My Complaints" to see all updates and notes from staff members.'
+    },
+    {
       id: 'leave-types',
       question: 'What are the different types of leave requests?',
       answer: 'There are three types: 1) Leave - for extended absence (multiple days), 2) Permission - for short outings (same day), and 3) Stay in Hostel - for staying in hostel during holidays.'
