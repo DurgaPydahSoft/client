@@ -34,6 +34,7 @@ import MyAttendance from './MyAttendance';
 import FoundLost from './FoundLost';
 import HostelFee from './HostelFee';
 import PaymentHistory from './PaymentHistory';
+import FAQ from './FAQ';
 import useFeatureToggles from '../../hooks/useFeatureToggles';
 import FeatureProtectedRoute from '../../components/FeatureProtectedRoute';
 
@@ -113,6 +114,13 @@ const navItems = [
     path: 'profile',
     feature: "profile",
     icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    notificationType: null
+  },
+  {
+    name: 'FAQ',
+    path: 'faq',
+    feature: null,
+    icon: "M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     notificationType: null
   }
 ];
@@ -1104,6 +1112,7 @@ const StudentDashboard = () => (
           <MyAttendance />
         </FeatureProtectedRoute>
       } />
+      <Route path="faq" element={<FAQ />} />
     </Route>
   </Routes>
   </>

@@ -197,6 +197,8 @@ const LeaveManagement = () => {
       case 'Pending':
       case 'Pending OTP Verification':
         return 'text-yellow-600 bg-yellow-50';
+      case 'Warden Verified':
+        return 'text-blue-600 bg-blue-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -211,6 +213,8 @@ const LeaveManagement = () => {
       case 'Pending':
       case 'Pending OTP Verification':
         return <ExclamationCircleIcon className="w-5 h-5" />;
+      case 'Warden Verified':
+        return <ArrowRightIcon className="w-5 h-5" />;
       default:
         return null;
     }
@@ -283,7 +287,12 @@ const LeaveManagement = () => {
         />
 
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-4">
-          <h1 className="text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Note: Leave and Permission requests now go through Warden/Admin OTP verification → Course-specific Principal approval workflow
+            </p>
+          </div>
           <div className="flex gap-3 flex-wrap items-center">
             <label className="text-sm text-gray-600">From:</label>
             <input
@@ -318,6 +327,7 @@ const LeaveManagement = () => {
               <option value="">All Status</option>
               <option value="Pending">Pending</option>
               <option value="Pending OTP Verification">Pending OTP</option>
+              <option value="Warden Verified">Warden Verified</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>

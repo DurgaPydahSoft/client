@@ -12,6 +12,7 @@ import {
 import PrincipalHome from './PrincipalHome';
 import PrincipalAttendance from './PrincipalAttendance';
 import NotificationBell from '../../components/NotificationBell';
+import ResetPasswordModal from '../admin/ResetPasswordModal';
 
 // Helper function to get course name consistently
 const getCourseName = (course) => {
@@ -61,6 +62,7 @@ const ProtectedSection = ({ permission, sectionName, children }) => {
 const PrincipalDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   
   // Debug: Log user data to see what permissions principals have
   console.log('🎓 Principal Dashboard - User Data:', {
@@ -170,6 +172,13 @@ const PrincipalDashboard = () => {
       path: '/principal/dashboard/attendance',
       show: true,
       locked: false // Principals should always have access to attendance
+    },
+    {
+      name: 'Leave Management',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      path: '/principal/dashboard/leave-management',
+      show: true,
+      locked: false
     },
     {
       name: 'Stay in Hostel Requests',
@@ -360,6 +369,30 @@ const PrincipalDashboard = () => {
               </div>
             </div>
           </div>
+          
+          {/* Password Reset Button */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowResetPasswordModal(true)}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-all duration-300 shadow hover:shadow-md mb-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+              />
+            </svg>
+            Reset Password
+          </motion.button>
+          
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -393,16 +426,14 @@ const PrincipalDashboard = () => {
           <Outlet />
         </div>
       </main>
+      
+      {/* Reset Password Modal */}
+      <ResetPasswordModal 
+        isOpen={showResetPasswordModal} 
+        onClose={() => setShowResetPasswordModal(false)} 
+      />
     </div>
   );
 };
 
-const PrincipalDashboardLayout = () => (
-  <Routes>
-    <Route index element={<PrincipalHome />} />
-    <Route path="attendance" element={<PrincipalAttendance />} />
-  </Routes>
-);
-
-export { PrincipalDashboardLayout };
 export default PrincipalDashboard; 

@@ -27,6 +27,8 @@ import RoomManagement from './RoomManagement';
 import ElectricityBills from './ElectricityBills';
 import SecurityDashboard from '../security/SecurityDashboard';
 import SecuritySettings from './SecuritySettings';
+import ResetPassword from './ResetPassword';
+import ResetPasswordModal from './ResetPasswordModal';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -74,6 +76,7 @@ const ProtectedSection = ({ permission, sectionName, children, requiredAccess = 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notificationStates, setNotificationStates] = useState({
@@ -647,6 +650,32 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
+          
+          {/* Password Reset Button - Only show for sub-admins and principals */}
+          {(user?.role === 'sub_admin' || user?.role === 'principal') && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowResetPasswordModal(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-normal text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-all duration-300 shadow hover:shadow-md mb-2"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                />
+              </svg>
+              Reset Password
+            </motion.button>
+          )}
+          
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -680,6 +709,12 @@ const AdminDashboard = () => {
           <Outlet />
         </div>
       </main>
+      
+      {/* Reset Password Modal */}
+      <ResetPasswordModal 
+        isOpen={showResetPasswordModal} 
+        onClose={() => setShowResetPasswordModal(false)} 
+      />
     </div>
   );
 };

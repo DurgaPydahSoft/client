@@ -11,10 +11,13 @@ import {
   XCircleIcon,
   ExclamationCircleIcon,
   ArrowRightIcon,
-  HomeIcon
+  HomeIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const Leave = () => {
   const [leaves, setLeaves] = useState([]);
@@ -23,6 +26,7 @@ const Leave = () => {
   const [qrModal, setQrModal] = useState({ open: false, leave: null });
   const [applicationType, setApplicationType] = useState('Leave');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Form data for Leave applications
   const [leaveFormData, setLeaveFormData] = useState({
@@ -190,6 +194,8 @@ const Leave = () => {
       case 'Pending':
       case 'Pending OTP Verification':
         return 'text-yellow-600 bg-yellow-50';
+      case 'Warden Verified':
+        return 'text-blue-600 bg-blue-50';
       case 'Warden Recommended':
         return 'text-blue-600 bg-blue-50';
       default:
@@ -208,6 +214,8 @@ const Leave = () => {
       case 'Pending':
       case 'Pending OTP Verification':
         return <ExclamationCircleIcon className="w-5 h-5" />;
+      case 'Warden Verified':
+        return <ArrowRightIcon className="w-5 h-5" />;
       case 'Warden Recommended':
         return <ArrowRightIcon className="w-5 h-5" />;
       default:
@@ -281,6 +289,98 @@ const Leave = () => {
     return {};
   };
 
+  // PDF Download function for individual request
+  const downloadIndividualRequestPDF = async (leave) => {
+    if (isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      const doc = new jsPDF();
+      const displayInfo = formatDisplayDate(leave);
+      
+      // Add header
+      doc.setFontSize(20);
+      doc.setTextColor(30, 64, 175); // Blue color
+      doc.text(`${leave.applicationType} Request`, 105, 20, { align: 'center' });
+      
+      // Add student info
+      doc.setFontSize(12);
+      doc.setTextColor(55, 65, 81); // Gray color
+      doc.text(`Student Name: ${user?.name || 'N/A'}`, 20, 35);
+      doc.text(`Roll Number: ${user?.rollNumber || 'N/A'}`, 20, 42);
+      doc.text(`Course: ${user?.course?.name || user?.course || 'N/A'}`, 20, 49);
+      doc.text(`Branch: ${user?.branch?.name || user?.branch || 'N/A'}`, 20, 56);
+      doc.text(`Room: ${user?.roomNumber || 'N/A'}`, 20, 63);
+      
+      // Add request details
+      doc.setFontSize(14);
+      doc.setTextColor(30, 64, 175);
+      doc.text('Request Details:', 20, 80);
+      
+      doc.setFontSize(11);
+      doc.setTextColor(55, 65, 81);
+      
+      // Application type and status
+      doc.text(`Application Type: ${leave.applicationType}`, 20, 90);
+      
+      // Status with color highlighting
+      if (leave.status === 'Approved') {
+        doc.setTextColor(34, 197, 94); // Green color for approved
+        doc.text(`Status: ${leave.status}`, 20, 97);
+      } else if (leave.status === 'Rejected') {
+        doc.setTextColor(239, 68, 68); // Red color for rejected
+        doc.text(`Status: ${leave.status}`, 20, 97);
+      } else {
+        doc.setTextColor(245, 158, 11); // Yellow color for pending
+        doc.text(`Status: ${leave.status}`, 20, 97);
+      }
+      
+      // Reset text color for other fields
+      doc.setTextColor(55, 65, 81);
+      doc.text(`Applied On: ${new Date(leave.createdAt).toLocaleDateString()}`, 20, 104);
+      
+      // Date/Time information based on type
+      if (leave.applicationType === 'Leave') {
+        doc.text(`Start Date: ${displayInfo.start}`, 20, 111);
+        doc.text(`End Date: ${displayInfo.end}`, 20, 118);
+        doc.text(`Duration: ${displayInfo.duration}`, 20, 125);
+        doc.text(`Gate Pass: ${new Date(leave.gatePassDateTime).toLocaleString()}`, 20, 132);
+      } else if (leave.applicationType === 'Permission') {
+        doc.text(`Permission Date: ${displayInfo.date}`, 20, 111);
+        doc.text(`Out Time: ${leave.outTime}`, 20, 118);
+        doc.text(`In Time: ${leave.inTime}`, 20, 125);
+      } else if (leave.applicationType === 'Stay in Hostel') {
+        doc.text(`Stay Date: ${displayInfo.date}`, 20, 111);
+      }
+      
+      // Reason
+      doc.text(`Reason: ${leave.reason}`, 20, 140);
+      
+      // Rejection reason if applicable
+      if (leave.rejectionReason) {
+        doc.setTextColor(239, 68, 68); // Red color
+        doc.text(`Rejection Reason: ${leave.rejectionReason}`, 20, 147);
+      }
+      
+      // Generation info
+      doc.setFontSize(8);
+      doc.setTextColor(107, 114, 128);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 20, 160);
+      
+      // Save the PDF
+      const fileName = `${leave.applicationType.toLowerCase().replace(' ', '_')}_request_${user?.rollNumber || 'student'}_${new Date(leave.createdAt).toISOString().slice(0, 10)}.pdf`;
+      doc.save(fileName);
+      
+      toast.success(`${leave.applicationType} request PDF downloaded successfully!`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
   const tomorrow = new Date(today);
@@ -333,7 +433,9 @@ const Leave = () => {
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
                             {getStatusIcon(leave.status)}
-                            <span className="ml-1">{leave.status}</span>
+                            <span className="ml-1">
+                              {leave.status === 'Warden Verified' ? 'Warden Verified - Pending Principal Approval' : leave.status}
+                            </span>
                           </span>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                             {leave.applicationType}
@@ -392,6 +494,15 @@ const Leave = () => {
                           </p>
                         )}
 
+                        {/* Show warden verification info for Leave/Permission requests */}
+                        {leave.applicationType !== 'Stay in Hostel' && leave.status === 'Warden Verified' && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-blue-700">
+                              <strong>Warden Verified:</strong> Your request has been verified by the warden and is now pending principal approval.
+                            </p>
+                          </div>
+                        )}
+
                         {/* Show warden recommendation for Stay in Hostel requests */}
                         {leave.applicationType === 'Stay in Hostel' && leave.wardenRecommendation && (
                           <div className="mt-2 p-2 bg-blue-50 rounded-lg">
@@ -412,53 +523,79 @@ const Leave = () => {
                           </div>
                         )}
                       </div>
-                      {/* QR Code Button for Approved Leave/Permission */}
-                      {leave.status === 'Approved' && (
-                        <div className="flex flex-col gap-2">
-                          {isQrAvailable(leave) ? (
-                            <button
-                              className={`w-full sm:w-auto px-3 py-2 rounded transition-colors text-sm font-semibold ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
-                              disabled={leave.visitLocked}
-                              onClick={async () => {
-                                if (leave.visitLocked) return;
-                                try {
-                                  const res = await api.post(`/api/leave/qr-view/${leave._id}`);
-                                  if (res.data.success) {
-                                    setQrModal({ open: true, leave });
+                      {/* Action Buttons */}
+                      <div className="flex flex-col gap-2">
+                        {/* Download PDF Button - Available for all requests */}
+                        <button
+                          onClick={() => downloadIndividualRequestPDF(leave)}
+                          disabled={isDownloading}
+                          className={`w-full sm:w-auto px-3 py-2 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 ${
+                            isDownloading
+                              ? 'bg-gray-400 text-white cursor-not-allowed'
+                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                          }`}
+                        >
+                          {isDownloading ? (
+                            <>
+                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <DocumentArrowDownIcon className="w-4 h-4" />
+                              Download PDF
+                            </>
+                          )}
+                        </button>
+
+                        {/* QR Code Button for Approved Leave/Permission */}
+                        {leave.status === 'Approved' && (
+                          <>
+                            {isQrAvailable(leave) ? (
+                              <button
+                                className={`w-full sm:w-auto px-3 py-2 rounded transition-colors text-sm font-semibold ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                                disabled={leave.visitLocked}
+                                onClick={async () => {
+                                  if (leave.visitLocked) return;
+                                  try {
+                                    const res = await api.post(`/api/leave/qr-view/${leave._id}`);
+                                    if (res.data.success) {
+                                      setQrModal({ open: true, leave });
+                                    }
+                                  } catch (err) {
+                                    if (err.response && err.response.data && err.response.data.visitLocked) {
+                                      toast.error('Visit limit reached');
+                                      // Optionally update UI
+                                      leave.visitLocked = true;
+                                      setLeaves([...leaves]);
+                                    } else {
+                                      toast.error('Unable to open QR code');
+                                    }
                                   }
-                                } catch (err) {
-                                  if (err.response && err.response.data && err.response.data.visitLocked) {
-                                    toast.error('Visit limit reached');
-                                    // Optionally update UI
-                                    leave.visitLocked = true;
-                                    setLeaves([...leaves]);
-                                  } else {
-                                    toast.error('Unable to open QR code');
-                                  }
-                                }
-                              }}
-                            >
-                              {leave.visitLocked ? 'Visit Locked' : 'View QR Code'}
-                            </button>
-                          ) : null}
-                          
-                          {/* Visit Count Display */}
-                          <div className="text-center">
-                            <div className="text-xs text-gray-500">
-                              Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}
-                            </div>
-                            {new Date() < new Date(leave.qrAvailableFrom) ? (
+                                }}
+                              >
+                                {leave.visitLocked ? 'Visit Locked' : 'View QR Code'}
+                              </button>
+                            ) : null}
+                            
+                            {/* Visit Count Display */}
+                            <div className="text-center">
                               <div className="text-xs text-gray-500">
-                                QR available in {getTimeUntilQrAvailable(leave)} min
+                                Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}
                               </div>
-                            ) : (
-                              <div className="text-xs text-red-500">
-                                .
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                              {new Date() < new Date(leave.qrAvailableFrom) ? (
+                                <div className="text-xs text-gray-500">
+                                  QR available in {getTimeUntilQrAvailable(leave)} min
+                                </div>
+                              ) : (
+                                <div className="text-xs text-red-500">
+                                  .
+                                </div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 );

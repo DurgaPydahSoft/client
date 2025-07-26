@@ -477,24 +477,24 @@ const TakeAttendance = () => {
           className="mb-4 sm:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
         >
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
               className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-base"
-            >
-              {submitting ? (
-                <>
+          >
+            {submitting ? (
+              <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span>Saving Attendance...</span>
-                </>
-                              ) : (
-                  <>
+              </>
+            ) : (
+              <>
                     <CheckIcon className="w-6 h-6" />
                     <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
                     <span className="sm:hidden">Save Attendance</span>
-                  </>
-                )}
-            </button>
+              </>
+            )}
+          </button>
             
             {/* Quick Stats */}
             <div className="flex justify-between sm:hidden text-sm text-gray-600 bg-white rounded-lg p-3 border border-gray-200">
@@ -523,9 +523,9 @@ const TakeAttendance = () => {
         >
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Students ({students.length})
-              </h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Students ({students.length})
+            </h2>
               <div className="hidden sm:flex items-center gap-4 text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>

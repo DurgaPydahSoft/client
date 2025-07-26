@@ -37,6 +37,7 @@ const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
+const AdminResetPassword = lazy(() => import('./pages/admin/DashboardResetPassword'));
 
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
@@ -52,12 +53,14 @@ const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
 const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
 const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelRequests'));
 const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
+const WardenLeaveManagement = lazy(() => import('./pages/warden/LeaveManagement'));
 
 // Principal components
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
 const PrincipalHome = lazy(() => import('./pages/principal/PrincipalHome'));
 const PrincipalAttendance = lazy(() => import('./pages/principal/PrincipalAttendance'));
 const PrincipalStayInHostelRequests = lazy(() => import('./pages/principal/StayInHostelRequests'));
+const PrincipalLeaveManagement = lazy(() => import('./pages/principal/LeaveManagement'));
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component {
@@ -237,6 +240,7 @@ function App() {
               <Route path="view-attendance" element={<WardenViewAttendance />} />
               <Route path="bulk-outing" element={<BulkOuting />} />
               <Route path="notifications" element={<WardenNotifications />} />
+              <Route path="leave-management" element={<WardenLeaveManagement />} />
               <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />
               <Route path="fee-management" element={<WardenFeeManagement />} />
             </Route>
@@ -256,6 +260,7 @@ function App() {
             >
               <Route index element={<PrincipalHome />} />
               <Route path="attendance" element={<PrincipalAttendance />} />
+              <Route path="leave-management" element={<PrincipalLeaveManagement />} />
               <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
             </Route>
             
