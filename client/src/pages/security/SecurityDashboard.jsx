@@ -301,8 +301,8 @@ const SecurityDashboard = () => {
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
   return (
-    <div className="min-h-screen bg-gradient-to-t ">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+    <div className="min-h-screen bg-gradient-to-t">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-6">
         <SEO 
           title="Security Dashboard"
           description="Security guard dashboard for leave and permission verification"
@@ -310,13 +310,13 @@ const SecurityDashboard = () => {
         />
 
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <ShieldCheckIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+        <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <ShieldCheckIcon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-blue-600" />
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-blue-900">Security Dashboard</h1>
-                <p className="text-sm sm:text-base text-gray-600">Manage approved leave & permission verifications</p>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-900">Security Dashboard</h1>
+                <p className="text-xs sm:text-sm lg:text-base text-gray-600">Manage approved leave & permission verifications</p>
               </div>
             </div>
             
@@ -327,24 +327,24 @@ const SecurityDashboard = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search student by Roll Number..."
-                  className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-3 sm:pl-4 pr-8 sm:pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 />
-                <button type="submit" disabled={isSearching} className="absolute inset-y-0 right-0 px-3 flex items-center bg-transparent text-gray-500 hover:text-blue-600">
+                <button type="submit" disabled={isSearching} className="absolute inset-y-0 right-0 px-2 sm:px-3 flex items-center bg-transparent text-gray-500 hover:text-blue-600">
                   {isSearching 
-                    ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                    : <EyeIcon className="w-5 h-5" />
+                    ? <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-blue-600"></div>
+                    : <EyeIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   }
                 </button>
               </div>
             </form>
             
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 lg:gap-3">
+              <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
               <select
                 value={filters.applicationType}
                 onChange={(e) => handleFilterChange({ applicationType: e.target.value })}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                className="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
               >
                 <option value="">All Types</option>
                 <option value="Leave">Leave</option>
@@ -353,7 +353,7 @@ const SecurityDashboard = () => {
               <select
                 value={filters.verificationStatus}
                 onChange={(e) => handleFilterChange({ verificationStatus: e.target.value })}
-                className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                className="px-2 py-1.5 sm:px-3 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
               >
                 <option value="">All Status</option>
                 <option value="Not Verified">Not Verified</option>
@@ -364,7 +364,7 @@ const SecurityDashboard = () => {
               {/* Upcoming Leaves Toggle */}
               <button
                 onClick={() => setShowUpcomingPasses(!showUpcomingPasses)}
-                className={`px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 ${
+                className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 ${
                   showUpcomingPasses 
                     ? 'bg-blue-600 text-white hover:bg-blue-700' 
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -386,17 +386,17 @@ const SecurityDashboard = () => {
           }} securitySettings={securitySettings} />
         )}
         {searchError && !searchedStudent && (
-          <div className="bg-white rounded-lg shadow-sm p-6 my-6 text-center">
-            <p className="text-red-500 font-medium">{searchError}</p>
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 my-4 sm:my-6 text-center">
+            <p className="text-red-500 font-medium text-sm sm:text-base">{searchError}</p>
           </div>
         )}
 
         {/* Leave List */}
         <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
           {loading ? (
-            <div className="p-4 sm:p-8 text-center">
-              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:h-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-sm sm:text-base text-gray-600">Loading requests...</p>
+            <div className="p-4 sm:p-6 lg:p-8 text-center">
+              <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-xs sm:text-sm lg:text-base text-gray-600">Loading requests...</p>
             </div>
           ) : (
             <>
@@ -523,16 +523,16 @@ const SectionTable = ({
   setShowVerificationModal,
   getRequestDate
 }) => (
-  <div className="mb-8">
-    <h2 className="text-lg font-bold text-blue-800 p-4">{title} ({leaves.length})</h2>
+  <div className="mb-6 sm:mb-8">
+    <h2 className="text-base sm:text-lg font-bold text-blue-800 p-3 sm:p-4">{title} ({leaves.length})</h2>
     {leaves.length === 0 ? (
-      <div className="p-4 text-center text-gray-400">No requests in this section.</div>
+      <div className="p-3 sm:p-4 text-center text-gray-400 text-sm">No requests in this section.</div>
     ) : (
       <div className="overflow-x-auto">
         {/* Desktop Table Header */}
         <div className="hidden md:block">
           <div className="bg-gray-50 border-b border-gray-200 text-left" style={{ minWidth: '900px' }}>
-            <div className="grid grid-cols-12 gap-2 sm:gap-4 px-4 py-2 text-xs sm:text-sm font-medium text-gray-700">
+            <div className="grid grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700">
               <div className="col-span-3">Student Details</div>
               <div className="col-span-3">Timeframe</div>
               <div className="col-span-3">Details</div>
@@ -549,7 +549,7 @@ const SectionTable = ({
               key={leave._id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-4 hover:bg-gray-50 transition-colors"
+              className="p-3 sm:p-4 hover:bg-gray-50 transition-colors"
             >
               {/* Desktop Layout */}
               <div className="hidden md:grid md:grid-cols-12 md:gap-2 lg:gap-4 md:items-center">
@@ -629,9 +629,9 @@ const SectionTable = ({
                         setSelectedLeave(leave);
                         setShowVerificationModal(true);
                       }}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                      className="px-2 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
                     >
-                      <EyeIcon className="w-4 h-4" />
+                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>Verify</span>
                     </button>
                   )}
@@ -639,24 +639,24 @@ const SectionTable = ({
               </div>
 
               {/* Mobile Layout */}
-              <div className="md:hidden flex flex-col gap-3">
+              <div className="md:hidden flex flex-col gap-2 sm:gap-3">
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="flex items-center gap-2">
-                      <UserIcon className="w-5 h-5 text-gray-500" />
-                      <span className="font-bold text-base text-gray-900">{leave.student?.name || 'N/A'}</span>
+                      <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
+                      <span className="font-bold text-sm sm:text-base text-gray-900">{leave.student?.name || 'N/A'}</span>
                     </div>
-                    <div className="text-sm text-gray-600 ml-7">{leave.student?.rollNumber || 'N/A'}</div>
+                    <div className="text-xs sm:text-sm text-gray-600 ml-6">{leave.student?.rollNumber || 'N/A'}</div>
                   </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                  <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                     {leave.applicationType}
                   </span>
                 </div>
 
-                <div className="border-t border-gray-100 pt-3">
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                <div className="border-t border-gray-100 pt-2 sm:pt-3">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
                     {getBlinkingDot(leave)}
-                    <CalendarIcon className="w-4 h-4 text-gray-500" />
+                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                     {leave.applicationType === 'Leave' ? (
                       <span>{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</span>
                     ) : (
@@ -664,29 +664,29 @@ const SectionTable = ({
                     )}
                   </div>
                   {leave.applicationType === 'Permission' && (
-                    <div className="flex items-center gap-2 text-sm text-gray-700 ml-7">
-                      <ClockIcon className="w-4 h-4" />
+                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 ml-6">
+                      <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       <span>{leave.outTime} - {leave.inTime}</span>
                     </div>
                   )}
                 </div>
                 
                 <div className="flex justify-between items-center">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
+                  <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
                     style={{ minWidth: '70px' }}>
                     {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
                     <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                   </span>
-                  <div className="text-sm text-blue-600 font-medium">Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}</div>
+                  <div className="text-xs sm:text-sm text-blue-600 font-medium">Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}</div>
                   {leave.verificationStatus !== 'Verified' && !leave._frontendExpired && (
                     <button
                       onClick={() => {
                         setSelectedLeave(leave);
                         setShowVerificationModal(true);
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
                     >
-                      <EyeIcon className="w-4 h-4" />
+                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       Verify
                     </button>
                   )}
@@ -708,65 +708,65 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-white rounded-lg shadow-lg p-4 sm:p-6 mb-6 border-l-4 border-blue-600"
+        className="bg-white rounded-lg shadow-lg p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6 border-l-4 border-blue-600"
       >
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-lg sm:text-xl font-bold text-blue-900">Student Details</h2>
+        <div className="flex justify-between items-start mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-lg lg:text-xl font-bold text-blue-900">Student Details</h2>
           <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full">
-            <XCircleIcon className="w-6 h-6" />
+            <XCircleIcon className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
-        <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+        <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-center md:items-start">
           <div className="flex flex-col items-center w-full md:w-1/3">
             {/* Profile Picture */}
             {securitySettings.viewProfilePictures && student.studentPhoto ? (
               <img
                 src={student.studentPhoto}
                 alt={student.name}
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md cursor-pointer hover:scale-105 transition-transform"
+                className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md cursor-pointer hover:scale-105 transition-transform"
                 onClick={() => setPopupImage(student.studentPhoto)}
               />
             ) : securitySettings.viewProfilePictures ? (
               <img
                 src={`https://ui-avatars.com/api/?name=${student.name}&background=0D8ABC&color=fff&size=128`}
                 alt={student.name}
-                className="w-24 h-24 sm:w-32 sm:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
+                className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full object-cover border-4 border-gray-100 shadow-md"
               />
             ) : (
-              <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-lg font-semibold border-4 border-gray-100 shadow-md">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm sm:text-lg font-semibold border-4 border-gray-100 shadow-md">
                 Hidden by admin
               </div>
             )}
-            <span className={`mt-3 px-3 py-1 text-sm font-semibold rounded-full ${
+            <span className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${
               student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
               {student.hostelStatus}
             </span>
             {/* Guardian Photos */}
             {securitySettings.viewGuardianImages && (student.guardianPhoto1 || student.guardianPhoto2) ? (
-              <div className="mt-4 w-full flex flex-row justify-center items-center gap-2">
+              <div className="mt-3 sm:mt-4 w-full flex flex-row justify-center items-center gap-2">
                 {student.guardianPhoto1 && (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
                     <img src={student.guardianPhoto1} alt="Guardian 1" className="w-full h-full object-cover" onClick={() => setPopupImage(student.guardianPhoto1)} />
                     <div className="text-xs text-center text-gray-500 mt-1">Guardian Photo 1</div>
                   </div>
                 )}
                 {student.guardianPhoto2 && (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:scale-105 transition-transform">
                     <img src={student.guardianPhoto2} alt="Guardian 2" className="w-full h-full object-cover" onClick={() => setPopupImage(student.guardianPhoto2)} />
                     <div className="text-xs text-center text-gray-500 mt-1">Guardian Photo 2</div>
                   </div>
                 )}
               </div>
             ) : !securitySettings.viewGuardianImages && (student.guardianPhoto1 || student.guardianPhoto2) ? (
-              <div className="mt-4 w-full flex flex-row justify-center items-center gap-2">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-semibold border border-gray-200">
+              <div className="mt-3 sm:mt-4 w-full flex flex-row justify-center items-center gap-2">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-lg bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-semibold border border-gray-200">
                   Guardian images hidden
                 </div>
               </div>
             ) : null}
           </div>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm w-full">
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm w-full">
             <InfoField icon={<UserIcon />} label="Name" value={student.name} />
             <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
             <InfoField icon={<TagIcon />} label="Course" value={`${student.course?.name || student.course} - ${student.branch?.name || student.branch}`} />
@@ -782,18 +782,18 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
       </motion.div>
       {/* Image Popup Modal */}
       {popupImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 p-2 sm:p-4">
           <div className="relative bg-white rounded-lg shadow-lg p-2 max-w-full max-h-full flex flex-col items-center">
             <button
               onClick={() => setPopupImage(null)}
-              className="absolute top-2 right-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full z-10"
+              className="absolute top-1 sm:top-2 right-1 sm:right-2 p-1 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full z-10"
             >
-              <XCircleIcon className="w-7 h-7" />
+              <XCircleIcon className="w-5 h-5 sm:w-7 sm:h-7" />
             </button>
             <img
               src={popupImage}
               alt="Enlarged"
-              className="max-w-[90vw] max-h-[80vh] rounded-lg object-contain"
+              className="max-w-[95vw] max-h-[85vh] rounded-lg object-contain"
             />
           </div>
         </div>
@@ -803,11 +803,11 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
 }
 
 const InfoField = ({ icon, label, value }) => (
-  <div className="flex items-start gap-3">
-    <div className="flex-shrink-0 w-5 h-5 text-gray-500 mt-0.5">{icon}</div>
+  <div className="flex items-start gap-2 sm:gap-3">
+    <div className="flex-shrink-0 w-4 h-4 sm:w-5 sm:h-5 text-gray-500 mt-0.5">{icon}</div>
     <div>
-      <p className="font-semibold text-gray-800">{label}</p>
-      <p className="text-gray-600">{value}</p>
+      <p className="font-semibold text-gray-800 text-xs sm:text-sm">{label}</p>
+      <p className="text-gray-600 text-xs sm:text-sm">{value}</p>
     </div>
   </div>
 );

@@ -215,7 +215,7 @@ function App() {
                 </ProtectedSection>
               } />
               <Route path="security/settings" element={
-                <ProtectedSection permission="security_management" sectionName="Security Settings">
+                <ProtectedSection permission="security_management" sectionName="Security Settings" requiredAccess="full">
                   <SecuritySettings />
                 </ProtectedSection>
               } />

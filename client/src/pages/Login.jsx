@@ -157,7 +157,7 @@ const Login = () => {
       {isSafari && (
         <div className="fixed top-4 left-4 right-4 z-50 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
           <p className="font-medium">Safari Browser Detected</p>
-          <p>Try to use different browser beacuse some features are not supported in Safari</p>
+          <p>Push notifications are disabled in Safari for security reasons. The app will work normally with database notifications only.</p>
         </div>
       )}
       

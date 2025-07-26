@@ -215,22 +215,22 @@ const CourseManagement = () => {
     <>
       <SEO title="Course Management" description="Manage courses and branches dynamically" />
       
-      <div className="min-h-screen bg-gray-50 p-6">
+      <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-xl sm:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
               Course & Branch Management
             </h1>
-            <p className="text-gray-600">
+            <p className="text-xs sm:text-base text-gray-600">
               Manage academic courses and their branches dynamically
             </p>
           </div>
 
           {/* Tab Navigation */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="border-b border-gray-200">
-              <nav className="-mb-px flex space-x-8">
+              <nav className="-mb-px flex flex-wrap gap-2 sm:gap-0 space-x-0 sm:space-x-8 overflow-x-auto">
                 {[
                   { id: 'courses', label: 'Courses', icon: AcademicCapIcon },
                   { id: 'branches', label: 'Branches', icon: AcademicCapIcon }
@@ -238,13 +238,13 @@ const CourseManagement = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                    className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
                       activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <tab.icon className="h-5 w-5" />
+                    <tab.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     {tab.label}
                   </button>
                 ))}
@@ -260,58 +260,58 @@ const CourseManagement = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 {/* Courses Header */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Courses</h2>
-                    <p className="text-gray-600">Manage academic courses and their configurations</p>
+                    <h2 className="text-base sm:text-xl font-semibold text-blue-900">Courses</h2>
+                    <p className="text-xs sm:text-gray-600">Manage academic courses and their configurations</p>
                   </div>
                   <button
                     onClick={() => openCourseModal()}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
                   >
-                    <PlusIcon className="h-5 w-5" />
+                    <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                     Add Course
                   </button>
                 </div>
 
                 {/* Courses Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                   {courses.map((course) => (
                     <div
                       key={course._id}
-                      className={`bg-white rounded-lg shadow-sm border p-6 ${
+                      className={`bg-white rounded-lg shadow-sm border p-3 sm:p-6 ${
                         !course.isActive ? 'opacity-60' : ''
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-4">
+                      <div className="flex justify-between items-start mb-3 sm:mb-4">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{course.name}</h3>
-                          <p className="text-sm text-gray-500">Code: {course.code}</p>
+                          <h3 className="text-base sm:text-lg font-semibold text-blue-900">{course.name}</h3>
+                          <p className="text-xs sm:text-sm text-gray-500">Code: {course.code}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5 sm:gap-2">
                           <button
                             onClick={() => openCourseModal(course)}
                             className="text-blue-600 hover:text-blue-800"
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteCourse(course._id)}
                             className="text-red-600 hover:text-red-800"
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                           </button>
                         </div>
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         {course.description && (
-                          <p className="text-sm text-gray-600">{course.description}</p>
+                          <p className="text-xs sm:text-sm text-gray-600">{course.description}</p>
                         )}
-                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                           <span>Duration: {course.duration} {course.durationUnit}</span>
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             course.isActive 
@@ -337,66 +337,64 @@ const CourseManagement = () => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="space-y-6"
+                className="space-y-4 sm:space-y-6"
               >
                 {/* Branches Header */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Branches</h2>
-                    <p className="text-gray-600">Manage branches for each course</p>
+                    <h2 className="text-base sm:text-xl font-semibold text-blue-900">Branches</h2>
+                    <p className="text-xs sm:text-gray-600">Manage branches for each course</p>
                   </div>
                   <button
                     onClick={() => openBranchModal()}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
                   >
-                    <PlusIcon className="h-5 w-5" />
+                    <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                     Add Branch
                   </button>
                 </div>
 
                 {/* Branches by Course */}
                 {courses.filter(course => course.isActive).map((course) => (
-                  <div key={course._id} className="bg-white rounded-lg shadow-sm border p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">{course.name}</h3>
-                      <span className="text-sm text-gray-500">
+                  <div key={course._id} className="bg-white rounded-lg shadow-sm border p-3 sm:p-6 mb-3 sm:mb-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1.5 sm:gap-0 mb-2 sm:mb-4">
+                      <h3 className="text-base sm:text-lg font-semibold text-blue-900">{course.name}</h3>
+                      <span className="text-xs sm:text-sm text-gray-500">
                         {getBranchesForCourse(course._id).length} branches
                       </span>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
                       {getBranchesForCourse(course._id).map((branch) => (
                         <div
                           key={branch._id}
-                          className={`border rounded-lg p-4 ${
+                          className={`border rounded-lg p-2 sm:p-4 ${
                             !branch.isActive ? 'opacity-60' : ''
                           }`}
                         >
-                          <div className="flex justify-between items-start mb-2">
+                          <div className="flex justify-between items-start mb-1.5 sm:mb-2">
                             <div>
-                              <h4 className="font-medium text-gray-900">{branch.name}</h4>
-                              <p className="text-sm text-gray-500">Code: {branch.code}</p>
+                              <h4 className="font-medium text-blue-900 text-sm sm:text-base">{branch.name}</h4>
+                              <p className="text-xs sm:text-sm text-gray-500">Code: {branch.code}</p>
                             </div>
                             <div className="flex gap-1">
                               <button
                                 onClick={() => openBranchModal(branch)}
                                 className="text-blue-600 hover:text-blue-800"
                               >
-                                <PencilIcon className="h-4 w-4" />
+                                <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteBranch(branch._id)}
                                 className="text-red-600 hover:text-red-800"
                               >
-                                <TrashIcon className="h-4 w-4" />
+                                <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
                               </button>
                             </div>
                           </div>
                           
                           {branch.description && (
-                            <p className="text-sm text-gray-600 mb-2">{branch.description}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 mb-1.5 sm:mb-2">{branch.description}</p>
                           )}
-                          
                           <span className={`inline-block px-2 py-1 rounded-full text-xs ${
                             branch.isActive 
                               ? 'bg-green-100 text-green-800' 
@@ -422,68 +420,68 @@ const CourseManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+              className="bg-white rounded-lg shadow-xl max-w-xs sm:max-w-md w-full p-3 sm:p-6"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-blue-900">
                   {editingCourse ? 'Edit Course' : 'Add New Course'}
                 </h3>
                 <button
                   onClick={() => setShowCourseModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
               </div>
 
-              <form onSubmit={handleCourseSubmit} className="space-y-4">
+              <form onSubmit={handleCourseSubmit} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Course Name *
                   </label>
                   <input
                     type="text"
                     value={courseForm.name}
                     onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Course Code *
                   </label>
                   <input
                     type="text"
                     value={courseForm.code}
                     onChange={(e) => setCourseForm({ ...courseForm, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Description
                   </label>
                   <textarea
                     value={courseForm.description}
                     onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Duration *
                     </label>
                     <input
@@ -492,19 +490,19 @@ const CourseManagement = () => {
                       max="10"
                       value={courseForm.duration}
                       onChange={(e) => setCourseForm({ ...courseForm, duration: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Duration Unit
                     </label>
                     <select
                       value={courseForm.durationUnit}
                       onChange={(e) => setCourseForm({ ...courseForm, durationUnit: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="years">Years</option>
                       <option value="semesters">Semesters</option>
@@ -512,17 +510,17 @@ const CourseManagement = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                   <button
                     type="button"
                     onClick={() => setShowCourseModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-2.5 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-base text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="flex-1 px-2.5 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs sm:text-base"
                   >
                     {editingCourse ? 'Update' : 'Create'}
                   </button>
@@ -540,35 +538,35 @@ const CourseManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+              className="bg-white rounded-lg shadow-xl max-w-xs sm:max-w-md w-full p-3 sm:p-6"
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">
+              <div className="flex justify-between items-center mb-4 sm:mb-6">
+                <h3 className="text-base sm:text-lg font-semibold text-blue-900">
                   {editingBranch ? 'Edit Branch' : 'Add New Branch'}
                 </h3>
                 <button
                   onClick={() => setShowBranchModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <XMarkIcon className="h-6 w-6" />
+                  <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
                 </button>
               </div>
 
-              <form onSubmit={handleBranchSubmit} className="space-y-4">
+              <form onSubmit={handleBranchSubmit} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Course *
                   </label>
                   <select
                     value={branchForm.courseId}
                     onChange={(e) => setBranchForm({ ...branchForm, courseId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   >
                     <option value="">Select a course</option>
@@ -581,54 +579,54 @@ const CourseManagement = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Branch Name *
                   </label>
                   <input
                     type="text"
                     value={branchForm.name}
                     onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Branch Code *
                   </label>
                   <input
                     type="text"
                     value={branchForm.code}
                     onChange={(e) => setBranchForm({ ...branchForm, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Description
                   </label>
                   <textarea
                     value={branchForm.description}
                     onChange={(e) => setBranchForm({ ...branchForm, description: e.target.value })}
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-xs sm:text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                   <button
                     type="button"
                     onClick={() => setShowBranchModal(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-2.5 sm:px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-base text-gray-700 hover:bg-gray-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="flex-1 px-2.5 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-xs sm:text-base"
                   >
                     {editingBranch ? 'Update' : 'Create'}
                   </button>

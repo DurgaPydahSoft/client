@@ -440,17 +440,17 @@ const Complaints = () => {
 
   // Filter form JSX
   const renderFilterForm = () => (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Status Filter */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Status</label>
         <select
           value={filterStatus}
           onChange={(e) => {
             setFilterStatus(e.target.value);
             handleFilterChange();
           }}
-          className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
         >
           {STATUS_OPTIONS.map(status => (
             <option key={status} value={status}>{status}</option>
@@ -460,7 +460,7 @@ const Complaints = () => {
 
       {/* Category Filter */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Category</label>
         <select
           value={filterCategory}
           onChange={(e) => {
@@ -468,7 +468,7 @@ const Complaints = () => {
             setFilterSubCategory('All');
             handleFilterChange();
           }}
-          className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
         >
           {CATEGORY_OPTIONS.map(category => (
             <option key={category} value={category}>{category}</option>
@@ -479,14 +479,14 @@ const Complaints = () => {
       {/* Subcategory Filter (only for Maintenance) */}
       {filterCategory === 'Maintenance' && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Subcategory</label>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Subcategory</label>
           <select
             value={filterSubCategory}
             onChange={(e) => {
               setFilterSubCategory(e.target.value);
               handleFilterChange();
             }}
-            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
           >
             <option value="All">All</option>
             {MAINTENANCE_SUBCATEGORIES.map(subCategory => (
@@ -498,8 +498,8 @@ const Complaints = () => {
 
       {/* Date Range Filter */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
-        <div className="space-y-2">
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date Range</label>
+        <div className="space-y-1.5 sm:space-y-2">
           <input
             type="date"
             value={filterDateRange.from}
@@ -507,7 +507,7 @@ const Complaints = () => {
               setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
               handleFilterChange();
             }}
-            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
           />
           <input
             type="date"
@@ -516,14 +516,14 @@ const Complaints = () => {
               setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
               handleFilterChange();
             }}
-            className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
           />
         </div>
       </div>
 
       {/* Search */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
+        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Search</label>
         <div className="relative">
           <input
             type="text"
@@ -533,18 +533,18 @@ const Complaints = () => {
               handleFilterChange();
             }}
             placeholder="Search by description or student..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
           />
-          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2" />
         </div>
       </div>
 
       {/* Clear Filters Button */}
       <button
         onClick={clearFilters}
-        className="w-full px-4 py-2 text-sm text-gray-600 hover:text-red-600 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
+        className="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 hover:text-red-600 flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
       >
-        <XMarkIcon className="w-4 h-4" />
+        <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4" />
         Clear Filters
       </button>
     </div>
@@ -566,12 +566,12 @@ const Complaints = () => {
     if (pagination.pages <= 1) return null;
 
     return (
-      <div className="mt-6 flex items-center justify-between border-t border-gray-200 pt-4">
+      <div className="mt-4 sm:mt-6 flex items-center justify-between border-t border-gray-200 pt-3 sm:pt-4">
         <div className="flex-1 flex justify-between sm:hidden">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg
+            className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
               ${currentPage === 1 
                 ? 'text-gray-400 cursor-not-allowed' 
                 : 'text-blue-600 hover:bg-blue-50'
@@ -582,7 +582,7 @@ const Complaints = () => {
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === pagination.pages}
-            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg
+            className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
               ${currentPage === pagination.pages 
                 ? 'text-gray-400 cursor-not-allowed' 
                 : 'text-blue-600 hover:bg-blue-50'
@@ -593,7 +593,7 @@ const Complaints = () => {
         </div>
         <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm text-gray-700">
+            <p className="text-xs sm:text-sm text-gray-700">
               Showing <span className="font-medium">{((currentPage - 1) * pagination.limit) + 1}</span> to{' '}
               <span className="font-medium">{Math.min(currentPage * pagination.limit, pagination.total)}</span> of{' '}
               <span className="font-medium">{pagination.total}</span> complaints
@@ -603,26 +603,26 @@ const Complaints = () => {
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg
+              className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
                 ${currentPage === 1 
                   ? 'text-gray-400 cursor-not-allowed' 
                   : 'text-blue-600 hover:bg-blue-50'
                 }`}
             >
-              <ChevronLeftIcon className="h-5 w-5 mr-1" />
+              <ChevronLeftIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-1" />
               Previous
             </button>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === pagination.pages}
-              className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg
+              className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
                 ${currentPage === pagination.pages 
                   ? 'text-gray-400 cursor-not-allowed' 
                   : 'text-blue-600 hover:bg-blue-50'
                 }`}
             >
               Next
-              <ChevronRightIcon className="h-5 w-5 ml-1" />
+              <ChevronRightIcon className="h-4 w-4 sm:h-5 sm:w-5 ml-1" />
             </button>
           </div>
         </div>
@@ -632,17 +632,17 @@ const Complaints = () => {
 
   // Update the complaints list section to use pagination
   const renderComplaintsList = () => (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {complaints.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="flex flex-col items-center gap-3">
+        <div className="text-center py-8 sm:py-12">
+          <div className="flex flex-col items-center gap-2 sm:gap-3">
             <div className="text-gray-400">
-              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-8 h-8 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p className="text-base text-gray-500 font-medium">No complaints found</p>
-            <p className="text-sm text-gray-400">Try adjusting your filters</p>
+            <p className="text-sm sm:text-base text-gray-500 font-medium">No complaints found</p>
+            <p className="text-xs sm:text-sm text-gray-400">Try adjusting your filters</p>
           </div>
         </div>
       ) : (
@@ -650,24 +650,24 @@ const Complaints = () => {
           const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
           const isLocked = c.isLockedForUpdates === true;
           return (
-            <div key={complaintKey} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-4 ${isLocked ? 'opacity-70' : ''}`}>
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 h-12 w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
-                  <UserIcon className="w-6 h-6 text-gray-600" />
+            <div key={complaintKey} className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4 ${isLocked ? 'opacity-70' : ''}`}>
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
+                  <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                 </div>
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <span className="text-sm font-medium text-gray-900">{c.student?.name || 'Unknown'}</span>
-                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                       {c.category || 'Uncategorized'}
                     </span>
                     {isLocked && (
-                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
                         Locked
                       </span>
                     )}
                   </div>
-                  <div className="text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
+                  <div className="text-xs sm:text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
                   {c.assignedTo && (
                     <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
                       <UserIcon className="w-3 h-3" />
@@ -676,12 +676,12 @@ const Complaints = () => {
                   )}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-4">
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
                   {c.currentStatus || 'Received'}
                 </span>
                 <button 
-                  className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
                   onClick={() => openDetails(c)}
                 >
                   View Details
@@ -710,15 +710,15 @@ const Complaints = () => {
         description="View and manage all hostel complaints. Track complaint status, assign staff, and ensure timely resolution of student grievances."
         keywords="Complaint Management, Hostel Complaints, Grievance Tracking, Complaint Resolution, Staff Assignment, Hostel Services"
       />
-    <div className="min-h-screen bg-gray-50 pt-12 sm:pt-0">
+    <div className="min-h-screen bg-gray-50 pt-6 sm:pt-0">
       {/* Top Navigation Bar */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold text-blue-900">Complaint Management</h1>
+              <h1 className="text-lg sm:text-xl font-bold text-blue-900">Complaint Management</h1>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <div className="hidden sm:flex items-center gap-4">
                 <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
                   <span className="text-sm text-gray-600">Total: </span>
@@ -779,15 +779,15 @@ const Complaints = () => {
 
       {/* Mobile Stats Bar */}
       <div className="sm:hidden bg-white border-b border-gray-200">
-        <div className="px-4 py-3">
+        <div className="px-3 py-2">
           <div className="flex items-center justify-between">
-            <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-              <span className="text-sm text-gray-600">Total: </span>
-                <span className="font-semibold text-blue-700">{complaints.length}</span>
+            <div className="bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
+              <span className="text-xs text-gray-600">Total: </span>
+                <span className="font-semibold text-blue-700 text-sm">{complaints.length}</span>
             </div>
-            <div className="bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100">
-              <span className="text-sm text-gray-600">Active: </span>
-              <span className="font-semibold text-yellow-700">
+            <div className="bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
+              <span className="text-xs text-gray-600">Active: </span>
+              <span className="font-semibold text-yellow-700 text-sm">
                 {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length}
               </span>
             </div>
@@ -796,18 +796,18 @@ const Complaints = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6">
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
           {/* Left Sidebar - Filters */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 sticky top-24">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <FunnelIcon className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6 sticky top-20 sm:top-24">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
+                    <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
-                  <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Filters</h2>
                 </div>
               </div>
 
@@ -818,37 +818,37 @@ const Complaints = () => {
           {/* Right Content - Complaints List */}
           <div className="lg:col-span-2">
             {/* Active Complaints Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-yellow-50">
-                  <ClockIcon className="w-5 h-5 text-yellow-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6 mb-3 sm:mb-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                <div className="p-1.5 sm:p-2 rounded-lg bg-yellow-50">
+                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Active Complaints</h2>
-                  <p className="text-sm text-gray-500">Requiring immediate attention</p>
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Active Complaints</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Requiring immediate attention</p>
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {complaints
                   .filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received')
                   .slice(0, 3)
                   .map((c, index) => {
                     const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
                     return (
-                      <div key={complaintKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-4">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-shrink-0 h-12 w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
-                            <UserIcon className="w-6 h-6 text-gray-600" />
+                      <div key={complaintKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4">
+                        <div className="flex items-center gap-3 sm:gap-4">
+                          <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
+                            <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                           </div>
                           <div>
-                            <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                               <span className="text-sm font-medium text-gray-900">{c.student?.name || 'Unknown'}</span>
-                              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                                 {c.category || 'Uncategorized'}
                               </span>
                             </div>
-                            <div className="text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
+                            <div className="text-xs sm:text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
                             {c.assignedTo && (
                               <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
                                 <UserIcon className="w-3 h-3" />
@@ -857,12 +857,12 @@ const Complaints = () => {
                             )}
                           </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                          <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
                             {c.currentStatus || 'Received'}
                           </span>
                           <button 
-                            className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
+                            className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
                             onClick={() => openDetails(c)}
                           >
                             View Details
@@ -872,23 +872,23 @@ const Complaints = () => {
                     );
                   })}
                 {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-gray-500">No active complaints</p>
+                  <div className="text-center py-6 sm:py-8">
+                    <p className="text-xs sm:text-sm text-gray-500">No active complaints</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* All Complaints Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-blue-50">
-                    <FunnelIcon className="w-5 h-5 text-blue-600" />
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
+                    <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-gray-900">All Complaints</h2>
-                    <p className="text-sm text-gray-500">
+                    <h2 className="text-base sm:text-lg font-semibold text-gray-900">All Complaints</h2>
+                    <p className="text-xs sm:text-sm text-gray-500">
                         Showing {((currentPage - 1) * pagination.limit) + 1}-{Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total}
                     </p>
                   </div>
@@ -904,32 +904,32 @@ const Complaints = () => {
       {/* Details Modal */}
       {selected && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-          <div className="bg-white rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-2xl relative animate-fade-in-up max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-xs sm:max-w-2xl relative animate-fade-in-up max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <button
-              className="absolute top-2 sm:top-4 right-2 sm:right-4 p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
+              className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 p-1 sm:p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
               onClick={() => setSelected(null)}
               disabled={updating}
             >
-              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+              <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
 
-            <div className="mb-4 sm:mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mb-3 sm:mb-4">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Complaint Details</h2>
+            <div className="mb-3 sm:mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">Complaint Details</h2>
                 {selected.currentStatus === 'Received' && !selected.aiProcessed && (
                   <button
                     onClick={() => handleManualAIProcessing(selected._id)}
-                    className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-2 text-sm sm:text-base"
+                    className="px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm lg:text-base"
                   >
-                    <CogIcon className="w-4 h-4" />
+                    <CogIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="hidden xs:inline">Process with AI</span>
                     <span className="xs:hidden">AI Process</span>
                   </button>
                 )}
               </div>
-              <p className="text-sm sm:text-base text-gray-600">{selected.description}</p>
+              <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.description}</p>
               {selected.imageUrl && (
-                <div className="mt-3 sm:mt-4">
+                <div className="mt-2 sm:mt-3 lg:mt-4">
                   <div className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200">
                     <img
                       src={selected.imageUrl}
@@ -937,35 +937,35 @@ const Complaints = () => {
                       className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     />
                   </div>
-                  <p className="mt-2 text-xs sm:text-sm text-gray-500">Complaint Image</p>
+                  <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-500">Complaint Image</p>
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
-              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                  <span className="text-sm sm:text-base font-medium text-gray-700">Student Details</span>
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
+              <div className="bg-gray-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                  <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
+                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Student Details</span>
                 </div>
-                <p className="text-sm sm:text-base text-gray-600">{selected.student?.name}</p>
+                <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.student?.name}</p>
                 <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
                 {selected.student?.studentPhone && (
                   <p className="text-xs sm:text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
                 )}
               </div>
 
-              <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
-                <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                  <span className="text-sm sm:text-base font-medium text-gray-700">Status Information</span>
+              <div className="bg-gray-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-100">
+                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                  <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
+                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Status Information</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className={`inline-flex items-center px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
                     {selected.currentStatus}
                   </span>
                   {selected.isReopened && (
-                    <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
+                    <span className="inline-flex items-center px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
                       Reopened
                     </span>
                   )}
@@ -975,21 +975,21 @@ const Complaints = () => {
 
             {/* Assigned Member Information */}
             {selected.assignedTo && (
-              <div className="mb-4 sm:mb-6">
-                <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                    <span className="text-sm sm:text-base font-medium text-blue-700">Assigned Member</span>
+              <div className="mb-3 sm:mb-4 lg:mb-6">
+                <div className="bg-blue-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-blue-100">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                    <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-500" />
+                    <span className="text-xs sm:text-sm lg:text-base font-medium text-blue-700">Assigned Member</span>
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm sm:text-base text-blue-600 font-medium">{selected.assignedTo.name}</p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-blue-600">
-                      <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium w-fit">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <p className="text-xs sm:text-sm lg:text-base text-blue-600 font-medium">{selected.assignedTo.name}</p>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 lg:gap-4 text-xs sm:text-sm text-blue-600">
+                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 rounded-full text-xs font-medium w-fit">
                         {selected.assignedTo.category}
                       </span>
                       {selected.assignedTo.phone && (
                         <div className="flex items-center gap-1">
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                           </svg>
                           {selected.assignedTo.phone}
@@ -997,7 +997,7 @@ const Complaints = () => {
                       )}
                       {selected.assignedTo.email && (
                         <div className="flex items-center gap-1">
-                          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
                           {selected.assignedTo.email}
@@ -1009,55 +1009,82 @@ const Complaints = () => {
               </div>
             )}
 
-            <div className="mb-4 sm:mb-6">
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                <span className="text-sm sm:text-base font-medium text-gray-700">Feedback</span>
+            <div className="mb-3 sm:mb-4 lg:mb-6">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
+                <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Feedback</span>
               </div>
               {selected.feedback ? (
-                <div className={`flex items-center gap-2 ${
+                <div className={`flex items-center gap-1.5 sm:gap-2 ${
                   selected.feedback.isSatisfied ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {selected.feedback.isSatisfied ? (
-                    <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                   ) : (
-                    <ExclamationCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <ExclamationCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                   )}
-                  <span className="text-sm sm:text-base">{selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}</span>
+                  <span className="text-xs sm:text-sm lg:text-base">{selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}</span>
                 </div>
               ) : (
-                <p className="text-sm sm:text-base text-gray-500">No feedback provided yet</p>
+                <p className="text-xs sm:text-sm lg:text-base text-gray-500">No feedback provided yet</p>
               )}
             </div>
 
-            <div className="mb-4 sm:mb-6">
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                <span className="text-sm sm:text-base font-medium text-gray-700">Timeline</span>
+            <div className="mb-3 sm:mb-4 lg:mb-6">
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
+                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
+                <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Timeline</span>
               </div>
               {timelineLoading ? (
-                <div className="flex justify-center py-4">
+                <div className="flex justify-center py-3 sm:py-4">
                   <LoadingSpinner size="sm" />
                 </div>
               ) : (
                 <div className="space-y-3 sm:space-y-4">
                   {timeline.map((t, i) => (
-                    <div key={i} className="group relative py-2 sm:py-3 pl-6 sm:pl-8 lg:pl-32">
-                      <div className="mb-1 flex flex-col items-start before:absolute before:left-1 sm:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1 sm:after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 lg:flex-row lg:before:left-0 lg:before:ml-[6.5rem] lg:after:left-0 lg:after:ml-[6.5rem]">
-                        <time className="left-0 mb-2 sm:mb-3 inline-flex h-5 sm:h-6 w-20 sm:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase lg:absolute lg:mb-0">
-                          {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
-                        </time>
-                        <div className="text-sm sm:text-base lg:text-xl font-bold text-slate-900">{t.status}</div>
-                      </div>
-                      {t.note && t.note.trim() && (
-                        <div className="text-slate-500 text-xs sm:text-sm mb-1">{t.note}</div>
-                      )}
-                          {t.assignedTo && (
-                        <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-                              <span>Assigned to: {t.assignedTo.name}</span>
-                          {t.assignedTo.category && <span className="text-xs text-gray-500">({t.assignedTo.category})</span>}
+                    <div key={i} className="relative">
+                      {/* Mobile Timeline (simplified) */}
+                      <div className="sm:hidden">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-3 h-3 bg-indigo-600 rounded-full mt-1.5"></div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <time className="inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600">
+                                {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+                              </time>
                             </div>
-                          )}
+                            <div className="text-sm font-bold text-slate-900 break-words mb-1">{t.status}</div>
+                            {t.note && t.note.trim() && (
+                              <div className="text-slate-500 text-xs break-words mb-1">{t.note}</div>
+                            )}
+                            {t.assignedTo && (
+                              <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600">
+                                <span className="break-words">Assigned to: {t.assignedTo.name}</span>
+                                {t.assignedTo.category && <span className="text-xs text-gray-500 break-words">({t.assignedTo.category})</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Desktop Timeline (original) */}
+                      <div className="hidden sm:block group relative py-2 lg:py-3 pl-6 lg:pl-8 xl:pl-32">
+                        <div className="mb-1 flex flex-col items-start before:absolute before:left-1 lg:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1 lg:after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 lg:flex-row xl:before:left-0 xl:before:ml-[6.5rem] xl:after:left-0 xl:after:ml-[6.5rem]">
+                          <time className="left-0 mb-2 lg:mb-3 inline-flex h-5 lg:h-6 w-20 lg:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase xl:absolute xl:mb-0">
+                            {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+                          </time>
+                          <div className="text-sm lg:text-base xl:text-xl font-bold text-slate-900 break-words">{t.status}</div>
+                        </div>
+                        {t.note && t.note.trim() && (
+                          <div className="text-slate-500 text-sm mb-1 break-words">{t.note}</div>
+                        )}
+                        {t.assignedTo && (
+                          <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600 mt-1">
+                            <span className="break-words">Assigned to: {t.assignedTo.name}</span>
+                            {t.assignedTo.category && <span className="text-xs text-gray-500 break-words">({t.assignedTo.category})</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1066,10 +1093,10 @@ const Complaints = () => {
 
             {/* Update Form */}
             {selected.currentStatus === 'Closed' && (
-              <div className="mt-4 sm:mt-6 border-t pt-4 sm:pt-6">
-                <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+              <div className="mt-3 sm:mt-4 lg:mt-6 border-t pt-3 sm:pt-4 lg:pt-6">
+                <div className="p-2 sm:p-3 lg:p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-600" />
                     <span className="text-xs sm:text-sm font-medium text-gray-700">Complaint Closed</span>
                   </div>
                   <p className="mt-1 text-xs sm:text-sm text-gray-600">
@@ -1080,15 +1107,15 @@ const Complaints = () => {
             )}
             
             {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
-              <form className="space-y-4 mt-6 border-t pt-6" onSubmit={handleStatusUpdate}>
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium text-gray-700">Current Status:</span>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+              <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6 border-t pt-4 sm:pt-6" onSubmit={handleStatusUpdate}>
+                <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                    <span className="text-xs sm:text-sm font-medium text-gray-700">Current Status:</span>
+                    <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
                       {selected.currentStatus}
                     </span>
                     {selected.isReopened && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                         🔄 Reopened
                       </span>
                     )}
@@ -1098,9 +1125,9 @@ const Complaints = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Update Status</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Update Status</label>
                   <select 
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
                     value={status} 
                     onChange={e => setStatus(e.target.value)} 
                     required
@@ -1140,9 +1167,9 @@ const Complaints = () => {
 
                     return (
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Assign Member</label>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Assign Member</label>
                         <select
-                          className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
                           value={selectedMember}
                           onChange={e => {
                             console.log('Selected member value:', e.target.value);
@@ -1162,7 +1189,7 @@ const Complaints = () => {
                           })}
                         </select>
                         {(!availableMembersForCategory || availableMembersForCategory.length === 0) && (
-                          <p className="mt-1 text-sm text-gray-500">
+                          <p className="mt-1 text-xs sm:text-sm text-gray-500">
                             No members available for {complaintCategory === 'Maintenance' ? complaintSubCategory : complaintCategory}
                           </p>
                         )}
@@ -1172,9 +1199,9 @@ const Complaints = () => {
                 )}
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Add Note (Optional)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Add Note (Optional)</label>
                   <input 
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
                     placeholder="Enter a note about this status update"
                     value={note} 
                     onChange={e => setNote(e.target.value)}
@@ -1182,7 +1209,7 @@ const Complaints = () => {
                 </div>
 
                 <button 
-                  className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
+                  className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-white font-medium transition-all duration-200 text-xs sm:text-sm ${
                     updating 
                     ? 'bg-gray-400 cursor-not-allowed' 
                     : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
@@ -1191,7 +1218,7 @@ const Complaints = () => {
                   disabled={updating || (status === 'In Progress' && !selectedMember)}
                 >
                   {updating ? (
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                       <LoadingSpinner size="sm" className="border-white" />
                       <span>Updating...</span>
                     </div>

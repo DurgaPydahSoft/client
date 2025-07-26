@@ -33,6 +33,7 @@ const PERMISSIONS = [
   { id: 'attendance_management', label: 'Attendance Management' },
   { id: 'found_lost_management', label: 'Found & Lost Management' },
   { id: 'fee_management', label: 'Fee Management' },
+  { id: 'security_management', label: 'Security Management' },
   { id: 'feature_controls', label: 'Feature Controls' }
 ];
 
@@ -425,68 +426,68 @@ const AdminManagement = () => {
   const isPrincipalTab = activeTab === 'principals';
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto mt-12 px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
       <SEO title="Admin Management" />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Admin Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage sub-admin, warden, and principal accounts</p>
+          <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Admin Management</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage sub-admin, warden, and principal accounts</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
         >
-          <UserPlusIcon className="w-5 h-5" />
+          <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
           Add {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
+      <div className="flex flex-wrap sm:flex-nowrap space-x-1 bg-gray-100 p-1 rounded-lg mb-4 sm:mb-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('sub-admins')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
             activeTab === 'sub-admins'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <ShieldCheckIcon className="w-4 h-4" />
+          <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Sub-Admins
         </button>
         <button
           onClick={() => setActiveTab('wardens')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
             activeTab === 'wardens'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <HomeIcon className="w-4 h-4" />
+          <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Wardens
         </button>
         <button
           onClick={() => setActiveTab('principals')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
             activeTab === 'principals'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <AcademicCapIcon className="w-4 h-4" />
+          <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Principals
         </button>
         <button
           onClick={() => setActiveTab('courses')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
             activeTab === 'courses'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <AcademicCapIcon className="w-4 h-4" />
+          <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Courses & Branches
         </button>
       </div>
@@ -497,103 +498,101 @@ const AdminManagement = () => {
       {/* Admin Management Content */}
       {activeTab !== 'courses' && (
         <>
-          
-
           {/* Users List */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        {currentData.length === 0 ? (
-          <div className="p-8 text-center">
-            <UserIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">No {isWardenTab ? 'wardens' : isPrincipalTab ? 'principals' : 'sub-admins'} found</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {currentData.filter(admin => admin && admin._id).map((admin) => (
-              <div key={admin._id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      {isWardenTab ? (
-                        <HomeIcon className="w-5 h-5 text-green-600" />
-                      ) : isPrincipalTab ? (
-                        <AcademicCapIcon className="w-5 h-5 text-purple-600" />
-                      ) : (
-                        <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
-                      )}
-                      <h3 className="font-medium text-gray-900">{admin.username}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {admin.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                    {!isWardenTab && !isPrincipalTab && (
-                      <div className="flex flex-wrap gap-2">
-                        {admin.permissions && admin.permissions.map(permission => {
-                          const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
-                          const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
-                          return (
-                            <span key={permission} className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs flex items-center gap-1">
-                              {permissionLabel}
-                              <span className={`px-1 py-0.5 rounded text-xs ${
-                                accessLevel === 'full' 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                {accessLevel === 'full' ? 'Full' : 'View'}
-                              </span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {isWardenTab && (
-                      <div className="flex flex-wrap gap-2">
-                        <span className="px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs">
-                          Warden Permissions
-                        </span>
-                        {admin.hostelType && (
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            admin.hostelType === 'boys' 
-                              ? 'bg-blue-50 text-blue-700' 
-                              : 'bg-pink-50 text-pink-700'
-                          }`}>
-                            {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {isPrincipalTab && (
-                      <div className="flex flex-wrap gap-2">
-                        <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs">
-                          Principal Permissions
-                        </span>
-                        {admin.course && (
-                          <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
-                            {typeof admin.course === 'object' ? admin.course.name : admin.course}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEditModal(admin)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      <PencilIcon className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAdmin(admin._id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <TrashIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
+            {currentData.length === 0 ? (
+              <div className="p-6 sm:p-8 text-center">
+                <UserIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-3" />
+                <p className="text-sm sm:text-base text-gray-500">No {isWardenTab ? 'wardens' : isPrincipalTab ? 'principals' : 'sub-admins'} found</p>
               </div>
-            ))}
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {currentData.filter(admin => admin && admin._id).map((admin) => (
+                  <div key={admin._id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                          {isWardenTab ? (
+                            <HomeIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
+                          ) : isPrincipalTab ? (
+                            <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
+                          ) : (
+                            <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+                          )}
+                          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
+                          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex-shrink-0`}>
+                            {admin.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        {!isWardenTab && !isPrincipalTab && (
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                            {admin.permissions && admin.permissions.map(permission => {
+                              const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
+                              const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
+                              return (
+                                <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs flex items-center gap-1">
+                                  <span className="truncate">{permissionLabel}</span>
+                                  <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${
+                                    accessLevel === 'full' 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : 'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {accessLevel === 'full' ? 'Full' : 'View'}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {isWardenTab && (
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                            <span className="px-1.5 sm:px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs">
+                              Warden Permissions
+                            </span>
+                            {admin.hostelType && (
+                              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
+                                admin.hostelType === 'boys' 
+                                  ? 'bg-blue-50 text-blue-700' 
+                                  : 'bg-pink-50 text-pink-700'
+                              }`}>
+                                {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {isPrincipalTab && (
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                            <span className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">
+                              Principal Permissions
+                            </span>
+                            {admin.course && (
+                              <span className="px-1.5 sm:px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs truncate">
+                                {typeof admin.course === 'object' ? admin.course.name : admin.course}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => openEditModal(admin)}
+                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAdmin(admin._id)}
+                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
         </>
       )}
 
@@ -610,17 +609,17 @@ const AdminManagement = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-2 sm:mx-4 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">
                   {showAddModal ? `Add New ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Edit ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                 </h2>
                 <button
                   onClick={resetForm}
-                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1 sm:p-1.5 lg:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </button>
               </div>
               
@@ -635,14 +634,14 @@ const AdminManagement = () => {
                     value={formData.username}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter username"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Password {showEditModal && <span className="text-gray-500 text-xs sm:text-sm">(leave blank to keep current)</span>}
+                    Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
                     {showAddModal && <span className="text-red-500">*</span>}
                   </label>
                   <input
@@ -651,7 +650,7 @@ const AdminManagement = () => {
                     value={formData.password}
                     onChange={handleFormChange}
                     required={showAddModal}
-                    className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter password"
                   />
                 </div>
@@ -661,17 +660,17 @@ const AdminManagement = () => {
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                       Permissions
                     </label>
-                    <div className="space-y-1 sm:space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
+                    <div className="space-y-1 sm:space-y-2 max-h-40 sm:max-h-48 lg:max-h-64 overflow-y-auto">
                       {PERMISSIONS.map(permission => (
                         <div key={permission.id}>
                           <label className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            value={permission.id}
-                            checked={formData.permissions.includes(permission.id)}
-                            onChange={handleFormChange}
+                            <input
+                              type="checkbox"
+                              value={permission.id}
+                              checked={formData.permissions.includes(permission.id)}
+                              onChange={handleFormChange}
                               className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
+                            />
                             <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
                           </label>
                           
@@ -688,11 +687,11 @@ const AdminManagement = () => {
                           
                           {/* Course selection for Leave Management */}
                           {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
-                            <div className="ml-4 sm:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                            <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
                               <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
                                 Select Courses for Leave Management Access
                               </label>
-                              <div className="space-y-1 sm:space-y-2 max-h-24 sm:max-h-32 overflow-y-auto">
+                              <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
                                 {courses.length > 0 ? (
                                   courses.map(course => (
                                     <label key={course._id} className="flex items-center gap-1 sm:gap-2">
@@ -703,7 +702,7 @@ const AdminManagement = () => {
                                         className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                       />
                                       <span className="text-xs text-blue-700 truncate">{course.name}</span>
-                        </label>
+                                    </label>
                                   ))
                                 ) : (
                                   <p className="text-xs text-blue-600">Loading courses...</p>
@@ -749,7 +748,7 @@ const AdminManagement = () => {
                       value={formData.hostelType}
                       onChange={handleFormChange}
                       required={isWardenTab}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Hostel Type</option>
                       <option value="boys">Boys Hostel</option>
@@ -763,40 +762,40 @@ const AdminManagement = () => {
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Course <span className="text-red-500">*</span>
                     </label>
-                                          <select
-                        name="course"
-                        value={formData.course}
-                        onChange={handleFormChange}
-                        required={isPrincipalTab}
-                      className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Course ({courses.length} available)</option>
-                        {courses.length > 0 ? (
-                          courses.map(course => (
-                            <option key={course._id} value={course._id}>
-                              {course.name} ({course.code})
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>Loading courses...</option>
-                        )}
-                      </select>
+                    <select
+                      name="course"
+                      value={formData.course}
+                      onChange={handleFormChange}
+                      required={isPrincipalTab}
+                      className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">Select Course ({courses.length} available)</option>
+                      {courses.length > 0 ? (
+                        courses.map(course => (
+                          <option key={course._id} value={course._id}>
+                            {course.name} ({course.code})
+                          </option>
+                        ))
+                      ) : (
+                        <option value="" disabled>Loading courses...</option>
+                      )}
+                    </select>
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4">
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-3 sm:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
                   >
-                    <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                     {showAddModal ? `Add ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                   </button>
                 </div>
