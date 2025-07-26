@@ -8,6 +8,7 @@ import {
   ClockIcon,
   SunIcon,
   MoonIcon,
+  StarIcon,
   FunnelIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
@@ -62,6 +63,7 @@ const TakeAttendance = () => {
           initialAttendance[student._id] = {
             morning: student.attendance?.morning || false,
             evening: student.attendance?.evening || false,
+            night: student.attendance?.night || false,
             notes: ''
           };
         });
@@ -135,6 +137,7 @@ const TakeAttendance = () => {
         studentId,
         morning: data.morning,
         evening: data.evening,
+        night: data.night,
         notes: data.notes
       }));
 
@@ -159,8 +162,8 @@ const TakeAttendance = () => {
     const attendance = attendanceData[student._id];
     if (!attendance) return 'Absent';
     
-    if (attendance.morning && attendance.evening) return 'Present';
-    if (attendance.morning || attendance.evening) return 'Partial';
+    if (attendance.morning && attendance.evening && attendance.night) return 'Present';
+    if (attendance.morning || attendance.evening || attendance.night) return 'Partial';
     return 'Absent';
   };
 
@@ -344,6 +347,10 @@ const TakeAttendance = () => {
                   Evening
                 </th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <StarIcon className="w-4 h-4 inline mr-1" />
+                  Night
+                </th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -392,6 +399,15 @@ const TakeAttendance = () => {
                         type="checkbox"
                         checked={attendanceData[student._id]?.evening || false}
                         onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <input
+                        type="checkbox"
+                        checked={attendanceData[student._id]?.night || false}
+                        onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
                     </td>

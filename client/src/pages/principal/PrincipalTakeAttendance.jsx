@@ -9,7 +9,8 @@ import {
   XCircleIcon,
   ClockIcon,
   CalendarIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -65,6 +66,7 @@ const PrincipalTakeAttendance = () => {
           initialAttendance[student._id] = {
             morning: student.morning || false,
             evening: student.evening || false,
+            night: student.night || false,
             notes: student.notes || ''
           };
         });
@@ -127,6 +129,7 @@ const PrincipalTakeAttendance = () => {
         studentId,
         morning: data.morning,
         evening: data.evening,
+        night: data.night,
         notes: data.notes
       }));
 
@@ -147,15 +150,15 @@ const PrincipalTakeAttendance = () => {
     }
   };
 
-  const getStatusText = (morning, evening) => {
-    if (morning && evening) return 'Present';
-    if (morning || evening) return 'Partial';
+  const getStatusText = (morning, evening, night) => {
+    if (morning && evening && night) return 'Present';
+    if (morning || evening || night) return 'Partial';
     return 'Absent';
   };
 
-  const getStatusColor = (morning, evening) => {
-    if (morning && evening) return 'bg-green-100 text-green-800';
-    if (morning || evening) return 'bg-yellow-100 text-yellow-800';
+  const getStatusColor = (morning, evening, night) => {
+    if (morning && evening && night) return 'bg-green-100 text-green-800';
+    if (morning || evening || night) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
   };
 
@@ -292,6 +295,10 @@ const PrincipalTakeAttendance = () => {
                     Evening
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <StarIcon className="w-4 h-4 inline mr-1" />
+                    Night
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -344,13 +351,23 @@ const PrincipalTakeAttendance = () => {
                       />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={attendanceData[student._id]?.night || false}
+                        onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                         attendanceData[student._id]?.morning || false,
-                        attendanceData[student._id]?.evening || false
+                        attendanceData[student._id]?.evening || false,
+                        attendanceData[student._id]?.night || false
                       )}`}>
                         {getStatusText(
                           attendanceData[student._id]?.morning || false,
-                          attendanceData[student._id]?.evening || false
+                          attendanceData[student._id]?.evening || false,
+                          attendanceData[student._id]?.night || false
                         )}
                       </span>
                     </td>

@@ -16,6 +16,7 @@ import {
   XMarkIcon,
   SunIcon,
   MoonIcon,
+  StarIcon,
   EyeIcon,
   CalendarDaysIcon,
   AcademicCapIcon
@@ -44,6 +45,7 @@ const PrincipalViewAttendance = () => {
     totalStudents: 0,
     morningPresent: 0,
     eveningPresent: 0,
+    nightPresent: 0,
     fullyPresent: 0,
     partiallyPresent: 0,
     absent: 0
@@ -167,8 +169,8 @@ const PrincipalViewAttendance = () => {
   };
 
   const getAttendanceStatus = (record) => {
-    if (record.morning && record.evening) return 'Present';
-    if (record.morning || record.evening) return 'Partial';
+    if (record.morning && record.evening && record.night) return 'Present';
+    if (record.morning || record.evening || record.night) return 'Partial';
     return 'Absent';
   };
 
@@ -239,8 +241,9 @@ const PrincipalViewAttendance = () => {
     // Calculate percentages
     studentMap.forEach(studentData => {
       const { totalDays, presentDays, partialDays } = studentData.summary;
+      const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 for 3 sessions
       studentData.summary.attendancePercentage = totalDays > 0 
-        ? Math.round(((presentDays + partialDays) / totalDays) * 100) 
+        ? Math.round((effectivePresentDays / totalDays) * 100) 
         : 0;
     });
 
@@ -347,7 +350,7 @@ const PrincipalViewAttendance = () => {
             <ChartBarIcon className="w-5 h-5 text-purple-600" />
             Attendance Statistics
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
             <div className="text-center">
               <p className="text-sm text-gray-500">Total Students</p>
               <p className="text-2xl font-bold text-purple-600">{statistics.totalStudents}</p>
@@ -359,6 +362,10 @@ const PrincipalViewAttendance = () => {
             <div className="text-center">
               <p className="text-sm text-gray-500">Evening Present</p>
               <p className="text-2xl font-bold text-indigo-600">{statistics.eveningPresent}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-500">Night Present</p>
+              <p className="text-2xl font-bold text-blue-600">{statistics.nightPresent}</p>
             </div>
             <div className="text-center">
               <p className="text-sm text-gray-500">Fully Present</p>
@@ -536,6 +543,10 @@ const PrincipalViewAttendance = () => {
                         Evening
                       </th>
                       <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <StarIcon className="w-4 h-4 inline mr-1" />
+                        Night
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -626,6 +637,14 @@ const PrincipalViewAttendance = () => {
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           {record.evening ? (
+                            <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                          ) : (
+                            <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          )}
+                        </td>
+                        
+                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                          {record.night ? (
                             <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                           ) : (
                             <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
@@ -751,7 +770,7 @@ const PrincipalViewAttendance = () => {
                                         </span>
                                       </div>
                                       <div className="text-xs text-gray-400 mt-1">
-                                        {attRecord.morning ? '✓' : '✗'} Morning • {attRecord.evening ? '✓' : '✗'} Evening
+                                        {attRecord.morning ? '✓' : '✗'} Morning • {attRecord.evening ? '✓' : '✗'} Evening • {attRecord.night ? '✓' : '✗'} Night
                                       </div>
                                     </div>
                                   ))}

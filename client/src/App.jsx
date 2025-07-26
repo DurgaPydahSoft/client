@@ -37,7 +37,6 @@ const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
-
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const ElectricityPayment = lazy(() => import('./pages/student/ElectricityPayment'));
@@ -58,6 +57,7 @@ const WardenLeaveManagement = lazy(() => import('./pages/warden/LeaveManagement'
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
 const PrincipalHome = lazy(() => import('./pages/principal/PrincipalHome'));
 const PrincipalAttendance = lazy(() => import('./pages/principal/PrincipalAttendance'));
+const PrincipalStudents = lazy(() => import('./pages/principal/Students'));
 const PrincipalStayInHostelRequests = lazy(() => import('./pages/principal/StayInHostelRequests'));
 const PrincipalLeaveManagement = lazy(() => import('./pages/principal/LeaveManagement'));
 
@@ -259,6 +259,7 @@ function App() {
             >
               <Route index element={<PrincipalHome />} />
               <Route path="attendance" element={<PrincipalAttendance />} />
+              <Route path="students" element={<PrincipalStudents />} />
               <Route path="leave-management" element={<PrincipalLeaveManagement />} />
               <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
             </Route>
