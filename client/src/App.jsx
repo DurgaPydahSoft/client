@@ -37,7 +37,6 @@ const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
-const AdminResetPassword = lazy(() => import('./pages/admin/DashboardResetPassword'));
 
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
