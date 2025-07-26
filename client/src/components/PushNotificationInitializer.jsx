@@ -3,6 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import notificationManager from '../utils/notificationManager';
 import { toast } from 'react-hot-toast';
 
+// Safari detection
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 const PushNotificationInitializer = () => {
   const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -13,6 +16,14 @@ const PushNotificationInitializer = () => {
     }
 
     const initializeNotifications = async () => {
+      // Skip OneSignal initialization for Safari
+      if (isSafari) {
+        console.log('🦁 Safari detected - skipping OneSignal initialization');
+        console.log('🦁 Notifications will use database fallback only');
+        setIsInitialized(true);
+        return;
+      }
+
       if (!user || !OneSignal) return;
 
       // Check if OneSignal is properly loaded

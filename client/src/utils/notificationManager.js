@@ -3,6 +3,9 @@ import { toast } from 'react-hot-toast';
 // OneSignal configuration
 const ONESIGNAL_APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID;
 
+// Safari detection
+const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 class NotificationManager {
   constructor() {
     this.oneSignal = null;
@@ -15,6 +18,14 @@ class NotificationManager {
     console.log('  - VITE_ONESIGNAL_APP_ID:', ONESIGNAL_APP_ID ? `✅ "${ONESIGNAL_APP_ID}"` : '❌ Not set');
     console.log('  - VITE_API_URL:', import.meta.env.VITE_API_URL ? `✅ "${import.meta.env.VITE_API_URL}"` : '❌ Not set');
     console.log('  - NODE_ENV:', import.meta.env.MODE);
+    console.log('  - Browser Safari:', isSafari ? '🦁 Yes' : '❌ No');
+    
+    if (isSafari) {
+      console.log('🦁 Safari detected - OneSignal will be disabled');
+      console.log('🦁 Notifications will use database fallback only');
+      this.isInitialized = true; // Mark as initialized to prevent retries
+      return;
+    }
     
     if (!ONESIGNAL_APP_ID) {
       console.warn('🔔 OneSignal App ID is not configured!');
@@ -35,6 +46,14 @@ class NotificationManager {
       if (this.isInitialized) {
         console.log('🔔 NotificationManager already initialized');
         return true;
+      }
+
+      // Skip OneSignal initialization for Safari
+      if (isSafari) {
+        console.log('🦁 Safari detected - skipping OneSignal initialization');
+        console.log('🦁 Notifications will use database fallback only');
+        this.isInitialized = true;
+        return false;
       }
 
       if (!ONESIGNAL_APP_ID) {

@@ -53,8 +53,17 @@
       // Global variable to track service worker registration
       window.serviceWorkerRegistration = null;
       
+      // Safari detection
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      
       // Improved service worker registration
       async function registerServiceWorker() {
+        // Skip service worker registration for Safari
+        if (isSafari) {
+          console.log('🦁 Safari detected - skipping OneSignal service worker registration');
+          return null;
+        }
+        
         if ('serviceWorker'in navigator) {
           try {
             console.log('🔔 Registering OneSignal Service Worker from /OneSignalSDKWorker.js');
@@ -85,6 +94,13 @@
 
       // Initialize OneSignal after service worker is ready
       async function initializeOneSignal() {
+        // Skip OneSignal initialization for Safari
+        if (isSafari) {
+          console.log('🦁 Safari detected - skipping OneSignal initialization');
+          console.log('🦁 Push notifications will use database fallback only');
+          return;
+        }
+        
         try {
           // Wait for service worker registration
           await registerServiceWorker();
