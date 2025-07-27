@@ -17,6 +17,11 @@ const NotificationBell = () => {
   const [nextMealTime, setNextMealTime] = useState(null);
   const { user } = useAuth();
 
+  // TEMPORARILY DISABLED: Hide notification bell completely for wardens to prevent 500 errors
+  if (!user || user?.role === 'warden') {
+    return null;
+  }
+
   // Safari detection - memoized to prevent unnecessary re-renders
   const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
@@ -25,6 +30,16 @@ const NotificationBell = () => {
   const isPrincipal = user?.role === 'principal';
 
   const fetchNotifications = async () => {
+    // TEMPORARILY DISABLED: Notification API calls for warden to prevent 500 errors
+    if (isWarden) {
+      console.log('🔔 NotificationBell: Notifications temporarily disabled for warden role');
+      setNotifications([]);
+      setUnreadCount(0);
+      setHasNewNotification(false);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
       let endpointPrefix;
@@ -125,11 +140,18 @@ const NotificationBell = () => {
     checkPermissionStatus();
     setNotificationStatus(notificationManager.getStatus());
 
-    // Set up polling for real-time updates
-    const pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
+    // Set up polling for real-time updates (disabled for wardens)
+    let pollInterval;
+    if (!isWarden) {
+      pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
+    }
 
-    // Listen for push-triggered refresh
-    const handler = () => fetchNotifications();
+    // Listen for push-triggered refresh (disabled for wardens)
+    const handler = () => {
+      if (!isWarden) {
+        fetchNotifications();
+      }
+    };
     window.addEventListener('refresh-notifications', handler);
 
     // Set up menu notification timer for students
@@ -140,7 +162,7 @@ const NotificationBell = () => {
     }
 
     return () => {
-      clearInterval(pollInterval);
+      if (pollInterval) clearInterval(pollInterval);
       if (menuInterval) clearInterval(menuInterval);
       window.removeEventListener('refresh-notifications', handler);
     };
@@ -164,6 +186,13 @@ const NotificationBell = () => {
   };
 
   const handleMarkAsRead = async (notificationId) => {
+    // TEMPORARILY DISABLED: Notification actions for warden to prevent 500 errors
+    if (isWarden) {
+      console.log('🔔 NotificationBell: Mark as read temporarily disabled for warden role');
+      toast.info('Notifications temporarily disabled for warden role');
+      return;
+    }
+
     try {
       let route;
       if (isAdmin) {
@@ -186,6 +215,13 @@ const NotificationBell = () => {
   };
 
   const handleMarkAllAsRead = async () => {
+    // TEMPORARILY DISABLED: Notification actions for warden to prevent 500 errors
+    if (isWarden) {
+      console.log('🔔 NotificationBell: Mark all as read temporarily disabled for warden role');
+      toast.info('Notifications temporarily disabled for warden role');
+      return;
+    }
+
     try {
       let route;
       if (isAdmin) {

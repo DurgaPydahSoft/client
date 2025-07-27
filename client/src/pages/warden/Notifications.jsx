@@ -10,6 +10,12 @@ const Notifications = () => {
 
   useEffect(() => {
     fetchNotifications();
+    
+    // TEMPORARILY DISABLED: Notification polling for warden to prevent 500 errors
+    console.log('🔔 Warden Notifications: Polling temporarily disabled');
+    
+    // ORIGINAL CODE (commented out):
+    /*
     const handler = () => fetchNotifications();
     window.addEventListener('refresh-notifications', handler);
     const pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
@@ -17,11 +23,30 @@ const Notifications = () => {
       window.removeEventListener('refresh-notifications', handler);
       clearInterval(pollInterval);
     };
+    */
+    
+    return () => {
+      // Cleanup function (empty for now)
+    };
   }, []);
 
   const fetchNotifications = async () => {
+    // TEMPORARILY DISABLED: Notification API calls for warden to prevent 500 errors
+    console.log('🔔 Warden Notifications: API calls temporarily disabled');
     setLoading(true);
     setError(null);
+    
+    // Simulate loading delay
+    setTimeout(() => {
+      setNotifications([]); // Set empty array
+      setError('Notifications temporarily disabled for warden role');
+      setLoading(false);
+    }, 500);
+    
+    return;
+    
+    // ORIGINAL CODE (commented out):
+    /*
     try {
       const res = await api.get('/api/notifications/warden');
       // Ensure notifications is always an array
@@ -33,24 +58,41 @@ const Notifications = () => {
     } finally {
       setLoading(false);
     }
+    */
   };
 
   const markAsRead = async (id) => {
+    // TEMPORARILY DISABLED: Notification actions for warden to prevent 500 errors
+    console.log('🔔 Warden Notifications: Mark as read temporarily disabled');
+    setError('Notifications temporarily disabled for warden role');
+    return;
+    
+    // ORIGINAL CODE (commented out):
+    /*
     try {
       await api.patch(`/api/notifications/warden/${id}/read`);
       fetchNotifications(); // Refresh the list
     } catch (err) {
       setError('Failed to mark notification as read');
     }
+    */
   };
 
   const markAllAsRead = async () => {
+    // TEMPORARILY DISABLED: Notification actions for warden to prevent 500 errors
+    console.log('🔔 Warden Notifications: Mark all as read temporarily disabled');
+    setError('Notifications temporarily disabled for warden role');
+    return;
+    
+    // ORIGINAL CODE (commented out):
+    /*
     try {
       await api.patch('/api/notifications/warden/read-all');
       fetchNotifications(); // Refresh the list
     } catch (err) {
       setError('Failed to mark notifications as read');
     }
+    */
   };
 
   // Ensure notifications is always an array before using array methods
@@ -90,7 +132,15 @@ const Notifications = () => {
         <div className="text-red-600">{error}</div>
       ) : notificationsArray.length === 0 ? (
         <div className="bg-gray-50 p-4 rounded-lg border text-sm text-center">
-          No notifications yet.
+          {error === 'Notifications temporarily disabled for warden role' ? (
+            <div className="text-orange-600">
+              <p className="font-semibold mb-2">🔔 Notifications Temporarily Disabled</p>
+              <p className="text-sm">Notification functionality is temporarily disabled for warden role to prevent server errors.</p>
+              <p className="text-xs mt-2 text-gray-500">This will be re-enabled once the backend issues are resolved.</p>
+            </div>
+          ) : (
+            'No notifications yet.'
+          )}
         </div>
       ) : (
         <div className="space-y-4">
