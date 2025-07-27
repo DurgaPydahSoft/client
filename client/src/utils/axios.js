@@ -37,7 +37,7 @@ const api = axios.create({
     'Content-Type': 'application/json'
   },
   withCredentials: true, // Enable sending cookies
-  timeout: 30000, // 30 second timeout for Safari
+  timeout: 60000, // 60 second timeout for attendance operations
   // Safari-specific axios config
   validateStatus: function (status) {
     return status >= 200 && status < 300; // Accept all 2xx status codes

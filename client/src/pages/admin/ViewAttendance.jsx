@@ -613,7 +613,7 @@ const ViewAttendance = () => {
                       </td>
                       
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {record.markedBy?.name || 'System'}
+                        {record.markedBy?.username ? `${record.markedBy.username} (${record.markedBy.role})` : 'System'}
                       </td>
                       
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -729,6 +729,7 @@ const ViewAttendance = () => {
                                       <th className="px-3 py-2 text-center">Evening</th>
                                       <th className="px-3 py-2 text-center">Night</th>
                                       <th className="px-3 py-2 text-center">Status</th>
+                                      <th className="px-3 py-2 text-left">Marked By</th>
                                       <th className="px-3 py-2 text-left">Notes</th>
                                     </tr>
                                   </thead>
@@ -766,6 +767,9 @@ const ViewAttendance = () => {
                                               {getStatusIcon(dayStatus)}
                                               <span className="ml-1">{dayStatus}</span>
                                             </span>
+                                          </td>
+                                          <td className="px-3 py-2 text-gray-900">
+                                            {attRecord.markedBy?.username ? `${attRecord.markedBy.username} (${attRecord.markedBy.role})` : 'System'}
                                           </td>
                                           <td className="px-3 py-2 text-gray-500">
                                             {attRecord.notes || '-'}

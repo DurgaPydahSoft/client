@@ -251,18 +251,41 @@ const TakeAttendance = () => {
         notes: data.notes
       }));
 
+      // Show progress message
+      toast.loading(`Saving attendance for ${attendanceRecords.length} students...`, {
+        id: 'attendance-progress'
+      });
+
       const response = await api.post('/api/attendance/take', {
         date: selectedDate,
         attendanceData: attendanceRecords
+      }, {
+        timeout: 90000 // 90 seconds timeout for attendance operations
       });
 
       if (response.data.success) {
-        toast.success(`Attendance saved for ${response.data.data.successful} students`);
+        toast.success(`Attendance saved for ${response.data.data.successful} students`, {
+          id: 'attendance-progress'
+        });
         fetchStudents(); // Refresh data
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
-      toast.error('Failed to save attendance');
+      
+      // Provide more specific error messages
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        toast.error('Attendance operation timed out. Please try again with fewer students or check your connection.', {
+          id: 'attendance-progress'
+        });
+      } else if (error.response?.status === 400) {
+        toast.error(error.response.data.message || 'Invalid attendance data', {
+          id: 'attendance-progress'
+        });
+      } else {
+        toast.error('Failed to save attendance. Please try again.', {
+          id: 'attendance-progress'
+        });
+      }
     } finally {
       setSubmitting(false);
     }
