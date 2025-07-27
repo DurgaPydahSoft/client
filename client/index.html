@@ -72,8 +72,8 @@
               // Skip service worker registration for iOS Safari only (not iOS Chrome)
       if (isIOSSafari && !isIOSChrome) {
         console.log('🦁 iOS Safari detected - skipping OneSignal service worker registration');
-        return null;
-      }
+          return null;
+        }
         
         if ('serviceWorker'in navigator) {
           try {

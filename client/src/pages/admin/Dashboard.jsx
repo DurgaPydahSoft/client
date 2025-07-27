@@ -435,7 +435,7 @@ const AdminDashboard = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-56 lg:w-64 xl:w-72 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 w-72 lg:w-64 xl:w-72 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
         <button

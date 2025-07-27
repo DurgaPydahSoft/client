@@ -105,8 +105,8 @@ function App() {
     <HelmetProvider>
     <ErrorBoundary>
       <IOSErrorBoundary>
-        <AuthProvider>
-          <PushNotificationInitializer />
+      <AuthProvider>
+        <PushNotificationInitializer />
           <Suspense fallback={<RouteLoading />}>
           <Routes>
             {/* Home page */}
@@ -309,7 +309,7 @@ function App() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
-        </AuthProvider>
+      </AuthProvider>
       </IOSErrorBoundary>
       
       {/* iOS Debug Panel - always available on iOS devices */}

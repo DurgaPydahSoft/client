@@ -97,9 +97,9 @@ const Login = () => {
       // Error handling
       let errorMessage = err.response?.data?.message || 'Login failed';
       
-      // Handle CORS errors for all browsers
-      if (err.message.includes('CORS') || err.message.includes('preflight')) {
-        errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page.';
+        // Handle CORS errors for all browsers
+        if (err.message.includes('CORS') || err.message.includes('preflight')) {
+          errorMessage = 'Browser security policy is blocking the request. Please try refreshing the page.';
       } else if (err.message.includes('Network Error') || err.code === 'ERR_NETWORK') {
         errorMessage = 'Connection issue. Please check your internet connection and try again.';
       } else if (err.message.includes('timeout')) {
