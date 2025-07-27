@@ -44,68 +44,109 @@ const WardenHome = () => {
         setAnnouncements(announcementsRes.data.data || []);
       }
 
-      // Fetch real stats from available endpoints
+      // Fetch real stats from available endpoints with individual error handling
+      let totalStudents = 0;
+      let todayAttendance = 0;
+      let activeStudents = 0;
+      let maleStudents = 0;
+      let femaleStudents = 0;
+      let maleActive = 0;
+      let femaleActive = 0;
+      let maleAttendance = 0;
+      let femaleAttendance = 0;
+
+      // Get total students count
       try {
-        // Get total students count
         const studentsRes = await api.get('/api/admin/students/count');
-        const totalStudents = studentsRes.data.success ? studentsRes.data.data.count : 0;
+        totalStudents = studentsRes.data.success ? studentsRes.data.data.count : 0;
+      } catch (error) {
+        console.error('Error fetching total students count:', error);
+      }
 
-        // Get today's attendance data
+      // Get today's attendance data using the same endpoint as ViewAttendance
+      try {
         const today = new Date().toISOString().split('T')[0];
-        const attendanceRes = await api.get(`/api/attendance/students?date=${today}`);
-        const todayAttendance = attendanceRes.data.success ? attendanceRes.data.data.students?.length || 0 : 0;
+        console.log('🔍 WardenHome: Using date for attendance:', today);
+        
+        // Validate that the date is not in the future
+        const currentDate = new Date();
+        const selectedDate = new Date(today);
+        let attendanceDate = today;
+        
+        if (selectedDate > currentDate) {
+          console.warn('🔍 WardenHome: Date is in the future, using current date instead');
+          attendanceDate = currentDate.toISOString().split('T')[0];
+          console.log('🔍 WardenHome: Using current date instead:', attendanceDate);
+        }
+        
+        const attendanceRes = await api.get(`/api/attendance/date?date=${attendanceDate}`);
+        todayAttendance = attendanceRes.data.success ? attendanceRes.data.data.attendance?.length || 0 : 0;
+      } catch (error) {
+        console.error('Error fetching today attendance:', error);
+      }
 
-        // Get active students (students with Active hostel status)
+      // Get active students (students with Active hostel status)
+      try {
         const activeStudentsRes = await api.get('/api/admin/students?hostelStatus=Active&limit=1000');
-        const activeStudents = activeStudentsRes.data.success ? activeStudentsRes.data.data.students?.length || 0 : 0;
+        activeStudents = activeStudentsRes.data.success ? activeStudentsRes.data.data.students?.length || 0 : 0;
+      } catch (error) {
+        console.error('Error fetching active students:', error);
+      }
 
-        // Get gender-specific statistics
+      // Get gender-specific statistics
+      try {
         const maleStudentsRes = await api.get('/api/admin/students?gender=Male&limit=1000');
         const femaleStudentsRes = await api.get('/api/admin/students?gender=Female&limit=1000');
         
-        const maleStudents = maleStudentsRes.data.success ? maleStudentsRes.data.data.students?.length || 0 : 0;
-        const femaleStudents = femaleStudentsRes.data.success ? femaleStudentsRes.data.data.students?.length || 0 : 0;
+        maleStudents = maleStudentsRes.data.success ? maleStudentsRes.data.data.students?.length || 0 : 0;
+        femaleStudents = femaleStudentsRes.data.success ? femaleStudentsRes.data.data.students?.length || 0 : 0;
+      } catch (error) {
+        console.error('Error fetching gender-specific students:', error);
+      }
 
-        // Get gender-specific active students
+      // Get gender-specific active students
+      try {
         const maleActiveRes = await api.get('/api/admin/students?gender=Male&hostelStatus=Active&limit=1000');
         const femaleActiveRes = await api.get('/api/admin/students?gender=Female&hostelStatus=Active&limit=1000');
         
-        const maleActive = maleActiveRes.data.success ? maleActiveRes.data.data.students?.length || 0 : 0;
-        const femaleActive = femaleActiveRes.data.success ? femaleActiveRes.data.data.students?.length || 0 : 0;
-
-        // Get gender-specific attendance
-        const maleAttendanceRes = await api.get(`/api/attendance/students?date=${today}&gender=Male`);
-        const femaleAttendanceRes = await api.get(`/api/attendance/students?date=${today}&gender=Female`);
-        
-        const maleAttendance = maleAttendanceRes.data.success ? maleAttendanceRes.data.data.students?.length || 0 : 0;
-        const femaleAttendance = femaleAttendanceRes.data.success ? femaleAttendanceRes.data.data.students?.length || 0 : 0;
-
-        setStats({
-          totalStudents,
-          activeStudents,
-          todayAttendance,
-          maleStudents,
-          femaleStudents,
-          maleActive,
-          femaleActive,
-          maleAttendance,
-          femaleAttendance
-        });
-      } catch (statsError) {
-        console.error('Error fetching stats:', statsError);
-        // Fallback to default values if stats endpoints fail
-        setStats({
-          totalStudents: 0,
-          activeStudents: 0,
-          todayAttendance: 0,
-          maleStudents: 0,
-          femaleStudents: 0,
-          maleActive: 0,
-          femaleActive: 0,
-          maleAttendance: 0,
-          femaleAttendance: 0
-        });
+        maleActive = maleActiveRes.data.success ? maleActiveRes.data.data.students?.length || 0 : 0;
+        femaleActive = femaleActiveRes.data.success ? femaleActiveRes.data.data.students?.length || 0 : 0;
+      } catch (error) {
+        console.error('Error fetching gender-specific active students:', error);
       }
+
+      // Get gender-specific attendance using the same endpoint as ViewAttendance
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const currentDate = new Date();
+        const selectedDate = new Date(today);
+        let attendanceDate = today;
+        
+        if (selectedDate > currentDate) {
+          attendanceDate = currentDate.toISOString().split('T')[0];
+        }
+        
+        console.log('🔍 WardenHome: Fetching gender-specific attendance for date:', attendanceDate);
+        const maleAttendanceRes = await api.get(`/api/attendance/date?date=${attendanceDate}&gender=Male`);
+        const femaleAttendanceRes = await api.get(`/api/attendance/date?date=${attendanceDate}&gender=Female`);
+        
+        maleAttendance = maleAttendanceRes.data.success ? maleAttendanceRes.data.data.attendance?.length || 0 : 0;
+        femaleAttendance = femaleAttendanceRes.data.success ? femaleAttendanceRes.data.data.attendance?.length || 0 : 0;
+      } catch (error) {
+        console.error('Error fetching gender-specific attendance:', error);
+      }
+
+      setStats({
+        totalStudents,
+        activeStudents,
+        todayAttendance,
+        maleStudents,
+        femaleStudents,
+        maleActive,
+        femaleActive,
+        maleAttendance,
+        femaleAttendance
+      });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
       toast.error('Failed to load dashboard data');
