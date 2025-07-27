@@ -129,7 +129,10 @@ const AdminManagement = () => {
     permissionAccessLevels: {}, // New field for access levels
     hostelType: '',
     course: '',
-    leaveManagementCourses: [] // New field for course selection
+    leaveManagementCourses: [], // New field for course selection
+    passwordDeliveryMethod: '', // New field for password delivery
+    email: '', // New field for email
+    phoneNumber: '' // New field for phone number
   });
   const [courses, setCourses] = useState([]);
 
@@ -240,6 +243,21 @@ const AdminManagement = () => {
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
+    
+    // Validate password delivery for sub-admins (optional)
+    if (activeTab === 'sub-admins') {
+      // If password delivery method is selected, validate accordingly
+      if (formData.passwordDeliveryMethod === 'email' && !formData.email.trim()) {
+        toast.error('Please enter an email address for password delivery');
+        return;
+      }
+      
+      if (formData.passwordDeliveryMethod === 'mobile') {
+        toast.error('Mobile delivery is not available yet. Please use email delivery.');
+        return;
+      }
+    }
+    
     try {
       let endpoint;
       let requestData;
@@ -249,7 +267,9 @@ const AdminManagement = () => {
         requestData = {
           ...formData,
           leaveManagementCourses: formData.leaveManagementCourses,
-          permissionAccessLevels: formData.permissionAccessLevels
+          permissionAccessLevels: formData.permissionAccessLevels,
+          passwordDeliveryMethod: formData.passwordDeliveryMethod,
+          email: formData.email
         };
       } else if (activeTab === 'wardens') {
         endpoint = '/api/admin-management/wardens';
@@ -263,9 +283,40 @@ const AdminManagement = () => {
       if (response.data.success) {
         const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
                         activeTab === 'wardens' ? 'Warden' : 'Principal';
-        toast.success(`${userType} added successfully`);
+        
+        // Handle delivery result for sub-admins
+        if (activeTab === 'sub-admins' && response.data.deliveryResult) {
+          if (response.data.deliveryResult.success) {
+            toast.success(`${userType} added successfully! Credentials sent via ${formData.passwordDeliveryMethod}.`);
+          } else if (response.data.deliveryResult.error) {
+            toast.success(`${userType} added successfully!`, { duration: 3000 });
+            toast.error(`Failed to send credentials: ${response.data.deliveryResult.error}`, { duration: 5000 });
+          } else if (response.data.deliveryResult.message) {
+            if (response.data.deliveryResult.message.includes('No credentials sent')) {
+              toast.success(`${userType} added successfully! No credentials sent - provide them manually.`);
+            } else {
+              toast.success(`${userType} added successfully! ${response.data.deliveryResult.message}`);
+            }
+          } else {
+            toast.success(`${userType} added successfully!`);
+          }
+        } else {
+          toast.success(`${userType} added successfully`);
+        }
+        
         setShowAddModal(false);
-        setFormData({ username: '', password: '', permissions: [], hostelType: '', course: '', leaveManagementCourses: [] });
+        setFormData({ 
+          username: '', 
+          password: '', 
+          permissions: [], 
+          permissionAccessLevels: {},
+          hostelType: '', 
+          course: '', 
+          leaveManagementCourses: [],
+          passwordDeliveryMethod: '',
+          email: '',
+          phoneNumber: ''
+        });
         fetchData();
       }
     } catch (error) {
@@ -332,7 +383,18 @@ const AdminManagement = () => {
         
         setShowEditModal(false);
         setSelectedAdmin(null);
-        setFormData({ username: '', password: '', permissions: [], permissionAccessLevels: {}, hostelType: '', course: '', leaveManagementCourses: [] });
+        setFormData({ 
+          username: '', 
+          password: '', 
+          permissions: [], 
+          permissionAccessLevels: {}, 
+          hostelType: '', 
+          course: '', 
+          leaveManagementCourses: [],
+          passwordDeliveryMethod: '',
+          email: '',
+          phoneNumber: ''
+        });
         fetchData();
       }
     } catch (error) {
@@ -381,7 +443,11 @@ const AdminManagement = () => {
       permissionAccessLevels: admin.permissionAccessLevels || {},
       hostelType: admin.hostelType || '',
       course: admin.course?._id || admin.course || '',
-      leaveManagementCourses: admin.leaveManagementCourses || []
+      leaveManagementCourses: admin.leaveManagementCourses || [],
+      // Don't include password delivery fields for editing
+      passwordDeliveryMethod: '',
+      email: '',
+      phoneNumber: ''
     });
     setShowEditModal(true);
   };
@@ -390,7 +456,18 @@ const AdminManagement = () => {
     setShowAddModal(false);
     setShowEditModal(false);
     setSelectedAdmin(null);
-    setFormData({ username: '', password: '', permissions: [], permissionAccessLevels: {}, hostelType: '', course: '', leaveManagementCourses: [] });
+    setFormData({ 
+      username: '', 
+      password: '', 
+      permissions: [], 
+      permissionAccessLevels: {}, 
+      hostelType: '', 
+      course: '', 
+      leaveManagementCourses: [],
+      passwordDeliveryMethod: '',
+      email: '',
+      phoneNumber: ''
+    });
   };
 
 
@@ -716,6 +793,80 @@ const AdminManagement = () => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Password Delivery Section for Sub-Admins - Only show when adding new admin */}
+                {!isWardenTab && !isPrincipalTab && showAddModal && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
+                    </label>
+                    <p className="text-xs text-gray-600 mb-2">
+                      Leave this blank if you want to provide credentials to the sub-admin manually.
+                    </p>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="passwordDeliveryMethod"
+                          value=""
+                          checked={formData.passwordDeliveryMethod === ''}
+                          onChange={handleFormChange}
+                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-xs sm:text-sm text-gray-700">Don't send credentials (provide manually)</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="passwordDeliveryMethod"
+                          value="email"
+                          checked={formData.passwordDeliveryMethod === 'email'}
+                          onChange={handleFormChange}
+                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-xs sm:text-sm text-gray-700">Send via Email</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="passwordDeliveryMethod"
+                          value="mobile"
+                          checked={formData.passwordDeliveryMethod === 'mobile'}
+                          onChange={handleFormChange}
+                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                        />
+                        <span className="text-xs sm:text-sm text-gray-700">Send via Mobile (Coming Soon)</span>
+                      </label>
+                    </div>
+
+                    {/* Email Input */}
+                    {formData.passwordDeliveryMethod === 'email' && (
+                      <div className="mt-3">
+                                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Email Address <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via email)</span>
+                      </label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleFormChange}
+                          required={formData.passwordDeliveryMethod === 'email'}
+                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter email address"
+                        />
+                      </div>
+                    )}
+
+                    {/* Phone Number Input (for future use) */}
+                    {formData.passwordDeliveryMethod === 'mobile' && (
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-xs sm:text-sm text-yellow-800">
+                          📱 Mobile delivery feature is coming soon. Please use email delivery for now.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
