@@ -38,10 +38,15 @@ const WardenHome = () => {
   const fetchDashboardData = async () => {
     try {
       // Fetch announcements using warden-specific endpoint
-      const announcementsRes = await api.get('/api/announcements/warden');
-
-      if (announcementsRes.data.success) {
-        setAnnouncements(announcementsRes.data.data || []);
+      try {
+        const announcementsRes = await api.get('/api/announcements/warden');
+        if (announcementsRes.data.success) {
+          setAnnouncements(announcementsRes.data.data || []);
+        }
+      } catch (announcementError) {
+        console.error('Error fetching announcements:', announcementError);
+        // Set empty array if announcements fail
+        setAnnouncements([]);
       }
 
       // Fetch real stats from available endpoints with individual error handling

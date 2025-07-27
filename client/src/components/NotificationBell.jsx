@@ -51,13 +51,19 @@ const NotificationBell = () => {
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
           )
-        ]),
+        ]).catch(err => {
+          console.error(`🔔 NotificationBell: Error fetching unread notifications:`, err);
+          throw err;
+        }),
         Promise.race([
           api.get(`${endpointPrefix}/count`),
           new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
           )
-        ])
+        ]).catch(err => {
+          console.error(`🔔 NotificationBell: Error fetching notification count:`, err);
+          throw err;
+        })
       ]);
 
       console.log('🔔 NotificationBell: Responses:', { 
@@ -86,6 +92,11 @@ const NotificationBell = () => {
       // Safari-specific error handling
       if (isSafari) {
         console.log('🦁 Safari notification error - setting defaults');
+      }
+      
+      // Check if it's a network/CORS error
+      if (err.message === 'Network Error' || err.code === 'ERR_NETWORK') {
+        console.log('🔔 Network error detected - server might be down or CORS issue');
       }
       
       // Don't let notification errors cause logout - just set defaults
