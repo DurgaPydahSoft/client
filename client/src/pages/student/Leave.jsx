@@ -12,7 +12,8 @@ import {
   ExclamationCircleIcon,
   ArrowRightIcon,
   HomeIcon,
-  DocumentArrowDownIcon
+  DocumentArrowDownIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -207,17 +208,17 @@ const Leave = () => {
     switch (status) {
       case 'Approved':
       case 'Principal Approved':
-        return <CheckCircleIcon className="w-5 h-5" />;
+        return <CheckCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       case 'Rejected':
       case 'Principal Rejected':
-        return <XCircleIcon className="w-5 h-5" />;
+        return <XCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       case 'Pending':
       case 'Pending OTP Verification':
-        return <ExclamationCircleIcon className="w-5 h-5" />;
+        return <ExclamationCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       case 'Warden Verified':
-        return <ArrowRightIcon className="w-5 h-5" />;
+        return <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       case 'Warden Recommended':
-        return <ArrowRightIcon className="w-5 h-5" />;
+        return <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       default:
         return null;
     }
@@ -388,34 +389,36 @@ const Leave = () => {
   const tomorrowStr = tomorrow.toISOString().slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-gray-50 ">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 py-4 sm:py-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-8 mt-16 sm:mt-0">
         <SEO 
           title="Leave & Permission Requests"
           description="Submit and track your hostel leave and permission requests"
           keywords="leave request, permission request, hostel leave, student permissions"
         />
 
+        {/* Mobile-optimized header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0 mt-4">
-          <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Leave & Permission Requests</h1>
+          <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Leave & Permission Requests</h1>
           <button
             onClick={() => setShowRequestModal(true)}
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-base sm:text-base"
+            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base touch-manipulation flex items-center justify-center gap-2"
           >
-            New Request
+            <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>New Request</span>
           </button>
         </div>
 
-        {/* Leave List */}
+        {/* Leave List - Mobile optimized */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="p-6 sm:p-8 text-center">
+              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600 mx-auto"></div>
             </div>
           ) : leaves.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <DocumentTextIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-              <p>No requests found</p>
+            <div className="p-6 sm:p-8 text-center text-gray-500">
+              <DocumentTextIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-400" />
+              <p className="text-sm sm:text-base">No requests found</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
@@ -428,122 +431,125 @@ const Leave = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1">
+                    <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex-1 space-y-3">
+                        {/* Status and Type Tags - Mobile optimized */}
                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
                             {getStatusIcon(leave.status)}
-                            <span className="ml-1">
+                            <span className="ml-1 text-xs">
                               {leave.status === 'Warden Verified' ? 'Warden Verified - Pending Principal Approval' : leave.status}
                             </span>
                           </span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                             {leave.applicationType}
                           </span>
-                          <span className="text-xs sm:text-sm text-gray-500">
+                          <span className="text-xs text-gray-500">
                             {new Date(leave.createdAt).toLocaleDateString()}
                           </span>
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm text-gray-600 mb-2">
+                        {/* Date/Time Info - Mobile optimized */}
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-2">
                           {leave.applicationType === 'Leave' ? (
                             <>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
+                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>From: {displayInfo.start}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
+                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>To: {displayInfo.end}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-4 h-4" />
+                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>{displayInfo.duration}</span>
                               </div>
                             </>
                           ) : leave.applicationType === 'Permission' ? (
                             <>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-4 h-4" />
+                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>Date: {displayInfo.date}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-4 h-4" />
+                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>Time: {displayInfo.time}</span>
                               </div>
                             </>
                           ) : (
                             <>
                               <div className="flex items-center gap-1">
-                                <HomeIcon className="w-4 h-4" />
+                                <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>Date: {displayInfo.date}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-4 h-4" />
+                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                                 <span>{displayInfo.duration}</span>
                               </div>
                             </>
                           )}
                         </div>
 
-                        <p className="text-gray-700 mb-2 text-sm sm:text-base break-words">{leave.reason}</p>
+                        {/* Reason - Mobile optimized */}
+                        <p className="text-gray-700 mb-2 text-sm sm:text-base break-words leading-relaxed">{leave.reason}</p>
 
+                        {/* Rejection Reason - Mobile optimized */}
                         {leave.rejectionReason && (
-                          <p className="text-xs sm:text-sm text-red-600">
+                          <p className="text-xs sm:text-sm text-red-600 leading-relaxed">
                             Rejection Reason: {leave.rejectionReason}
                           </p>
                         )}
 
-                        {/* Show warden verification info for Leave/Permission requests */}
+                        {/* Status Messages - Mobile optimized */}
                         {leave.applicationType !== 'Stay in Hostel' && leave.status === 'Warden Verified' && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-blue-700">
+                          <div className="mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">
                               <strong>Warden Verified:</strong> Your request has been verified by the warden and is now pending principal approval.
                             </p>
                           </div>
                         )}
 
-                        {/* Show warden recommendation for Stay in Hostel requests */}
                         {leave.applicationType === 'Stay in Hostel' && leave.wardenRecommendation && (
-                          <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-blue-700">
+                          <div className="mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">
                               <strong>Warden Recommendation:</strong> {leave.wardenRecommendation}
                               {leave.wardenComment && ` - ${leave.wardenComment}`}
                             </p>
                           </div>
                         )}
 
-                        {/* Show principal decision for Stay in Hostel requests */}
                         {leave.applicationType === 'Stay in Hostel' && leave.principalDecision && (
-                          <div className="mt-2 p-2 bg-green-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-green-700">
+                          <div className="mt-2 p-2 sm:p-3 bg-green-50 rounded-lg">
+                            <p className="text-xs sm:text-sm text-green-700 leading-relaxed">
                               <strong>Principal Decision:</strong> {leave.principalDecision}
                               {leave.principalComment && ` - ${leave.principalComment}`}
                             </p>
                           </div>
                         )}
                       </div>
-                      {/* Action Buttons */}
-                      <div className="flex flex-col gap-2">
-                        {/* Download PDF Button - Available for all requests */}
+
+                      {/* Action Buttons - Mobile optimized */}
+                      <div className="flex flex-col gap-2 sm:gap-2 w-full sm:w-auto">
+                        {/* Download PDF Button */}
                         <button
                           onClick={() => downloadIndividualRequestPDF(leave)}
                           disabled={isDownloading}
-                          className={`w-full sm:w-auto px-3 py-2 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 ${
+                          className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
                             isDownloading
                               ? 'bg-gray-400 text-white cursor-not-allowed'
-                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                              : 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800'
                           }`}
                         >
                           {isDownloading ? (
                             <>
                               <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                              Generating...
+                              <span className="text-xs sm:text-sm">Generating...</span>
                             </>
                           ) : (
                             <>
-                              <DocumentArrowDownIcon className="w-4 h-4" />
-                              Download PDF
+                              <DocumentArrowDownIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span className="text-xs sm:text-sm">Download PDF</span>
                             </>
                           )}
                         </button>
@@ -553,7 +559,7 @@ const Leave = () => {
                           <>
                             {isQrAvailable(leave) ? (
                               <button
-                                className={`w-full sm:w-auto px-3 py-2 rounded transition-colors text-sm font-semibold ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                                className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold touch-manipulation ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
                                 disabled={leave.visitLocked}
                                 onClick={async () => {
                                   if (leave.visitLocked) return;
@@ -574,11 +580,11 @@ const Leave = () => {
                                   }
                                 }}
                               >
-                                {leave.visitLocked ? 'Visit Locked' : 'View QR Code'}
+                                <span className="text-xs sm:text-sm">{leave.visitLocked ? 'Visit Locked' : 'View QR Code'}</span>
                               </button>
                             ) : null}
                             
-                            {/* Visit Count Display */}
+                            {/* Visit Count Display - Mobile optimized */}
                             <div className="text-center">
                               <div className="text-xs text-gray-500">
                                 Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}
@@ -605,23 +611,24 @@ const Leave = () => {
         </div>
       </div>
 
-      {/* QR Code Modal */}
+      {/* QR Code Modal - Mobile optimized */}
       {qrModal.open && qrModal.leave && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-8 w-full max-w-md flex flex-col items-center"
+            className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center"
           >
-            <h2 className="text-xl font-bold mb-4 text-green-700">
+            <h2 className="text-lg sm:text-xl font-bold mb-4 text-green-700 text-center">
               {qrModal.leave.applicationType} QR Code
             </h2>
             <QRCode
               value={`${window.location.origin}/leave/qr/${qrModal.leave._id}`}
-              size={200}
+              size={180}
+              className="mx-auto"
             />
             <button
-              className="mt-8 px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors"
+              className="mt-6 sm:mt-8 px-4 py-2.5 sm:py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto"
               onClick={() => setQrModal({ open: false, leave: null })}
             >
               Close
@@ -630,29 +637,42 @@ const Leave = () => {
         </div>
       )}
 
-      {/* Request Modal */}
+      {/* Request Modal - Mobile optimized */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative"
           >
-            <h2 className="text-xl font-semibold mb-4">New Request</h2>
+            {/* Close X Button */}
+            <button
+              onClick={() => {
+                setShowRequestModal(false);
+                resetFormData();
+              }}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-1 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
             
-            {/* Application Type Selector */}
+            <h2 className="text-lg sm:text-xl font-semibold mb-4 pr-8 sm:pr-10">New Request</h2>
+            
+            {/* Application Type Selector - Mobile optimized */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Application Type
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={() => setApplicationType('Leave')}
-                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
+                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
                     applicationType === 'Leave'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                 >
                   Leave
@@ -660,10 +680,10 @@ const Leave = () => {
                 <button
                   type="button"
                   onClick={() => setApplicationType('Permission')}
-                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
+                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
                     applicationType === 'Permission'
-                      ? 'bg-purple-600 text-white border-purple-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                 >
                   Permission
@@ -671,10 +691,10 @@ const Leave = () => {
                 <button
                   type="button"
                   onClick={() => setApplicationType('Stay in Hostel')}
-                  className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
+                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
                     applicationType === 'Stay in Hostel'
-                      ? 'bg-green-600 text-white border-green-600'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
                   }`}
                 >
                   Stay in Hostel
@@ -682,192 +702,199 @@ const Leave = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="space-y-5">
               {applicationType === 'Leave' ? (
-                // Leave Application Form
+                // Leave Application Form - Mobile optimized
                 <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={leaveFormData.startDate}
-                      onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={leaveFormData.endDate}
-                      onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
-                      min={leaveFormData.startDate}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Gate Pass Date and Time
-                    </label>
-                    <p className="text-xs text-gray-500 mb-1">Date must be on or before start date. Time must be after 4:30 PM.</p>
-                    <input
-                      type="datetime-local"
-                      value={leaveFormData.gatePassDateTime}
-                      onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
-                      max={leaveFormData.startDate ? `${leaveFormData.startDate}T23:59` : ''}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reason
-                    </label>
-                    <textarea
-                      value={leaveFormData.reason}
-                      onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
-                      required
-                      maxLength={100}
-                      rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter your reason for leave (max 100 characters)"
-                    />
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-xs text-gray-500">
-                        Keep it brief and specific
-                      </span>
-                      <span className={`text-xs ${leaveFormData.reason.length > 90 ? 'text-red-500' : 'text-gray-500'}`}>
-                        {leaveFormData.reason.length}/100
-                      </span>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={leaveFormData.startDate}
+                        onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
+                        required
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={leaveFormData.endDate}
+                        onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
+                        min={leaveFormData.startDate}
+                        required
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Gate Pass Date and Time
+                      </label>
+                      <p className="text-xs text-gray-500 mb-2">Date must be on or before start date. Time must be after 4:30 PM.</p>
+                      <input
+                        type="datetime-local"
+                        value={leaveFormData.gatePassDateTime}
+                        onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
+                        max={leaveFormData.startDate ? `${leaveFormData.startDate}T23:59` : ''}
+                        required
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reason
+                      </label>
+                      <textarea
+                        value={leaveFormData.reason}
+                        onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
+                        required
+                        maxLength={100}
+                        rows="4"
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
+                        placeholder="Enter your reason for leave (max 100 characters)"
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-xs text-gray-500">
+                          Keep it brief and specific
+                        </span>
+                        <span className={`text-xs ${leaveFormData.reason.length > 90 ? 'text-red-500' : 'text-gray-500'}`}>
+                          {leaveFormData.reason.length}/100
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </>
               ) : applicationType === 'Permission' ? (
-                // Permission Application Form
+                // Permission Application Form - Mobile optimized
                 <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Permission Date
-                    </label>
-                    <input
-                      type="date"
-                      value={permissionFormData.permissionDate}
-                      onChange={(e) => setPermissionFormData({ ...permissionFormData, permissionDate: e.target.value })}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Out Time
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Permission Date
                       </label>
                       <input
-                        type="time"
-                        value={permissionFormData.outTime}
-                        onChange={(e) => setPermissionFormData({ ...permissionFormData, outTime: e.target.value })}
+                        type="date"
+                        value={permissionFormData.permissionDate}
+                        onChange={(e) => setPermissionFormData({ ...permissionFormData, permissionDate: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
                       />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Out Time
+                        </label>
+                        <input
+                          type="time"
+                          value={permissionFormData.outTime}
+                          onChange={(e) => setPermissionFormData({ ...permissionFormData, outTime: e.target.value })}
+                          required
+                          className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          In Time
+                        </label>
+                        <input
+                          type="time"
+                          value={permissionFormData.inTime}
+                          onChange={(e) => setPermissionFormData({ ...permissionFormData, inTime: e.target.value })}
+                          required
+                          className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        In Time
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reason
                       </label>
-                      <input
-                        type="time"
-                        value={permissionFormData.inTime}
-                        onChange={(e) => setPermissionFormData({ ...permissionFormData, inTime: e.target.value })}
+                      <textarea
+                        value={permissionFormData.reason}
+                        onChange={(e) => setPermissionFormData({ ...permissionFormData, reason: e.target.value })}
                         required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        rows="4"
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none"
+                        placeholder="Enter your reason for permission"
                       />
                     </div>
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reason
-                    </label>
-                    <textarea
-                      value={permissionFormData.reason}
-                      onChange={(e) => setPermissionFormData({ ...permissionFormData, reason: e.target.value })}
-                      required
-                      rows="4"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="Enter your reason for permission"
-                    />
                   </div>
                 </>
               ) : (
-                // Stay in Hostel Application Form
+                // Stay in Hostel Application Form - Mobile optimized
                 <>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Stay Date
-                    </label>
-                    <input
-                      type="date"
-                      value={stayInHostelFormData.stayDate}
-                      onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, stayDate: e.target.value })}
-                      required
-                      min={todayStr}
-                      max={tomorrowStr}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Reason
-                    </label>
-                    <textarea
-                      value={stayInHostelFormData.reason}
-                      onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, reason: e.target.value })}
-                      required
-                      rows="4"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                      placeholder="Enter your reason for staying in hostel"
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Stay Date
+                      </label>
+                      <input
+                        type="date"
+                        value={stayInHostelFormData.stayDate}
+                        onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, stayDate: e.target.value })}
+                        required
+                        min={todayStr}
+                        max={tomorrowStr}
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reason
+                      </label>
+                      <textarea
+                        value={stayInHostelFormData.reason}
+                        onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, reason: e.target.value })}
+                        required
+                        rows="4"
+                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm resize-none"
+                        placeholder="Enter your reason for staying in hostel"
+                      />
+                    </div>
                   </div>
                 </>
               )}
               
-              <div className="flex justify-end gap-3">
+              {/* Action Buttons - Mobile optimized */}
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6">
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className={`w-full sm:w-auto px-4 py-3 sm:py-2.5 text-white rounded-lg transition-colors text-sm touch-manipulation font-medium ${
+                    isSubmitting
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : applicationType === 'Leave' 
+                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm' 
+                      : applicationType === 'Permission'
+                      ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 shadow-sm'
+                      : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm'
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
+                      <span className="text-sm">Submitting...</span>
+                    </div>
+                  ) : (
+                    'Submit Request'
+                  )}
+                </button>
                 <button
                   type="button"
                   onClick={() => {
                     setShowRequestModal(false);
                     resetFormData();
                   }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-full sm:w-auto px-4 py-3 sm:py-2.5 text-gray-700 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-sm touch-manipulation font-medium"
                 >
                   Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                    isSubmitting
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : applicationType === 'Leave' 
-                      ? 'bg-blue-600 hover:bg-blue-700' 
-                      : applicationType === 'Permission'
-                      ? 'bg-purple-600 hover:bg-purple-700'
-                      : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  {isSubmitting ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Submitting...
-                    </div>
-                  ) : (
-                    'Submit Request'
-                  )}
                 </button>
               </div>
             </form>

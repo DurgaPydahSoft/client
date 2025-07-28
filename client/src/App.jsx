@@ -194,8 +194,8 @@ function App() {
                   <AdminManagement />
                 </ProtectedSection>
               } />
-              <Route path="menu" element={
-                <ProtectedSection permission="menu_management" sectionName="Menu Management">
+              <Route path="cafeteria/menu" element={
+                <ProtectedSection permission="cafeteria_management" sectionName="Cafeteria Management">
                   <MenuManagement />
                 </ProtectedSection>
               } />

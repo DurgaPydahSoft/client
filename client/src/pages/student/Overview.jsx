@@ -41,7 +41,7 @@ const Overview = () => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
       try {
-        const res = await axios.get('/api/menu/today');
+        const res = await axios.get('/api/cafeteria/menu/today');
         setTodaysMenu(res.data.data);
       } catch (err) {
         setTodaysMenu(null);

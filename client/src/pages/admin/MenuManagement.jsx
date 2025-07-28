@@ -54,7 +54,7 @@ const MenuManagement = () => {
     const fetchTodaysMenu = async () => {
       setLoadingToday(true);
       try {
-        const res = await api.get('/api/menu/today');
+        const res = await api.get('/api/cafeteria/menu/today');
         setTodaysMenu(res.data.data);
       } catch (err) {
         // 404 is expected when no menu exists for today
@@ -75,7 +75,7 @@ const MenuManagement = () => {
       setLoadingStats(true);
       try {
         const today = getTodayISOString();
-        const res = await api.get(`/api/menu/ratings/stats?date=${today}`);
+        const res = await api.get(`/api/cafeteria/menu/ratings/stats?date=${today}`);
         setRatingStats(res.data.data);
       } catch (err) {
         // 404 is expected when no menu exists for today
@@ -100,7 +100,7 @@ const MenuManagement = () => {
   const fetchMenu = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/api/menu/date?date=${normalizeDateInput(selectedDate)}`);
+      const res = await api.get(`/api/cafeteria/menu/date?date=${normalizeDateInput(selectedDate)}`);
       if (isMounted.current) {
         setMenu(res.data.data);
         setEditMenu({ ...res.data.data.meals });
@@ -134,17 +134,21 @@ const MenuManagement = () => {
   const handleAddItem = (meal) => {
     const value = (addInputs[meal] || '').trim();
     if (!value) return;
+    
+    // Check for duplicates in current state
+    const currentItems = editMenu[meal] || [];
+    const normalizedValue = value.toLowerCase();
+    const normalizedItems = currentItems.map(item => item.toLowerCase());
+    
+    if (normalizedItems.includes(normalizedValue)) {
+      toast.error('Item already exists');
+      return;
+    }
+    
     setEditMenu(prev => {
       const updated = { ...prev };
-      // Case-insensitive check for duplicates
-      const normalizedValue = value.toLowerCase();
-      const normalizedItems = updated[meal].map(item => item.toLowerCase());
-      if (normalizedItems.includes(normalizedValue)) {
-        toast.error('Item already exists');
-        return updated;
-      }
-      updated[meal].push(value);
-      return { ...updated };
+      updated[meal] = [...updated[meal], value];
+      return updated;
     });
     setAddInputs(prev => ({ ...prev, [meal]: '' }));
   };
@@ -160,7 +164,7 @@ const MenuManagement = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await api.post('/api/menu/date', {
+      await api.post('/api/cafeteria/menu/date', {
         date: normalizeDateInput(selectedDate),
         meals: editMenu
       });
@@ -188,15 +192,19 @@ const MenuManagement = () => {
   const handleModalAddItem = (meal) => {
     const value = (modalAddInputs[meal] || '').trim();
     if (!value) return;
+    
+    // Check for duplicates in current state
+    const currentItems = modalEditMenu[meal] || [];
+    const normalizedValue = value.toLowerCase();
+    const normalizedItems = currentItems.map(item => item.toLowerCase());
+    
+    if (normalizedItems.includes(normalizedValue)) {
+      toast.error('Item already exists');
+      return;
+    }
+    
     setModalEditMenu(prev => {
       const updated = { ...prev };
-      // Case-insensitive check for duplicates
-      const normalizedValue = value.toLowerCase();
-      const normalizedItems = updated[meal].map(item => item.toLowerCase());
-      if (normalizedItems.includes(normalizedValue)) {
-        toast.error('Item already exists');
-        return updated;
-      }
       updated[meal] = [...updated[meal], value];
       return updated;
     });
@@ -212,13 +220,13 @@ const MenuManagement = () => {
   const handleModalSave = async () => {
     setSavingToday(true);
     try {
-      await api.post('/api/menu/date', {
+      await api.post('/api/cafeteria/menu/date', {
         date: getTodayISOString(),
         meals: modalEditMenu
       });
       toast.success("Today's menu updated!");
       // Refetch today's menu to update card
-      const res = await api.get('/api/menu/today');
+      const res = await api.get('/api/cafeteria/menu/today');
       setTodaysMenu(res.data.data);
       setShowTodayModal(false);
     } catch (err) {
@@ -289,225 +297,271 @@ const MenuManagement = () => {
   };
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 mt-4 sm:mt-8">
-      {/* Today's Menu Section (Read-only, with Update button) */}
-      <div className="mb-6 sm:mb-8">
-        <div className="bg-green-50 rounded-lg p-4 sm:p-6 shadow-sm border border-green-100">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-            <div>
-              <h2 className="font-bold text-green-900 text-lg sm:text-xl">Today's Menu</h2>
-              <p className="text-green-700 text-sm mt-1">Current menu for today's meals</p>
-            </div>
+    <div className="max-w-7xl mx-auto p-4 space-y-6">
+      {/* Header Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-blue-900">Cafeteria Management</h1>
+            <p className="text-gray-600 mt-1">Manage daily menus and meal schedules</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
             <button
-              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
               onClick={openTodayModal}
               disabled={loadingToday}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
             >
-              Update Menu
+              Update Today's Menu
             </button>
           </div>
-          {loadingToday ? (
-            <div className="text-gray-500 text-sm">Loading today's menu...</div>
-          ) : todaysMenu ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {['breakfast', 'lunch', 'dinner'].map(meal => {
-                const mealItems = todaysMenu.meals[meal];
-                const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
-                return (
-                  <div key={meal} className="bg-white rounded-lg p-3 border border-green-200 relative flex flex-col min-h-[120px]">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-green-800 text-lg flex items-center gap-2 capitalize">
-                        {meal === 'breakfast' && '🥞'}
-                        {meal === 'lunch' && '🍛'}
-                        {meal === 'dinner' && '🍽️'}
-                        {meal.charAt(0).toUpperCase() + meal.slice(1)}
-                      </h3>
-                      <div className="ml-2 text-right">
-                        {stats && stats.totalRatings > 0 ? (
-                          <div className="flex flex-col items-end">
-                            <span className="text-base font-bold text-yellow-600">{stats.average}/5 <span className="text-yellow-500">⭐</span></span>
-                            <span className="text-xs text-gray-500">{stats.totalRatings} rating{stats.totalRatings !== 1 ? 's' : ''}</span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-400">No ratings yet</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-700">
-                      {mealItems.length ? mealItems.join(', ') : <span className="text-gray-400">No items</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <div className="text-gray-400 text-sm">No menu set for today.</div>
-              <button
-                className="mt-2 px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
-                onClick={openTodayModal}
-              >
-                Create Today's Menu
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
-        {/* Menu Management Column - Takes 2/3 of the space on large screens */}
-        <div className="xl:col-span-3">
-          <div className="bg-blue-50 rounded-lg p-4 sm:p-6 shadow-sm border border-blue-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Menu Management</h2>
-                <p className="text-gray-600 text-sm sm:text-base mt-1">Set the food menu for any day. You can add, edit, or remove items for breakfast, lunch, and dinner.</p>
-              </div>
+      {/* Today's Menu Overview */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Today's Menu</h2>
+          {todaysMenu && (
+            <div className="flex gap-2">
+              {['breakfast', 'lunch', 'dinner'].map(mealType => (
+                <button
+                  key={mealType}
+                  onClick={() => handleSendMenuNotification(mealType)}
+                  disabled={notificationLoading}
+                  className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors disabled:opacity-50"
+                >
+                  Send {mealType} Notification
+                </button>
+              ))}
             </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-4 sm:mb-6">
-              <label className="font-medium text-sm sm:text-base">Date:</label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                className="border px-3 py-2 rounded shadow-sm text-sm sm:text-base"
-              />
-            </div>
-          {loading ? (
-            <div className="text-center py-8">Loading...</div>
-          ) : (
-            <>
-              {/* Grid layout for all screen sizes */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                {MEALS.map(meal => (
-                  <div key={meal} className="bg-white rounded-lg p-4 border border-blue-200">
-                    <h3 className="font-semibold text-blue-800 mb-3 capitalize flex items-center gap-2">
+          )}
+        </div>
+        
+        {loadingToday ? (
+          <div className="text-center py-8 text-gray-500">Loading today's menu...</div>
+        ) : todaysMenu ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {['breakfast', 'lunch', 'dinner'].map(meal => {
+              const mealItems = todaysMenu.meals[meal];
+              const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
+              return (
+                <div key={meal} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2 capitalize">
                       {meal === 'breakfast' && '🥞'}
                       {meal === 'lunch' && '🍛'}
                       {meal === 'dinner' && '🍽️'}
                       {meal.charAt(0).toUpperCase() + meal.slice(1)}
                     </h3>
-                    <div className="space-y-2 mb-3">
-                      {editMenu[meal].map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="text-sm text-gray-700">{item}</span>
-                          <button
-                            className="text-red-500 hover:text-red-700 text-lg font-bold"
-                            onClick={() => handleRemoveItem(meal, idx)}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                      {editMenu[meal].length === 0 && (
-                        <div className="text-gray-400 text-sm text-center py-2">No items added</div>
-                      )}
-                    </div>
-                    <form
-                      onSubmit={e => {
-                        e.preventDefault();
-                        handleAddItem(meal);
-                      }}
-                      className="flex flex-col gap-2 mt-2"
-                    >
-                      <input
-                        type="text"
-                        placeholder={`Add ${meal} item`}
-                        value={addInputs[meal] || ''}
-                        onChange={e => handleAddInputChange(meal, e.target.value)}
-                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <button
-                        type="submit"
-                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors mt-1"
-                      >
-                        Add
-                      </button>
-                    </form>
+                    {stats && stats.totalRatings > 0 && (
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-yellow-600">{stats.average}/5 ⭐</span>
+                        <div className="text-xs text-gray-500">{stats.totalRatings} ratings</div>
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base disabled:opacity-50"
-                  onClick={handleSave}
-                  disabled={loading}
-                >
-                  Save Menu
-                </button>
-                <button
-                  className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-sm sm:text-base"
-                  onClick={fetchMenu}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+                  <div className="text-sm text-gray-700">
+                    {mealItems.length ? (
+                      <div className="space-y-1">
+                        {mealItems.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2">
+                            <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                            <span>{item}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic">No items</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-2">No menu set for today</div>
+            <button
+              onClick={openTodayModal}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+            >
+              Create Today's Menu
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* Menu Management Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Menu Management</h2>
+        
+        {loading ? (
+          <div className="text-center py-8 text-gray-500">Loading...</div>
+        ) : (
+          <div className="space-y-6">
+            {/* Meal Sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {MEALS.map(meal => (
+                <div key={meal} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 capitalize">
+                    {meal === 'breakfast' && '🥞'}
+                    {meal === 'lunch' && '🍛'}
+                    {meal === 'dinner' && '🍽️'}
+                    {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                  </h3>
+                  
+                  {/* Items List */}
+                  <div className="space-y-2 mb-4 max-h-32 overflow-y-auto">
+                    {editMenu[meal].map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-white rounded px-3 py-2 text-sm">
+                        <span className="text-gray-700 truncate">{item}</span>
+                        <button
+                          onClick={() => handleRemoveItem(meal, idx)}
+                          className="text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {editMenu[meal].length === 0 && (
+                      <div className="text-gray-400 text-sm text-center py-4">No items added</div>
+                    )}
+                  </div>
+                  
+                  {/* Add Item Form */}
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      handleAddItem(meal);
+                    }}
+                    className="space-y-2"
+                  >
+                    <input
+                      type="text"
+                      placeholder={`Add ${meal} item`}
+                      value={addInputs[meal] || ''}
+                      onChange={e => handleAddInputChange(meal, e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                    >
+                      Add Item
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                Save Menu
+              </button>
+              <button
+                onClick={fetchMenu}
+                disabled={loading}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+              >
+                Reset Changes
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Modal for editing today's menu */}
       {showTodayModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 px-2 sm:px-0">
-          <div className="bg-white rounded-lg shadow-lg p-3 sm:p-6 w-full max-w-md relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
-              onClick={closeTodayModal}
-              disabled={savingToday}
-            >
-              &times;
-            </button>
-            <h3 className="text-base sm:text-lg font-bold mb-4 text-green-900">Edit Today's Menu</h3>
-            {MEALS.map(meal => (
-              <div key={meal} className="mb-3">
-                <div className="font-semibold capitalize mb-1 text-sm sm:text-base">{meal}</div>
-                <ul className="mb-1">
-                  {modalEditMenu[meal].map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2 mb-1">
-                      <span>{item}</span>
-                      <button
-                        className="text-xs text-red-500 hover:underline"
-                        onClick={() => handleModalRemoveItem(meal, idx)}
-                        disabled={savingToday}
-                      >Remove</button>
-                    </li>
-                  ))}
-                </ul>
-                <form
-                  onSubmit={e => {
-                    e.preventDefault();
-                    handleModalAddItem(meal);
-                  }}
-                  className="flex flex-col sm:flex-row gap-2"
-                >
-                  <input
-                    type="text"
-                    placeholder={`Add to ${meal}`}
-                    value={modalAddInputs[meal] || ''}
-                    onChange={e => handleModalAddInputChange(meal, e.target.value)}
-                    className="border px-2 py-1 rounded text-xs sm:text-sm flex-1"
-                    disabled={savingToday}
-                  />
-                  <button type="submit" className="px-2 py-1 bg-green-500 text-white rounded text-xs" disabled={savingToday}>Add</button>
-                </form>
-              </div>
-            ))}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Edit Today's Menu</h3>
               <button
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-xs sm:text-base"
-                onClick={handleModalSave}
-                disabled={savingToday}
-              >
-                Save
-              </button>
-              <button
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs sm:text-base"
                 onClick={closeTodayModal}
                 disabled={savingToday}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {MEALS.map(meal => (
+                <div key={meal} className="space-y-3">
+                  <h4 className="font-semibold text-gray-900 capitalize flex items-center gap-2">
+                    {meal === 'breakfast' && '🥞'}
+                    {meal === 'lunch' && '🍛'}
+                    {meal === 'dinner' && '🍽️'}
+                    {meal}
+                  </h4>
+                  
+                  {/* Items List */}
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {modalEditMenu[meal].map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                        <span className="text-sm text-gray-700">{item}</span>
+                        <button
+                          onClick={() => handleModalRemoveItem(meal, idx)}
+                          disabled={savingToday}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {/* Add Item Form */}
+                  <form
+                    onSubmit={e => {
+                      e.preventDefault();
+                      handleModalAddItem(meal);
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      type="text"
+                      placeholder={`Add to ${meal}`}
+                      value={modalAddInputs[meal] || ''}
+                      onChange={e => handleModalAddInputChange(meal, e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      disabled={savingToday}
+                    />
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50"
+                      disabled={savingToday}
+                    >
+                      Add
+                    </button>
+                  </form>
+                </div>
+              ))}
+            </div>
+            
+            <div className="flex gap-3 mt-6 pt-4 border-t border-gray-200">
+              <button
+                onClick={handleModalSave}
+                disabled={savingToday}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={closeTodayModal}
+                disabled={savingToday}
+                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
               >
                 Cancel
               </button>

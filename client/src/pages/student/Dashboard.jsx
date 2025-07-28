@@ -265,9 +265,9 @@ const StudentDashboardLayout = () => {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2.5 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200 touch-manipulation"
       >
-        <Bars3Icon className="w-6 h-6 text-gray-600" />
+        <Bars3Icon className="w-5 h-5 text-gray-600" />
       </button>
 
       {/* Mobile Sidebar Backdrop */}
@@ -290,22 +290,22 @@ const StudentDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-72 h-screen bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
+        className="fixed lg:relative top-0 left-0 w-64 sm:w-72 h-screen bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
       >
         {/* Mobile Close Button */}
         <button
           onClick={() => setIsSidebarOpen(false)}
-          className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-white/10 transition-colors duration-200"
+          className="lg:hidden absolute top-3 right-3 p-2.5 rounded-lg hover:bg-white/10 transition-colors duration-200 touch-manipulation"
         >
-          <XMarkIcon className="w-6 h-6 text-white" />
+          <XMarkIcon className="w-5 h-5 text-white" />
         </button>
 
         <motion.div
           whileHover={{ scale: 1.02 }}
-          className="p-6 font-bold text-xl tracking-wide flex items-center gap-2 flex-shrink-0"
+          className="p-4 sm:p-6 font-bold text-lg sm:text-xl tracking-wide flex items-center gap-2 flex-shrink-0"
         >
           <svg
-            className="w-8 h-8 text-cyan-300"
+            className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-300"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -322,7 +322,7 @@ const StudentDashboardLayout = () => {
           </span>
         </motion.div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
+        <nav className="flex-1 px-3 sm:px-4 space-y-1 sm:space-y-2 mt-4 overflow-y-auto">
           {navItems
             .filter(item => !item.feature || isFeatureEnabled(item.feature))
             .map((item, index) => (
@@ -335,7 +335,7 @@ const StudentDashboardLayout = () => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 ${
+                  `flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 sm:py-3 rounded-lg text-sm sm:text-sm font-medium transition-all duration-300 touch-manipulation ${
                     isActive
                       ? "bg-white/10 text-white shadow-lg font-semibold"
                       : "text-white/90 hover:bg-white/10 hover:text-white hover:shadow-md"
@@ -345,7 +345,7 @@ const StudentDashboardLayout = () => {
               >
                 <div className="relative">
                   <svg
-                    className="w-5 h-5"
+                    className="w-4 h-4 sm:w-5 sm:h-5"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -378,7 +378,7 @@ const StudentDashboardLayout = () => {
                     </motion.div>
                   )}
                 </div>
-                {item.name}
+                <span className="truncate">{item.name}</span>
               </NavLink>
             </motion.div>
           ))}
@@ -388,12 +388,12 @@ const StudentDashboardLayout = () => {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="p-6 border-t border-blue-700/50 bg-blue-900/30 flex-shrink-0 rounded-br-3xl"
+          className="p-4 sm:p-6 border-t border-blue-700/50 bg-blue-900/30 flex-shrink-0 rounded-br-3xl"
         >
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
             <motion.div
               whileHover={{ scale: 1.1 }}
-              className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 flex items-center justify-center text-blue-900 font-bold shadow-md"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-cyan-300 to-blue-500 flex items-center justify-center text-blue-900 font-bold shadow-md"
             >
               {user?.name?.charAt(0).toUpperCase()}
             </motion.div>
@@ -410,10 +410,10 @@ const StudentDashboardLayout = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 text-xs font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md touch-manipulation"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 sm:w-5 sm:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -432,8 +432,8 @@ const StudentDashboardLayout = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto h-screen">
-        <div className="max-w-7xl mx-auto p-4 lg:p-8">
-          <div className="flex justify-end mb-4">
+        <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-8">
+          <div className="flex justify-end mb-3 sm:mb-4">
             <NotificationBell />
           </div>
           <Outlet context={metrics} />
@@ -446,17 +446,17 @@ const StudentDashboardLayout = () => {
 const MetricCard = ({ title, value, icon, color, change }) => (
   <motion.div
     whileHover={{ scale: 1.02 }}
-    className={`bg-white rounded-xl shadow-lg p-6 ${color} border border-gray-100`}
+    className={`bg-white rounded-xl shadow-lg p-3 sm:p-4 lg:p-6 ${color} border border-gray-100`}
   >
-    <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center justify-between mb-2 sm:mb-3 lg:mb-4">
       <div>
-        <p className="text-sm text-gray-500">{title}</p>
-        <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
+        <p className="text-xs sm:text-sm text-gray-500">{title}</p>
+        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">{value}</h3>
       </div>
-      <div className={`p-3 rounded-lg ${color} bg-opacity-10`}>{icon}</div>
+      <div className={`p-2 sm:p-3 rounded-lg ${color} bg-opacity-10`}>{icon}</div>
     </div>
     {change && (
-      <div className="flex items-center text-sm">
+      <div className="flex items-center text-xs sm:text-sm">
         <span className="text-green-500 mr-1">↑</span>
         <span className="text-gray-600">{change}</span>
       </div>
@@ -542,7 +542,7 @@ const DashboardHome = () => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
       try {
-        const res = await api.get('/api/menu/today/with-ratings');
+        const res = await api.get('/api/cafeteria/menu/today/with-ratings');
         setTodaysMenu(res.data.data);
       } catch (err) {
         setTodaysMenu(null);
@@ -558,7 +558,7 @@ const DashboardHome = () => {
     setShowMenuModal(true);
     setModalLoading(true);
     try {
-      const res = await api.get('/api/menu/today/with-ratings');
+      const res = await api.get('/api/cafeteria/menu/today/with-ratings');
       setModalMenu(res.data.data);
     } catch (err) {
       setModalMenu(null);
@@ -581,30 +581,30 @@ const DashboardHome = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-8 mt-16 sm:mt-0"
+      className="space-y-6 sm:space-y-8 mt-16 sm:mt-0"
     >
-      <div className="bg-white rounded-xl shadow-lg p-6 sm:p-8 flex flex-col lg:block">
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 flex flex-col lg:block">
         <div className="flex items-center justify-between mb-4 order-1 lg:order-none">
           <div className="text-center flex-1">
-            <h2 className="text-2xl sm:text-3xl font-bold text-blue-900 mb-3 sm:mb-4 bg-clip-text">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-2 sm:mb-3 lg:mb-4 bg-clip-text">
               Welcome back, {user?.name}
             </h2>
-            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
+            <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-3 sm:mb-4 lg:mb-6">
               View your complaint statistics and manage your requests below.
             </p>
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 mx-auto rounded-full"></div>
+            <div className="w-20 sm:w-24 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 mx-auto rounded-full"></div>
           </div>
         </div>
         {/* Quick Actions - order-2 on mobile, order-none on lg+ */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-6 lg:mt-0 order-2 lg:order-none">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6 lg:mt-0 order-2 lg:order-none">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate("raise")}
-            className="p-3 sm:p-4 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300"
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300 touch-manipulation"
           >
             <svg
-              className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
+              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -622,10 +622,10 @@ const DashboardHome = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => navigate("my-complaints")}
-            className="p-3 sm:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300"
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300 touch-manipulation"
           >
             <svg
-              className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto"
+              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -642,19 +642,61 @@ const DashboardHome = () => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowBillModal(true)}
-            className="p-3 sm:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300"
+            onClick={() => navigate("leave")}
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all duration-300 touch-manipulation"
           >
-            <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" />
+            <svg
+              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            <span className="text-xs sm:text-sm">Apply Leave</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate("attendance")}
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all duration-300 touch-manipulation"
+          >
+            <svg
+              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+            <span className="text-xs sm:text-sm">Attendance</span>
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowBillModal(true)}
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300 touch-manipulation"
+          >
+            <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" />
             <span className="text-xs sm:text-sm">Electricity Bills</span>
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleOpenMenuModal}
-            className="p-3 sm:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300"
+            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all duration-300 touch-manipulation"
           >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6 mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
             </svg>
             <span className="text-xs sm:text-sm">Today's Menu</span>
@@ -664,13 +706,13 @@ const DashboardHome = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         <MetricCard
           title="Total Complaints"
           value={metrics.totalComplaints}
           icon={
             <svg
-              className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600"
+              className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-blue-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -690,7 +732,7 @@ const DashboardHome = () => {
           value={metrics.resolved}
           icon={
             <svg
-              className="w-6 h-6 sm:w-8 sm:h-8 text-green-600"
+              className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-green-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -710,7 +752,7 @@ const DashboardHome = () => {
           value={metrics.inProgress}
           icon={
             <svg
-              className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600"
+              className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-yellow-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -730,7 +772,7 @@ const DashboardHome = () => {
           value={metrics.pending}
           icon={
             <svg
-              className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600"
+              className="w-4 h-4 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-purple-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -747,12 +789,12 @@ const DashboardHome = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:gap-8">
         {/* Latest Announcements Section */}
-        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 lg:p-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4 lg:mb-6">
+            <h3 className="text-sm sm:text-base lg:text-lg font-bold text-gray-900 flex items-center gap-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
               </svg>
               Latest Announcements
@@ -761,23 +803,23 @@ const DashboardHome = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('announcements')}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-700 font-medium touch-manipulation"
             >
               View All
             </motion.button>
           </div>
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-3 lg:space-y-4">
             {announcements.slice(0, 3).map((announcement, index) => (
               <motion.div
                 key={announcement._id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="p-3 sm:p-4 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100"
+                className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-100"
               >
-                <h4 className="font-semibold text-blue-900 text-sm sm:text-base mb-1 sm:mb-2">{announcement.title}</h4>
+                <h4 className="font-semibold text-blue-900 text-xs sm:text-sm lg:text-base mb-1 sm:mb-2">{announcement.title}</h4>
                 <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{announcement.description}</p>
-                <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                <div className="flex items-center gap-2 mt-1.5 sm:mt-2 text-xs text-gray-500">
                   <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
@@ -786,11 +828,11 @@ const DashboardHome = () => {
               </motion.div>
             ))}
             {announcements.length === 0 && (
-              <div className="text-center text-gray-500 py-6 sm:py-8">
-                <svg className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="text-center text-gray-500 py-4 sm:py-6 lg:py-8">
+                <svg className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 mx-auto mb-2 sm:mb-3 lg:mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
                 </svg>
-                <p className="text-sm">No announcements yet</p>
+                <p className="text-xs sm:text-sm">No announcements yet</p>
               </div>
             )}
           </div>
@@ -804,22 +846,22 @@ const DashboardHome = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-sm sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-4 lg:mb-6 gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
-                    <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl flex items-center justify-center">
+                    <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Electricity Bills</h2>
-                    <p className="text-sm sm:text-base text-gray-600">Room {user?.roomNumber} • Manage your electricity payments</p>
+                    <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">Electricity Bills</h2>
+                    <p className="text-xs sm:text-sm lg:text-base text-gray-600">Room {user?.roomNumber} • Manage your electricity payments</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -827,48 +869,48 @@ const DashboardHome = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={refreshElectricityBills}
-                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600"
+                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600 touch-manipulation"
                     title="Refresh bills"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </motion.button>
                 <button
                   onClick={() => setShowBillModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
                 >
-                    <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                    <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </button>
                 </div>
               </div>
 
               {electricityBills.length === 0 ? (
-                <div className="text-center py-8 sm:py-12">
-                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-                    <BoltIcon className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-600" />
+                <div className="text-center py-6 sm:py-8 lg:py-12">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3 lg:mb-4">
+                    <BoltIcon className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-yellow-600" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No Electricity Bills</h3>
-                  <p className="text-sm sm:text-base text-gray-500">You don't have any electricity bills yet.</p>
+                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900 mb-2">No Electricity Bills</h3>
+                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">You don't have any electricity bills yet.</p>
                 </div>
               ) : (
-                <div className="space-y-3 sm:space-y-4">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                       {electricityBills.map((bill, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.1 }}
-                      className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-4 sm:p-6 hover:shadow-lg transition-all duration-300"
+                      className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 sm:p-4 lg:p-6 hover:shadow-lg transition-all duration-300"
                     >
                       {/* Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 sm:mb-3 lg:mb-4 gap-3">
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                            <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <BoltIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-yellow-600" />
                           </div>
                           <div>
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Electricity Bill</h3>
+                            <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-gray-900">Electricity Bill</h3>
                             <p className="text-xs sm:text-sm text-gray-600">Room {user?.roomNumber} • {bill.month}</p>
                           </div>
                         </div>
@@ -888,49 +930,49 @@ const DashboardHome = () => {
                           ) : (
                             <XCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                           )}
-                          {bill.paymentStatus === 'paid' ? 'Paid' : bill.paymentStatus === 'pending' ? 'Pending' : 'Unpaid'}
+                          <span className="text-xs sm:text-sm">{bill.paymentStatus === 'paid' ? 'Paid' : bill.paymentStatus === 'pending' ? 'Pending' : 'Unpaid'}</span>
                         </span>
                       </div>
 
                       {/* Bill Details Grid */}
-                      <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
+                      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
                         <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
                           <p className="text-xs text-gray-500 mb-1">Start Units</p>
-                          <p className="text-sm sm:text-lg font-semibold text-gray-900">{bill.startUnits}</p>
+                          <p className="text-xs sm:text-sm lg:text-lg font-semibold text-gray-900">{bill.startUnits}</p>
                         </div>
                         <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
                           <p className="text-xs text-gray-500 mb-1">End Units</p>
-                          <p className="text-sm sm:text-lg font-semibold text-gray-900">{bill.endUnits}</p>
+                          <p className="text-xs sm:text-sm lg:text-lg font-semibold text-gray-900">{bill.endUnits}</p>
                         </div>
                         <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
                           <p className="text-xs text-gray-500 mb-1">Consumption</p>
-                          <p className="text-sm sm:text-lg font-semibold text-blue-600">
+                          <p className="text-xs sm:text-sm lg:text-lg font-semibold text-blue-600">
                             {bill.consumption !== undefined ? bill.consumption : bill.endUnits - bill.startUnits} units
                           </p>
                         </div>
                         <div className="bg-white rounded-lg p-2 sm:p-3 border border-yellow-200">
                           <p className="text-xs text-gray-500 mb-1">Rate/Unit</p>
-                          <p className="text-sm sm:text-lg font-semibold text-gray-900">₹{bill.rate}</p>
+                          <p className="text-xs sm:text-sm lg:text-lg font-semibold text-gray-900">₹{bill.rate}</p>
                         </div>
                       </div>
 
                       {/* Bill Amounts */}
-                      <div className="bg-white rounded-lg p-3 sm:p-4 border border-yellow-200 mb-4 sm:mb-6">
+                      <div className="bg-white rounded-lg p-2.5 sm:p-3 lg:p-4 border border-yellow-200 mb-3 sm:mb-4 lg:mb-6">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0 mb-2">
                           <p className="text-xs sm:text-sm text-gray-600">Total Room Bill:</p>
-                          <p className="text-sm sm:text-base font-medium text-gray-900">₹{bill.total}</p>
+                          <p className="text-xs sm:text-sm lg:text-base font-medium text-gray-900">₹{bill.total}</p>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
                           <p className="text-xs sm:text-sm text-blue-700 font-semibold">Your Share:</p>
-                          <p className="text-lg sm:text-xl font-bold text-blue-700">₹{bill.studentShare}</p>
+                          <p className="text-base sm:text-lg lg:text-xl font-bold text-blue-700">₹{bill.studentShare}</p>
                         </div>
                       </div>
 
                       {/* Total Amount and Actions */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 sm:pt-4 border-t border-yellow-200 gap-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-2.5 sm:pt-3 lg:pt-4 border-t border-yellow-200 gap-3">
                         <div>
                           <p className="text-xs sm:text-sm text-gray-600 mb-1">Your Payment</p>
-                          <p className="text-xl sm:text-2xl font-bold text-yellow-700">₹{bill.studentShare}</p>
+                          <p className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-700">₹{bill.studentShare}</p>
                         </div>
                         
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
@@ -948,7 +990,7 @@ const DashboardHome = () => {
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
                               onClick={() => window.location.href = `/student/electricity-payment/${bill._id}`}
-                              className="px-4 sm:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base"
+                              className="px-3 sm:px-4 lg:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-xs sm:text-sm lg:text-base touch-manipulation"
                             >
                               Pay ₹{bill.studentShare}
                             </motion.button>

@@ -31,7 +31,7 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
 
   const fetchUserRating = async () => {
     try {
-      const res = await api.get(`/api/menu/rating?date=${date}&mealType=${mealType}`);
+      const res = await api.get(`/api/cafeteria/menu/rating?date=${date}&mealType=${mealType}`);
       if (res.data.success && res.data.data) {
         setUserRating(res.data.data);
         setRating(res.data.data.rating);
@@ -50,7 +50,7 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
 
     setLoading(true);
     try {
-      const res = await api.post('/api/menu/rate', {
+      const res = await api.post('/api/cafeteria/menu/rate', {
         date,
         mealType,
         rating,
@@ -80,10 +80,10 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
   };
 
   return (
-    <div className={`p-4 rounded-lg border ${mealColors[mealType]} mb-4`}>
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-2xl">{mealEmojis[mealType]}</span>
-        <h3 className="font-semibold capitalize text-gray-800">{mealType}</h3>
+    <div className={`p-3 sm:p-4 rounded-xl border ${mealColors[mealType]} mb-4`}>
+      <div className="flex items-center gap-2 mb-3 sm:mb-4">
+        <span className="text-xl sm:text-2xl">{mealEmojis[mealType]}</span>
+        <h3 className="font-semibold capitalize text-gray-800 text-sm sm:text-base">{mealType}</h3>
         {userRating && (
           <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
             Rated
@@ -92,7 +92,7 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
       </div>
 
       {/* Rating Stars */}
-      <div className="flex items-center gap-1 mb-3">
+      <div className="flex items-center gap-1 mb-3 sm:mb-4">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
@@ -100,29 +100,29 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
             onClick={() => handleRatingChange(star)}
             onMouseEnter={() => setHover(star)}
             onMouseLeave={() => setHover(0)}
-            className="focus:outline-none"
+            className="focus:outline-none touch-manipulation p-1"
             disabled={loading}
           >
             {star <= (hover || rating) ? (
-              <StarIcon className="w-6 h-6 text-yellow-400" />
+              <StarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
             ) : (
-              <StarOutlineIcon className="w-6 h-6 text-gray-300" />
+              <StarOutlineIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-300" />
             )}
           </button>
         ))}
-        <span className="ml-2 text-sm text-gray-600">
+        <span className="ml-2 text-xs sm:text-sm text-gray-600">
           {rating > 0 && `${rating}/5`}
         </span>
       </div>
 
       {/* Comment Input */}
-      <div className="mb-3">
+      <div className="mb-3 sm:mb-4">
         <textarea
           value={comment}
           onChange={handleCommentChange}
           placeholder={`Share your thoughts about ${mealType}...`}
-          className="w-full p-2 border border-gray-300 rounded-md text-sm resize-none"
-          rows="2"
+          className="w-full p-2.5 sm:p-2 border border-gray-300 rounded-lg text-xs sm:text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="3"
           maxLength="500"
           disabled={loading}
         />
@@ -135,10 +135,10 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
       <button
         onClick={handleRatingSubmit}
         disabled={loading || rating === 0}
-        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+        className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors touch-manipulation ${
           loading || rating === 0
             ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            : 'bg-blue-600 text-white hover:bg-blue-700'
+            : 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
         }`}
       >
         {loading ? 'Submitting...' : userRating ? 'Update Rating' : 'Submit Rating'}
@@ -146,8 +146,8 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
 
       {/* Average Rating Display */}
       {avgRating > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-200">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-200">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
             <span>Average: {avgRating}/5</span>
             <span>({totalRatings} ratings)</span>
           </div>
