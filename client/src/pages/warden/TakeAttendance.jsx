@@ -105,54 +105,41 @@ const TakeAttendance = () => {
 
       console.log('🔍 API params:', params.toString());
 
-      const response = await api.get(`/api/attendance/date?${params}`);
+      const response = await api.get(`/api/attendance/students?${params}`);
       
       if (response.data.success) {
-        console.log('🔍 Attendance records received:', response.data.data.attendance.length);
+        console.log('🔍 Students received:', response.data.data.students.length);
         
-        // Extract students from attendance records
-        const attendanceRecords = response.data.data.attendance;
-        let filteredAttendance = attendanceRecords;
+        // Get students directly from the response
+        let students = response.data.data.students;
         
         // Frontend filtering - ensure only students of warden's gender are shown
         if (wardenGender) {
-          filteredAttendance = attendanceRecords.filter(record => 
-            record.student?.gender === wardenGender
+          students = students.filter(student => 
+            student.gender === wardenGender
           );
-          console.log('🔍 After gender filtering:', filteredAttendance.length, 'records');
+          console.log('🔍 After gender filtering:', students.length, 'students');
         }
 
         // Frontend filtering for course and branch
         if (filters.course) {
-          filteredAttendance = filteredAttendance.filter(record => 
-            record.student?.course?._id === filters.course || record.student?.course === filters.course
+          students = students.filter(student => 
+            student.course?._id === filters.course || student.course === filters.course
           );
-          console.log('🔍 After course filtering:', filteredAttendance.length, 'records');
+          console.log('🔍 After course filtering:', students.length, 'students');
         }
 
         if (filters.branch) {
-          filteredAttendance = filteredAttendance.filter(record => 
-            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
+          students = students.filter(student => 
+            student.branch?._id === filters.branch || student.branch === filters.branch
           );
-          console.log('🔍 After branch filtering:', filteredAttendance.length, 'records');
+          console.log('🔍 After branch filtering:', students.length, 'students');
         }
-        
-        // Convert attendance records to student format for the UI
-        const students = filteredAttendance.map(record => ({
-          ...record.student,
-          attendance: {
-            morning: record.morning || false,
-            evening: record.evening || false,
-            night: record.night || false,
-            status: record.status,
-            percentage: record.percentage
-          }
-        }));
         
         setStudents(students);
         setStats({
-          ...response.data.data.statistics,
-          totalStudents: students.length
+          totalStudents: students.length,
+          attendanceTaken: response.data.data.attendanceTaken
         });
         
         // Initialize attendance data
