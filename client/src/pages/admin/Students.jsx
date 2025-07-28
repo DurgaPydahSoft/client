@@ -990,7 +990,7 @@ const Students = () => {
     }
 
     // Validate phone numbers
-    if (!/^[0-9]{10}$/.test(formData.studentPhone)) {
+    if (formData.studentPhone && !/^[0-9]{10}$/.test(formData.studentPhone)) {
       errors.push('Student phone number must be 10 digits');
     }
     if (!/^[0-9]{10}$/.test(formData.parentPhone)) {
@@ -3050,9 +3050,9 @@ const Students = () => {
                 name="studentPhone"
                 value={editForm.studentPhone}
                 onChange={handleEditFormChange}
-                required
                 pattern="[0-9]{10}"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter phone number (optional)"
               />
             </div>
             <div className="space-y-1">
