@@ -48,6 +48,8 @@ const TakeAttendance = () => {
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [availableRooms, setAvailableRooms] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Get current date in YYYY-MM-DD format
   const currentDate = new Date().toISOString().split('T')[0];
@@ -78,12 +80,47 @@ const TakeAttendance = () => {
     fetchFilters();
   }, []);
 
+  // Fetch rooms when category changes
+  useEffect(() => {
+    if (filters.category) {
+      fetchRooms();
+    } else {
+      setAvailableRooms([]);
+    }
+  }, [filters.category]);
+
   // Helper to map hostelType to gender
   const getWardenGender = () => {
     if (!user?.hostelType) return undefined;
     if (user.hostelType.toLowerCase() === 'boys') return 'Male';
     if (user.hostelType.toLowerCase() === 'girls') return 'Female';
     return undefined;
+  };
+
+  const fetchRooms = async () => {
+    if (!filters.category) return;
+    
+    setLoadingRooms(true);
+    try {
+      const wardenGender = getWardenGender();
+      const params = {
+        gender: wardenGender,
+        category: filters.category
+      };
+      
+      const response = await api.get('/api/admin/rooms', { params });
+      
+      if (response.data.success) {
+        const rooms = response.data.data.rooms || [];
+        setAvailableRooms(rooms);
+        console.log('🔍 Fetched rooms for category:', filters.category, 'gender:', wardenGender, 'count:', rooms.length);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      toast.error('Failed to fetch rooms');
+    } finally {
+      setLoadingRooms(false);
+    }
   };
 
   const fetchStudents = async () => {
@@ -336,6 +373,13 @@ const TakeAttendance = () => {
     return 'N/A';
   };
 
+  // Helper function to get category options based on gender
+  const getCategoryOptions = (gender) => {
+    return gender === 'Male' 
+      ? ['A+', 'A', 'B+', 'B']
+      : ['A+', 'A', 'B', 'C'];
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -459,25 +503,29 @@ const TakeAttendance = () => {
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   >
                     <option value="">All Categories</option>
-                    <option value="A+">A+</option>
-                    <option value="A">A</option>
-                    <option value="B+">B+</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
+                    {getCategoryOptions(getWardenGender()).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
                   </select>
                 </div>
 
                 {/* Room Filter */}
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Room</label>
-                  <input
-                    type="text"
+                  <select
                     name="roomNumber"
                     value={roomInput}
                     onChange={handleRoomInputChange}
-                    placeholder="Room number"
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
-                  />
+                    disabled={loadingRooms || availableRooms.length === 0}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
+                  >
+                    <option value="">{loadingRooms ? 'Loading...' : availableRooms.length === 0 ? 'No rooms available' : 'Select a room'}</option>
+                    {availableRooms.map((room) => (
+                      <option key={room._id} value={room.roomNumber}>
+                        {room.roomNumber} ({room.category})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
@@ -563,25 +611,29 @@ const TakeAttendance = () => {
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
               >
                 <option value="">All Categories</option>
-                <option value="A+">A+</option>
-                <option value="A">A</option>
-                <option value="B+">B+</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
+                {getCategoryOptions(getWardenGender()).map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
               </select>
             </div>
 
             {/* Room Filter */}
             <div className="sm:col-span-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Room</label>
-              <input
-                type="text"
+              <select
                 name="roomNumber"
                 value={roomInput}
                 onChange={handleRoomInputChange}
-                placeholder="Room number"
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
-              />
+                disabled={loadingRooms || availableRooms.length === 0}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
+              >
+                <option value="">{loadingRooms ? 'Loading...' : availableRooms.length === 0 ? 'No rooms available' : 'Select a room'}</option>
+                {availableRooms.map((room) => (
+                  <option key={room._id} value={room.roomNumber}>
+                    {room.roomNumber} ({room.category})
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </motion.div>
