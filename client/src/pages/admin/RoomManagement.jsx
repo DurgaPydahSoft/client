@@ -596,26 +596,26 @@ const RoomManagement = () => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
       <SEO title="Room Management" />
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Room Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage hostel rooms and their assignments</p>
+          <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Room Management</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage hostel rooms and their assignments</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
           disabled={!canAddRoom}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${
             canAddRoom 
               ? 'bg-blue-600 text-white hover:bg-blue-700' 
               : 'bg-gray-400 text-gray-200 cursor-not-allowed'
           }`}
           title={!canAddRoom ? 'You need full access to add rooms' : 'Add new room'}
         >
-          {!canAddRoom ? <LockClosedIcon className="w-5 h-5" /> : <PlusIcon className="w-5 h-5" />}
+          {!canAddRoom ? <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
           Add Room
         </button>
       </div>
@@ -624,38 +624,38 @@ const RoomManagement = () => {
 
       {/* Room Statistics */}
       {!statsLoading && roomStats && (
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Room Statistics</h2>
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Room Statistics</h2>
           
           {/* Overall Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{roomStats.overall.totalRooms}</div>
-              <div className="text-sm text-gray-600">Total Rooms</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <div className="bg-blue-50 p-2 sm:p-4 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-blue-600">{roomStats.overall.totalRooms}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Total Rooms</div>
             </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{roomStats.overall.activeRooms}</div>
-              <div className="text-sm text-gray-600">Active Rooms</div>
+            <div className="bg-green-50 p-2 sm:p-4 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-green-600">{roomStats.overall.activeRooms}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Active Rooms</div>
             </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">{roomStats.overall.totalBeds}</div>
-              <div className="text-sm text-gray-600">Total Beds</div>
+            <div className="bg-purple-50 p-2 sm:p-4 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-purple-600">{roomStats.overall.totalBeds}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Total Beds</div>
             </div>
-            <div className="bg-orange-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">{roomStats.overall.filledBeds}</div>
-              <div className="text-sm text-gray-600">Filled Beds</div>
+            <div className="bg-orange-50 p-2 sm:p-4 rounded-lg">
+              <div className="text-lg sm:text-2xl font-bold text-orange-600">{roomStats.overall.filledBeds}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Filled Beds</div>
             </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">{roomStats.overall.availableBeds}</div>
-              <div className="text-sm text-gray-600">Available Beds</div>
+            <div className="bg-gray-50 p-2 sm:p-4 rounded-lg col-span-2 sm:col-span-1">
+              <div className="text-lg sm:text-2xl font-bold text-gray-600">{roomStats.overall.availableBeds}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Available Beds</div>
             </div>
           </div>
 
           {/* Bed Occupancy Rate */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-6">
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Bed Occupancy Rate</span>
-              <span className="text-sm font-semibold text-gray-900">
+              <span className="text-xs sm:text-sm font-medium text-gray-700">Bed Occupancy Rate</span>
+              <span className="text-xs sm:text-sm font-semibold text-gray-900">
                 {roomStats.overall.totalBeds > 0 
                   ? Math.round((roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100)
                   : 0}%
@@ -674,31 +674,31 @@ const RoomManagement = () => {
           </div>
 
           {/* Stats by Gender */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {roomStats.byGender.map((genderStat) => (
-              <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">{genderStat.gender} Students</h3>
+              <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{genderStat.gender} Students</h3>
                 
                 {/* Gender Summary */}
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
                   <div className="text-center">
-                    <div className="text-xl font-bold text-blue-600">{genderStat.totalBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-blue-600">{genderStat.totalBeds}</div>
                     <div className="text-xs text-gray-600">Total Beds</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-green-600">{genderStat.filledBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-green-600">{genderStat.filledBeds}</div>
                     <div className="text-xs text-gray-600">Filled</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl font-bold text-gray-600">{genderStat.availableBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-gray-600">{genderStat.availableBeds}</div>
                     <div className="text-xs text-gray-600">Available</div>
                   </div>
                 </div>
 
                 {/* Category Breakdown */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   {genderStat.categories.map((category) => (
-                    <div key={category.category} className="flex justify-between items-center text-sm">
+                    <div key={category.category} className="flex justify-between items-center text-xs sm:text-sm">
                       <span className="font-medium text-gray-700">Category {category.category}</span>
                       <span className="text-gray-600">
                         {category.filledBeds}/{category.totalBeds} beds
@@ -713,17 +713,17 @@ const RoomManagement = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Gender
             </label>
             <select
               name="gender"
               value={filters.gender}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Genders</option>
               <option value="Male">Male</option>
@@ -731,7 +731,7 @@ const RoomManagement = () => {
             </select>
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
               Category
             </label>
             <select
@@ -739,7 +739,7 @@ const RoomManagement = () => {
               value={filters.category}
               onChange={handleFilterChange}
               disabled={!filters.gender}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-xs sm:text-sm"
             >
               <option value="">All Categories</option>
               {filters.gender === 'Male' ? (
@@ -771,32 +771,32 @@ const RoomManagement = () => {
       </div>
 
       {/* Room Management Table */}
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
           {Object.entries(groupedRooms).map(([key, rooms]) => {
             const [gender, category] = key.split('-');
             return (
-              <div key={key} className="space-y-4">
-                <h2 className="text-lg font-semibold text-gray-900">
+              <div key={key} className="space-y-3 sm:space-y-4">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
                   {gender} - Category {category}
                 </h2>
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Room Number
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Bed Count
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Students
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -809,20 +809,20 @@ const RoomManagement = () => {
                       animate={{ opacity: 1, y: 0 }}
                           className="hover:bg-gray-50 transition-colors"
                     >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                         <div
                               className="cursor-pointer"
                           onClick={() => handleRoomClick(room)}
                         >
-                              <div className="text-sm font-semibold text-gray-900">
+                              <div className="text-xs sm:text-sm font-semibold text-gray-900">
                             Room {room.roomNumber}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <BuildingOfficeIcon className="w-4 h-4 text-gray-400" />
-                              <span className={`text-sm px-2 py-1 rounded-full ${
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <BuildingOfficeIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                              <span className={`text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
                                 room.isActive 
                                   ? 'bg-green-100 text-green-800' 
                                   : 'bg-red-100 text-red-800'
@@ -831,53 +831,53 @@ const RoomManagement = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <span className="bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-xs font-medium">
                               {room.bedCount} Beds
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
-                              <UserGroupIcon className="w-4 h-4 text-gray-400" />
-                              <span className="text-sm text-gray-900">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                              <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                              <span className="text-xs sm:text-sm text-gray-900">
                             {room.studentCount || 0} Students
                               </span>
                         </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-1 sm:gap-2">
                           {canEditRoom ? (
                             <button
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
                               title="Edit Room"
                             >
-                              <PencilIcon className="w-4 h-4" />
+                              <PencilIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
                           ) : (
                             <button
-                              className="p-2 text-gray-400 cursor-not-allowed"
+                              className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
                               disabled
                               title="You need full access to edit rooms"
                             >
-                              <LockClosedIcon className="w-4 h-4" />
+                              <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
                           )}
                           {canDeleteRoom ? (
                             <button
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
                               title="Delete Room"
                             >
-                              <TrashIcon className="w-4 h-4" />
+                              <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
                           ) : (
                             <button
-                              className="p-2 text-gray-400 cursor-not-allowed"
+                              className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
                               disabled
                               title="You need full access to delete rooms"
                             >
-                              <LockClosedIcon className="w-4 h-4" />
+                              <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             </button>
                           )}
                         </div>
@@ -900,26 +900,26 @@ const RoomManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-md"
+              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-md"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Add New Room</h2>
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl font-semibold">Add New Room</h2>
                 <button
                   onClick={() => setShowAddModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <form onSubmit={handleAddRoom} className="space-y-4">
+              <form onSubmit={handleAddRoom} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Gender
                   </label>
                   <select
@@ -927,7 +927,7 @@ const RoomManagement = () => {
                     value={formData.gender}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   >
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
@@ -935,7 +935,7 @@ const RoomManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Category
                   </label>
                   <select
@@ -943,7 +943,7 @@ const RoomManagement = () => {
                     value={formData.category}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   >
                     <option value="">Select Category</option>
                     {getCategoryOptions(formData.gender).map(category => (
@@ -954,7 +954,7 @@ const RoomManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Room Number
                   </label>
                   <input
@@ -963,12 +963,12 @@ const RoomManagement = () => {
                     value={formData.roomNumber}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                     placeholder="Enter room number"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Bed Count
                   </label>
                   <input
@@ -978,21 +978,21 @@ const RoomManagement = () => {
                     value={formData.bedCount}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                     placeholder="Enter bed count"
                   />
                 </div>
-                <div className="flex justify-end gap-3">
+                <div className="flex justify-end gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
                   >
                     Add Room
                   </button>
@@ -1010,26 +1010,26 @@ const RoomManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-md"
+              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-md"
             >
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Edit Room</h2>
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-lg sm:text-xl font-semibold">Edit Room</h2>
                 <button
                   onClick={() => setShowEditModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <form onSubmit={handleEditRoom} className="space-y-4">
+              <form onSubmit={handleEditRoom} className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Gender
                   </label>
                   <select
@@ -1037,14 +1037,14 @@ const RoomManagement = () => {
                     value={formData.gender}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Category
                   </label>
                   <select
@@ -1052,7 +1052,7 @@ const RoomManagement = () => {
                     value={formData.category}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   >
                     {getCategoryOptions(formData.gender).map(category => (
                       <option key={category} value={category}>
@@ -1062,7 +1062,7 @@ const RoomManagement = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Room Number
                   </label>
                   <input
@@ -1071,11 +1071,11 @@ const RoomManagement = () => {
                     value={formData.roomNumber}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Bed Count
                   </label>
                   <input
@@ -1085,21 +1085,21 @@ const RoomManagement = () => {
                     value={formData.bedCount}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                     placeholder="Enter bed count"
                   />
                 </div>
-                <div className="flex justify-end gap-3">
+                <div className="flex justify-end gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
                   >
                     Update Room
                   </button>
@@ -1117,28 +1117,28 @@ const RoomManagement = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
                 <div>
-                  <h2 className="text-xl font-semibold">
+                  <h2 className="text-lg sm:text-xl font-semibold">
                     Room {selectedRoom.roomNumber} Details
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     {selectedRoom.gender} - Category {selectedRoom.category}
                   </p>
                 </div>
                 <button
                   onClick={() => setShowStudentModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="w-6 h-6" />
+                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
 
@@ -1147,33 +1147,33 @@ const RoomManagement = () => {
                   <LoadingSpinner size="md" />
                 </div>
               ) : !roomStudents || roomStudents.length === 0 ? (
-                <div className="text-center py-8">
-                  <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-500">No students assigned to this room</p>
+                <div className="text-center py-6 sm:py-8">
+                  <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-3" />
+                  <p className="text-xs sm:text-sm text-gray-500">No students assigned to this room</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {roomStudents.map((student) => (
                     <div
                       key={student._id}
-                      className="bg-gray-50 rounded-lg p-4 flex items-start gap-4"
+                      className="bg-gray-50 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
                     >
-                      <div className="bg-blue-100 p-2 rounded-lg">
-                        <UserIcon className="w-6 h-6 text-blue-600" />
+                      <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg">
+                        <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">{student.name}</h3>
-                        <div className="mt-2 space-y-1 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <AcademicCapIcon className="w-4 h-4" />
+                        <h3 className="font-medium text-gray-900 text-sm sm:text-base">{student.name}</h3>
+                        <div className="mt-1.5 sm:mt-2 space-y-1 text-xs sm:text-sm text-gray-600">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span>Roll No: {student.rollNumber}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <PhoneIcon className="w-4 h-4" />
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span>Phone: {student.studentPhone}</span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <span className="text-xs bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
                               {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
                             </span>
                             {/* <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">

@@ -4684,6 +4684,63 @@ const Students = () => {
               </div>
             </div>
 
+            {/* Course-wise Student Count */}
+            {roomStudents && roomStudents.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                    <AcademicCapIcon className="w-5 h-5 mr-2" />
+                    Course-wise Student Count
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {(() => {
+                      // Calculate course-wise counts (only by course, not branch)
+                      const courseCounts = roomStudents.reduce((acc, student) => {
+                        const courseName = student.course?.name || getCourseName(student.course) || 'Unknown Course';
+                        
+                        if (!acc[courseName]) {
+                          acc[courseName] = {
+                            count: 0,
+                            courseName
+                          };
+                        }
+                        
+                        acc[courseName].count++;
+                        return acc;
+                      }, {});
+
+                      // Color palette for different courses
+                      const colors = [
+                        'bg-blue-500 text-white',
+                        'bg-green-500 text-white', 
+                        'bg-purple-500 text-white',
+                        'bg-orange-500 text-white',
+                        'bg-red-500 text-white',
+                        'bg-indigo-500 text-white',
+                        'bg-pink-500 text-white',
+                        'bg-teal-500 text-white'
+                      ];
+
+                      return Object.entries(courseCounts).map(([courseName, data], index) => (
+                        <div 
+                          key={courseName} 
+                          className={`${colors[index % colors.length]} px-3 sm:px-4 py-3 rounded-lg flex items-center gap-2 sm:gap-3`}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold text-xs sm:text-sm truncate">{data.courseName}</div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{data.count}</div>
+                            <div className="text-xs opacity-90">students</div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Students List */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Students in Room</h3>

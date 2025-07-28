@@ -409,7 +409,7 @@ const ViewAttendance = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent flex items-center gap-2">
                 <EyeIcon className="w-6 h-6 text-green-600" />
                 View Attendance {user?.hostelType && `(${user.hostelType} Students)`}
               </h1>

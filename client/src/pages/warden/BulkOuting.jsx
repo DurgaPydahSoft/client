@@ -284,9 +284,9 @@ const BulkOuting = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'Approved': return <CheckIcon className="w-4 h-4" />;
-      case 'Rejected': return <XMarkIcon className="w-4 h-4" />;
-      case 'Pending': return <ClockIcon className="w-4 h-4" />;
+      case 'Approved': return <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 'Rejected': return <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 'Pending': return <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       default: return null;
     }
   };
@@ -314,34 +314,34 @@ const BulkOuting = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+    <div className="min-h-screen bg-gray-50">
       <SEO title="Bulk Outing - Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <UsersIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                Bulk Outing Management {user?.hostelType && `(${user.hostelType} Students)`}
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
+                <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0" />
+                <span>Bulk Outing Management {user?.hostelType && `(${user.hostelType} Students)`}</span>
               </h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">
+              <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 sm:mt-2">
                 Create bulk outing requests for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4 text-center sm:text-right">
-              <div>
-                <p className="text-sm text-gray-500">Total Students</p>
-                <p className="text-2xl font-bold text-green-600">{stats.totalStudents}</p>
+            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 sm:gap-4 text-center lg:text-right">
+              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
+                <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{stats.totalStudents}</p>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Selected</p>
-                <p className="text-2xl font-bold text-blue-600">{stats.selectedStudents}</p>
+              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
+                <p className="text-xs sm:text-sm text-gray-500">Selected</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600">{stats.selectedStudents}</p>
               </div>
             </div>
           </div>
@@ -352,30 +352,32 @@ const BulkOuting = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-4 mb-4 sm:mb-6"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 mb-3 sm:mb-4 lg:mb-6"
         >
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setShowHistory(false)}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              className={`flex-1 px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${
                 !showHistory
                   ? 'border-green-500 text-green-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              <UsersIcon className="w-4 h-4 inline mr-2" />
-              Create Outing
+              <UsersIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Create Outing</span>
+              <span className="sm:hidden">Create</span>
             </button>
             <button
               onClick={() => setShowHistory(true)}
-              className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+              className={`flex-1 px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${
                 showHistory
                   ? 'border-green-500 text-green-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              <ClockIcon className="w-4 h-4 inline mr-2" />
-              Outing History
+              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Outing History</span>
+              <span className="sm:hidden">History</span>
             </button>
           </div>
         </motion.div>
@@ -387,16 +389,16 @@ const BulkOuting = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
             >
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5 text-green-600" />
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Outing Details
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <CalendarIcon className="w-4 h-4 inline mr-1" />
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                     Outing Date
                   </label>
                   <input
@@ -404,13 +406,13 @@ const BulkOuting = () => {
                     name="outingDate"
                     value={outingData.outingDate}
                     onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <MapPinIcon className="w-4 h-4 inline mr-1" />
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    <MapPinIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                     Reason/Purpose
                   </label>
                   <input
@@ -419,7 +421,7 @@ const BulkOuting = () => {
                     value={outingData.reason}
                     onChange={handleInputChange}
                     placeholder="Enter reason for outing"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                     required
                   />
                 </div>
@@ -431,21 +433,21 @@ const BulkOuting = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <FunnelIcon className="w-5 h-5 text-green-600" />
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+                <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Filter Students
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Course</label>
                   <select
                     name="course"
                     value={filters.course}
                     onChange={handleFilterChange}
                     disabled={loadingFilters}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
                   >
                     <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
                     {courses.map((course) => (
@@ -456,13 +458,13 @@ const BulkOuting = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch</label>
                   <select
                     name="branch"
                     value={filters.branch}
                     onChange={handleFilterChange}
                     disabled={loadingFilters || !filters.course}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
                   >
                     <option value="">
                       {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
@@ -475,25 +477,25 @@ const BulkOuting = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Gender {user?.hostelType && `(${user.hostelType} Warden)`}
                   </label>
                   <select
                     name="gender"
                     value={user?.hostelType || ''}
                     disabled={true}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm bg-gray-50 cursor-not-allowed"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm bg-gray-50 cursor-not-allowed"
                   >
                     <option value="">{user?.hostelType || 'Not Assigned'}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Category</label>
                   <select
                     name="category"
                     value={filters.category}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   >
                     <option value="">All Categories</option>
                     <option value="General">General</option>
@@ -503,45 +505,45 @@ const BulkOuting = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Room Number</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Room Number</label>
                   <input
                     type="text"
                     name="roomNumber"
                     value={filters.roomNumber}
                     onChange={handleFilterChange}
                     placeholder="Enter room number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Batch</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Batch</label>
                   <input
                     type="text"
                     name="batch"
                     value={filters.batch}
                     onChange={handleFilterChange}
                     placeholder="Enter batch"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Academic Year</label>
                   <input
                     type="text"
                     name="academicYear"
                     value={filters.academicYear}
                     onChange={handleFilterChange}
                     placeholder="Enter academic year"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Hostel Status</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Hostel Status</label>
                   <select
                     name="hostelStatus"
                     value={filters.hostelStatus}
                     onChange={handleFilterChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -550,16 +552,17 @@ const BulkOuting = () => {
               </div>
               
               {/* Apply Filters Button */}
-              <div className="mt-4 flex justify-end">
+              <div className="mt-3 sm:mt-4 flex justify-end">
                 <button
                   onClick={applyFilters}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-xs sm:text-sm font-medium"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Loading...
+                      <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span className="hidden sm:inline">Loading...</span>
+                      <span className="sm:hidden">Loading</span>
                     </div>
                   ) : (
                     'Apply Filters'
@@ -573,11 +576,11 @@ const BulkOuting = () => {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="bg-white rounded-lg shadow-sm overflow-hidden"
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden"
             >
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <UserGroupIcon className="w-5 h-5 text-green-600" />
+              <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                   Select Students ({students.length})
                 </h2>
                 <div className="flex items-center gap-2">
@@ -587,7 +590,7 @@ const BulkOuting = () => {
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                   />
-                  <span className="text-sm text-gray-600">Select All</span>
+                  <span className="text-xs sm:text-sm text-gray-600">Select All</span>
                 </div>
               </div>
 
@@ -595,19 +598,19 @@ const BulkOuting = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Select
                       </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Student
                       </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Course & Branch
                       </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Room
                       </th>
-                      <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Contact
                       </th>
                     </tr>
@@ -621,7 +624,7 @@ const BulkOuting = () => {
                         transition={{ delay: index * 0.05 }}
                         className="hover:bg-gray-50"
                       >
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedStudents.includes(student._id)}
@@ -629,28 +632,28 @@ const BulkOuting = () => {
                             className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                           />
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs sm:text-sm font-medium text-gray-900">
                               {student.name || 'Unknown Student'}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs sm:text-sm text-gray-500">
                               {student.rollNumber || 'N/A'}
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                        <td className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">
                             {getCourseName(student.course)} {student.year || ''}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm text-gray-500">
                             {getBranchName(student.branch)}
                           </div>
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                           Room {student.roomNumber || 'N/A'}
                         </td>
-                        <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-2 sm:px-4 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                           {student.phone || 'N/A'}
                         </td>
                       </motion.tr>
@@ -660,9 +663,9 @@ const BulkOuting = () => {
               </div>
 
               {students.length === 0 && (
-                <div className="text-center py-12">
-                  <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No students found with the selected filters.</p>
+                <div className="text-center py-8 sm:py-12">
+                  <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-4" />
+                  <p className="text-xs sm:text-sm text-gray-500">No students found with the selected filters.</p>
                 </div>
               )}
             </motion.div>
@@ -672,24 +675,26 @@ const BulkOuting = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mt-4 sm:mt-6 flex justify-end"
+              className="mt-3 sm:mt-4 lg:mt-6 flex justify-end"
             >
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit}
                 disabled={submitting || selectedStudents.length === 0}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md text-xs sm:text-sm font-medium"
               >
                 {submitting ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Creating Outing Request...
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span className="hidden sm:inline">Creating Outing Request...</span>
+                    <span className="sm:hidden">Creating...</span>
                   </>
                 ) : (
                   <>
-                    <CalendarDaysIcon className="w-5 h-5" />
-                    Create Bulk Outing Request ({selectedStudents.length} students)
+                    <CalendarDaysIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">Create Bulk Outing Request ({selectedStudents.length} students)</span>
+                    <span className="sm:hidden">Create ({selectedStudents.length})</span>
                   </>
                 )}
               </motion.button>
@@ -701,19 +706,19 @@ const BulkOuting = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm overflow-hidden"
+            className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden"
           >
-            <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <ClockIcon className="w-5 h-5 text-green-600" />
+            <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
                 Bulk Outing History ({bulkOutings.length})
               </h2>
             </div>
 
             {bulkOutings.length === 0 ? (
-              <div className="text-center py-12">
-                <ClockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No bulk outing requests found.</p>
+              <div className="text-center py-8 sm:py-12">
+                <ClockIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-4" />
+                <p className="text-xs sm:text-sm text-gray-500">No bulk outing requests found.</p>
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
@@ -722,42 +727,42 @@ const BulkOuting = () => {
                     key={outing._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
+                    className="p-3 sm:p-4 lg:p-6 hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 sm:gap-4">
                       <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(outing.status)}`}>
+                        <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
+                          <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(outing.status)}`}>
                             {getStatusIcon(outing.status)}
                             <span className="ml-1">{outing.status}</span>
                           </span>
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border text-purple-600 bg-purple-50 border-purple-200">
+                          <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium border text-purple-600 bg-purple-50 border-purple-200">
                             Bulk Outing
                           </span>
-                          <span className="text-sm text-gray-500">
+                          <span className="text-xs sm:text-sm text-gray-500">
                             {new Date(outing.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                         
-                        <div className="space-y-2">
+                        <div className="space-y-1 sm:space-y-2">
                           <div>
-                            <span className="text-sm font-medium text-gray-700">Outing Date:</span>
-                            <span className="text-sm text-gray-600 ml-2">
+                            <span className="text-xs sm:text-sm font-medium text-gray-700">Outing Date:</span>
+                            <span className="text-xs sm:text-sm text-gray-600 ml-2">
                               {new Date(outing.outingDate).toLocaleDateString()}
                             </span>
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-gray-700">Reason:</span>
-                            <span className="text-sm text-gray-600 ml-2">{outing.reason}</span>
+                            <span className="text-xs sm:text-sm font-medium text-gray-700">Reason:</span>
+                            <span className="text-xs sm:text-sm text-gray-600 ml-2">{outing.reason}</span>
                           </div>
                           <div>
-                            <span className="text-sm font-medium text-gray-700">Students:</span>
-                            <span className="text-sm text-gray-600 ml-2">{outing.selectedStudents?.length || outing.studentCount || 0} students</span>
+                            <span className="text-xs sm:text-sm font-medium text-gray-700">Students:</span>
+                            <span className="text-xs sm:text-sm text-gray-600 ml-2">{outing.selectedStudents?.length || outing.studentCount || 0} students</span>
                           </div>
                           {outing.rejectionReason && (
                             <div>
-                              <span className="text-sm font-medium text-red-700">Rejection Reason:</span>
-                              <span className="text-sm text-red-600 ml-2">{outing.rejectionReason}</span>
+                              <span className="text-xs sm:text-sm font-medium text-red-700">Rejection Reason:</span>
+                              <span className="text-xs sm:text-sm text-red-600 ml-2">{outing.rejectionReason}</span>
                             </div>
                           )}
                         </div>
@@ -765,10 +770,11 @@ const BulkOuting = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleViewStudents(outing)}
-                          className="inline-flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                          className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                         >
-                          <EyeIcon className="w-4 h-4" />
-                          See Students List
+                          <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">See Students List</span>
+                          <span className="sm:hidden">View</span>
                         </button>
                       </div>
                     </div>
@@ -782,21 +788,21 @@ const BulkOuting = () => {
 
       {/* Students List Modal */}
       {showStudentsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-3 sm:p-4 z-50">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+            className="bg-white rounded-lg sm:rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
           >
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <UsersIcon className="w-5 h-5 text-blue-600" />
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                   Students in Bulk Outing
                 </h3>
                 {selectedOutingDetails && (
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-xs sm:text-sm text-gray-600 mt-1">
                     {new Date(selectedOutingDetails.outingDate).toLocaleDateString()} - {selectedOutingDetails.reason}
                   </p>
                 )}
@@ -809,11 +815,11 @@ const BulkOuting = () => {
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {loadingStudents ? (
                 <div className="flex items-center justify-center py-8">
                   <LoadingSpinner />
@@ -823,16 +829,16 @@ const BulkOuting = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Student
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Course & Branch
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Room
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Contact
                         </th>
                       </tr>
@@ -846,28 +852,28 @@ const BulkOuting = () => {
                           transition={{ delay: index * 0.05 }}
                           className="hover:bg-gray-50"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div>
-                              <div className="text-sm font-medium text-gray-900">
+                              <div className="text-xs sm:text-sm font-medium text-gray-900">
                                 {student.name || 'Unknown Student'}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-xs sm:text-sm text-gray-500">
                                 {student.rollNumber || 'N/A'}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div className="text-xs sm:text-sm text-gray-900">
                               {getCourseName(student.course)} {student.year || ''}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs sm:text-sm text-gray-500">
                               {getBranchName(student.branch)}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                             Room {student.roomNumber || 'N/A'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                             {student.studentPhone || 'N/A'}
                           </td>
                         </motion.tr>
@@ -876,15 +882,15 @@ const BulkOuting = () => {
                   </table>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <UsersIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">No students found for this outing.</p>
+                <div className="text-center py-6 sm:py-8">
+                  <UsersIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-4" />
+                  <p className="text-xs sm:text-sm text-gray-500">No students found for this outing.</p>
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
-              <span className="text-sm text-gray-600">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-200 flex justify-between items-center">
+              <span className="text-xs sm:text-sm text-gray-600">
                 Total: {selectedOutingStudents.length} students
               </span>
               <button
@@ -893,7 +899,7 @@ const BulkOuting = () => {
                   setSelectedOutingStudents([]);
                   setSelectedOutingDetails(null);
                 }}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-800 transition-colors"
               >
                 Close
               </button>

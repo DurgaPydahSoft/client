@@ -35,6 +35,7 @@ const ViewAttendance = () => {
     gender: '',
     status: ''
   });
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
     morningPresent: 0,
@@ -290,12 +291,12 @@ const ViewAttendance = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 lg:p-6">
       {/* Stats Display */}
-      <div className="flex items-center justify-end gap-4 mb-6">
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Total Records</p>
-          <p className="text-2xl font-bold text-blue-600">{attendance.length}</p>
+      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="text-left sm:text-right">
+          <p className="text-xs sm:text-sm text-gray-500">Total Records</p>
+          <p className="text-lg sm:text-2xl font-bold text-blue-600">{attendance.length}</p>
         </div>
       </div>
 
@@ -305,60 +306,212 @@ const ViewAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-6 mb-6"
+          className="bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6"
         >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ChartBarIcon className="w-5 h-5 text-blue-600" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
             Attendance Statistics
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-4">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Total Students</p>
-              <p className="text-2xl font-bold text-blue-600">{statistics.totalStudents}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">{statistics.totalStudents}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Morning Present</p>
-              <p className="text-2xl font-bold text-yellow-600">{statistics.morningPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Morning Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-600">{statistics.morningPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Evening Present</p>
-              <p className="text-2xl font-bold text-purple-600">{statistics.eveningPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Evening Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">{statistics.eveningPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Night Present</p>
-              <p className="text-2xl font-bold text-indigo-600">{statistics.nightPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Night Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-indigo-600">{statistics.nightPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Fully Present</p>
-              <p className="text-2xl font-bold text-green-600">{statistics.fullyPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Fully Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">{statistics.fullyPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Partially Present</p>
-              <p className="text-2xl font-bold text-orange-600">{statistics.partiallyPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Partially Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">{statistics.partiallyPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Absent</p>
-              <p className="text-2xl font-bold text-red-600">{statistics.absent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Absent</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">{statistics.absent}</p>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* Controls */}
+      {/* Mobile Filter Toggle */}
+      <div className="lg:hidden mb-4">
+        <button
+          onClick={() => setShowMobileFilters(prev => !prev)}
+          className="w-full bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <FunnelIcon className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">Filters</span>
+          </div>
+          <svg 
+            className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        {/* Mobile Filters Panel */}
+        {showMobileFilters && (
+          <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              {/* View Mode Toggle */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">View Mode</label>
+                <select
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value)}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="date">Single Date</option>
+                  <option value="range">Date Range</option>
+                </select>
+              </div>
+
+              {/* Date Selector */}
+              {viewMode === 'date' ? (
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                  />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Start Date</label>
+                    <input
+                      type="date"
+                      value={dateRange.startDate}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">End Date</label>
+                    <input
+                      type="date"
+                      value={dateRange.endDate}
+                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Additional Filters */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Status</option>
+                  <option value="Present">Present</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Absent">Absent</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
+                <select
+                  name="course"
+                  value={filters.course}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Courses</option>
+                  {courses.map(course => (
+                    <option key={course._id} value={course._id}>{course.name} ({course.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
+                <select
+                  name="branch"
+                  value={filters.branch}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Branches</option>
+                  {filteredBranches.map(branch => (
+                    <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
+                <select
+                  name="gender"
+                  value={filters.gender}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
+                <input
+                  type="text"
+                  name="studentId"
+                  value={filters.studentId}
+                  onChange={handleFilterChange}
+                  placeholder="Search by student ID"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Controls */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-lg shadow-sm p-6 mb-6"
+        className="hidden lg:block bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
           {/* View Mode Toggle */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">View Mode</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">View Mode</label>
             <select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="date">Single Date</option>
               <option value="range">Date Range</option>
@@ -368,35 +521,35 @@ const ViewAttendance = () => {
           {/* Date Selector */}
           {viewMode === 'date' ? (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <CalendarIcon className="w-4 h-4 inline mr-1" />
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                 Date
               </label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
               />
             </div>
           ) : (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Start Date</label>
                 <input
                   type="date"
                   value={dateRange.startDate}
                   onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">End Date</label>
                 <input
                   type="date"
                   value={dateRange.endDate}
                   onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
                 />
               </div>
             </>
@@ -404,12 +557,12 @@ const ViewAttendance = () => {
 
           {/* Status Filter */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
             <select
               name="status"
               value={filters.status}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Status</option>
               <option value="Present">Present</option>
@@ -420,14 +573,14 @@ const ViewAttendance = () => {
         </div>
 
         {/* Additional Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
             <select
               name="course"
               value={filters.course}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Courses</option>
               {courses.map(course => (
@@ -437,12 +590,12 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
             <select
               name="branch"
               value={filters.branch}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Branches</option>
               {filteredBranches.map(branch => (
@@ -452,12 +605,12 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
             <select
               name="gender"
               value={filters.gender}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All</option>
               <option value="Male">Male</option>
@@ -466,14 +619,14 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
             <input
               type="text"
               name="studentId"
               value={filters.studentId}
               onChange={handleFilterChange}
               placeholder="Search by student ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
           </div>
         </div>
@@ -486,8 +639,8 @@ const ViewAttendance = () => {
         transition={{ delay: 0.3 }}
         className="bg-white rounded-lg shadow-sm overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             Attendance Records ({attendance.length})
           </h2>
         </div>
@@ -496,56 +649,65 @@ const ViewAttendance = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Student
                 </th>
                 {viewMode === 'date' ? (
                   <>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <SunIcon className="w-4 h-4 inline mr-1" />
-                      Morning
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <SunIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Morning</span>
+                      <span className="sm:hidden">M</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <MoonIcon className="w-4 h-4 inline mr-1" />
-                      Evening
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <MoonIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Evening</span>
+                      <span className="sm:hidden">E</span>
                     </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <StarIcon className="w-4 h-4 inline mr-1" />
-                        Night
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Night</span>
+                      <span className="sm:hidden">N</span>
                       </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Marked By
+                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <span className="hidden sm:inline">Marked By</span>
+                      <span className="sm:hidden">By</span>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Notes
                     </th>
                   </>
                 ) : (
                   <>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <CalendarDaysIcon className="w-4 h-4 inline mr-1" />
-                      Total Days
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <CalendarDaysIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Total Days</span>
+                      <span className="sm:hidden">Total</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <CheckIcon className="w-4 h-4 inline mr-1" />
-                      Present Days
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Present Days</span>
+                      <span className="sm:hidden">Present</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <ClockIcon className="w-4 h-4 inline mr-1" />
-                      Partial Days
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Partial Days</span>
+                      <span className="sm:hidden">Partial</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <XMarkIcon className="w-4 h-4 inline mr-1" />
-                      Absent Days
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Absent Days</span>
+                      <span className="sm:hidden">Absent</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <ChartBarIcon className="w-4 h-4 inline mr-1" />
-                      Attendance %
+                    <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <ChartBarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      <span className="hidden sm:inline">Attendance %</span>
+                      <span className="sm:hidden">%</span>
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </>
@@ -565,13 +727,13 @@ const ViewAttendance = () => {
                       transition={{ delay: index * 0.05 }}
                       className="hover:bg-gray-50"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-xs sm:text-sm font-medium text-gray-900">
                               {record.student?.name || 'Unknown'}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs sm:text-sm text-gray-500">
                               {record.student?.rollNumber || 'N/A'} • {getCourseName(record.student?.course)} {record.student?.year || 'N/A'} • {getBranchName(record.student?.branch)}
                             </div>
                             <div className="text-xs text-gray-400">
@@ -581,42 +743,43 @@ const ViewAttendance = () => {
                         </div>
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.morning ? (
-                          <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                          <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                         )}
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.evening ? (
-                          <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                          <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                         )}
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                      <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.night ? (
-                          <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                          <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                         )}
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                      <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {getStatusIcon(status)}
-                          <span className="ml-1">{status}</span>
+                          <span className="ml-1 hidden sm:inline">{status}</span>
+                          <span className="ml-1 sm:hidden">{status.charAt(0)}</span>
                         </span>
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                         {record.markedBy?.username ? `${record.markedBy.username} (${record.markedBy.role})` : 'System'}
                       </td>
                       
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         {record.notes || '-'}
                       </td>
                     </motion.tr>
@@ -635,26 +798,26 @@ const ViewAttendance = () => {
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => toggleStudentExpansion(student._id)}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0">
                               <button className="text-gray-400 hover:text-gray-600">
                                 {isExpanded ? (
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                   </svg>
                                 ) : (
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                   </svg>
                                 )}
                               </button>
                             </div>
-                            <div className="ml-3">
-                              <div className="text-sm font-medium text-gray-900">
+                            <div className="ml-2 sm:ml-3">
+                              <div className="text-xs sm:text-sm font-medium text-gray-900">
                                 {student.name || 'Unknown'}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-xs sm:text-sm text-gray-500">
                                 {student.rollNumber || 'N/A'} • {getCourseName(student.course)} {student.year || 'N/A'} • {getBranchName(student.branch)}
                               </div>
                               <div className="text-xs text-gray-400">
@@ -664,39 +827,39 @@ const ViewAttendance = () => {
                           </div>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-900">
                           {summary.totalDays}
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
                             <CheckIcon className="w-3 h-3 mr-1" />
                             {summary.presentDays}
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
                             <ClockIcon className="w-3 h-3 mr-1" />
                             {summary.partialDays}
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
                             <XMarkIcon className="w-3 h-3 mr-1" />
                             {summary.absentDays}
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
+                        <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
                             {getPercentageIcon(summary.attendancePercentage)}
                             <span className="ml-1">{summary.attendancePercentage}%</span>
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-500">
+                        <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-500">
                           <button 
                             className="text-blue-600 hover:text-blue-800 text-xs"
                             onClick={(e) => {
@@ -717,20 +880,20 @@ const ViewAttendance = () => {
                           exit={{ opacity: 0, height: 0 }}
                           className="bg-gray-50"
                         >
-                          <td colSpan="7" className="px-6 py-4">
-                            <div className="bg-white rounded-lg border border-gray-200 p-4">
-                              <h4 className="text-sm font-medium text-gray-900 mb-3">Daily Attendance Details</h4>
+                          <td colSpan="7" className="px-3 sm:px-6 py-3 sm:py-4">
+                            <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+                              <h4 className="text-xs sm:text-sm font-medium text-gray-900 mb-2 sm:mb-3">Daily Attendance Details</h4>
                               <div className="overflow-x-auto">
                                 <table className="min-w-full text-xs">
                                   <thead className="bg-gray-50">
                                     <tr>
-                                      <th className="px-3 py-2 text-left">Date</th>
-                                      <th className="px-3 py-2 text-center">Morning</th>
-                                      <th className="px-3 py-2 text-center">Evening</th>
-                                      <th className="px-3 py-2 text-center">Night</th>
-                                      <th className="px-3 py-2 text-center">Status</th>
-                                      <th className="px-3 py-2 text-left">Marked By</th>
-                                      <th className="px-3 py-2 text-left">Notes</th>
+                                      <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Date</th>
+                                      <th className="px-1 sm:px-3 py-1 sm:py-2 text-center">M</th>
+                                      <th className="px-1 sm:px-3 py-1 sm:py-2 text-center">E</th>
+                                      <th className="px-1 sm:px-3 py-1 sm:py-2 text-center">N</th>
+                                      <th className="px-2 sm:px-3 py-1 sm:py-2 text-center">Status</th>
+                                      <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">By</th>
+                                      <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Notes</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-gray-200">
@@ -738,40 +901,41 @@ const ViewAttendance = () => {
                                       const dayStatus = getAttendanceStatus(attRecord);
                                       return (
                                         <tr key={attRecord._id} className="hover:bg-gray-50">
-                                          <td className="px-3 py-2 text-gray-900">
+                                          <td className="px-2 sm:px-3 py-1 sm:py-2 text-gray-900">
                                             {formatDate(attRecord.date)}
                                           </td>
-                                          <td className="px-3 py-2 text-center">
+                                          <td className="px-1 sm:px-3 py-1 sm:py-2 text-center">
                                             {attRecord.morning ? (
-                                              <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                                              <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-4 h-4 text-red-600 mx-auto" />
+                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
                                             )}
                                           </td>
-                                          <td className="px-3 py-2 text-center">
+                                          <td className="px-1 sm:px-3 py-1 sm:py-2 text-center">
                                             {attRecord.evening ? (
-                                              <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                                              <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-4 h-4 text-red-600 mx-auto" />
+                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
                                             )}
                                           </td>
-                                          <td className="px-3 py-2 text-center">
+                                          <td className="px-1 sm:px-3 py-1 sm:py-2 text-center">
                                             {attRecord.night ? (
-                                              <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                                              <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-4 h-4 text-red-600 mx-auto" />
+                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
                                             )}
                                           </td>
-                                          <td className="px-3 py-2 text-center">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(dayStatus)}`}>
+                                          <td className="px-2 sm:px-3 py-1 sm:py-2 text-center">
+                                            <span className={`inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(dayStatus)}`}>
                                               {getStatusIcon(dayStatus)}
-                                              <span className="ml-1">{dayStatus}</span>
+                                              <span className="ml-1 hidden sm:inline">{dayStatus}</span>
+                                              <span className="ml-1 sm:hidden">{dayStatus.charAt(0)}</span>
                                             </span>
                                           </td>
-                                          <td className="px-3 py-2 text-gray-900">
+                                          <td className="px-2 sm:px-3 py-1 sm:py-2 text-gray-900">
                                             {attRecord.markedBy?.username ? `${attRecord.markedBy.username} (${attRecord.markedBy.role})` : 'System'}
                                           </td>
-                                          <td className="px-3 py-2 text-gray-500">
+                                          <td className="px-2 sm:px-3 py-1 sm:py-2 text-gray-500">
                                             {attRecord.notes || '-'}
                                           </td>
                                         </tr>

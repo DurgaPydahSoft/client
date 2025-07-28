@@ -50,6 +50,8 @@ const WardenHome = lazy(() => import('./pages/warden/WardenHome'));
 const WardenTakeAttendance = lazy(() => import('./pages/warden/TakeAttendance'));
 const WardenViewAttendance = lazy(() => import('./pages/warden/ViewAttendance'));
 const BulkOuting = lazy(() => import('./pages/warden/BulkOuting'));
+const WardenRaiseComplaint = lazy(() => import('./pages/warden/WardenRaiseComplaint'));
+const WardenViewComplaints = lazy(() => import('./pages/warden/WardenViewComplaints'));
 const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
 const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelRequests'));
 const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
@@ -241,6 +243,8 @@ function App() {
               <Route path="take-attendance" element={<WardenTakeAttendance />} />
               <Route path="view-attendance" element={<WardenViewAttendance />} />
               <Route path="bulk-outing" element={<BulkOuting />} />
+              <Route path="complaints/raise" element={<WardenRaiseComplaint />} />
+              <Route path="complaints/view" element={<WardenViewComplaints />} />
               <Route path="notifications" element={<WardenNotifications />} />
               <Route path="leave-management" element={<WardenLeaveManagement />} />
               <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />

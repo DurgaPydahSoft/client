@@ -173,23 +173,23 @@ const MemberManagement = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 mt-16 sm:mt-0">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6 mt-12 sm:mt-0">
       {/* Header Section */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-3 lg:gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Member Management</h2>
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-900">Member Management</h2>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Manage hostel staff members and their categories</p>
           </div>
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 rounded-lg">
               Total: <span className="font-semibold text-gray-900">{members.length}</span> members
             </div>
             <button
               onClick={openAddModal}
-              className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow text-sm sm:text-base"
+              className="flex items-center justify-center gap-1 sm:gap-1.5 lg:gap-2 px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 lg:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow text-xs sm:text-sm lg:text-base"
             >
-              <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <PlusIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
               <span className="hidden sm:inline">Add New Member</span>
               <span className="sm:hidden">Add</span>
             </button>
@@ -198,30 +198,31 @@ const MemberManagement = () => {
       </div>
 
       {/* Category Tabs */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex flex-wrap gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-1 px-1">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors duration-200 flex items-center gap-2 ${
+            className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap transition-colors duration-200 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
               !selectedCategory
                 ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            <UserGroupIcon className="w-4 h-4" />
-            All Categories
+            <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">All Categories</span>
+            <span className="sm:hidden">All</span>
           </button>
           {CATEGORIES.map(category => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              className={`px-4 py-2 rounded-lg whitespace-nowrap transition-colors duration-200 flex items-center gap-2 ${
+              className={`px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 rounded-lg whitespace-nowrap transition-colors duration-200 flex items-center gap-1 sm:gap-2 text-xs sm:text-sm ${
                 selectedCategory === category
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              <TagIcon className="w-4 h-4" />
+              <TagIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               {category}
             </button>
           ))}
@@ -229,71 +230,71 @@ const MemberManagement = () => {
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg flex items-center gap-2">
-          <XCircleIcon className="w-5 h-5" />
-          {error}
+        <div className="bg-red-50 border border-red-200 text-red-600 px-3 sm:px-4 py-2 sm:py-3 rounded-lg flex items-center gap-2">
+          <XCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="text-xs sm:text-sm">{error}</span>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Name</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Phone</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Category</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">Actions</th>
+                  <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-600">Name</th>
+                  <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-600">Phone</th>
+                  <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-600">Category</th>
+                  <th className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-left text-xs sm:text-sm font-semibold text-gray-600">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredMembers.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-gray-500">
+                    <td colSpan={4} className="text-center py-6 sm:py-8 text-gray-500">
                       <div className="flex flex-col items-center gap-2">
-                        <UserGroupIcon className="w-12 h-12 text-gray-400" />
-                        <p>No members found</p>
+                        <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400" />
+                        <p className="text-xs sm:text-sm">No members found</p>
                       </div>
                     </td>
                   </tr>
                 ) : filteredMembers.map((member, index) => (
                   <tr key={member.id || member.phone || index} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-shrink-0 h-8 w-8 bg-blue-50 rounded-full flex items-center justify-center">
-                          <UserIcon className="w-4 h-4 text-blue-600" />
+                    <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <div className="flex-shrink-0 h-6 w-6 sm:h-8 sm:w-8 bg-blue-50 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
                         </div>
-                        <span className="text-sm text-gray-900">{member.name}</span>
+                        <span className="text-xs sm:text-sm text-gray-900">{member.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2 text-sm text-gray-900">
-                        <PhoneIcon className="w-4 h-4 text-gray-500" />
+                    <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3">
+                      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-900">
+                        <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                         {member.phone}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <TagIcon className="w-4 h-4 text-gray-500" />
-                        <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                    <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <TagIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
+                        <span className="px-1.5 sm:px-2.5 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                           {member.category}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <td className="px-2 sm:px-3 lg:px-4 py-2 sm:py-3">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <button
                           onClick={() => openEditModal(member)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
                           title="Edit member"
                         >
-                          <PencilIcon className="w-5 h-5" />
+                          <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteMember(member.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
                           title="Delete member"
                         >
-                          <TrashIcon className="w-5 h-5" />
+                          <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                     </td>
@@ -307,37 +308,37 @@ const MemberManagement = () => {
 
       {/* Add Member Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <PlusIcon className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-4 lg:p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Add New Member
               </h3>
               <button
                 onClick={closeModals}
                 className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <form onSubmit={handleAddMember} className="space-y-4">
+            <form onSubmit={handleAddMember} className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <UserIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Name
                 </label>
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <PhoneIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Phone Number
                 </label>
                 <input
@@ -347,7 +348,7 @@ const MemberManagement = () => {
                   title="Please enter exactly 10 digits"
                   maxLength={10}
                   minLength={10}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.phone}
                   onChange={e => {
                     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -364,13 +365,13 @@ const MemberManagement = () => {
                 <p className="mt-1 text-xs text-gray-500">Enter a 10-digit phone number</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <TagIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <TagIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Category
                 </label>
                 <select
                   required
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                 >
@@ -381,9 +382,9 @@ const MemberManagement = () => {
               </div>
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow flex items-center justify-center gap-2"
+                className="w-full py-2 sm:py-2.5 px-3 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow flex items-center justify-center gap-2 text-xs sm:text-sm"
               >
-                <PlusIcon className="w-5 h-5" />
+                <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Add Member
               </button>
             </form>
@@ -393,37 +394,37 @@ const MemberManagement = () => {
 
       {/* Edit Member Modal */}
       {showEditModal && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl p-4 sm:p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <PencilIcon className="w-5 h-5" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-4 lg:p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Edit Member
               </h3>
               <button
                 onClick={closeModals}
                 className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
               >
-                <XMarkIcon className="w-6 h-6" />
+                <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
-            <form onSubmit={handleEditMember} className="space-y-4">
+            <form onSubmit={handleEditMember} className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <UserIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Name
                 </label>
                 <input
                   type="text"
                   required
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <PhoneIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Phone Number
                 </label>
                 <input
@@ -433,7 +434,7 @@ const MemberManagement = () => {
                   title="Please enter exactly 10 digits"
                   maxLength={10}
                   minLength={10}
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.phone}
                   onChange={e => {
                     const value = e.target.value.replace(/[^0-9]/g, '');
@@ -450,13 +451,13 @@ const MemberManagement = () => {
                 <p className="mt-1 text-xs text-gray-500">Enter a 10-digit phone number</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <TagIcon className="w-4 h-4 text-gray-500" />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                  <TagIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
                   Category
                 </label>
                 <select
                   required
-                  className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value })}
                 >
@@ -467,9 +468,9 @@ const MemberManagement = () => {
               </div>
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow flex items-center justify-center gap-2"
+                className="w-full py-2 sm:py-2.5 px-3 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 shadow-sm hover:shadow flex items-center justify-center gap-2 text-xs sm:text-sm"
               >
-                <PencilIcon className="w-5 h-5" />
+                <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Update Member
               </button>
             </form>

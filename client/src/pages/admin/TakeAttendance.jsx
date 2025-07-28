@@ -30,6 +30,7 @@ const TakeAttendance = () => {
     category: '',
     roomNumber: ''
   });
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [stats, setStats] = useState({
     totalStudents: 0,
     attendanceTaken: 0
@@ -204,52 +205,175 @@ const TakeAttendance = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-4 lg:p-6">
       {/* Stats Display */}
-      <div className="flex items-center justify-end gap-4 mb-6">
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Total Students</p>
-          <p className="text-2xl font-bold text-blue-600">{stats.totalStudents}</p>
+      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 mb-4 sm:mb-6">
+        <div className="text-left sm:text-right">
+          <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
+          <p className="text-lg sm:text-2xl font-bold text-blue-600">{stats.totalStudents}</p>
         </div>
         <div className="text-right">
-          <p className="text-sm text-gray-500">Attendance Taken</p>
-          <p className="text-2xl font-bold text-green-600">{stats.attendanceTaken}</p>
+          <p className="text-xs sm:text-sm text-gray-500">Attendance Taken</p>
+          <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.attendanceTaken}</p>
         </div>
       </div>
 
-      {/* Controls */}
+      {/* Mobile Filter Toggle */}
+      <div className="lg:hidden mb-4">
+        <button
+          onClick={() => setShowMobileFilters(prev => !prev)}
+          className="w-full bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <FunnelIcon className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">Filters</span>
+          </div>
+          <svg 
+            className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        
+        {/* Mobile Filters Panel */}
+        {showMobileFilters && (
+          <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              {/* Date Selector */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                />
+              </div>
+
+              {/* Course Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  Course
+                </label>
+                <select
+                  name="course"
+                  value={filters.course}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Courses</option>
+                  {courses.map(course => (
+                    <option key={course._id} value={course._id}>{course.name} ({course.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Branch Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
+                <select
+                  name="branch"
+                  value={filters.branch}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Branches</option>
+                  {filteredBranches.map(branch => (
+                    <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Gender Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
+                <select
+                  name="gender"
+                  value={filters.gender}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              {/* Category Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Category</label>
+                <select
+                  name="category"
+                  value={filters.category}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Categories</option>
+                  <option value="A+">A+</option>
+                  <option value="A">A</option>
+                  <option value="B+">B+</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+              </div>
+
+              {/* Room Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Room</label>
+                <input
+                  type="text"
+                  name="roomNumber"
+                  value={filters.roomNumber}
+                  onChange={handleFilterChange}
+                  placeholder="Room number"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Controls */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-white rounded-lg shadow-sm p-6 mb-6"
+        className="hidden lg:block bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           {/* Date Selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <CalendarIcon className="w-4 h-4 inline mr-1" />
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
               Date
             </label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
           </div>
 
           {/* Filters */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <FunnelIcon className="w-4 h-4 inline mr-1" />
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
               Course
             </label>
             <select
               name="course"
               value={filters.course}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Courses</option>
               {courses.map(course => (
@@ -259,12 +383,12 @@ const TakeAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
             <select
               name="branch"
               value={filters.branch}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Branches</option>
               {filteredBranches.map(branch => (
@@ -274,12 +398,12 @@ const TakeAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
             <select
               name="gender"
               value={filters.gender}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All</option>
               <option value="Male">Male</option>
@@ -288,12 +412,12 @@ const TakeAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Category</label>
             <select
               name="category"
               value={filters.category}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Categories</option>
               <option value="A+">A+</option>
@@ -305,14 +429,14 @@ const TakeAttendance = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Room</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Room</label>
             <input
               type="text"
               name="roomNumber"
               value={filters.roomNumber}
               onChange={handleFilterChange}
               placeholder="Room number"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
           </div>
         </div>
@@ -325,8 +449,8 @@ const TakeAttendance = () => {
         transition={{ delay: 0.2 }}
         className="bg-white rounded-lg shadow-sm overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             Students ({students.length})
           </h2>
         </div>
@@ -335,25 +459,28 @@ const TakeAttendance = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Student
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <SunIcon className="w-4 h-4 inline mr-1" />
-                  Morning
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <SunIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Morning</span>
+                  <span className="sm:hidden">M</span>
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <MoonIcon className="w-4 h-4 inline mr-1" />
-                  Evening
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <MoonIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Evening</span>
+                  <span className="sm:hidden">E</span>
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  <StarIcon className="w-4 h-4 inline mr-1" />
-                  Night
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                  <span className="hidden sm:inline">Night</span>
+                  <span className="sm:hidden">N</span>
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Notes
                 </th>
               </tr>
@@ -369,13 +496,13 @@ const TakeAttendance = () => {
                     transition={{ delay: index * 0.05 }}
                     className="hover:bg-gray-50"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-xs sm:text-sm font-medium text-gray-900">
                             {student.name}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm text-gray-500">
                             {student.rollNumber} • {getCourseName(student.course)} {student.year} • {getBranchName(student.branch)}
                           </div>
                           <div className="text-xs text-gray-400">
@@ -385,7 +512,7 @@ const TakeAttendance = () => {
                       </div>
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.morning || false}
@@ -394,7 +521,7 @@ const TakeAttendance = () => {
                       />
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.evening || false}
@@ -403,7 +530,7 @@ const TakeAttendance = () => {
                       />
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.night || false}
@@ -412,20 +539,21 @@ const TakeAttendance = () => {
                       />
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                    <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                         {getStatusIcon(status)}
-                        <span className="ml-1">{status}</span>
+                        <span className="ml-1 hidden sm:inline">{status}</span>
+                        <span className="ml-1 sm:hidden">{status.charAt(0)}</span>
                       </span>
                     </td>
                     
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <input
                         type="text"
                         value={attendanceData[student._id]?.notes || ''}
                         onChange={(e) => handleNotesChange(student._id, e.target.value)}
                         placeholder="Add notes..."
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
                     </td>
                   </motion.tr>
@@ -441,15 +569,16 @@ const TakeAttendance = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="mt-6 flex justify-end"
+        className="mt-4 sm:mt-6 flex justify-end"
       >
         <button
           onClick={handleSubmit}
           disabled={submitting || students.length === 0}
-          className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-3 border border-transparent text-sm sm:text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <ArrowDownTrayIcon className="w-5 h-5 mr-2" />
-          {submitting ? 'Saving...' : 'Save Attendance'}
+          <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">{submitting ? 'Saving...' : 'Save Attendance'}</span>
+          <span className="sm:hidden">{submitting ? 'Saving...' : 'Save'}</span>
         </button>
       </motion.div>
     </div>

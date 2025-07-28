@@ -47,6 +47,7 @@ const TakeAttendance = () => {
   const [allBranches, setAllBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Get current date in YYYY-MM-DD format
   const currentDate = new Date().toISOString().split('T')[0];
@@ -343,31 +344,31 @@ const TakeAttendance = () => {
     <div className="min-h-screen bg-gray-50">
       <SEO title="Take Attendance - Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto p-3 sm:p-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent flex items-center gap-1.5 sm:gap-2">
+                <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0" />
+                <span>Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}</span>
               </h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">
+              <p className="text-gray-600 mt-1 text-xs sm:text-sm lg:text-base">
                 Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
               </p>
             </div>
-            <div className="grid grid-cols-2 sm:flex sm:flex-row gap-4 text-center sm:text-right">
-              <div className="bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:p-0">
+            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 sm:gap-4 text-center lg:text-right">
+              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
                 <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-600">{stats.totalStudents}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{stats.totalStudents}</p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:p-0">
+              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
                 <p className="text-xs sm:text-sm text-gray-500">Attendance Taken</p>
-                <p className="text-xl sm:text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
+                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
               </div>
             </div>
           </div>
@@ -378,13 +379,116 @@ const TakeAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+          {/* Mobile Filter Toggle */}
+          <div className="lg:hidden mb-3">
+            <button
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              Filters
+              <svg
+                className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${
+                  showMobileFilters ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Mobile Filters Panel */}
+          {showMobileFilters && (
+            <div className="lg:hidden mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Course Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                    Course
+                  </label>
+                  <select
+                    name="course"
+                    value={filters.course}
+                    onChange={handleFilterChange}
+                    disabled={loadingFilters}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
+                  >
+                    <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
+                    {courses.map((course) => (
+                      <option key={course._id} value={course._id}>
+                        {course.name} ({course.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Branch Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch</label>
+                  <select
+                    name="branch"
+                    value={filters.branch}
+                    onChange={handleFilterChange}
+                    disabled={loadingFilters || !filters.course}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
+                  >
+                    <option value="">
+                      {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
+                    </option>
+                    {filteredBranches.map((branch) => (
+                      <option key={branch._id} value={branch._id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    name="category"
+                    value={filters.category}
+                    onChange={handleFilterChange}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="A+">A+</option>
+                    <option value="A">A</option>
+                    <option value="B+">B+</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </select>
+                </div>
+
+                {/* Room Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Room</label>
+                  <input
+                    type="text"
+                    name="roomNumber"
+                    value={roomInput}
+                    onChange={handleRoomInputChange}
+                    placeholder="Room number"
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Controls */}
+          <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
             {/* Date Selector */}
             <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <CalendarIcon className="w-4 h-4 inline mr-1" />
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                 Date (Today Only)
               </label>
               <div className="relative">
@@ -394,22 +498,22 @@ const TakeAttendance = () => {
                   min={currentDate}
                   max={currentDate}
                   disabled={true}
-                  className="w-full px-3 py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm bg-green-50 cursor-not-allowed text-green-700 font-medium"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm bg-green-50 cursor-not-allowed text-green-700 font-medium"
                 />
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:pr-3">
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full animate-pulse"></div>
                 </div>
               </div>
               <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
                 Warden can only take attendance for today
               </p>
             </div>
 
-            {/* Filters */}
+            {/* Course Filter */}
             <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <FunnelIcon className="w-4 h-4 inline mr-1" />
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                 Course
               </label>
               <select
@@ -417,7 +521,7 @@ const TakeAttendance = () => {
                 value={filters.course}
                 onChange={handleFilterChange}
                 disabled={loadingFilters}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
               >
                 <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
                 {courses.map((course) => (
@@ -428,14 +532,15 @@ const TakeAttendance = () => {
               </select>
             </div>
 
+            {/* Branch Filter */}
             <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
               <select
                 name="branch"
                 value={filters.branch}
                 onChange={handleFilterChange}
                 disabled={loadingFilters || !filters.course}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm disabled:bg-gray-100"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
               >
                 <option value="">
                   {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
@@ -448,27 +553,14 @@ const TakeAttendance = () => {
               </select>
             </div>
 
+            {/* Category Filter */}
             <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gender {user?.hostelType && `(${user.hostelType} Warden)`}
-              </label>
-              <select
-                name="gender"
-                value={user?.hostelType || ''}
-                disabled={true}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm bg-gray-50 cursor-not-allowed"
-              >
-                <option value="">{user?.hostelType || 'Not Assigned'}</option>
-              </select>
-            </div>
-
-            <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Category</label>
               <select
                 name="category"
                 value={filters.category}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
               >
                 <option value="">All Categories</option>
                 <option value="A+">A+</option>
@@ -479,15 +571,16 @@ const TakeAttendance = () => {
               </select>
             </div>
 
+            {/* Room Filter */}
             <div className="sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Room</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Room</label>
               <input
                 type="text"
                 name="roomNumber"
                 value={roomInput}
                 onChange={handleRoomInputChange}
                 placeholder="Room number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
               />
             </div>
           </div>
@@ -498,40 +591,40 @@ const TakeAttendance = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-4 sm:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
+          className="mb-3 sm:mb-4 lg:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
         >
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
           <button
             onClick={handleSubmit}
             disabled={submitting}
-              className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-base"
+              className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base"
           >
             {submitting ? (
               <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Saving Attendance...</span>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs sm:text-sm">Saving Attendance...</span>
               </>
             ) : (
               <>
-                    <CheckIcon className="w-6 h-6" />
+                    <CheckIcon className="w-4 h-4 sm:w-6 sm:h-6" />
                     <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
-                    <span className="sm:hidden">Save Attendance</span>
+                    <span className="sm:hidden text-xs">Save Attendance</span>
               </>
             )}
           </button>
             
             {/* Quick Stats */}
-            <div className="flex justify-between sm:hidden text-sm text-gray-600 bg-white rounded-lg p-3 border border-gray-200">
+            <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
               <div className="text-center">
-                <div className="font-semibold text-green-600">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
+                <div className="font-semibold text-green-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
                 <div className="text-xs">Present</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold text-yellow-600">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
+                <div className="font-semibold text-yellow-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
                 <div className="text-xs">Partial</div>
               </div>
               <div className="text-center">
-                <div className="font-semibold text-red-600">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
+                <div className="font-semibold text-red-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
                 <div className="text-xs">Absent</div>
               </div>
             </div>
@@ -543,24 +636,24 @@ const TakeAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg shadow-sm overflow-hidden"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden"
         >
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
               Students ({students.length})
             </h2>
-              <div className="hidden sm:flex items-center gap-4 text-sm text-gray-600">
+              <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
                   <span>Present: {students.filter(s => getAttendanceStatus(s) === 'Present').length}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
                   <span>Partial: {students.filter(s => getAttendanceStatus(s) === 'Partial').length}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
                   <span>Absent: {students.filter(s => getAttendanceStatus(s) === 'Absent').length}</span>
                 </div>
               </div>
@@ -578,15 +671,15 @@ const TakeAttendance = () => {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="p-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                    className="p-3 sm:p-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
                   >
                     {/* Student Info */}
-                    <div className="mb-4">
-                      <div className="flex items-start justify-between mb-3">
+                    <div className="mb-3 sm:mb-4">
+                      <div className="flex items-start justify-between mb-2 sm:mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base font-semibold text-gray-900 truncate">{student.name}</h3>
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{student.name}</h3>
                           {/* Mobile: Show only course and room */}
-                          <p className="text-sm text-gray-600 mt-1 sm:hidden">
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:hidden">
                             {getCourseName(student.course)} {student.year} • Room {student.roomNumber}
                           </p>
                           {/* Desktop: Show full details */}
@@ -597,7 +690,7 @@ const TakeAttendance = () => {
                             Room {student.roomNumber} • {student.gender}
                           </p>
                         </div>
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${getStatusColor(status)}`}>
+                        <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ml-2 sm:ml-3 flex-shrink-0 ${getStatusColor(status)}`}>
                           {getStatusIcon(status)}
                           <span className="ml-1">{status}</span>
                         </span>
@@ -605,56 +698,56 @@ const TakeAttendance = () => {
                     </div>
 
                     {/* Attendance Controls */}
-                    <div className="space-y-2 mb-3">
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <SunIcon className="w-4 h-4 text-yellow-600" />
-                          <span className="text-sm font-medium">Morning</span>
+                    <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
+                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <SunIcon className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
+                          <span className="text-xs sm:text-sm font-medium">Morning</span>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.morning || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                       </div>
                       
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <MoonIcon className="w-4 h-4 text-blue-600" />
-                          <span className="text-sm font-medium">Evening</span>
+                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <MoonIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
+                          <span className="text-xs sm:text-sm font-medium">Evening</span>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.evening || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                       </div>
 
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <StarIcon className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm font-medium">Night</span>
+                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
+                          <span className="text-xs sm:text-sm font-medium">Night</span>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.night || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                         />
                       </div>
                     </div>
 
                     {/* Notes */}
-                    <div className="mt-4">
+                    <div className="mt-3 sm:mt-4">
                       <label className="block text-xs font-medium text-gray-700 mb-1">Notes</label>
                       <input
                         type="text"
                         value={attendanceData[student._id]?.notes || ''}
                         onChange={(e) => handleNotesChange(student._id, e.target.value)}
                         placeholder="Add notes for this student..."
-                        className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                       />
                     </div>
                   </motion.div>
@@ -771,9 +864,9 @@ const TakeAttendance = () => {
           </div>
 
           {students.length === 0 && (
-            <div className="text-center py-12">
-              <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No students found with the selected filters.</p>
+            <div className="text-center py-8 sm:py-12">
+              <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+              <p className="text-xs sm:text-sm text-gray-500">No students found with the selected filters.</p>
             </div>
           )}
         </motion.div>

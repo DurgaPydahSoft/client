@@ -13,6 +13,8 @@ import TakeAttendance from './TakeAttendance';
 import ViewAttendance from './ViewAttendance';
 import NotificationBell from '../../components/NotificationBell';
 import FeeManagement from './FeeManagement';
+import WardenRaiseComplaint from './WardenRaiseComplaint';
+import WardenViewComplaints from './WardenViewComplaints';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -45,6 +47,7 @@ const WardenDashboardLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [expandedItems, setExpandedItems] = useState(new Set());
   const { pathname } = useLocation();
   
   const handleLogout = () => {
@@ -57,6 +60,40 @@ const WardenDashboardLayout = () => {
     setIsSidebarOpen(false);
   }, [pathname]);
 
+  // Auto-expand complaints section when on complaints pages
+  useEffect(() => {
+    if (pathname.includes('/complaints')) {
+      setExpandedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add('Complaints');
+        return newSet;
+      });
+    }
+  }, [pathname]);
+
+  // Auto-expand attendance section when on attendance pages
+  useEffect(() => {
+    if (pathname.includes('/take-attendance') || pathname.includes('/view-attendance')) {
+      setExpandedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add('Attendance');
+        return newSet;
+      });
+    }
+  }, [pathname]);
+
+  const toggleExpanded = (itemName) => {
+    setExpandedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemName)) {
+        newSet.delete(itemName);
+      } else {
+        newSet.add(itemName);
+      }
+      return newSet;
+    });
+  };
+
   const menuItems = [
     {
       name: 'Dashboard Home',
@@ -66,18 +103,23 @@ const WardenDashboardLayout = () => {
       locked: false
     },
     {
-      name: 'Take Attendance',
+      name: 'Attendance',
       icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
-      path: '/warden/dashboard/take-attendance',
+      path: '/warden/dashboard/attendance',
       show: true,
-      locked: false
-    },
-    {
-      name: 'View Attendance',
-      icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
-      path: '/warden/dashboard/view-attendance',
-      show: true,
-      locked: false
+      locked: false,
+      subItems: [
+        {
+          name: 'Take Attendance',
+          path: '/warden/dashboard/take-attendance',
+          icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+        },
+        {
+          name: 'View Attendance',
+          path: '/warden/dashboard/view-attendance',
+          icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
+        },
+      ],
     },
     {
       name: 'Bulk Outing',
@@ -85,6 +127,25 @@ const WardenDashboardLayout = () => {
       path: '/warden/dashboard/bulk-outing',
       show: true,
       locked: false
+    },
+    {
+      name: 'Complaints',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      path: '/warden/dashboard/complaints',
+      show: true,
+      locked: false,
+      subItems: [
+        {
+          name: 'Raise Complaint',
+          path: '/warden/dashboard/complaints/raise',
+          icon: 'M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z'
+        },
+        {
+          name: 'View Complaints',
+          path: '/warden/dashboard/complaints/view',
+          icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'
+        }
+      ]
     },
     {
       name: 'Notifications',
@@ -172,8 +233,8 @@ const WardenDashboardLayout = () => {
                   </div>
 
         {/* Navigation */}
-        <div className="flex-1 relative">
-          <nav className="flex-1 px-4 space-y-2 overflow-y-auto scrollbar-hide h-full">
+        <div className="flex-1 overflow-hidden">
+          <nav className="h-full px-4 space-y-2 overflow-y-auto scrollbar-hide">
             {menuItems.filter(item => item.show).map((item, index) => (
               <motion.div
                 key={item.name}
@@ -200,6 +261,88 @@ const WardenDashboardLayout = () => {
                       </svg>
                     </div>
                     <span className="flex-1 text-sm font-normal">{item.name}</span>
+                  </div>
+                ) : item.subItems ? (
+                  // Item with sub-items
+                  <div className="space-y-1">
+                    <button
+                      onClick={() => toggleExpanded(item.name)}
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
+                        pathname.startsWith(item.path)
+                          ? "bg-green-50 text-green-700 shadow-sm"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d={item.icon}
+                            />
+                          </svg>
+                        </div>
+                        {item.name}
+                      </div>
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          expandedItems.has(item.name) ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
+                    {/* Sub-items */}
+                    {expandedItems.has(item.name) && (
+                      <div className="ml-6 space-y-1">
+                        {item.subItems.map((subItem, subIndex) => (
+                          <NavLink
+                            key={subItem.name}
+                            to={subItem.path}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${
+                                isActive
+                                  ? "bg-green-100 text-green-700 shadow-sm"
+                                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                              }`
+                            }
+                            end
+                          >
+                            <div className="relative">
+                              <svg
+                                className="w-3 h-3"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d={subItem.icon}
+                                />
+                              </svg>
+                            </div>
+                            {subItem.name}
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // Active item - normal NavLink
@@ -235,6 +378,8 @@ const WardenDashboardLayout = () => {
               </motion.div>
             ))}
           </nav>
+          {/* Bottom padding for scroll space */}
+          <div className="h-4"></div>
         </div>
 
         {/* User Profile and Logout */}

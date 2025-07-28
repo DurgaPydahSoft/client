@@ -124,6 +124,9 @@ const Complaints = () => {
     totalComplaints: 0
   });
   const [showAIConfig, setShowAIConfig] = useState(false);
+  
+  // Mobile filters state
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   useEffect(() => {
     // Apply filters from navigation state if available
@@ -571,7 +574,7 @@ const Complaints = () => {
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
+            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors
               ${currentPage === 1 
                 ? 'text-gray-400 cursor-not-allowed' 
                 : 'text-blue-600 hover:bg-blue-50'
@@ -579,10 +582,15 @@ const Complaints = () => {
           >
             Previous
           </button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {currentPage} of {pagination.pages}
+            </span>
+          </div>
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === pagination.pages}
-            className={`relative inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg
+            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors
               ${currentPage === pagination.pages 
                 ? 'text-gray-400 cursor-not-allowed' 
                 : 'text-blue-600 hover:bg-blue-50'
@@ -650,42 +658,66 @@ const Complaints = () => {
           const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
           const isLocked = c.isLockedForUpdates === true;
           return (
-            <div key={complaintKey} className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4 ${isLocked ? 'opacity-70' : ''}`}>
-              <div className="flex items-center gap-3 sm:gap-4">
+            <div key={complaintKey} className={`flex flex-col p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4 ${isLocked ? 'opacity-70' : ''}`}>
+              <div className="flex items-start gap-3 sm:gap-4">
                 <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
                   <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                 </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="text-sm font-medium text-gray-900">{c.student?.name || 'Unknown'}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                    <span className="text-sm font-medium text-gray-900 truncate">
+                      {c.raisedBy === 'warden' ? 'Warden' : (c.student?.name || 'Unknown')}
+                    </span>
                     <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                       {c.category || 'Uncategorized'}
                     </span>
+                    {c.raisedBy === 'warden' && (
+                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                        Warden Raised
+                      </span>
+                    )}
+                    {c.raisedBy === 'student' && (
+                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                        Student Complaint
+                      </span>
+                    )}
                     {isLocked && (
                       <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
                         Locked
                       </span>
                     )}
                   </div>
-                  <div className="text-xs sm:text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
-                  {c.assignedTo && (
-                    <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-                      <UserIcon className="w-3 h-3" />
-                      <span>Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
+                  {c.raisedBy === 'student' ? (
+                    <>
+                      <div className="text-xs sm:text-sm text-gray-500 mb-1">Roll No: {c.student?.rollNumber || 'N/A'}</div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Room: {c.student?.roomNumber || 'N/A'}</span>
+                        <span className="text-xs text-gray-500">Category: {c.student?.category || 'N/A'}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs sm:text-sm text-gray-500 text-purple-600 mb-2">
+                      Raised by: {c.raisedBy === 'warden' ? 'Warden' : 'Student'}
                     </div>
                   )}
+                  {c.assignedTo && (
+                    <div className="flex items-center gap-1 text-xs text-blue-600 mb-2">
+                      <UserIcon className="w-3 h-3" />
+                      <span className="truncate">Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+                      {c.currentStatus || 'Received'}
+                    </span>
+                    <button 
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
+                      onClick={() => openDetails(c)}
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
-                  {c.currentStatus || 'Received'}
-                </span>
-                <button 
-                  className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
-                  onClick={() => openDetails(c)}
-                >
-                  View Details
-                </button>
               </div>
             </div>
           );
@@ -779,18 +811,40 @@ const Complaints = () => {
 
       {/* Mobile Stats Bar */}
       <div className="sm:hidden bg-white border-b border-gray-200">
-        <div className="px-3 py-2">
-          <div className="flex items-center justify-between">
-            <div className="bg-blue-50 px-2 py-1 rounded-lg border border-blue-100">
-              <span className="text-xs text-gray-600">Total: </span>
-                <span className="font-semibold text-blue-700 text-sm">{complaints.length}</span>
+        <div className="px-3 py-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
+              <div className="text-xs text-gray-600 mb-1">Total Complaints</div>
+              <div className="font-semibold text-blue-700 text-lg">{complaints.length}</div>
             </div>
-            <div className="bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-100">
-              <span className="text-xs text-gray-600">Active: </span>
-              <span className="font-semibold text-yellow-700 text-sm">
+            <div className="bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-100">
+              <div className="text-xs text-gray-600 mb-1">Active</div>
+              <div className="font-semibold text-yellow-700 text-lg">
                 {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length}
+              </div>
+            </div>
+          </div>
+          
+          {/* Mobile AI Status */}
+          <div className="mt-3 flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${aiConfig?.isEnabled ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+              <span className="text-xs font-medium text-gray-700">
+                AI: {aiConfig?.isEnabled ? 'ON' : 'OFF'}
               </span>
             </div>
+            <button
+              onClick={() => toggleAI(!aiConfig?.isEnabled)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                aiConfig?.isEnabled ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                  aiConfig?.isEnabled ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </div>
       </div>
@@ -798,9 +852,37 @@ const Complaints = () => {
       {/* Main Content */}
       <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6">
         
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-4">
+          <button
+            onClick={() => setShowMobileFilters(prev => !prev)}
+            className="w-full bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex items-center justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <FunnelIcon className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-gray-900">Filters</span>
+            </div>
+            <svg 
+              className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          
+          {/* Mobile Filters Panel */}
+          {showMobileFilters && (
+            <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+              {renderFilterForm()}
+            </div>
+          )}
+        </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
-          {/* Left Sidebar - Filters */}
-          <div className="lg:col-span-1">
+          {/* Left Sidebar - Filters (Desktop Only) */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6 sticky top-20 sm:top-24">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -818,7 +900,7 @@ const Complaints = () => {
           {/* Right Content - Complaints List */}
           <div className="lg:col-span-2">
             {/* Active Complaints Section */}
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6 mb-3 sm:mb-6">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 mb-3 sm:mb-6">
               <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
                 <div className="p-1.5 sm:p-2 rounded-lg bg-yellow-50">
                   <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
@@ -836,37 +918,61 @@ const Complaints = () => {
                   .map((c, index) => {
                     const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
                     return (
-                      <div key={complaintKey} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4">
-                        <div className="flex items-center gap-3 sm:gap-4">
+                      <div key={complaintKey} className="flex flex-col p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4">
+                        <div className="flex items-start gap-3 sm:gap-4">
                           <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
                             <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
                           </div>
-                          <div>
-                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                              <span className="text-sm font-medium text-gray-900">{c.student?.name || 'Unknown'}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                              <span className="text-sm font-medium text-gray-900 truncate">
+                                {c.raisedBy === 'warden' ? 'Warden' : (c.student?.name || 'Unknown')}
+                              </span>
                               <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                                 {c.category || 'Uncategorized'}
                               </span>
+                              {c.raisedBy === 'warden' && (
+                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                  Warden Raised
+                                </span>
+                              )}
+                              {c.raisedBy === 'student' && (
+                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                                  Student Complaint
+                                </span>
+                              )}
                             </div>
-                            <div className="text-xs sm:text-sm text-gray-500">Roll No: {c.student?.rollNumber || 'N/A'}</div>
-                            {c.assignedTo && (
-                              <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-                                <UserIcon className="w-3 h-3" />
-                                <span>Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
+                            {c.raisedBy === 'student' ? (
+                              <>
+                                <div className="text-xs sm:text-sm text-gray-500 mb-1">Roll No: {c.student?.rollNumber || 'N/A'}</div>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                  <span className="text-xs text-gray-500">Room: {c.student?.roomNumber || 'N/A'}</span>
+                                  <span className="text-xs text-gray-500">Category: {c.student?.category || 'N/A'}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-xs sm:text-sm text-gray-500 text-purple-600 mb-2">
+                                Raised by: {c.raisedBy === 'warden' ? 'Warden' : 'Student'}
                               </div>
                             )}
+                            {c.assignedTo && (
+                              <div className="flex items-center gap-1 text-xs text-blue-600 mb-2">
+                                <UserIcon className="w-3 h-3" />
+                                <span className="truncate">Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between">
+                              <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+                                {c.currentStatus || 'Received'}
+                              </span>
+                              <button 
+                                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
+                                onClick={() => openDetails(c)}
+                              >
+                                View Details
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-                          <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
-                            {c.currentStatus || 'Received'}
-                          </span>
-                          <button 
-                            className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
-                            onClick={() => openDetails(c)}
-                          >
-                            View Details
-                          </button>
                         </div>
                       </div>
                     );
@@ -880,7 +986,7 @@ const Complaints = () => {
             </div>
 
             {/* All Complaints Section */}
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6">
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div className="flex items-center gap-2 sm:gap-3">
                   <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
@@ -946,12 +1052,33 @@ const Complaints = () => {
               <div className="bg-gray-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-100">
                 <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
                   <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Student Details</span>
+                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">
+                    {selected.raisedBy === 'warden' ? 'Complaint Details' : 'Student Details'}
+                  </span>
                 </div>
-                <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.student?.name}</p>
-                <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
-                {selected.student?.studentPhone && (
-                  <p className="text-xs sm:text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
+                {selected.raisedBy === 'warden' ? (
+                  <div className="space-y-1">
+                    <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">Warden Raised</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Raised by: Warden</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <span className="text-xs sm:text-sm text-gray-500">Category: {selected.category}</span>
+                      {selected.subCategory && (
+                        <span className="text-xs sm:text-sm text-gray-500">Type: {selected.subCategory}</span>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.student?.name}</p>
+                    <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      <span className="text-xs sm:text-sm text-gray-500">Room: {selected.student?.roomNumber || 'N/A'}</span>
+                      <span className="text-xs sm:text-sm text-gray-500">Category: {selected.student?.category || 'N/A'}</span>
+                    </div>
+                    {selected.student?.studentPhone && (
+                      <p className="text-xs sm:text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
+                    )}
+                  </>
                 )}
               </div>
 
