@@ -24,6 +24,7 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Modal from '../../components/Modal';
 import SEO from '../../components/SEO';
+import { AnimatePresence } from 'framer-motion';
 
 const PrincipalViewAttendance = () => {
   const { user } = useAuth();
@@ -55,6 +56,7 @@ const PrincipalViewAttendance = () => {
   const [allBranches, setAllBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
 
   useEffect(() => {
     if (viewMode === 'date') {
@@ -308,7 +310,7 @@ const PrincipalViewAttendance = () => {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       <SEO title="View Attendance - Principal Dashboard" />
       
       
@@ -331,10 +333,10 @@ const PrincipalViewAttendance = () => {
       </Modal>
 
       {/* Stats Display */}
-      <div className="flex items-center justify-end gap-4 mb-6">
+      <div className="flex items-center justify-end gap-4 mb-4 sm:mb-6">
         <div className="text-right">
-          <p className="text-sm text-gray-500">Total Records</p>
-          <p className="text-2xl font-bold text-purple-600">{attendance.length}</p>
+          <p className="text-xs sm:text-sm text-gray-500">Total Records</p>
+          <p className="text-lg sm:text-2xl font-bold text-purple-600">{attendance.length}</p>
         </div>
       </div>
 
@@ -344,40 +346,40 @@ const PrincipalViewAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-6 mb-6"
+          className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6"
         >
-          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ChartBarIcon className="w-5 h-5 text-purple-600" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2">
+            <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
             Attendance Statistics
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4">
             <div className="text-center">
-              <p className="text-sm text-gray-500">Total Students</p>
-              <p className="text-2xl font-bold text-purple-600">{statistics.totalStudents}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
+              <p className="text-lg sm:text-2xl font-bold text-purple-600">{statistics.totalStudents}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Morning Present</p>
-              <p className="text-2xl font-bold text-yellow-600">{statistics.morningPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Morning Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-600">{statistics.morningPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Evening Present</p>
-              <p className="text-2xl font-bold text-indigo-600">{statistics.eveningPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Evening Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-indigo-600">{statistics.eveningPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Night Present</p>
-              <p className="text-2xl font-bold text-blue-600">{statistics.nightPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Night Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-blue-600">{statistics.nightPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Fully Present</p>
-              <p className="text-2xl font-bold text-green-600">{statistics.fullyPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Fully Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-green-600">{statistics.fullyPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Partially Present</p>
-              <p className="text-2xl font-bold text-orange-600">{statistics.partiallyPresent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Partially Present</p>
+              <p className="text-lg sm:text-2xl font-bold text-orange-600">{statistics.partiallyPresent}</p>
             </div>
             <div className="text-center">
-              <p className="text-sm text-gray-500">Absent</p>
-              <p className="text-2xl font-bold text-red-600">{statistics.absent}</p>
+              <p className="text-xs sm:text-sm text-gray-500">Absent</p>
+              <p className="text-lg sm:text-2xl font-bold text-red-600">{statistics.absent}</p>
             </div>
           </div>
         </motion.div>
@@ -388,122 +390,147 @@ const PrincipalViewAttendance = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="bg-white rounded-lg shadow-sm p-6 mb-6"
+        className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-          {/* View Mode Toggle */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">View Mode</label>
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="date">Single Date</option>
-              <option value="range">Date Range</option>
-            </select>
-          </div>
+        {/* Filter Toggle Button */}
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Filters</h3>
+          <button
+            onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+            className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors touch-manipulation"
+          >
+            <FunnelIcon className="w-4 h-4" />
+            {filtersCollapsed ? 'Show Filters' : 'Hide Filters'}
+          </button>
+        </div>
 
-          {/* Date Selector */}
-          {viewMode === 'date' ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <CalendarIcon className="w-4 h-4 inline mr-1" />
-                Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
-                <input
-                  type="date"
-                  value={dateRange.startDate}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+        {/* Collapsible Filters */}
+        <AnimatePresence>
+          {!filtersCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-3 sm:mb-4">
+                {/* View Mode Toggle */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">View Mode</label>
+                  <select
+                    value={viewMode}
+                    onChange={(e) => setViewMode(e.target.value)}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  >
+                    <option value="date">Single Date</option>
+                    <option value="range">Date Range</option>
+                  </select>
+                </div>
+
+                {/* Date Selector */}
+                {viewMode === 'date' ? (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Start Date</label>
+                      <input
+                        type="date"
+                        value={dateRange.startDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">End Date</label>
+                      <input
+                        type="date"
+                        value={dateRange.endDate}
+                        onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
+                  <select
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  >
+                    <option value="">All Status</option>
+                    <option value="Present">Present</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Absent">Absent</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
-                <input
-                  type="date"
-                  value={dateRange.endDate}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+
+              {/* Additional Filters */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
+                  <select
+                    name="branch"
+                    value={filters.branch}
+                    onChange={handleFilterChange}
+                    disabled={loadingFilters}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 text-xs sm:text-sm"
+                  >
+                    <option value="">{loadingFilters ? 'Loading...' : 'All Branches'}</option>
+                    {filteredBranches.map((branch) => (
+                      <option key={branch._id} value={branch._id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
+                  <select
+                    name="gender"
+                    value={filters.gender}
+                    onChange={handleFilterChange}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  >
+                    <option value="">All</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
+                  <input
+                    type="text"
+                    name="studentId"
+                    value={filters.studentId}
+                    onChange={handleFilterChange}
+                    placeholder="Search by student ID"
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  />
+                </div>
               </div>
-            </>
+            </motion.div>
           )}
-
-          {/* Status Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-            <select
-              name="status"
-              value={filters.status}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">All Status</option>
-              <option value="Present">Present</option>
-              <option value="Partial">Partial</option>
-              <option value="Absent">Absent</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Additional Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
-            <select
-              name="branch"
-              value={filters.branch}
-              onChange={handleFilterChange}
-              disabled={loadingFilters}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
-            >
-              <option value="">{loadingFilters ? 'Loading...' : 'All Branches'}</option>
-              {filteredBranches.map((branch) => (
-                <option key={branch._id} value={branch._id}>
-                  {branch.name} ({branch.code})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Gender</label>
-            <select
-              name="gender"
-              value={filters.gender}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">All</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
-            <input
-              type="text"
-              name="studentId"
-              value={filters.studentId}
-              onChange={handleFilterChange}
-              placeholder="Search by student ID"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-        </div>
+        </AnimatePresence>
       </motion.div>
 
       {/* Attendance List */}
@@ -511,71 +538,71 @@ const PrincipalViewAttendance = () => {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-white rounded-lg shadow-sm overflow-hidden"
+        className="bg-white rounded-xl shadow-lg overflow-hidden"
       >
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             Attendance Records ({attendance.length})
           </h2>
         </div>
 
         {attendance.length === 0 ? (
-          <div className="p-8 text-center">
-            <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">No attendance records found for the selected criteria</p>
+          <div className="p-6 sm:p-8 text-center">
+            <UserGroupIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 text-xs sm:text-sm">No attendance records found for the selected criteria</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Student
                   </th>
                   {viewMode === 'date' ? (
                     <>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <SunIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <SunIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Morning
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <MoonIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <MoonIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Evening
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <StarIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Night
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                         Notes
                       </th>
                     </>
                   ) : (
                     <>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <CalendarDaysIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <CalendarDaysIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Total Days
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <CheckIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Present Days
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <ClockIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Partial Days
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <XMarkIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Absent Days
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <ChartBarIcon className="w-4 h-4 inline mr-1" />
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <ChartBarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                         Attendance %
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </>
@@ -595,29 +622,29 @@ const PrincipalViewAttendance = () => {
                         transition={{ delay: index * 0.05 }}
                         className="hover:bg-gray-50"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
+                            <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
                               {record.studentPhoto ? (
                                 <img
                                   src={record.studentPhoto}
                                   alt={record.name || 'Student Photo'}
-                                  className="h-10 w-10 rounded-full object-cover border border-gray-200 cursor-pointer"
+                                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover border border-gray-200 cursor-pointer"
                                   onClick={() => setPhotoModal({ open: true, src: record.studentPhoto, name: record.name })}
                                 />
                               ) : (
-                                <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-purple-600">
+                                <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                  <span className="text-xs sm:text-sm font-medium text-purple-600">
                                     {record.name?.charAt(0) || 'S'}
                                   </span>
                                 </div>
                               )}
                             </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
+                            <div className="ml-3 sm:ml-4">
+                              <div className="text-xs sm:text-sm font-medium text-gray-900">
                                 {record.name || 'Unknown Student'}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className="text-xs sm:text-sm text-gray-500">
                                 {record.rollNumber || 'N/A'} • {getCourseName(record.course)} {record.year || 'N/A'} • {getBranchName(record.branch)}
                               </div>
                               <div className="text-xs text-gray-400">
@@ -627,38 +654,38 @@ const PrincipalViewAttendance = () => {
                           </div>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.morning ? (
-                            <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                            <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                           )}
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.evening ? (
-                            <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                            <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                           )}
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.night ? (
-                            <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                            <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
                           )}
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                             {getStatusIcon(status)}
                             <span className="ml-1">{status}</span>
                           </span>
                         </td>
                         
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden md:table-cell">
                           {record.notes || '-'}
                         </td>
                       </motion.tr>
@@ -677,7 +704,7 @@ const PrincipalViewAttendance = () => {
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => toggleStudentExpansion(student._id)}
                         >
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0">
                                 <button className="text-gray-400 hover:text-gray-600">
@@ -693,10 +720,10 @@ const PrincipalViewAttendance = () => {
                                 </button>
                               </div>
                               <div className="ml-3">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-xs sm:text-sm font-medium text-gray-900">
                                   {student.name || 'Unknown'}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-xs sm:text-sm text-gray-500">
                                   {student.rollNumber || 'N/A'} • {getCourseName(student.course)} {student.year || 'N/A'} • {getBranchName(student.branch)}
                                 </div>
                                 <div className="text-xs text-gray-400">
@@ -706,39 +733,39 @@ const PrincipalViewAttendance = () => {
                             </div>
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-900">
                             {summary.totalDays}
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
                               <CheckIcon className="w-3 h-3 mr-1" />
                               {summary.presentDays}
                             </span>
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
                               <ClockIcon className="w-3 h-3 mr-1" />
                               {summary.partialDays}
                             </span>
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
                               <XMarkIcon className="w-3 h-3 mr-1" />
                               {summary.absentDays}
                             </span>
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
                               {getPercentageIcon(summary.attendancePercentage)}
                               <span className="ml-1">{summary.attendancePercentage}%</span>
                             </span>
                           </td>
                           
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                          <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <button
                               className="text-purple-600 hover:text-purple-900"
                               onClick={(e) => {
@@ -754,13 +781,13 @@ const PrincipalViewAttendance = () => {
                         {/* Expanded details */}
                         {isExpanded && (
                           <tr>
-                            <td colSpan="6" className="px-6 py-4 bg-gray-50">
+                            <td colSpan="6" className="px-3 sm:px-6 py-4 bg-gray-50">
                               <div className="space-y-2">
-                                <h4 className="font-medium text-gray-900">Detailed Attendance Records</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <h4 className="font-medium text-gray-900 text-sm sm:text-base">Detailed Attendance Records</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                   {record.attendanceRecords.map((attRecord, idx) => (
-                                    <div key={idx} className="bg-white p-3 rounded border">
-                                      <div className="text-sm font-medium text-gray-900">
+                                    <div key={idx} className="bg-white p-2 sm:p-3 rounded border">
+                                      <div className="text-xs sm:text-sm font-medium text-gray-900">
                                         {formatDate(attRecord.date)}
                                       </div>
                                       <div className="text-xs text-gray-500 mt-1">

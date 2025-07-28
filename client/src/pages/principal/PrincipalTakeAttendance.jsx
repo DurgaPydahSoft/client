@@ -10,9 +10,11 @@ import {
   ClockIcon,
   CalendarIcon,
   AcademicCapIcon,
-  StarIcon
+  StarIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { AnimatePresence } from 'framer-motion';
 
 const PrincipalTakeAttendance = () => {
   const { user } = useAuth();
@@ -29,6 +31,7 @@ const PrincipalTakeAttendance = () => {
   const [allBranches, setAllBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(true);
 
   useEffect(() => {
     fetchStudents();
@@ -176,93 +179,118 @@ const PrincipalTakeAttendance = () => {
   if (loading || !user?.course) return <LoadingSpinner />;
 
   return (
-    <div className="p-6">
+    <div className="p-3 sm:p-6">
       
 
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Select Date</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-            <select
-              name="branch"
-              value={filters.branch}
-              onChange={handleFilterChange}
-              disabled={loadingFilters}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100"
-            >
-              <option value="">{loadingFilters ? 'Loading...' : 'All Branches'}</option>
-              {filteredBranches.map((branch) => (
-                <option key={branch._id} value={branch._id}>
-                  {branch.name} ({branch.code})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-            <select
-              name="gender"
-              value={filters.gender}
-              onChange={handleFilterChange}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select
-              name="category"
-              value={filters.category}
-              onChange={handleFilterChange}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">All Categories</option>
-              <option value="General">General</option>
-              <option value="OBC">OBC</option>
-              <option value="SC">SC</option>
-              <option value="ST">ST</option>
-            </select>
-          </div>
+      <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
+        {/* Filter Toggle Button */}
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Attendance Filters</h3>
+          <button
+            onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+            className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors touch-manipulation"
+          >
+            <FunnelIcon className="w-4 h-4" />
+            {filtersCollapsed ? 'Show Filters' : 'Hide Filters'}
+          </button>
         </div>
+
+        {/* Collapsible Filters */}
+        <AnimatePresence>
+          {!filtersCollapsed && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Select Date</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch</label>
+                  <select
+                    name="branch"
+                    value={filters.branch}
+                    onChange={handleFilterChange}
+                    disabled={loadingFilters}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 text-xs sm:text-sm"
+                  >
+                    <option value="">{loadingFilters ? 'Loading...' : 'All Branches'}</option>
+                    {filteredBranches.map((branch) => (
+                      <option key={branch._id} value={branch._id}>
+                        {branch.name} ({branch.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select
+                    name="gender"
+                    value={filters.gender}
+                    onChange={handleFilterChange}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  >
+                    <option value="">All Genders</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    name="category"
+                    value={filters.category}
+                    onChange={handleFilterChange}
+                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                  >
+                    <option value="">All Categories</option>
+                    <option value="General">General</option>
+                    <option value="OBC">OBC</option>
+                    <option value="SC">SC</option>
+                    <option value="ST">ST</option>
+                  </select>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Students List */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
               Take Attendance ({students.length} students)
             </h3>
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 text-xs sm:text-sm font-medium touch-manipulation"
             >
               {submitting ? (
                 <>
                   <ClockIcon className="w-4 h-4 animate-spin" />
-                  Saving...
+                  <span>Saving...</span>
                 </>
               ) : (
                 <>
                   <CheckCircleIcon className="w-4 h-4" />
-                  Save Attendance
+                  <span>Save Attendance</span>
                 </>
               )}
             </button>
@@ -270,38 +298,38 @@ const PrincipalTakeAttendance = () => {
         </div>
 
         {students.length === 0 ? (
-          <div className="p-8 text-center">
-            <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500">No students found for the selected criteria</p>
+          <div className="p-6 sm:p-8 text-center">
+            <UserGroupIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 text-xs sm:text-sm">No students found for the selected criteria</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Student
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
                     Roll Number
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden lg:table-cell">
                     Branch
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Morning
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Evening
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    <StarIcon className="w-4 h-4 inline mr-1" />
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                     Night
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden md:table-cell">
                     Notes
                   </th>
                 </tr>
@@ -309,56 +337,59 @@ const PrincipalTakeAttendance = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {students.map((student) => (
                   <tr key={student._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                            <span className="text-sm font-medium text-purple-600">
+                        <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                            <span className="text-xs sm:text-sm font-medium text-purple-600">
                               {student.name?.charAt(0) || 'S'}
                             </span>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                        <div className="ml-3 sm:ml-4">
+                          <div className="text-xs sm:text-sm font-medium text-gray-900">
                             {student.name || 'Unknown Student'}
                           </div>
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs sm:text-sm text-gray-500">
                             {student.gender || 'N/A'}
+                          </div>
+                          <div className="text-xs text-gray-400 sm:hidden">
+                            {student.rollNumber || 'N/A'} • {getBranchName(student.branch)}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden sm:table-cell">
                       {student.rollNumber || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 hidden lg:table-cell">
                       {getBranchName(student.branch)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.morning || false}
                         onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 touch-manipulation"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.evening || false}
                         onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 touch-manipulation"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
                         checked={attendanceData[student._id]?.night || false}
                         onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
-                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500 touch-manipulation"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                         attendanceData[student._id]?.morning || false,
                         attendanceData[student._id]?.evening || false,
@@ -371,13 +402,13 @@ const PrincipalTakeAttendance = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hidden md:table-cell">
                       <input
                         type="text"
                         value={attendanceData[student._id]?.notes || ''}
                         onChange={(e) => handleAttendanceChange(student._id, 'notes', e.target.value)}
                         placeholder="Add notes..."
-                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full px-2 py-1 text-xs sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                       />
                     </td>
                   </tr>

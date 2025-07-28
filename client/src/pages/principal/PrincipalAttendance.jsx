@@ -38,29 +38,29 @@ const PrincipalAttendance = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
       <SEO title="Attendance Management - Principal Dashboard" />
       
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto p-3 sm:p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-purple-600 rounded-lg shadow-sm p-6 mb-6"
+          className="bg-purple-600 rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                <UserGroupIcon className="w-6 h-6 text-white" />
+              <h1 className="text-lg sm:text-2xl font-bold text-white flex items-center gap-2">
+                <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                 Attendance Management
               </h1>
-              <p className="text-white mt-1">
+              <p className="text-white mt-1 text-xs sm:text-sm">
                 Monitor and analyze student attendance records for your course
               </p>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 rounded-lg">
-              <AcademicCapIcon className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-purple-700">
+            <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-50 rounded-lg">
+              <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
+              <span className="text-xs sm:text-sm font-medium text-purple-700">
                 Course: {getCourseName(user?.course)}
               </span>
             </div>
@@ -72,7 +72,7 @@ const PrincipalAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-1 mb-6"
+          className="bg-white rounded-xl shadow-lg p-1 mb-4 sm:mb-6"
         >
           <div className="flex space-x-1">
             {tabs.map((tab) => {
@@ -83,7 +83,7 @@ const PrincipalAttendance = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all duration-300 ${
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2.5 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 touch-manipulation ${
                     isActive
                       ? tab.id === 'view' 
                         ? 'bg-purple-100 text-purple-700 shadow-md border-2 border-purple-300'
@@ -91,13 +91,13 @@ const PrincipalAttendance = () => {
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 ${
+                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${
                     isActive 
                       ? tab.id === 'view' ? 'text-purple-600' : 'text-blue-600'
                       : ''
                   }`} />
                   <span className="hidden sm:inline">{tab.name}</span>
-                  <span className="sm:hidden">View</span>
+                  <span className="sm:hidden">{tab.id === 'view' ? 'View' : 'Take'}</span>
                 </button>
               );
             })}
@@ -112,7 +112,7 @@ const PrincipalAttendance = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-lg shadow-sm overflow-hidden"
+            className="bg-white rounded-xl shadow-lg overflow-hidden"
           >
             {activeTab === 'view' ? (
               <div>
