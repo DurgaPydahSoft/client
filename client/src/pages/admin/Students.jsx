@@ -1952,10 +1952,10 @@ const Students = () => {
               name="studentPhone"
               value={form.studentPhone}
               onChange={handleFormChange}
-              required
               pattern="[0-9]{10}"
               title="10 digit phone number"
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter phone number (optional)"
             />
           </div>
           <div>

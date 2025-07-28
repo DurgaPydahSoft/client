@@ -8,8 +8,7 @@ import {
   XMarkIcon,
   LockClosedIcon,
   ShieldExclamationIcon,
-  ChevronDownIcon,
-  ChevronRightIcon
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import { hasPermission, hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 import ComplaintList from './ComplaintList';
@@ -521,11 +520,21 @@ const AdminDashboard = () => {
                         </svg>
                         <span>{item.name}</span>
                       </div>
-                      {expandedMenus[item.name] ? (
-                        <ChevronDownIcon className="w-4 h-4" />
-                      ) : (
-                        <ChevronRightIcon className="w-4 h-4" />
-                      )}
+                      <svg
+                        className={`w-4 h-4 transition-transform duration-200 ${
+                          expandedMenus[item.name] ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
                     </button>
                     
                     {/* Submenu items */}
