@@ -40,7 +40,7 @@ const Attendance = () => {
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-blue-900 flex items-center gap-2">
                 <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 Attendance Management
               </h1>

@@ -18,8 +18,10 @@ import api from '../../utils/axios';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
 
 const ViewAttendance = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [attendance, setAttendance] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -49,6 +51,20 @@ const ViewAttendance = () => {
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
+
+  // Helper function to get the appropriate API endpoint based on user role
+  const getAttendanceEndpoint = (type) => {
+    const userRole = user?.role;
+    
+    if (userRole === 'principal') {
+      return `/api/attendance/principal/${type}`;
+    } else if (userRole === 'warden') {
+      return `/api/attendance/warden/${type}`;
+    } else {
+      // For admin, super_admin, sub_admin
+      return `/api/attendance/${type}`;
+    }
+  };
 
   useEffect(() => {
     if (viewMode === 'date') {
@@ -96,7 +112,8 @@ const ViewAttendance = () => {
         ...filters
       });
 
-      const response = await api.get(`/api/attendance/date?${params}`);
+      const endpoint = getAttendanceEndpoint('date');
+      const response = await api.get(`${endpoint}?${params}`);
       
       if (response.data.success) {
         setAttendance(response.data.data.attendance);
@@ -119,7 +136,8 @@ const ViewAttendance = () => {
         ...filters
       });
 
-      const response = await api.get(`/api/attendance/range?${params}`);
+      const endpoint = getAttendanceEndpoint('range');
+      const response = await api.get(`${endpoint}?${params}`);
       
       if (response.data.success) {
         const attendanceData = response.data.data.attendance;

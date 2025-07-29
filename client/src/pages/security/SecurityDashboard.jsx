@@ -113,19 +113,19 @@ const SecurityDashboard = () => {
         }
       } else {
         // This is an outgoing request - record visit and update verification status
-        await recordVisit(selectedLeave._id, 'Security Guard');
-        
-        // Then update verification status
-        const response = await api.post('/api/leave/verify', {
-          leaveId: selectedLeave._id,
-          verificationStatus
-        });
-        
-        if (response.data.success) {
-          toast.success(response.data.data.message);
-          setShowVerificationModal(false);
-          setVerificationStatus('Verified');
-          fetchApprovedLeaves();
+      await recordVisit(selectedLeave._id, 'Security Guard');
+      
+      // Then update verification status
+      const response = await api.post('/api/leave/verify', {
+        leaveId: selectedLeave._id,
+        verificationStatus
+      });
+      
+      if (response.data.success) {
+        toast.success(response.data.data.message);
+        setShowVerificationModal(false);
+        setVerificationStatus('Verified');
+        fetchApprovedLeaves();
         }
       }
     } catch (error) {
