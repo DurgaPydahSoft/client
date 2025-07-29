@@ -97,20 +97,36 @@ const SecurityDashboard = () => {
 
   const handleVerification = async () => {
     try {
-      // Record the visit first
-      await recordVisit(selectedLeave._id, 'Security Guard');
-      
-      // Then update verification status
-      const response = await api.post('/api/leave/verify', {
-        leaveId: selectedLeave._id,
-        verificationStatus
-      });
-      
-      if (response.data.success) {
-        toast.success(response.data.data.message);
-        setShowVerificationModal(false);
-        setVerificationStatus('Verified');
-        fetchApprovedLeaves();
+      // Check if this is an incoming request
+      if (selectedLeave.verificationStatus === 'Verified' && selectedLeave.incomingQrGenerated) {
+        // This is an incoming request - scan incoming QR
+        const response = await api.post(`/api/leave/incoming-qr/${selectedLeave._id}`, {
+          scannedBy: 'Security Guard',
+          location: 'Main Gate'
+        });
+        
+        if (response.data.success) {
+          toast.success('Incoming visit recorded - Leave completed');
+          setShowVerificationModal(false);
+          setVerificationStatus('Verified');
+          fetchApprovedLeaves();
+        }
+      } else {
+        // This is an outgoing request - record visit and update verification status
+        await recordVisit(selectedLeave._id, 'Security Guard');
+        
+        // Then update verification status
+        const response = await api.post('/api/leave/verify', {
+          leaveId: selectedLeave._id,
+          verificationStatus
+        });
+        
+        if (response.data.success) {
+          toast.success(response.data.data.message);
+          setShowVerificationModal(false);
+          setVerificationStatus('Verified');
+          fetchApprovedLeaves();
+        }
       }
     } catch (error) {
       console.error('Error updating verification status:', error);
@@ -149,6 +165,8 @@ const SecurityDashboard = () => {
         return 'text-red-600 bg-red-50 border-red-200';
       case 'Not Verified':
         return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'Completed':
+        return 'text-purple-600 bg-purple-50 border-purple-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -174,6 +192,8 @@ const SecurityDashboard = () => {
         return <XCircleIcon className="w-4 h-4" />;
       case 'Not Verified':
         return <ExclamationCircleIcon className="w-4 h-4" />;
+      case 'Completed':
+        return <CheckCircleIcon className="w-4 h-4" />;
       default:
         return null;
     }
@@ -286,14 +306,32 @@ const SecurityDashboard = () => {
   // Section helpers
   const now = new Date();
   const sortedLeaves = getSortedLeaves();
-  const todayLeaves = sortedLeaves.filter(leave => {
+  
+  // Outgoing leaves (not verified yet)
+  const outgoingLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
-    return isToday(start) && (!leave._frontendExpired && leave.verificationStatus !== 'Expired');
+    return isToday(start) && leave.verificationStatus === 'Not Verified' && !leave._frontendExpired;
   });
+  
+  // Incoming leaves (verified outgoing, waiting for incoming)
+  const incomingLeaves = sortedLeaves.filter(leave => {
+    const start = getRequestDate(leave);
+    return isToday(start) && leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired;
+  });
+  
+  // Completed leaves (incoming QR scanned)
+  const completedLeaves = sortedLeaves.filter(leave => {
+    const start = getRequestDate(leave);
+    return isToday(start) && leave.verificationStatus === 'Completed';
+  });
+  
+  // Upcoming leaves
   const upcomingLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
     return start > now && (!leave._frontendExpired && leave.verificationStatus !== 'Expired');
   });
+  
+  // Expired/Recent requests
   const expiredLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
     // Only include if start time is more than 24 hours ago
@@ -358,6 +396,7 @@ const SecurityDashboard = () => {
                 <option value="">All Status</option>
                 <option value="Not Verified">Not Verified</option>
                 <option value="Verified">Verified</option>
+                <option value="Completed">Completed</option>
                 <option value="Expired">Expired</option>
               </select>
               
@@ -400,10 +439,10 @@ const SecurityDashboard = () => {
             </div>
           ) : (
             <>
-              {/* Today's Leaves */}
+              {/* Outgoing Leaves */}
               <SectionTable 
-                title="Today's Requests" 
-                leaves={todayLeaves} 
+                title="Outgoing Requests (Exit)" 
+                leaves={outgoingLeaves} 
                 getBlinkingDot={getBlinkingDot} 
                 isLeaveExpired={isLeaveExpired} 
                 getVerificationStatusColor={getVerificationStatusColor}
@@ -413,6 +452,35 @@ const SecurityDashboard = () => {
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
               />
+              
+              {/* Incoming Leaves */}
+              <SectionTable 
+                title="Incoming Requests (Re-entry)" 
+                leaves={incomingLeaves} 
+                getBlinkingDot={getBlinkingDot} 
+                isLeaveExpired={isLeaveExpired} 
+                getVerificationStatusColor={getVerificationStatusColor}
+                getApplicationTypeColor={getApplicationTypeColor}
+                getVerificationStatusIcon={getVerificationStatusIcon}
+                setSelectedLeave={setSelectedLeave}
+                setShowVerificationModal={setShowVerificationModal}
+                getRequestDate={getRequestDate}
+              />
+              
+              {/* Completed Leaves */}
+              <SectionTable 
+                title="Completed Requests" 
+                leaves={completedLeaves} 
+                getBlinkingDot={getBlinkingDot} 
+                isLeaveExpired={isLeaveExpired} 
+                getVerificationStatusColor={getVerificationStatusColor}
+                getApplicationTypeColor={getApplicationTypeColor}
+                getVerificationStatusIcon={getVerificationStatusIcon}
+                setSelectedLeave={setSelectedLeave}
+                setShowVerificationModal={setShowVerificationModal}
+                getRequestDate={getRequestDate}
+              />
+              
               {/* Upcoming Leaves - Only show when toggled */}
               {showUpcomingPasses && (
                 <SectionTable 
@@ -484,6 +552,12 @@ const SecurityDashboard = () => {
                   </>
                 )}
                 <p className="text-gray-600">Reason: {selectedLeave.reason}</p>
+                {selectedLeave.incomingQrGenerated && (
+                  <div className="mt-2 p-2 bg-blue-50 rounded">
+                    <p className="text-blue-700 text-xs font-medium">Incoming QR Available</p>
+                    <p className="text-blue-600 text-xs">Expires: {new Date(selectedLeave.incomingQrExpiresAt).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -501,7 +575,10 @@ const SecurityDashboard = () => {
                 onClick={handleVerification}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
               >
-                Update Status
+                {selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated 
+                  ? 'Scan Incoming QR' 
+                  : 'Update Status'
+                }
               </button>
             </div>
           </motion.div>
@@ -604,7 +681,12 @@ const SectionTable = ({
                     </span>
                   </div>
                   <div className="text-gray-500 mt-1 truncate">
-                    Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}
+                    Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
+                    {leave.incomingQrGenerated && (
+                      <div className="text-xs text-green-600">
+                        Incoming: {leave.incomingVisitCount || 0}/1
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -619,9 +701,26 @@ const SectionTable = ({
 
                 {/* Action */}
                 <div className="col-span-1 text-center">
-                  {leave.verificationStatus === 'Verified' ? (
-                    <div className="flex items-center justify-center gap-1 text-green-600 text-xs">
+                  {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                    <div className="flex items-center justify-center gap-1 text-blue-600 text-xs">
                       <CheckCircleIcon className="w-4 h-4" />
+                      <span>Outgoing Verified</span>
+                    </div>
+                  ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
+                    <button
+                      onClick={() => {
+                        setSelectedLeave(leave);
+                        setShowVerificationModal(true);
+                      }}
+                      className="px-2 sm:px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium flex items-center gap-1"
+                    >
+                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span>Scan Incoming</span>
+                    </button>
+                  ) : leave.verificationStatus === 'Completed' ? (
+                    <div className="flex items-center justify-center gap-1 text-purple-600 text-xs">
+                      <CheckCircleIcon className="w-4 h-4" />
+                      <span>Completed</span>
                     </div>
                   ) : (
                     <button
@@ -677,17 +776,36 @@ const SectionTable = ({
                     {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
                     <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                   </span>
-                  <div className="text-xs sm:text-sm text-blue-600 font-medium">Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}</div>
+                  <div className="text-xs sm:text-sm text-blue-600 font-medium">
+                    Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
+                    {leave.incomingQrGenerated && (
+                      <div className="text-xs text-green-600">
+                        Incoming: {leave.incomingVisitCount || 0}/1
+                      </div>
+                    )}
+                  </div>
                   {leave.verificationStatus !== 'Verified' && !leave._frontendExpired && (
                     <button
                       onClick={() => {
                         setSelectedLeave(leave);
                         setShowVerificationModal(true);
                       }}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-xs font-medium flex items-center gap-1"
                     >
                       <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       Verify
+                    </button>
+                  )}
+                  {leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired && (
+                    <button
+                      onClick={() => {
+                        setSelectedLeave(leave);
+                        setShowVerificationModal(true);
+                      }}
+                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-xs font-medium flex items-center gap-1"
+                    >
+                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                      Scan Incoming
                     </button>
                   )}
                 </div>

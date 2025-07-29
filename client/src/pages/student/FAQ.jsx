@@ -18,100 +18,191 @@ import SEO from '../../components/SEO';
 
 const FAQ = () => {
   const [openSection, setOpenSection] = useState(null);
+  const [openCategories, setOpenCategories] = useState({});
   const [showHowToApplyModal, setShowHowToApplyModal] = useState(false);
 
-  const faqData = [
-    {
-      id: 'how-to-apply',
-      question: 'How do I apply for leave, permission, or stay in hostel?',
-      answer: 'Click the "How to Apply" button below to see a detailed guide on the application process and approval workflow.',
-      isSpecial: true
-    },
-    {
-      id: 'how-to-raise-complaint',
-      question: 'How do I raise a complaint?',
-      answer: 'Go to "Raise Complaint" in your dashboard, select the category (Canteen, Internet, Maintenance, or Others), provide a detailed description, and optionally attach an image. Submit the form and your complaint will be automatically processed.',
-      isSpecial: true
-    },
-    {
-      id: 'complaint-categories',
-      question: 'What are the complaint categories available?',
-      answer: 'There are four main categories: 1) Canteen - for food quality, service, or facility issues, 2) Internet - for connectivity or speed problems, 3) Maintenance - with subcategories for Housekeeping, Plumbing, and Electricity, and 4) Others - for any other hostel-related issues.'
-    },
-    {
-      id: 'complaint-status-flow',
-      question: 'What are the different complaint statuses?',
-      answer: 'Complaints go through these statuses: 1) Received - when first submitted, 2) Pending - under review, 3) In Progress - assigned to staff and being worked on, 4) Resolved - issue has been fixed, and 5) Closed - final status after resolution.'
-    },
-    {
-      id: 'complaint-resolution-time',
-      question: 'How long does it take to resolve a complaint?',
-      answer: 'Most complaints are resolved within 2-3 business days. Simple issues like internet problems may be resolved faster, while complex maintenance issues might take longer. You can track the progress in "My Complaints" section.'
-    },
-    {
-      id: 'complaint-assignment',
-      question: 'How are complaints assigned to staff?',
-      answer: 'Complaints are automatically assigned to appropriate staff members based on the category. Maintenance complaints are assigned to relevant maintenance staff, canteen issues to food service staff, and internet problems to IT support.'
-    },
-    {
-      id: 'complaint-feedback',
-      question: 'How do I provide feedback on resolved complaints?',
-      answer: 'Once a complaint is marked as "Resolved", you can provide feedback in the "My Complaints" section. You can rate your satisfaction (Satisfied/Not Satisfied) and add optional comments about the resolution quality.'
-    },
-    {
-      id: 'complaint-tracking',
-      question: 'How can I track my complaint progress?',
-      answer: 'Go to "My Complaints" in your dashboard to see all your complaints with their current status, timeline of updates, and assigned staff. You can also view detailed information by clicking on any complaint.'
-    },
-    {
-      id: 'complaint-image',
-      question: 'Can I attach images to my complaint?',
-      answer: 'Yes, you can attach one image (up to 5MB) to your complaint. This helps staff better understand the issue. Supported formats are JPG, PNG, and GIF. Images are optional but recommended for maintenance and facility issues.'
-    },
-    {
-      id: 'complaint-updates',
-      question: 'How do I know when my complaint is updated?',
-      answer: 'You will receive notifications when your complaint status changes or when staff adds notes. You can also check the timeline in "My Complaints" to see all updates and notes from staff members.'
-    },
-    {
-      id: 'leave-types',
-      question: 'What are the different types of leave requests?',
-      answer: 'There are three types: 1) Leave - for extended absence (multiple days), 2) Permission - for short outings (same day), and 3) Stay in Hostel - for staying in hostel during holidays.'
-    },
-    {
-      id: 'otp-verification',
-      question: 'What is OTP verification?',
-      answer: 'For Leave and Permission requests, an OTP (4-digit code) is sent to your parent\'s phone number. The warden will verify this OTP with your parent before forwarding to the principal for approval.'
-    },
-    {
-      id: 'approval-time',
-      question: 'How long does approval take?',
-      answer: 'The approval process typically takes 1-2 business days. Leave/Permission requests go through warden OTP verification first, then principal approval. Stay in Hostel requests go through warden recommendation then principal decision.'
-    },
-    {
-      id: 'qr-code',
-      question: 'When can I use the QR code?',
-      answer: 'QR codes are available only for approved Leave and Permission requests. They become active from the gate pass time (for leave) or permission date (for permission) and remain valid until the end of your approved period.'
-    },
-    {
-      id: 'rejection',
-      question: 'What if my request is rejected?',
-      answer: 'If your request is rejected, you will receive a notification with the rejection reason. You can submit a new request with updated information if needed.'
-    },
-    {
-      id: 'emergency',
-      question: 'What about emergency situations?',
-      answer: 'For genuine emergencies, contact your warden directly. They can help expedite the process or provide immediate assistance.'
-    },
-    {
-      id: 'contact',
-      question: 'Who should I contact for help?',
-      answer: 'For technical issues with the app, contact the IT support. For leave-related queries, contact your warden. For urgent matters, contact the hostel office directly.'
-    }
-  ];
+  const faqData = {
+    'Leave & Permission': [
+      {
+        id: 'how-to-apply',
+        question: 'How do I apply for leave, permission, or stay in hostel?',
+        answer: 'Click the "How to Apply" button below to see a detailed guide on the application process and approval workflow.',
+        isSpecial: true
+      },
+      {
+        id: 'leave-types',
+        question: 'What are the different types of leave requests?',
+        answer: 'There are three types: 1) Leave - for extended absence (multiple days), 2) Permission - for short outings (same day), and 3) Stay in Hostel - for staying in hostel during holidays.'
+      },
+      {
+        id: 'otp-verification',
+        question: 'What is OTP verification?',
+        answer: 'For Leave and Permission requests, an OTP (4-digit code) is sent to your parent\'s phone number. The warden will verify this OTP with your parent before forwarding to the principal for approval.'
+      },
+      {
+        id: 'approval-time',
+        question: 'How long does approval take?',
+        answer: 'The approval process typically takes 1-2 business days. Leave/Permission requests go through warden OTP verification first, then principal approval. Stay in Hostel requests go through warden recommendation then principal decision.'
+      },
+      {
+        id: 'rejection',
+        question: 'What if my request is rejected?',
+        answer: 'If your request is rejected, you will receive a notification with the rejection reason. You can submit a new request with updated information if needed.'
+      },
+      {
+        id: 'emergency',
+        question: 'What about emergency situations?',
+        answer: 'For genuine emergencies, contact your warden directly. They can help expedite the process or provide immediate assistance.'
+      }
+    ],
+    'QR Code System': [
+      {
+        id: 'qr-code',
+        question: 'When can I use the QR code?',
+        answer: 'QR codes are available only for approved Leave and Permission requests. They become active from the gate pass time (for leave) or permission date (for permission) and remain valid until the end of your approved period. There are two types of QR codes: 1) Outgoing QR - for exiting the hostel, and 2) Incoming QR - for re-entering the hostel after your outing.',
+        isSpecial: true
+      },
+      {
+        id: 'incoming-qr',
+        question: 'How does the incoming QR code work?',
+        answer: 'When you scan your outgoing QR code at the security gate to exit, an incoming QR code is automatically generated for your re-entry. This incoming QR code is valid for 24 hours or until your leave end date (whichever comes first). You can view your incoming QR code in the "Leave" section of your dashboard once it\'s generated.',
+        isSpecial: true
+      },
+      {
+        id: 'qr-usage',
+        question: 'How do I use the outgoing and incoming QR codes?',
+        answer: '1) Outgoing QR: Show this QR code to security when leaving the hostel. It\'s available from your gate pass time until the end of your approved period. 2) Incoming QR: Show this QR code to security when returning to the hostel. It\'s automatically generated after your first outgoing scan and expires in 24 hours or at your leave end date.',
+        isSpecial: true
+      },
+      {
+        id: 'leave-completion',
+        question: 'What happens when I scan the incoming QR code?',
+        answer: 'When you scan your incoming QR code to re-enter the hostel, your leave is automatically marked as "Completed" and you are removed from "On Leave" status immediately. This happens even if you return before the end date of your leave. Your attendance will no longer show as "On Leave" for that date.',
+        isSpecial: true
+      },
+      {
+        id: 'security-dashboard',
+        question: 'How does the security dashboard work for leave verification?',
+        answer: 'The security dashboard shows different sections: 1) Outgoing Requests - students who need to exit, 2) Incoming Requests - students who have exited and need to re-enter, 3) Completed Requests - students who have completed their leave (both exit and re-entry). Security personnel can easily identify which students need to exit vs. re-enter and manage the verification process accordingly.',
+        isSpecial: true
+      }
+    ],
+    'Complaint System': [
+      {
+        id: 'how-to-raise-complaint',
+        question: 'How do I raise a complaint?',
+        answer: 'Go to "Raise Complaint" in your dashboard, select the category (Canteen, Internet, Maintenance, or Others), provide a detailed description, and optionally attach an image. Submit the form and your complaint will be automatically processed.',
+        isSpecial: true
+      },
+      {
+        id: 'complaint-categories',
+        question: 'What are the complaint categories available?',
+        answer: 'There are four main categories: 1) Canteen - for food quality, service, or facility issues, 2) Internet - for connectivity or speed problems, 3) Maintenance - with subcategories for Housekeeping, Plumbing, and Electricity, and 4) Others - for any other hostel-related issues.'
+      },
+      {
+        id: 'complaint-status-flow',
+        question: 'What are the different complaint statuses?',
+        answer: 'Complaints go through these statuses: 1) Received - when first submitted, 2) Pending - under review, 3) In Progress - assigned to staff and being worked on, 4) Resolved - issue has been fixed, and 5) Closed - final status after resolution.'
+      },
+      {
+        id: 'complaint-resolution-time',
+        question: 'How long does it take to resolve a complaint?',
+        answer: 'Most complaints are resolved within 2-3 business days. Simple issues like internet problems may be resolved faster, while complex maintenance issues might take longer. You can track the progress in "My Complaints" section.'
+      },
+      {
+        id: 'complaint-assignment',
+        question: 'How are complaints assigned to staff?',
+        answer: 'Complaints are automatically assigned to appropriate staff members based on the category. Maintenance complaints are assigned to relevant maintenance staff, canteen issues to food service staff, and internet problems to IT support.'
+      },
+      {
+        id: 'complaint-feedback',
+        question: 'How do I provide feedback on resolved complaints?',
+        answer: 'Once a complaint is marked as "Resolved", you can provide feedback in the "My Complaints" section. You can rate your satisfaction (Satisfied/Not Satisfied) and add optional comments about the resolution quality.'
+      },
+      {
+        id: 'complaint-tracking',
+        question: 'How can I track my complaint progress?',
+        answer: 'Go to "My Complaints" in your dashboard to see all your complaints with their current status, timeline of updates, and assigned staff. You can also view detailed information by clicking on any complaint.'
+      },
+      {
+        id: 'complaint-image',
+        question: 'Can I attach images to my complaint?',
+        answer: 'Yes, you can attach one image (up to 5MB) to your complaint. This helps staff better understand the issue. Supported formats are JPG, PNG, and GIF. Images are optional but recommended for maintenance and facility issues.'
+      },
+      {
+        id: 'complaint-updates',
+        question: 'How do I know when my complaint is updated?',
+        answer: 'You will receive notifications when your complaint status changes or when staff adds notes. You can also check the timeline in "My Complaints" to see all updates and notes from staff members.'
+      }
+    ],
+    'Attendance System': [
+      {
+        id: 'attendance-marking',
+        question: 'How is my attendance marked?',
+        answer: 'Your attendance is marked three times daily: Morning, Evening, and Night sessions. Wardens and admins mark attendance during these sessions. If you are on approved leave, you are automatically marked as "On Leave" for that date.',
+        isSpecial: true
+      },
+      {
+        id: 'on-leave-status',
+        question: 'What does "On Leave" status mean?',
+        answer: '"On Leave" status is automatically applied when you have an approved leave for that date. This means you are excused from regular attendance marking and your attendance percentage is not affected. The status is automatically removed when you complete your leave by scanning the incoming QR code.',
+        isSpecial: true
+      },
+      {
+        id: 'attendance-sessions',
+        question: 'What are the different attendance sessions?',
+        answer: 'There are three attendance sessions: 1) Morning - typically early morning roll call, 2) Evening - evening attendance check, and 3) Night - late night attendance verification. You can be marked present, absent, or "On Leave" for each session.',
+        isSpecial: true
+      },
+      {
+        id: 'attendance-percentage',
+        question: 'How is my attendance percentage calculated?',
+        answer: 'Your attendance percentage is calculated based on the sessions you attend. If you are marked "On Leave" for a day, it doesn\'t count against your attendance percentage. The calculation excludes leave days and focuses on actual attendance during regular days.',
+        isSpecial: true
+      },
+      {
+        id: 'attendance-viewing',
+        question: 'How can I view my attendance records?',
+        answer: 'Go to "My Attendance" in your dashboard to view your attendance history. You can see daily attendance records, session-wise marking (Morning/Evening/Night), and your overall attendance statistics including percentage and attendance trends.',
+        isSpecial: true
+      },
+      {
+        id: 'leave-attendance-relation',
+        question: 'How does leave affect my attendance?',
+        answer: 'When you have an approved leave, you are automatically marked as "On Leave" for that date. This status is applied by wardens and admins during attendance marking. When you complete your leave by scanning the incoming QR code, you are immediately removed from "On Leave" status, even if you return before the end date of your leave.',
+        isSpecial: true
+      },
+      {
+        id: 'attendance-notifications',
+        question: 'Do I get notifications about my attendance?',
+        answer: 'You can view your attendance records anytime in the "My Attendance" section. The system tracks your attendance automatically, and you can see your attendance statistics, trends, and any "On Leave" days in your attendance history.',
+        isSpecial: true
+      },
+      {
+        id: 'attendance-disputes',
+        question: 'What if there\'s an error in my attendance marking?',
+        answer: 'If you notice an error in your attendance marking, contact your warden immediately. They can verify and correct attendance records. Make sure to provide the specific date and session where the error occurred.',
+        isSpecial: true
+      }
+    ],
+    'General Help': [
+      {
+        id: 'contact',
+        question: 'Who should I contact for help?',
+        answer: 'For technical issues with the app, contact the IT support. For leave-related queries, contact your warden. For urgent matters, contact the hostel office directly.'
+      }
+    ]
+  };
 
   const toggleSection = (id) => {
     setOpenSection(openSection === id ? null : id);
+  };
+
+  const toggleCategory = (category) => {
+    setOpenCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
   };
 
   return (
@@ -124,7 +215,7 @@ const FAQ = () => {
         />
 
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Frequently Asked Questions</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-900 mb-2">Frequently Asked Questions</h1>
           <p className="text-sm sm:text-base text-gray-600">Find answers to common questions about the hostel management system</p>
         </div>
 
@@ -142,42 +233,72 @@ const FAQ = () => {
 
         {/* FAQ List */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {faqData.map((faq, index) => (
-            <motion.div
-              key={faq.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className={`border-b border-gray-200 last:border-b-0 ${
-                faq.isSpecial ? 'bg-blue-50' : ''
-              }`}
-            >
+          {Object.entries(faqData).map(([category, faqs]) => (
+            <div key={category} className="border-b border-gray-200 last:border-b-0">
+              {/* Category Header - Clickable */}
               <button
-                onClick={() => toggleSection(faq.id)}
-                className="w-full px-4 sm:px-6 py-3 sm:py-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
+                onClick={() => toggleCategory(category)}
+                className="w-full px-4 sm:px-6 py-3 sm:py-4 text-left hover:bg-gray-100 transition-colors flex items-center justify-between bg-gray-50 border-b border-gray-200"
               >
                 <div className="flex items-center flex-1 min-w-0">
                   <QuestionMarkCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mr-2 sm:mr-3 flex-shrink-0" />
-                  <span className="font-medium text-gray-900 text-sm sm:text-base leading-tight">{faq.question}</span>
+                  <span className="font-semibold text-gray-900 text-sm sm:text-base">{category}</span>
                 </div>
-                {openSection === faq.id ? (
+                {openCategories[category] ? (
                   <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0 ml-2" />
                 ) : (
                   <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0 ml-2" />
                 )}
               </button>
               
-              {openSection === faq.id && (
+              {/* Questions in this category - Collapsible */}
+              {openCategories[category] && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="px-4 sm:px-6 pb-3 sm:pb-4"
+                  transition={{ duration: 0.3 }}
                 >
-                  <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{faq.answer}</p>
+                  {faqs.map((faq, index) => (
+                    <motion.div
+                      key={faq.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`border-b border-gray-200 last:border-b-0 ${
+                        faq.isSpecial ? 'bg-blue-50' : ''
+                      }`}
+                    >
+                      <button
+                        onClick={() => toggleSection(faq.id)}
+                        className="w-full px-4 sm:px-6 py-3 sm:py-4 text-left hover:bg-gray-50 transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex items-center flex-1 min-w-0">
+                          <QuestionMarkCircleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mr-2 sm:mr-3 flex-shrink-0" />
+                          <span className="font-medium text-gray-900 text-sm sm:text-base leading-tight">{faq.question}</span>
+                        </div>
+                        {openSection === faq.id ? (
+                          <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0 ml-2" />
+                        ) : (
+                          <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0 ml-2" />
+                        )}
+                      </button>
+                      
+                      {openSection === faq.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="px-4 sm:px-6 pb-3 sm:pb-4"
+                        >
+                          <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{faq.answer}</p>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  ))}
                 </motion.div>
               )}
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>
@@ -354,7 +475,57 @@ const FAQ = () => {
                   </div>
                 </div>
 
-                {/* Step 4: Important Notes */}
+                {/* Step 4: QR Code Workflow */}
+                <div>
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                    <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-600" />
+                    QR Code Workflow
+                  </h3>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200">
+                      <h4 className="font-semibold text-green-900 mb-2 sm:mb-3 text-sm sm:text-base">For Approved Leave & Permission Requests</h4>
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">1</div>
+                          <div>
+                            <p className="font-medium text-green-900 text-xs sm:text-sm">View Outgoing QR Code</p>
+                            <p className="text-xs text-green-700">Available from gate pass time until leave end date</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">2</div>
+                          <div>
+                            <p className="font-medium text-green-900 text-xs sm:text-sm">Scan Outgoing QR at Security Gate</p>
+                            <p className="text-xs text-green-700">Show QR code to security when leaving hostel</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">3</div>
+                          <div>
+                            <p className="font-medium text-green-900 text-xs sm:text-sm">Incoming QR Automatically Generated</p>
+                            <p className="text-xs text-green-700">Valid for 24 hours or until leave end date</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">4</div>
+                          <div>
+                            <p className="font-medium text-green-900 text-xs sm:text-sm">Scan Incoming QR for Re-entry</p>
+                            <p className="text-xs text-green-700">Show incoming QR code to security when returning</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start space-x-2 sm:space-x-3">
+                          <div className="w-5 h-5 sm:w-6 sm:h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-semibold">5</div>
+                          <div>
+                            <p className="font-medium text-green-900 text-xs sm:text-sm">Leave Automatically Completed</p>
+                            <p className="text-xs text-green-700">Removed from "On Leave" status immediately</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 5: Important Notes */}
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
                     <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orange-600" />
@@ -380,13 +551,21 @@ const FAQ = () => {
                       </li>
                       <li className="flex items-start">
                         <span className="text-orange-600 mr-2 flex-shrink-0">•</span>
+                        <span><strong>Incoming QR:</strong> Automatically generated after first outgoing scan, valid for 24 hours</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="text-orange-600 mr-2 flex-shrink-0">•</span>
+                        <span><strong>Leave Completion:</strong> Scanning incoming QR automatically completes your leave</span>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="text-orange-600 mr-2 flex-shrink-0">•</span>
                         <span><strong>Processing Time:</strong> Allow 1-2 business days for complete processing</span>
                       </li>
                     </ul>
                   </div>
                 </div>
 
-                {/* Step 5: Contact Information */}
+                {/* Step 6: Contact Information */}
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
                     <PhoneIcon className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-gray-600" />

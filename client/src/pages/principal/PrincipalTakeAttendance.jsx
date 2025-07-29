@@ -153,13 +153,15 @@ const PrincipalTakeAttendance = () => {
     }
   };
 
-  const getStatusText = (morning, evening, night) => {
+  const getStatusText = (morning, evening, night, isOnLeave) => {
+    if (isOnLeave) return 'On Leave';
     if (morning && evening && night) return 'Present';
     if (morning || evening || night) return 'Partial';
     return 'Absent';
   };
 
-  const getStatusColor = (morning, evening, night) => {
+  const getStatusColor = (morning, evening, night, isOnLeave) => {
+    if (isOnLeave) return 'bg-blue-100 text-blue-800';
     if (morning && evening && night) return 'bg-green-100 text-green-800';
     if (morning || evening || night) return 'bg-yellow-100 text-yellow-800';
     return 'bg-red-100 text-red-800';
@@ -393,12 +395,14 @@ const PrincipalTakeAttendance = () => {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                         attendanceData[student._id]?.morning || false,
                         attendanceData[student._id]?.evening || false,
-                        attendanceData[student._id]?.night || false
+                        attendanceData[student._id]?.night || false,
+                        student.isOnLeave || false
                       )}`}>
                         {getStatusText(
                           attendanceData[student._id]?.morning || false,
                           attendanceData[student._id]?.evening || false,
-                          attendanceData[student._id]?.night || false
+                          attendanceData[student._id]?.night || false,
+                          student.isOnLeave || false
                         )}
                       </span>
                     </td>

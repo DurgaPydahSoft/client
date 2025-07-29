@@ -9,6 +9,7 @@ const LeaveQRDetails = () => {
   const [error, setError] = useState(null);
   const [scannedAt, setScannedAt] = useState(null);
   const [visitInfo, setVisitInfo] = useState(null);
+  const [isIncoming, setIsIncoming] = useState(false);
 
   useEffect(() => {
     const fetchLeave = async () => {
@@ -19,9 +20,16 @@ const LeaveQRDetails = () => {
         
         // Use fallback URL if environment variable is not set
         const apiUrl = import.meta.env.VITE_API_URL || 'http://192.168.3.148:5000';
-        const fullUrl = `${apiUrl}/api/leave/qr/${id}`;
+        
+        // Check if this is an incoming QR by looking at the URL
+        const isIncomingQR = window.location.pathname.includes('/incoming-qr/');
+        setIsIncoming(isIncomingQR);
+        
+        const endpoint = isIncomingQR ? `/api/leave/incoming-qr/${id}` : `/api/leave/qr/${id}`;
+        const fullUrl = `${apiUrl}${endpoint}`;
         
         console.log('🔍 API URL:', fullUrl);
+        console.log('🔍 Is Incoming QR:', isIncomingQR);
         
         // Make POST request to record visit
         const response = await axios.post(fullUrl, {
@@ -48,9 +56,9 @@ const LeaveQRDetails = () => {
             setLeave(leaveResponse.data.data);
             // Show success message for visit recording
             console.log('✅ Visit recorded successfully:', {
-              visitCount: response.data.visitCount,
-              maxVisits: response.data.maxVisits,
-              remainingVisits: response.data.remainingVisits
+              outgoingVisitCount: response.data.outgoingVisitCount,
+              incomingVisitCount: response.data.incomingVisitCount,
+              maxVisits: response.data.maxVisits
             });
           }
         } else {
@@ -66,7 +74,7 @@ const LeaveQRDetails = () => {
           setError(err.response.data.message);
           setScannedAt(err.response.data.scannedAt);
           setVisitInfo(err.response.data);
-        } else if (err.response && err.response.status === 409 && err.response.data.message) {
+        
           // Handle duplicate scan - show current visit info instead of error
           setError(err.response.data.message);
           setScannedAt(err.response.data.scannedAt);
@@ -109,7 +117,7 @@ const LeaveQRDetails = () => {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-yellow-100 p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border-t-8 border-red-500">
           <h1 className="text-2xl font-extrabold text-red-700 mb-4">
-            {error.includes('recently') ? 'Visit Already Recorded' : 'Leave Invalid'}
+            {error.includes('recently') ? `${isIncoming ? 'Incoming' : 'Outgoing'} Visit Already Recorded` : 'Leave Invalid'}
           </h1>
           <div className="mb-6">
             <span className="block text-lg font-semibold text-gray-700 mb-1">{error}</span>
@@ -119,9 +127,9 @@ const LeaveQRDetails = () => {
             {visitInfo && (
               <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                 <div className="text-sm text-gray-600">
-                  <div>Visit Count: {visitInfo.visitCount || 0}/{visitInfo.maxVisits || 2}</div>
-                  {visitInfo.remainingVisits !== undefined && (
-                    <div>Remaining Visits: {visitInfo.remainingVisits}</div>
+                  <div>Outgoing Visits: {visitInfo.outgoingVisitCount || 0}/{visitInfo.maxVisits || 2}</div>
+                  {visitInfo.incomingQrGenerated && (
+                    <div>Incoming Visits: {visitInfo.incomingVisitCount || 0}/1</div>
                   )}
                   {visitInfo.visitLocked && (
                     <div className="text-red-600 font-semibold">Visit Limit Reached</div>
@@ -186,9 +194,13 @@ const LeaveQRDetails = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-100 p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center border-t-8 border-green-500">
-        <h1 className="text-3xl font-extrabold text-green-700 mb-4">{displayInfo.title}</h1>
+        <h1 className="text-3xl font-extrabold text-green-700 mb-4">
+          {isIncoming ? 'Incoming Visit Recorded' : 'Outgoing Visit Recorded'}
+        </h1>
         <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-          <div className="text-green-700 font-semibold">✅ Visit Recorded Successfully</div>
+          <div className="text-green-700 font-semibold">
+            ✅ {isIncoming ? 'Incoming' : 'Outgoing'} Visit Recorded Successfully
+          </div>
         </div>
         <div className="mb-6">
           <span className="block text-lg font-semibold text-gray-700 mb-1">Name:</span>
@@ -218,16 +230,24 @@ const LeaveQRDetails = () => {
           <span className="block text-xl text-gray-900 mb-2">{displayInfo.duration}</span>
           <span className="block text-lg font-semibold text-gray-700 mb-1">Reason:</span>
           <span className="block text-xl text-gray-900 mb-2">{leave.reason}</span>
-          <span className="block text-lg font-semibold text-gray-700 mb-1">Visits:</span>
+          <span className="block text-lg font-semibold text-gray-700 mb-1">Outgoing Visits:</span>
           <span className="block text-xl text-gray-900 mb-2">
-            {leave.visitCount || 0}/{leave.maxVisits || 2}
+            {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
           </span>
+          {leave.incomingQrGenerated && (
+            <>
+              <span className="block text-lg font-semibold text-gray-700 mb-1">Incoming Visits:</span>
+              <span className="block text-xl text-gray-900 mb-2">
+                {leave.incomingVisitCount || 0}/1
+              </span>
+            </>
+          )}
           {leave.visits && leave.visits.length > 0 && (
             <div className="mt-4">
               <span className="block text-lg font-semibold text-gray-700 mb-2">Visit History:</span>
               {leave.visits.map((visit, index) => (
                 <div key={index} className="text-sm text-gray-600 mb-1">
-                  Visit {index + 1}: {new Date(visit.scannedAt).toLocaleString()} 
+                  {visit.visitType === 'incoming' ? 'Incoming' : 'Outgoing'} Visit {index + 1}: {new Date(visit.scannedAt).toLocaleString()} 
                   {visit.location && ` at ${visit.location}`}
                 </div>
               ))}
@@ -235,7 +255,9 @@ const LeaveQRDetails = () => {
           )}
         </div>
         <div className="mt-6">
-          <span className="inline-block bg-green-100 text-green-800 text-lg font-bold px-6 py-2 rounded-full shadow">APPROVED</span>
+          <span className="inline-block bg-green-100 text-green-800 text-lg font-bold px-6 py-2 rounded-full shadow">
+            {isIncoming ? 'RE-ENTRY APPROVED' : 'EXIT APPROVED'}
+          </span>
         </div>
       </div>
     </div>

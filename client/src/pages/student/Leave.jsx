@@ -25,6 +25,7 @@ const Leave = () => {
   const [loading, setLoading] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [qrModal, setQrModal] = useState({ open: false, leave: null });
+  const [incomingQrModal, setIncomingQrModal] = useState({ open: false, leave: null });
   const [applicationType, setApplicationType] = useState('Leave');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -258,11 +259,36 @@ const Leave = () => {
     return false;
   };
 
+  // Helper function to check if incoming QR is available
+  const isIncomingQrAvailable = (leave) => {
+    if (leave.status !== 'Approved' || leave.applicationType === 'Stay in Hostel') {
+      return false;
+    }
+    
+    if (!leave.incomingQrGenerated) {
+      return false;
+    }
+    
+    const now = new Date();
+    const incomingQrExpiresAt = new Date(leave.incomingQrExpiresAt);
+    
+    return now <= incomingQrExpiresAt;
+  };
+
   // Helper function to get time until QR is available
   const getTimeUntilQrAvailable = (leave) => {
     const now = new Date();
     const qrAvailableFrom = new Date(leave.qrAvailableFrom);
     const diffMs = qrAvailableFrom - now;
+    const diffMins = Math.ceil(diffMs / (1000 * 60));
+    return diffMins;
+  };
+
+  // Helper function to get time until incoming QR expires
+  const getTimeUntilIncomingQrExpires = (leave) => {
+    const now = new Date();
+    const incomingQrExpiresAt = new Date(leave.incomingQrExpiresAt);
+    const diffMs = incomingQrExpiresAt - now;
     const diffMins = Math.ceil(diffMs / (1000 * 60));
     return diffMins;
   };
@@ -580,18 +606,46 @@ const Leave = () => {
                                   }
                                 }}
                               >
-                                <span className="text-xs sm:text-sm">{leave.visitLocked ? 'Visit Locked' : 'View QR Code'}</span>
+                                <span className="text-xs sm:text-sm">{leave.visitLocked ? 'Visit Locked' : 'View Outgoing QR'}</span>
+                              </button>
+                            ) : null}
+                            
+                            {/* Incoming QR Code Button */}
+                            {isIncomingQrAvailable(leave) ? (
+                              <button
+                                className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold touch-manipulation bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
+                                onClick={async () => {
+                                  try {
+                                    const res = await api.post(`/api/leave/incoming-qr-view/${leave._id}`);
+                                    if (res.data.success) {
+                                      setIncomingQrModal({ open: true, leave });
+                                    }
+                                  } catch (err) {
+                                    toast.error(err.response?.data?.message || 'Unable to open incoming QR code');
+                                  }
+                                }}
+                              >
+                                <span className="text-xs sm:text-sm">View Incoming QR</span>
                               </button>
                             ) : null}
                             
                             {/* Visit Count Display - Mobile optimized */}
                             <div className="text-center">
                               <div className="text-xs text-gray-500">
-                                Visits: {leave.visitCount || 0}/{leave.maxVisits || 2}
+                                Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
                               </div>
+                              {leave.incomingQrGenerated && (
+                                <div className="text-xs text-gray-500">
+                                  Incoming: {leave.incomingVisitCount || 0}/1
+                                </div>
+                              )}
                               {new Date() < new Date(leave.qrAvailableFrom) ? (
                                 <div className="text-xs text-gray-500">
                                   QR available in {getTimeUntilQrAvailable(leave)} min
+                                </div>
+                              ) : leave.incomingQrGenerated && new Date() < new Date(leave.incomingQrExpiresAt) ? (
+                                <div className="text-xs text-blue-500">
+                                  Incoming QR expires in {getTimeUntilIncomingQrExpires(leave)} min
                                 </div>
                               ) : (
                                 <div className="text-xs text-red-500">
@@ -620,7 +674,7 @@ const Leave = () => {
             className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center"
           >
             <h2 className="text-lg sm:text-xl font-bold mb-4 text-green-700 text-center">
-              {qrModal.leave.applicationType} QR Code
+              {qrModal.leave.applicationType} Outgoing QR Code
             </h2>
             <QRCode
               value={`${window.location.origin}/leave/qr/${qrModal.leave._id}`}
@@ -630,6 +684,38 @@ const Leave = () => {
             <button
               className="mt-6 sm:mt-8 px-4 py-2.5 sm:py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto"
               onClick={() => setQrModal({ open: false, leave: null })}
+            >
+              Close
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Incoming QR Code Modal - Mobile optimized */}
+      {incomingQrModal.open && incomingQrModal.leave && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center"
+          >
+            <h2 className="text-lg sm:text-xl font-bold mb-4 text-blue-700 text-center">
+              {incomingQrModal.leave.applicationType} Incoming QR Code
+            </h2>
+            <QRCode
+              value={`${window.location.origin}/leave/incoming-qr/${incomingQrModal.leave._id}`}
+              size={180}
+              className="mx-auto"
+            />
+            <div className="mt-4 text-center text-sm text-gray-600">
+              <p>Use this QR code to re-enter the hostel</p>
+              <p className="text-xs text-gray-500 mt-1">
+                Expires: {new Date(incomingQrModal.leave.incomingQrExpiresAt).toLocaleString()}
+              </p>
+            </div>
+            <button
+              className="mt-6 sm:mt-8 px-4 py-2.5 sm:py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto"
+              onClick={() => setIncomingQrModal({ open: false, leave: null })}
             >
               Close
             </button>

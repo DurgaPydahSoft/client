@@ -331,6 +331,9 @@ const TakeAttendance = () => {
   };
 
   const getAttendanceStatus = (student) => {
+    // Check if student is on leave first
+    if (student.isOnLeave) return 'On Leave';
+    
     const attendance = attendanceData[student._id];
     if (!attendance) return 'Absent';
     
@@ -344,6 +347,7 @@ const TakeAttendance = () => {
       case 'Present': return 'text-green-600 bg-green-50';
       case 'Partial': return 'text-yellow-600 bg-yellow-50';
       case 'Absent': return 'text-red-600 bg-red-50';
+      case 'On Leave': return 'text-blue-600 bg-blue-50';
       default: return 'text-gray-600 bg-gray-50';
     }
   };
@@ -353,6 +357,7 @@ const TakeAttendance = () => {
       case 'Present': return <CheckIcon className="w-4 h-4" />;
       case 'Partial': return <ClockIcon className="w-4 h-4" />;
       case 'Absent': return <XMarkIcon className="w-4 h-4" />;
+      case 'On Leave': return <CalendarIcon className="w-4 h-4" />;
       default: return null;
     }
   };
