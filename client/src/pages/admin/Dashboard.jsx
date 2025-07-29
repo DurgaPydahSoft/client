@@ -442,7 +442,7 @@ const AdminDashboard = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-64 lg:w-64 xl:w-72 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 w-64 lg:w-56 xl:w-64 h-screen bg-white border-r border-blue-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
         <button
@@ -506,7 +506,7 @@ const AdminDashboard = () => {
                   <div>
                     <button
                       onClick={() => toggleSubmenu(item.name)}
-                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs lg:text-sm font-normal transition-all duration-300 ${
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${
                         pathname.startsWith(item.path)
                           ? "bg-blue-50 text-blue-700 shadow-sm"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -560,7 +560,7 @@ const AdminDashboard = () => {
                               key={subItem.name}
                               to={subItem.path}
                               className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs lg:text-sm font-normal transition-all duration-300 ${
+                                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${
                                   isActive
                                     ? "bg-blue-50 text-blue-700 shadow-sm"
                                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -614,7 +614,7 @@ const AdminDashboard = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-xs lg:text-sm font-normal transition-all duration-300 ${
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${
                         isActive
                           ? "bg-blue-50 text-blue-700 shadow-sm"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"

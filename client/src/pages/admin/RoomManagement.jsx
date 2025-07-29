@@ -15,7 +15,8 @@ import {
   PhoneIcon,
   TableCellsIcon,
   Squares2X2Icon,
-  LockClosedIcon
+  LockClosedIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -591,6 +592,31 @@ const RoomManagement = () => {
     }));
   };
 
+  // Calculate course counts from room students
+  const calculateCourseCounts = (students) => {
+    const courseCounts = {
+      'B.Tech': 0,
+      'Diploma': 0,
+      'Degree': 0,
+      'Pharmacy': 0
+    };
+
+    students.forEach(student => {
+      const courseName = student.course?.name || student.course || '';
+      if (courseName.includes('B.Tech') || courseName.includes('BTECH')) {
+        courseCounts['B.Tech']++;
+      } else if (courseName.includes('Diploma')) {
+        courseCounts['Diploma']++;
+      } else if (courseName.includes('Degree')) {
+        courseCounts['Degree']++;
+      } else if (courseName.includes('Pharmacy')) {
+        courseCounts['Pharmacy']++;
+      }
+    });
+
+    return courseCounts;
+  };
+
 
 
   if (loading) return <LoadingSpinner />;
@@ -1152,39 +1178,105 @@ const RoomManagement = () => {
                   <p className="text-xs sm:text-sm text-gray-500">No students assigned to this room</p>
                 </div>
               ) : (
-                <div className="space-y-3 sm:space-y-4">
-                  {roomStudents.map((student) => (
-                    <div
-                      key={student._id}
-                      className="bg-gray-50 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
-                    >
-                      <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg">
-                        <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 text-sm sm:text-base">{student.name}</h3>
-                        <div className="mt-1.5 sm:mt-2 space-y-1 text-xs sm:text-sm text-gray-600">
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>Roll No: {student.rollNumber}</span>
+                <>
+                  {/* Course Count Summary */}
+                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Course Distribution</h3>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {Object.entries(calculateCourseCounts(roomStudents)).map(([course, count]) => {
+                        // Define colors for each course
+                        const getCourseColors = (courseName) => {
+                          switch (courseName) {
+                            case 'B.Tech':
+                              return {
+                                bg: 'bg-blue-50',
+                                border: 'border-blue-200',
+                                text: 'text-blue-700',
+                                count: 'text-blue-600',
+                                icon: 'text-blue-500'
+                              };
+                            case 'Diploma':
+                              return {
+                                bg: 'bg-green-50',
+                                border: 'border-green-200',
+                                text: 'text-green-700',
+                                count: 'text-green-600',
+                                icon: 'text-green-500'
+                              };
+                            case 'Degree':
+                              return {
+                                bg: 'bg-purple-50',
+                                border: 'border-purple-200',
+                                text: 'text-purple-700',
+                                count: 'text-purple-600',
+                                icon: 'text-purple-500'
+                              };
+                            case 'Pharmacy':
+                              return {
+                                bg: 'bg-orange-50',
+                                border: 'border-orange-200',
+                                text: 'text-orange-700',
+                                count: 'text-orange-600',
+                                icon: 'text-orange-500'
+                              };
+                            default:
+                              return {
+                                bg: 'bg-gray-50',
+                                border: 'border-gray-200',
+                                text: 'text-gray-700',
+                                count: 'text-gray-600',
+                                icon: 'text-gray-500'
+                              };
+                          }
+                        };
+
+                        const colors = getCourseColors(course);
+                        
+                        return (
+                          <div key={course} className={`${colors.bg} ${colors.border} border rounded-lg p-2 sm:p-3 text-center transition-all duration-200 hover:shadow-sm`}>
+                            <div className={`text-lg sm:text-xl font-bold ${colors.count}`}>{count}</div>
+                            <div className={`text-xs sm:text-sm font-medium ${colors.text}`}>{course}</div>
                           </div>
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>Phone: {student.studentPhone}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <span className="text-xs bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
-                              {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
-                            </span>
-                            {/* <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                              Year {student.year}
-                            </span> */}
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Student List */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {roomStudents.map((student) => (
+                      <div
+                        key={student._id}
+                        className="bg-gray-50 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
+                      >
+                        <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                          <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate mb-2">{student.name}</h3>
+                          <div className="space-y-1.5 text-xs sm:text-sm text-gray-600">
+                            <div className="flex items-center gap-2">
+                              <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
+                              <span className="truncate">Roll No: {student.rollNumber}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
+                              <span className="truncate">Phone: {student.studentPhone}</span>
+                            </div>
+                            <div className="mt-2">
+                              <span className="text-xs bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded truncate inline-block">
+                                {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               )}
             </motion.div>
           </motion.div>

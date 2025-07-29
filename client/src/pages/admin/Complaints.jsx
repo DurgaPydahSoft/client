@@ -291,8 +291,7 @@ const Complaints = () => {
     }
 
     setSelected(complaint);
-            const validNextStatuses = getValidNextStatuses(complaint.currentStatus, complaint.isReopened);
-        setStatus(validNextStatuses.length > 0 ? validNextStatuses[0] : '');
+            setStatus('');
     setNote('');
     setSelectedMember(complaint.assignedTo?._id || '');
     setTimeline([]);
@@ -1247,9 +1246,7 @@ const Complaints = () => {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-600">
-                    Available next statuses: {getValidNextStatuses(selected.currentStatus, selected.isReopened).join(', ')}
-                  </div>
+
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Update Status</label>
@@ -1259,8 +1256,8 @@ const Complaints = () => {
                     onChange={e => setStatus(e.target.value)} 
                     required
                   >
-                    <option value="">Select next status</option>
-                    {getValidNextStatuses(selected.currentStatus, selected.isReopened).map(opt => (
+                    <option value="">Select status</option>
+                    {STATUS_OPTIONS.filter(opt => opt !== 'All').map(opt => (
                       <option key={`status-${opt}`} value={opt}>{opt}</option>
                     ))}
                   </select>

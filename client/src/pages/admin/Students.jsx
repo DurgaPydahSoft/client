@@ -1353,6 +1353,29 @@ const Students = () => {
     }
   };
 
+  const handleUpdateStudentYears = async () => {
+    try {
+      console.log('🔄 Frontend: Starting student year update...');
+      
+      const response = await api.post('/api/admin/students/update-years');
+      console.log('📡 Frontend: API response:', response.data);
+      
+      if (response.data.success) {
+        toast.success(response.data.message);
+        console.log('✅ Frontend: Update successful, refreshing student list...');
+        // Refresh the student list to show updated years
+        fetchStudents();
+      } else {
+        console.log('❌ Frontend: API returned success: false');
+        toast.error(response.data.message || 'Failed to update student years');
+      }
+    } catch (error) {
+      console.error('❌ Frontend: Error updating student years:', error);
+      console.error('❌ Frontend: Error response:', error.response?.data);
+      toast.error('Failed to update student years. Please try again.');
+    }
+  };
+
   const getCategoryOptions = (gender) => {
     // Case-insensitive gender handling
     if (!gender) return ['A+', 'A', 'B+', 'B', 'C'];
@@ -3228,6 +3251,14 @@ const Students = () => {
               ) : (
                 'Upload Students'
               )}
+            </button>
+
+            {/* Update Student Years Button */}
+            <button
+              onClick={handleUpdateStudentYears}
+              className="w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 bg-orange-600 hover:bg-orange-700"
+            >
+              Update Student Years
             </button>
           </div>
 
