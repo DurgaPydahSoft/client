@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/axios';
 import { toast } from 'react-hot-toast';
 import {
@@ -10,7 +11,10 @@ import {
   AcademicCapIcon,
   ClockIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  UserIcon,
+  DocumentTextIcon,
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -23,8 +27,29 @@ const getCourseName = (course) => {
   return 'Course Management';
 };
 
+// Helper function to format date with ordinal suffix
+const formatDateWithOrdinal = (date) => {
+  const day = date.getDate();
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+  
+  // Add ordinal suffix to day
+  const getOrdinalSuffix = (day) => {
+    if (day > 3 && day < 21) return 'th';
+    switch (day % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+  
+  return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
+};
+
 const PrincipalHome = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -89,6 +114,11 @@ const PrincipalHome = () => {
       </div>
     </motion.div>
   );
+
+  // Quick action handlers
+  const handleQuickAction = (path) => {
+    navigate(path);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
@@ -169,36 +199,78 @@ const PrincipalHome = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard/attendance')}
               className="flex items-center gap-3 p-3 sm:p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors border border-purple-200 touch-manipulation"
             >
               <CalendarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
               <div className="text-left">
-                <p className="font-medium text-purple-900 text-sm sm:text-base">View Attendance</p>
-                <p className="text-xs sm:text-sm text-purple-600">Check attendance records</p>
+                <p className="font-medium text-purple-900 text-sm sm:text-base">Attendance</p>
+                <p className="text-xs sm:text-sm text-purple-600">View and manage attendance</p>
               </div>
             </motion.button>
             
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard/students')}
               className="flex items-center gap-3 p-3 sm:p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 touch-manipulation"
             >
-              <ChartBarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
               <div className="text-left">
-                <p className="font-medium text-blue-900 text-sm sm:text-base">Analytics</p>
-                <p className="text-xs sm:text-sm text-blue-600">View attendance trends</p>
+                <p className="font-medium text-blue-900 text-sm sm:text-base">Students</p>
+                <p className="text-xs sm:text-sm text-blue-600">Manage student information</p>
               </div>
             </motion.button>
             
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard/leave-management')}
               className="flex items-center gap-3 p-3 sm:p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200 touch-manipulation"
             >
-              <ClockIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+              <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
               <div className="text-left">
-                <p className="font-medium text-green-900 text-sm sm:text-base">Today's Report</p>
-                <p className="text-xs sm:text-sm text-green-600">Current day summary</p>
+                <p className="font-medium text-green-900 text-sm sm:text-base">Leave Management</p>
+                <p className="text-xs sm:text-sm text-green-600">Approve leave requests</p>
+              </div>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard/stay-in-hostel-requests')}
+              className="flex items-center gap-3 p-3 sm:p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors border border-orange-200 touch-manipulation"
+            >
+              <HomeIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+              <div className="text-left">
+                <p className="font-medium text-orange-900 text-sm sm:text-base">Stay in Hostel</p>
+                <p className="text-xs sm:text-sm text-orange-600">Review stay requests</p>
+              </div>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard')}
+              className="flex items-center gap-3 p-3 sm:p-4 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200 touch-manipulation"
+            >
+              <ChartBarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+              <div className="text-left">
+                <p className="font-medium text-indigo-900 text-sm sm:text-base">Dashboard Overview</p>
+                <p className="text-xs sm:text-sm text-indigo-600">View current statistics</p>
+              </div>
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleQuickAction('/principal/dashboard/attendance')}
+              className="flex items-center gap-3 p-3 sm:p-4 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors border border-teal-200 touch-manipulation"
+            >
+              <ClockIcon className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
+              <div className="text-left">
+                <p className="font-medium text-teal-900 text-sm sm:text-base">Today's Report</p>
+                <p className="text-xs sm:text-sm text-teal-600">Current day summary</p>
               </div>
             </motion.button>
           </div>
@@ -228,7 +300,7 @@ const PrincipalHome = () => {
               <div className="space-y-2 text-xs sm:text-sm text-gray-600">
                 <p><span className="font-medium">Present Today:</span> {stats.presentToday} students</p>
                 <p><span className="font-medium">Absent Today:</span> {stats.absentToday} students</p>
-                <p><span className="font-medium">Last Updated:</span> {new Date().toLocaleDateString()}</p>
+                <p><span className="font-medium">Last Updated:</span> {formatDateWithOrdinal(new Date())}</p>
               </div>
             </div>
           </div>
