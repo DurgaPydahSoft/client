@@ -82,6 +82,17 @@ const WardenDashboardLayout = () => {
     }
   }, [pathname]);
 
+  // Auto-expand leave & stay requests section when on leave or stay pages
+  useEffect(() => {
+    if (pathname.includes('/leave-management') || pathname.includes('/stay-in-hostel-requests')) {
+      setExpandedItems(prev => {
+        const newSet = new Set(prev);
+        newSet.add('Leave & Stay Requests');
+        return newSet;
+      });
+    }
+  }, [pathname]);
+
   const toggleExpanded = (itemName) => {
     setExpandedItems(prev => {
       const newSet = new Set(prev);
@@ -122,13 +133,6 @@ const WardenDashboardLayout = () => {
       ],
     },
     {
-      name: 'Bulk Outing',
-      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
-      path: '/warden/dashboard/bulk-outing',
-      show: true,
-      locked: false
-    },
-    {
       name: 'Complaints',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       path: '/warden/dashboard/complaints',
@@ -148,23 +152,28 @@ const WardenDashboardLayout = () => {
       ]
     },
     {
-      name: 'Notifications',
-      icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
-      path: '/warden/dashboard/notifications',
-      show: true,
-      locked: false
-    },
-    {
-      name: 'Leave Management',
+      name: 'Leave & Stay Requests',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       path: '/warden/dashboard/leave-management',
       show: true,
-      locked: false
+      locked: false,
+      subItems: [
+        {
+          name: 'Leave Management',
+          path: '/warden/dashboard/leave-management',
+          icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+        },
+        {
+          name: 'Stay in Hostel Requests',
+          path: '/warden/dashboard/stay-in-hostel-requests',
+          icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2 M12 12v3 M12 12a2 2 0 100-4 2 2 0 000 4z'
+        }
+      ]
     },
     {
-      name: 'Stay in Hostel Requests',
-      icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2 M12 12v3 M12 12a2 2 0 100-4 2 2 0 000 4z',
-      path: '/warden/dashboard/stay-in-hostel-requests',
+      name: 'Bulk Outing',
+      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+      path: '/warden/dashboard/bulk-outing',
       show: true,
       locked: false
     },
@@ -172,6 +181,20 @@ const WardenDashboardLayout = () => {
       name: 'Fee Management',
       icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1',
       path: '/warden/dashboard/fee-management',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'Electricity Bills',
+      icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+      path: '/warden/dashboard/electricity-bills',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'Notifications',
+      icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+      path: '/warden/dashboard/notifications',
       show: true,
       locked: false
     }
@@ -207,7 +230,7 @@ const WardenDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-56 h-screen bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 w-72 lg:w-56 h-screen bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
                 <button
