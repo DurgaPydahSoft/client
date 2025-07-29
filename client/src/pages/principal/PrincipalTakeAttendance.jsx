@@ -23,8 +23,7 @@ const PrincipalTakeAttendance = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [filters, setFilters] = useState({
     branch: '',
-    gender: '',
-    category: ''
+    gender: ''
   });
   const [attendanceData, setAttendanceData] = useState({});
   const [submitting, setSubmitting] = useState(false);
@@ -50,19 +49,13 @@ const PrincipalTakeAttendance = () => {
       // Use principal-specific endpoint - server already filters by course
       const params = new URLSearchParams({ date: selectedDate });
       if (filters.gender) params.append('gender', filters.gender);
-      if (filters.category) params.append('category', filters.category);
+      if (filters.branch) params.append('branch', filters.branch);
       console.log('[DEBUG] Fetching students with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/date?${params}`);
       console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        let filteredStudents = response.data.data.attendance; // Access the attendance array
-        console.log('[DEBUG] Students before branch filter:', filteredStudents);
-        if (filters.branch) {
-          filteredStudents = filteredStudents.filter(student => 
-            student.branch?._id === filters.branch || student.branch === filters.branch
-          );
-        }
-        console.log('[DEBUG] Students after branch filter:', filteredStudents);
+        const filteredStudents = response.data.data.attendance; // Access the attendance array
+        console.log('[DEBUG] Students data received:', filteredStudents);
         setStudents(filteredStudents);
         const initialAttendance = {};
         filteredStudents.forEach(student => {
@@ -248,22 +241,6 @@ const PrincipalTakeAttendance = () => {
                     <option value="">All Genders</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    name="category"
-                    value={filters.category}
-                    onChange={handleFilterChange}
-                    className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
-                  >
-                    <option value="">All Categories</option>
-                    <option value="General">General</option>
-                    <option value="OBC">OBC</option>
-                    <option value="SC">SC</option>
-                    <option value="ST">ST</option>
                   </select>
                 </div>
               </div>

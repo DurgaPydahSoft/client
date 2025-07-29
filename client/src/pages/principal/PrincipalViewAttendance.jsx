@@ -79,18 +79,14 @@ const PrincipalViewAttendance = () => {
       const params = new URLSearchParams({ date: selectedDate });
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.gender) params.append('gender', filters.gender);
       console.log('[DEBUG] Fetching attendance for date with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/date?${params}`);
       console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        let attendanceData = response.data.data.attendance; // Access the attendance array
-        console.log('[DEBUG] Attendance before branch filter:', attendanceData);
-        if (filters.branch) {
-          attendanceData = attendanceData.filter(record => 
-            record.branch?._id === filters.branch || record.branch === filters.branch
-          );
-          console.log('[DEBUG] Attendance after branch filter:', attendanceData);
-        }
+        const attendanceData = response.data.data.attendance; // Access the attendance array
+        console.log('[DEBUG] Attendance data received:', attendanceData);
         setAttendance(attendanceData);
         // Use server-provided statistics
         setStatistics(response.data.data.statistics);
@@ -114,18 +110,14 @@ const PrincipalViewAttendance = () => {
       });
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.gender) params.append('gender', filters.gender);
       console.log('[DEBUG] Fetching attendance for range with params:', params.toString());
       const response = await api.get(`/api/attendance/principal/range?${params}`);
       console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        let attendanceData = response.data.data.attendance;
-        console.log('[DEBUG] Attendance before branch filter:', attendanceData);
-        if (filters.branch) {
-          attendanceData = attendanceData.filter(record => 
-            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
-          );
-          console.log('[DEBUG] Attendance after branch filter:', attendanceData);
-        }
+        const attendanceData = response.data.data.attendance;
+        console.log('[DEBUG] Attendance data received:', attendanceData);
         setAttendance(attendanceData);
         // Use server-provided statistics
         setStatistics(response.data.data.statistics);
@@ -172,7 +164,7 @@ const PrincipalViewAttendance = () => {
 
   const getAttendanceStatus = (record) => {
     // Check if student is on leave first
-    if (record.student?.isOnLeave) return 'On Leave';
+    if (record.isOnLeave) return 'On Leave';
     
     if (record.morning && record.evening && record.night) return 'Present';
     if (record.morning || record.evening || record.night) return 'Partial';
@@ -225,6 +217,7 @@ const PrincipalViewAttendance = () => {
             presentDays: 0,
             absentDays: 0,
             partialDays: 0,
+            onLeaveDays: 0,
             attendancePercentage: 0
           }
         });
@@ -242,15 +235,19 @@ const PrincipalViewAttendance = () => {
         studentData.summary.absentDays++;
       } else if (status === 'Partial') {
         studentData.summary.partialDays++;
+      } else if (status === 'On Leave') {
+        studentData.summary.onLeaveDays++;
       }
     });
 
     // Calculate percentages
     studentMap.forEach(studentData => {
-      const { totalDays, presentDays, partialDays } = studentData.summary;
+      const { totalDays, presentDays, partialDays, onLeaveDays } = studentData.summary;
       const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 for 3 sessions
-      studentData.summary.attendancePercentage = totalDays > 0 
-        ? Math.round((effectivePresentDays / totalDays) * 100) 
+      // Exclude onLeaveDays from percentage calculation
+      const daysForPercentage = totalDays - onLeaveDays;
+      studentData.summary.attendancePercentage = daysForPercentage > 0 
+        ? Math.round((effectivePresentDays / daysForPercentage) * 100) 
         : 0;
     });
 
