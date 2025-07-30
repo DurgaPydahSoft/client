@@ -12,13 +12,15 @@ import {
   FunnelIcon,
   EyeIcon,
   ChartBarIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import api from '../../utils/axios';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
+import * as XLSX from 'xlsx';
 
 const ViewAttendance = () => {
   const { user } = useAuth();
@@ -51,6 +53,7 @@ const ViewAttendance = () => {
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
+  const [generatingExcel, setGeneratingExcel] = useState(false);
 
   // Helper function to get the appropriate API endpoint based on user role
   const getAttendanceEndpoint = (type) => {
@@ -309,6 +312,180 @@ const ViewAttendance = () => {
     }
   };
 
+  // Generate Excel Report
+  const generateExcel = async () => {
+    if (attendance.length === 0) {
+      toast.error('No attendance data to generate report');
+      return;
+    }
+
+    setGeneratingExcel(true);
+    try {
+      // Get comprehensive report data from backend
+      const params = new URLSearchParams({
+        startDate: viewMode === 'date' ? selectedDate : dateRange.startDate,
+        endDate: viewMode === 'date' ? selectedDate : dateRange.endDate,
+        ...filters
+      });
+
+      const endpoint = getAttendanceEndpoint('report');
+      const response = await api.get(`${endpoint}?${params}`);
+      
+      if (!response.data.success) {
+        throw new Error('Failed to fetch report data');
+      }
+
+      const { attendance: attendanceData, statistics, reportInfo } = response.data.data;
+      
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      
+      // Get unique dates for column headers
+      const uniqueDates = [...new Set(attendanceData.map(att => new Date(att.date).toISOString().split('T')[0]))].sort();
+      
+      // Create table headers
+      const tableHeaders = ['S.No', 'Name', 'Roll Number', 'Course', 'Branch'];
+      
+      // Add date columns
+      uniqueDates.forEach(date => {
+        tableHeaders.push(date);
+      });
+      
+      // Create the worksheet with headers first
+      const headerData = [tableHeaders];
+      const worksheet = XLSX.utils.aoa_to_sheet(headerData);
+      
+      // Apply bold styling to headers immediately
+      tableHeaders.forEach((header, index) => {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: index });
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].s = {
+            font: { bold: true, size: 14 },
+            fill: { fgColor: { rgb: "4472C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          };
+        }
+      });
+      
+      // Group attendance by student
+      const studentAttendanceMap = new Map();
+      
+      attendanceData.forEach(att => {
+        if (!att.student) return;
+        
+        const studentId = att.student._id;
+        if (!studentAttendanceMap.has(studentId)) {
+          studentAttendanceMap.set(studentId, {
+            student: att.student,
+            attendance: {}
+          });
+        }
+        
+        const dateStr = new Date(att.date).toISOString().split('T')[0];
+        studentAttendanceMap.get(studentId).attendance[dateStr] = {
+          morning: att.morning || false,
+          evening: att.evening || false,
+          night: att.night || false,
+          isOnLeave: att.student.isOnLeave || false
+        };
+      });
+      
+      // Create table data
+      const tableData = [];
+      let serialNumber = 1;
+      
+      studentAttendanceMap.forEach((studentData, studentId) => {
+        const { student, attendance } = studentData;
+        
+        const row = [
+          serialNumber++,
+          student.name || 'Unknown',
+          student.rollNumber || 'N/A',
+          getCourseName(student.course),
+          getBranchName(student.branch)
+        ];
+        
+        // Add attendance for each date
+        uniqueDates.forEach(date => {
+          const dateAttendance = attendance[date];
+          if (dateAttendance) {
+            // Check if student is on leave for this date
+            const isOnLeave = dateAttendance.isOnLeave;
+            
+            const morning = isOnLeave ? '🏠' : (dateAttendance.morning ? '✅' : '❌');
+            const evening = isOnLeave ? '🏠' : (dateAttendance.evening ? '✅' : '❌');
+            const night = isOnLeave ? '🏠' : (dateAttendance.night ? '✅' : '❌');
+            row.push(`${morning} | ${evening} | ${night}`);
+          } else {
+            row.push('-'); // No attendance record
+          }
+        });
+        
+        tableData.push(row);
+      });
+      
+      // Add table data to worksheet
+      XLSX.utils.sheet_add_aoa(worksheet, tableData, { origin: 'A2' });
+      
+      // Apply styling to the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      
+      // Set column widths for better readability
+      const columnWidths = [];
+      tableHeaders.forEach((header, index) => {
+        if (index === 0) columnWidths.push(8); // S.No
+        else if (index === 1) columnWidths.push(25); // Name
+        else if (index === 2) columnWidths.push(15); // Roll Number
+        else if (index === 3) columnWidths.push(15); // Course
+        else if (index === 4) columnWidths.push(25); // Branch
+        else columnWidths.push(18); // Date columns
+      });
+      worksheet['!cols'] = columnWidths.map(width => ({ width }));
+      
+      // Style the data rows with borders
+      for (let row = 2; row < 2 + tableData.length; row++) {
+        for (let col = 0; col <= range.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].s = {
+              font: { size: 11 },
+              border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" }
+              },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          }
+        }
+      }
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Report');
+      
+      // Generate filename
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const filename = `attendance_report_${viewMode === 'date' ? selectedDate : `${dateRange.startDate}_to_${dateRange.endDate}`}_${timestamp}.xlsx`;
+      
+      // Save the Excel file
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success('Excel report generated successfully');
+    } catch (error) {
+      console.error('Error generating Excel:', error);
+      toast.error('Failed to generate Excel report');
+    } finally {
+      setGeneratingExcel(false);
+    }
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -316,10 +493,24 @@ const ViewAttendance = () => {
   return (
     <div className="p-3 sm:p-4 lg:p-6">
       {/* Stats Display */}
-      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 mb-4 sm:mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
         <div className="text-left sm:text-right">
           <p className="text-xs sm:text-sm text-gray-500">Total Records</p>
           <p className="text-lg sm:text-2xl font-bold text-blue-600">{attendance.length}</p>
+        </div>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <button
+            onClick={generateExcel}
+            disabled={generatingExcel || attendance.length === 0}
+            className="flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors touch-manipulation w-full sm:w-auto"
+          >
+            {generatingExcel ? (
+              <LoadingSpinner size="sm" />
+            ) : (
+              <DocumentArrowDownIcon className="w-4 h-4" />
+            )}
+            {generatingExcel ? 'Generating...' : 'Generate Excel'}
+          </button>
         </div>
       </div>
 
@@ -516,6 +707,27 @@ const ViewAttendance = () => {
                   className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
                 />
               </div>
+            </div>
+
+            {/* PDF Generation Button for Mobile */}
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <button
+                onClick={generateExcel}
+                disabled={generatingExcel || attendance.length === 0}
+                className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                  generatingExcel || attendance.length === 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
+                title={attendance.length === 0 ? 'No data to generate report' : 'Generate Excel Report'}
+              >
+                {generatingExcel ? (
+                  <LoadingSpinner size="sm" />
+                ) : (
+                  <DocumentArrowDownIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
+                {generatingExcel ? 'Generating Excel...' : 'Generate Excel Report'}
+              </button>
             </div>
           </div>
         )}

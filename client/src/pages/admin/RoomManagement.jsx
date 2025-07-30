@@ -703,7 +703,7 @@ const RoomManagement = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {roomStats.byGender.map((genderStat) => (
               <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{genderStat.gender} Students</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{genderStat.gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'}</h3>
                 
                 {/* Gender Summary */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
@@ -743,7 +743,7 @@ const RoomManagement = () => {
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Gender
+              Hostel Type
             </label>
             <select
               name="gender"
@@ -751,9 +751,9 @@ const RoomManagement = () => {
               onChange={handleFilterChange}
               className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
             >
-              <option value="">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              <option value="">All Hostel Types</option>
+              <option value="Male">Boys Hostel</option>
+              <option value="Female">Girls Hostel</option>
             </select>
           </div>
           <div className="flex-1">
@@ -803,7 +803,7 @@ const RoomManagement = () => {
             return (
               <div key={key} className="space-y-3 sm:space-y-4">
                 <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {gender} - Category {category}
+                  {gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'} - Category {category}
                 </h2>
               <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">

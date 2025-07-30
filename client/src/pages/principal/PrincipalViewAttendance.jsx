@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/axios';
 import { toast } from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import {
   CalendarIcon,
   FunnelIcon,
@@ -57,6 +58,7 @@ const PrincipalViewAttendance = () => {
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
+  const [generatingExcel, setGeneratingExcel] = useState(false);
 
   useEffect(() => {
     if (viewMode === 'date') {
@@ -303,6 +305,186 @@ const PrincipalViewAttendance = () => {
     }
   };
 
+  const generateExcel = async () => {
+    setGeneratingExcel(true);
+    try {
+      // Get comprehensive attendance data for the report using principal report endpoint
+      const params = new URLSearchParams();
+      if (viewMode === 'date') {
+        params.append('date', selectedDate);
+      } else {
+        params.append('startDate', dateRange.startDate);
+        params.append('endDate', dateRange.endDate);
+      }
+      if (filters.studentId) params.append('studentId', filters.studentId);
+      if (filters.status) params.append('status', filters.status);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.gender) params.append('gender', filters.gender);
+
+      const response = await api.get(`/api/attendance/principal/report?${params}`);
+      
+      if (!response.data.success) {
+        throw new Error('Failed to fetch attendance data');
+      }
+
+      const attendanceData = response.data.data.attendance;
+      
+      // Get unique dates for column headers
+      const uniqueDates = [];
+      if (viewMode === 'date') {
+        uniqueDates.push(selectedDate);
+      } else {
+        // Extract unique dates from attendance records
+        const dateSet = new Set();
+        attendanceData.forEach(record => {
+          if (record.date) {
+            dateSet.add(new Date(record.date).toISOString().split('T')[0]);
+          }
+        });
+        uniqueDates.push(...Array.from(dateSet).sort());
+      }
+
+      // Create table headers
+      const tableHeaders = ['S.No', 'Name', 'Roll Number', 'Course', 'Branch'];
+      
+      // Add date columns
+      uniqueDates.forEach(date => {
+        tableHeaders.push(date);
+      });
+      
+      // Create the worksheet with headers first
+      const headerData = [tableHeaders];
+      const worksheet = XLSX.utils.aoa_to_sheet(headerData);
+      
+      // Apply bold styling to headers immediately
+      tableHeaders.forEach((header, index) => {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c: index });
+        if (worksheet[cellRef]) {
+          worksheet[cellRef].s = {
+            font: { bold: true, size: 14 },
+            fill: { fgColor: { rgb: "4472C4" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thin" },
+              bottom: { style: "thin" },
+              left: { style: "thin" },
+              right: { style: "thin" }
+            }
+          };
+        }
+      });
+      
+      // Group attendance by student
+      const studentMap = new Map();
+      
+      attendanceData.forEach(record => {
+        const studentId = record.student?._id || record._id;
+        if (!studentId) return;
+
+        if (!studentMap.has(studentId)) {
+          studentMap.set(studentId, {
+            student: record.student || record,
+            attendanceRecords: []
+          });
+        }
+
+        const studentData = studentMap.get(studentId);
+        studentData.attendanceRecords.push(record);
+      });
+
+      // Create table data
+      const tableData = [];
+      let serialNumber = 1;
+
+      studentMap.forEach((studentData) => {
+        const { student, attendanceRecords } = studentData;
+        
+        const row = [
+          serialNumber++,
+          student.name || 'Unknown',
+          student.rollNumber || 'N/A',
+          getCourseName(student.course),
+          getBranchName(student.branch)
+        ];
+
+        // Add attendance for each date
+        uniqueDates.forEach(date => {
+          const dateAttendance = attendanceRecords.find(record => {
+            const recordDate = new Date(record.date).toISOString().split('T')[0];
+            return recordDate === date;
+          });
+
+          if (dateAttendance) {
+            const isOnLeave = dateAttendance.isOnLeave || false;
+            const morning = isOnLeave ? '🏠' : (dateAttendance.morning ? '✅' : '❌');
+            const evening = isOnLeave ? '🏠' : (dateAttendance.evening ? '✅' : '❌');
+            const night = isOnLeave ? '🏠' : (dateAttendance.night ? '✅' : '❌');
+            row.push(`${morning} | ${evening} | ${night}`);
+          } else {
+            row.push('-'); // No attendance record
+          }
+        });
+
+        tableData.push(row);
+      });
+
+      // Add table data to worksheet
+      XLSX.utils.sheet_add_aoa(worksheet, tableData, { origin: 'A2' });
+      
+      // Apply styling to the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref']);
+      
+      // Set column widths for better readability
+      const columnWidths = [];
+      tableHeaders.forEach((header, index) => {
+        if (index === 0) columnWidths.push(8); // S.No
+        else if (index === 1) columnWidths.push(25); // Name
+        else if (index === 2) columnWidths.push(15); // Roll Number
+        else if (index === 3) columnWidths.push(15); // Course
+        else if (index === 4) columnWidths.push(25); // Branch
+        else columnWidths.push(18); // Date columns
+      });
+      worksheet['!cols'] = columnWidths.map(width => ({ width }));
+      
+      // Style the data rows with borders
+      for (let row = 2; row < 2 + tableData.length; row++) {
+        for (let col = 0; col <= range.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+          if (worksheet[cellRef]) {
+            worksheet[cellRef].s = {
+              font: { size: 11 },
+              border: {
+                top: { style: "thin" },
+                bottom: { style: "thin" },
+                left: { style: "thin" },
+                right: { style: "thin" }
+              },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          }
+        }
+      }
+
+      // Create workbook and add worksheet
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Report');
+
+      // Generate filename
+      const courseName = typeof user.course === 'object' ? user.course.name : user.course;
+      const filename = `Attendance_Report_${courseName}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+      // Download the file
+      XLSX.writeFile(workbook, filename);
+      
+      toast.success('Excel report generated successfully!');
+    } catch (error) {
+      console.error('Error generating Excel report:', error);
+      toast.error('Failed to generate Excel report');
+    } finally {
+      setGeneratingExcel(false);
+    }
+  };
+
   // Update course display
   const courseName = typeof user.course === 'object' ? user.course.name : user.course;
   const courseCode = typeof user.course === 'object' ? user.course.code : '';
@@ -395,15 +577,25 @@ const PrincipalViewAttendance = () => {
         className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6"
       >
         {/* Filter Toggle Button */}
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 sm:mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900">Filters</h3>
-          <button
-            onClick={() => setFiltersCollapsed(!filtersCollapsed)}
-            className="flex items-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors touch-manipulation"
-          >
-            <FunnelIcon className="w-4 h-4" />
-            {filtersCollapsed ? 'Show Filters' : 'Hide Filters'}
-          </button>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <button
+              onClick={generateExcel}
+              disabled={generatingExcel || attendance.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors touch-manipulation w-full sm:w-auto"
+            >
+              <ArrowDownTrayIcon className="w-4 h-4" />
+              {generatingExcel ? 'Generating...' : 'Generate Excel'}
+            </button>
+            <button
+              onClick={() => setFiltersCollapsed(!filtersCollapsed)}
+              className="flex items-center justify-center gap-2 px-3 py-2 text-xs sm:text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors touch-manipulation w-full sm:w-auto"
+            >
+              <FunnelIcon className="w-4 h-4" />
+              {filtersCollapsed ? 'Show Filters' : 'Hide Filters'}
+            </button>
+          </div>
         </div>
 
         {/* Collapsible Filters */}

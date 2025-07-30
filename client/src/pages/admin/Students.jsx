@@ -45,6 +45,8 @@ const initialForm = {
   branch: '',
   category: '',
   roomNumber: '',
+  bedNumber: '',
+  lockerNumber: '',
   studentPhone: '',
   parentPhone: '',
   batch: '',
@@ -109,13 +111,14 @@ const generateBatches = (courseId, courses) => {
 };
 
 const generateAcademicYears = () => {
-  const startYear = 2022;
+  const currentYear = new Date().getFullYear();
   const years = [];
-  for (let i = 0; i < 10; i++) {
-    const academicStart = startYear + i;
-    const academicEnd = academicStart + 1;
-    years.push(`${academicStart}-${academicEnd}`);
+  
+  for (let i = -3; i <= 3; i++) {
+    const year = currentYear + i;
+    years.push(`${year}-${year + 1}`);
   }
+  
   return years;
 };
 
@@ -244,6 +247,10 @@ const Students = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStudents, setRoomStudents] = useState([]);
   const [loadingRoomStudents, setLoadingRoomStudents] = useState(false);
+
+  // Bed and locker availability states
+  const [bedLockerAvailability, setBedLockerAvailability] = useState(null);
+  const [loadingBedLocker, setLoadingBedLocker] = useState(false);
 
   // Dynamic course and branch data
   const [courses, setCourses] = useState([]);
@@ -473,6 +480,30 @@ const Students = () => {
     }
   };
 
+  // Fetch bed and locker availability for a room
+  const fetchBedLockerAvailability = async (roomNumber) => {
+    if (!roomNumber) {
+      setBedLockerAvailability(null);
+      return;
+    }
+
+    setLoadingBedLocker(true);
+    try {
+      const response = await api.get(`/api/admin/rooms/${roomNumber}/bed-locker-availability`);
+      if (response.data.success) {
+        setBedLockerAvailability(response.data.data);
+      } else {
+        throw new Error('Failed to fetch bed/locker availability');
+      }
+    } catch (error) {
+      console.error('Error fetching bed/locker availability:', error);
+      toast.error('Failed to fetch bed/locker availability');
+      setBedLockerAvailability(null);
+    } finally {
+      setLoadingBedLocker(false);
+    }
+  };
+
   const fetchStudents = useCallback(async (initialLoad = false) => {
     if (initialLoad) {
       setLoading(true);
@@ -554,6 +585,21 @@ const Students = () => {
       setRoomsWithAvailability([]);
     }
   }, [form.gender, form.category]);
+
+  // Fetch bed/locker availability when room is selected
+  useEffect(() => {
+    if (form.roomNumber) {
+      fetchBedLockerAvailability(form.roomNumber);
+    } else {
+      setBedLockerAvailability(null);
+      // Clear bed and locker selections when room changes
+      setForm(prev => ({
+        ...prev,
+        bedNumber: '',
+        lockerNumber: ''
+      }));
+    }
+  }, [form.roomNumber]);
 
   const handleFormChange = e => {
     const { name, value } = e.target;
@@ -864,6 +910,8 @@ const Students = () => {
       gender: student.gender,
       category: student.category,
       roomNumber: student.roomNumber,
+      bedNumber: student.bedNumber || '',
+      lockerNumber: student.lockerNumber || '',
       studentPhone: student.studentPhone,
       parentPhone: student.parentPhone,
       email: student.email,
@@ -1794,230 +1842,153 @@ const Students = () => {
 
   const renderAddStudentForm = () => (
     <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-blue-800">Add New Student</h2>
-      <form onSubmit={handleAddStudent} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleFormChange}
-              placeholder="Enter your name"
-              required
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">PIN Number</label>
-            <input
-              type="text"
-              name="rollNumber"
-              value={form.rollNumber}
-              onChange={handleFormChange}
-              placeholder="Enter your PIN number"
-              required
-              pattern="[A-Z0-9]+"
-              title="Uppercase letters and numbers only"
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Hostel ID</label>
-            <input
-              type="text"
-              name="hostelId"
-              value={form.hostelId}
-              disabled
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-              placeholder="Auto-generated"
-            />
-            <p className="text-xs text-gray-500 mt-1">Will be automatically generated based on gender</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-            <select
-              name="gender"
-              value={form.gender}
-              onChange={handleFormChange}
-              required
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
-            <select
-              name="course"
-              value={form.course}
-              onChange={handleFormChange}
-              required
-              disabled={loadingCourses}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
-              {courses.map(course => (
-                <option key={course._id} value={course._id}>
-                  {course.name} ({course.code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-            <select
-              name="year"
-              value={form.year}
-              onChange={handleFormChange}
-              required
-              disabled={!form.course}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Year</option>
-              {form.course && Array.from(
-                { length: getCourseDuration(form.course) },
-                (_, i) => i + 1
-              ).map(year => (
-                <option key={year} value={year}>Year {year}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-            <select
-              name="branch"
-              value={form.branch}
-              onChange={handleFormChange}
-              required
-              disabled={!form.course || loadingBranches}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
-              {(() => {
-                console.log('🎯 Rendering branch dropdown with', branches.length, 'branches');
-                return branches.map(branch => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name} ({branch.code})
-                  </option>
-                ));
-              })()}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select
-              name="category"
-              value={form.category}
-              onChange={handleFormChange}
-              required
-              disabled={!form.gender}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Category</option>
-              {form.gender && (form.gender === 'Male' 
-                ? ['A+', 'A', 'B+', 'B'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                    </option>
-                  ))
-                : ['A+', 'A', 'B', 'C'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category}
-                    </option>
-                  ))
-              )}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Room Number</label>
-            <div className="flex gap-2">
-            <select
-              name="roomNumber"
-              value={form.roomNumber}
-              onChange={handleFormChange}
-              required
-                disabled={!form.gender || !form.category || loadingRooms}
-                className="flex-1 px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Room</option>
-                {loadingRooms ? (
-                  <option value="" disabled>Loading rooms...</option>
-                ) : (
-                  roomsWithAvailability.map(room => (
-                    <option key={room._id} value={room.roomNumber}>
-                      Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
-                    </option>
-                  ))
-                )}
-            </select>
-              {form.roomNumber && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const selectedRoom = roomsWithAvailability.find(r => r.roomNumber === form.roomNumber);
-                    if (selectedRoom) {
-                      handleRoomView(selectedRoom);
-                    }
-                  }}
-                  className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  View
-                </button>
-              )}
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-blue-800">Add New Student</h2>
+      <form onSubmit={handleAddStudent} className="space-y-8">
+        
+                 {/* Personal Information Section */}
+         <div className="bg-blue-50 rounded-lg p-6">
+           <div className="flex items-center mb-4">
+             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+               </svg>
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleFormChange}
+                placeholder="Enter student's full name"
+                required
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">PIN Number *</label>
+              <input
+                type="text"
+                name="rollNumber"
+                value={form.rollNumber}
+                onChange={handleFormChange}
+                placeholder="Enter PIN number"
+                required
+                pattern="[A-Z0-9]+"
+                title="Uppercase letters and numbers only"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+              <select
+                name="gender"
+                value={form.gender}
+                onChange={handleFormChange}
+                required
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hostel ID</label>
+              <input
+                type="text"
+                name="hostelId"
+                value={form.hostelId}
+                disabled
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                placeholder="Auto-generated"
+              />
+              <p className="text-xs text-gray-500 mt-1">Auto-generated based on gender</p>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
-            <input
-              type="tel"
-              name="studentPhone"
-              value={form.studentPhone}
-              onChange={handleFormChange}
-              pattern="[0-9]{10}"
-              title="10 digit phone number"
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter phone number (optional)"
-            />
+        </div>
+
+        {/* Academic Information Section */}
+        <div className="bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Academic Information</h3>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone</label>
-            <input
-              type="tel"
-              name="parentPhone"
-              value={form.parentPhone}
-              onChange={handleFormChange}
-              required
-              pattern="[0-9]{10}"
-              title="10 digit phone number"
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email (Optional)</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleFormChange}
-              className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Enter email address (optional)"
-            />
-            <p className="text-xs text-gray-500 mt-1">Credentials will be sent to this email if provided</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Batch</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+              <select
+                name="course"
+                value={form.course}
+                onChange={handleFormChange}
+                required
+                disabled={loadingCourses}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
+                {courses.map(course => (
+                  <option key={course._id} value={course._id}>
+                    {course.name} ({course.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
+              <select
+                name="year"
+                value={form.year}
+                onChange={handleFormChange}
+                required
+                disabled={!form.course}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Year</option>
+                {form.course && Array.from(
+                  { length: getCourseDuration(form.course) },
+                  (_, i) => i + 1
+                ).map(year => (
+                  <option key={year} value={year}>Year {year}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+              <select
+                name="branch"
+                value={form.branch}
+                onChange={handleFormChange}
+                required
+                disabled={!form.course || loadingBranches}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
+                {(() => {
+                  console.log('🎯 Rendering branch dropdown with', branches.length, 'branches');
+                  return branches.map(branch => (
+                    <option key={branch._id} value={branch._id}>
+                      {branch.name} ({branch.code})
+                    </option>
+                  ));
+                })()}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
               <select
                 name="batch"
                 value={form.batch}
                 onChange={handleFormChange}
                 required
                 disabled={!form.course}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Batch</option>
                 {form.course && generateBatches(form.course, courses).map(batch => (
@@ -2026,13 +1997,13 @@ const Students = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
               <select
                 name="academicYear"
                 value={form.academicYear}
                 onChange={handleFormChange}
                 required
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Academic Year</option>
                 {generateAcademicYears().map(year => (
@@ -2042,17 +2013,211 @@ const Students = () => {
             </div>
           </div>
         </div>
-        
-        {/* Photo Upload Section */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Photos (Optional)</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Student Photo */}
+
+                 {/* Hostel Information Section */}
+         <div className="bg-blue-50 rounded-lg p-6">
+           <div className="flex items-center mb-4">
+             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+               </svg>
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900">Hostel Information</h3>
+           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+              <select
+                name="category"
+                value={form.category}
+                onChange={handleFormChange}
+                required
+                                   disabled={!form.gender}
+                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Category</option>
+                {form.gender && (form.gender === 'Male' 
+                  ? ['A+', 'A', 'B+', 'B'].map(category => (
+                      <option key={category} value={category}>
+                        {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
+                      </option>
+                    ))
+                  : ['A+', 'A', 'B', 'C'].map(category => (
+                      <option key={category} value={category}>
+                        {category === 'A+' ? 'A+ (AC)' : category}
+                      </option>
+                    ))
+                )}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Room Number *</label>
+              <div className="flex gap-2">
+                <select
+                  name="roomNumber"
+                  value={form.roomNumber}
+                  onChange={handleFormChange}
+                  required
+                                     disabled={!form.gender || !form.category || loadingRooms}
+                   className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Room</option>
+                  {loadingRooms ? (
+                    <option value="" disabled>Loading rooms...</option>
+                  ) : (
+                    roomsWithAvailability.map(room => (
+                      <option key={room._id} value={room.roomNumber}>
+                        Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
+                      </option>
+                    ))
+                  )}
+                </select>
+                {form.roomNumber && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const selectedRoom = roomsWithAvailability.find(r => r.roomNumber === form.roomNumber);
+                      if (selectedRoom) {
+                        handleRoomView(selectedRoom);
+                      }
+                                         }}
+                     className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                   >
+                     View
+                   </button>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Bed and Locker Assignment - Only show when room is selected */}
+          {form.roomNumber && (
+                         <div className="mt-4 pt-4 border-t border-blue-200">
+               <h4 className="text-sm font-medium text-gray-700 mb-3">Bed & Locker Assignment (Optional)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bed Number</label>
+                                     <select
+                     name="bedNumber"
+                     value={form.bedNumber}
+                     onChange={handleFormChange}
+                     disabled={loadingBedLocker}
+                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Bed (Optional)</option>
+                    {loadingBedLocker ? (
+                      <option value="" disabled>Loading beds...</option>
+                    ) : bedLockerAvailability?.availableBeds?.map(bed => (
+                      <option key={bed.value} value={bed.value}>
+                        {bed.label}
+                      </option>
+                    ))}
+                  </select>
+                  {bedLockerAvailability && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {bedLockerAvailability.availableBeds?.length || 0} of {bedLockerAvailability.room?.bedCount || 0} beds available
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Locker Number</label>
+                                     <select
+                     name="lockerNumber"
+                     value={form.lockerNumber}
+                     onChange={handleFormChange}
+                     disabled={loadingBedLocker}
+                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Locker (Optional)</option>
+                    {loadingBedLocker ? (
+                      <option value="" disabled>Loading lockers...</option>
+                    ) : bedLockerAvailability?.availableLockers?.map(locker => (
+                      <option key={locker.value} value={locker.value}>
+                        {locker.label}
+                      </option>
+                    ))}
+                  </select>
+                  {bedLockerAvailability && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {bedLockerAvailability.availableLockers?.length || 0} of {bedLockerAvailability.room?.bedCount || 0} lockers available
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+                 {/* Contact Information Section */}
+         <div className="bg-blue-50 rounded-lg p-6">
+           <div className="flex items-center mb-4">
+             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+               </svg>
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+           </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
+              <input
+                type="tel"
+                name="studentPhone"
+                value={form.studentPhone}
+                onChange={handleFormChange}
+                pattern="[0-9]{10}"
+                title="10 digit phone number"
+                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter phone number (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
+              <input
+                type="tel"
+                name="parentPhone"
+                value={form.parentPhone}
+                onChange={handleFormChange}
+                required
+                pattern="[0-9]{10}"
+                title="10 digit phone number"
+                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter parent's phone number"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleFormChange}
+                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                 placeholder="Enter email address (optional)"
+              />
+              <p className="text-xs text-gray-500 mt-1">Credentials will be sent to this email if provided</p>
+            </div>
+          </div>
+        </div>
+        
+                 {/* Photo Upload Section */}
+         <div className="bg-blue-50 rounded-lg p-6">
+           <div className="flex items-center mb-4">
+             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+               </svg>
+             </div>
+             <h3 className="text-lg font-semibold text-gray-900">Profile Photos (Optional)</h3>
+           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {/* Student Photo */}
+                         <div className="bg-white rounded-lg p-4 border border-blue-200">
+               <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo</label>
+               <div className="space-y-3">
+                 <div className="flex items-center justify-center w-full">
+                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {studentPhotoPreview ? (
                         <div className="relative">
@@ -2071,8 +2236,8 @@ const Students = () => {
                         </div>
                       ) : (
                         <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
+                          <p className="text-sm text-blue-600">Click to upload</p>
                         </>
                       )}
                     </div>
@@ -2084,23 +2249,23 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('student')}
-                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
+                                   <button
+                     type="button"
+                     onClick={() => startCamera('student')}
+                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                   >
+                     <CameraIcon className="w-4 h-4" />
+                     <span>Take Photo</span>
+                   </button>
               </div>
             </div>
 
             {/* Guardian Photo 1 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                         <div className="bg-white rounded-lg p-4 border border-blue-200">
+               <label className="block text-sm font-medium text-gray-700 mb-3">Parents Photo</label>
+               <div className="space-y-3">
+                 <div className="flex items-center justify-center w-full">
+                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {guardianPhoto1Preview ? (
                         <div className="relative">
@@ -2119,8 +2284,8 @@ const Students = () => {
                         </div>
                       ) : (
                         <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
+                          <p className="text-sm text-blue-600">Click to upload</p>
                         </>
                       )}
                     </div>
@@ -2132,23 +2297,23 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('guardian1')}
-                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
+                                   <button
+                     type="button"
+                     onClick={() => startCamera('guardian1')}
+                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                   >
+                     <CameraIcon className="w-4 h-4" />
+                     <span>Take Photo</span>
+                   </button>
               </div>
             </div>
 
             {/* Guardian Photo 2 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
-              <div className="space-y-2">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                         <div className="bg-white rounded-lg p-4 border border-blue-200">
+               <label className="block text-sm font-medium text-gray-700 mb-3">Local Guardian Photo</label>
+               <div className="space-y-3">
+                 <div className="flex items-center justify-center w-full">
+                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {guardianPhoto2Preview ? (
                         <div className="relative">
@@ -2167,8 +2332,8 @@ const Students = () => {
                         </div>
                       ) : (
                         <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                          <p className="text-sm text-gray-500">Click to upload</p>
+                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
+                          <p className="text-sm text-blue-600">Click to upload</p>
                         </>
                       )}
                     </div>
@@ -2180,31 +2345,47 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('guardian2')}
-                  className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
+                                   <button
+                     type="button"
+                     onClick={() => startCamera('guardian2')}
+                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                   >
+                     <CameraIcon className="w-4 h-4" />
+                     <span>Take Photo</span>
+                   </button>
               </div>
             </div>
           </div>
-          <p className="text-xs text-gray-500 mt-2">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
+          <p className="text-xs text-gray-500 mt-4 text-center">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
         </div>
         
-        <div className="flex justify-end">
+        {/* Submit Button */}
+        <div className="flex justify-end pt-4">
           <button
             type="submit"
             disabled={adding}
-            className={`px-4 sm:px-6 py-2 rounded-lg text-white font-medium transition-all duration-200 text-sm sm:text-base ${
+            className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${
               adding 
               ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
+              : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
             }`}
           >
-            {adding ? 'Adding...' : 'Add Student'}
+            {adding ? (
+              <div className="flex items-center space-x-2">
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Adding Student...</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                <span>Add Student</span>
+              </div>
+            )}
           </button>
         </div>
       </form>
@@ -2512,7 +2693,17 @@ const Students = () => {
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               {student.course?.name || getCourseName(student.course)}
                             </td>
-                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">Room {student.roomNumber}</td>
+                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex flex-col">
+                                <span>Room {student.roomNumber}</span>
+                                {student.bedNumber && (
+                                  <span className="text-xs text-blue-600">Bed: {student.bedNumber}</span>
+                                )}
+                                {student.lockerNumber && (
+                                  <span className="text-xs text-green-600">Locker: {student.lockerNumber}</span>
+                                )}
+                              </div>
+                            </td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex flex-col gap-1">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -2756,6 +2947,18 @@ const Students = () => {
                           <span className="text-sm text-purple-700">Room Number:</span>
                           <span className="font-medium text-purple-900">Room {selectedStudent.roomNumber}</span>
                         </div>
+                        {selectedStudent.bedNumber && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-purple-700">Bed Number:</span>
+                            <span className="font-medium text-blue-600">{selectedStudent.bedNumber}</span>
+                          </div>
+                        )}
+                        {selectedStudent.lockerNumber && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-purple-700">Locker Number:</span>
+                            <span className="font-medium text-green-600">{selectedStudent.lockerNumber}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-purple-700">Hostel Status:</span>
                           <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -3067,6 +3270,28 @@ const Students = () => {
                   <option key={room} value={room}>{room}</option>
                 ))}
               </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Bed Number (Optional)</label>
+              <input
+                type="text"
+                name="bedNumber"
+                value={editForm.bedNumber || ''}
+                onChange={handleEditFormChange}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., 320 Bed 1"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Locker Number (Optional)</label>
+              <input
+                type="text"
+                name="lockerNumber"
+                value={editForm.lockerNumber || ''}
+                onChange={handleEditFormChange}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g., 320 Locker 1"
+              />
             </div>
             <div className="space-y-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
@@ -4105,7 +4330,7 @@ const Students = () => {
                         type="file"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => handlePhotoEditChange(e, 'student')}
+                        onChange={(e) => handlePhotoChange(e, 'student')}
                       />
                     </label>
                   </div>
@@ -4122,20 +4347,20 @@ const Students = () => {
 
               {/* Guardian Photo 1 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 1</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Parents</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-center w-full">
                     <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {photoEditGuardianPhoto1Preview ? (
+                        {guardianPhoto1Preview ? (
                           <div className="relative">
-                            <img src={photoEditGuardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
-                                setPhotoEditGuardianPhoto1(null);
-                                setPhotoEditGuardianPhoto1Preview(null);
+                                setGuardianPhoto1(null);
+                                setGuardianPhoto1Preview(null);
                               }}
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                             >
@@ -4153,13 +4378,13 @@ const Students = () => {
                         type="file"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => handlePhotoEditChange(e, 'guardian1')}
+                        onChange={(e) => handlePhotoChange(e, 'guardian1')}
                       />
                     </label>
                   </div>
                   <button
                     type="button"
-                    onClick={() => startCamera('edit_guardian1')}
+                    onClick={() => startCamera('guardian1')}
                     className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
                   >
                     <CameraIcon className="w-4 h-4" />
@@ -4170,20 +4395,20 @@ const Students = () => {
 
               {/* Guardian Photo 2 */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Guardian Photo 2</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Local Guardian</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-center w-full">
                     <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {photoEditGuardianPhoto2Preview ? (
+                        {guardianPhoto2Preview ? (
                           <div className="relative">
-                            <img src={photoEditGuardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
-                                setPhotoEditGuardianPhoto2(null);
-                                setPhotoEditGuardianPhoto2Preview(null);
+                                setGuardianPhoto2(null);
+                                setGuardianPhoto2Preview(null);
                               }}
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                             >
@@ -4201,13 +4426,13 @@ const Students = () => {
                         type="file"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => handlePhotoEditChange(e, 'guardian2')}
+                        onChange={(e) => handlePhotoChange(e, 'guardian2')}
                       />
                     </label>
                   </div>
                   <button
                     type="button"
-                    onClick={() => startCamera('edit_guardian2')}
+                    onClick={() => startCamera('guardian2')}
                     className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
                   >
                     <CameraIcon className="w-4 h-4" />

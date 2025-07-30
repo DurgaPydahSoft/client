@@ -58,6 +58,22 @@ const FeeManagement = () => {
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('reminders'); // 'reminders' or 'structure'
+  const [feeStructureFilter, setFeeStructureFilter] = useState({
+    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
+  });
+
+  // Generate academic years dynamically (3 years before and after current year)
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    
+    return years;
+  };
 
   // Debug authentication state
   useEffect(() => {
@@ -265,7 +281,7 @@ const FeeManagement = () => {
     try {
       console.log('🔍 Fetching fee structures...');
       setFeeStructureLoading(true);
-      const academicYear = feeStructureForm.academicYear || '2024-2025';
+      const academicYear = feeStructureFilter.academicYear || '2024-2025';
       console.log('🔍 Academic year:', academicYear);
       
       const response = await api.get(`/api/fee-structures?academicYear=${academicYear}`);
@@ -342,7 +358,7 @@ const FeeManagement = () => {
   const getAvailableCategories = () => {
     const allCategories = ['A+', 'A', 'B+', 'B', 'C'];
     const existingCategories = feeStructures.map(structure => structure.category);
-    const academicYear = feeStructureForm.academicYear || '2024-2025';
+    const academicYear = feeStructureFilter.academicYear || '2024-2025';
     
     // If editing, include the current category
     if (selectedFeeStructure) {
@@ -364,7 +380,7 @@ const FeeManagement = () => {
     } else {
       setSelectedFeeStructure(null);
       setFeeStructureForm({
-        academicYear: '2024-2025',
+        academicYear: feeStructureFilter.academicYear || '2024-2025',
         category: '',
         totalFee: 45000
       });
@@ -398,13 +414,17 @@ const FeeManagement = () => {
 
 
 
+  const handleFeeStructureFilterChange = (key, value) => {
+    setFeeStructureFilter(prev => ({ ...prev, [key]: value }));
+  };
+
   useEffect(() => {
     console.log('🔍 useEffect triggered - activeTab:', activeTab);
     if (activeTab === 'structure') {
       console.log('🔍 Structure tab active, fetching fee structures...');
       fetchFeeStructures();
     }
-  }, [activeTab, feeStructureForm.academicYear]);
+  }, [activeTab, feeStructureFilter.academicYear]);
 
   // Initial load - fetch fee structures if structure tab is active
   useEffect(() => {
@@ -844,6 +864,22 @@ const FeeManagement = () => {
               </div>
             </div>
             
+            {/* Academic Year Filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Academic Year
+              </label>
+              <select
+                value={feeStructureFilter.academicYear}
+                onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            
             {feeStructureLoading ? (
               <div className="flex justify-center py-8">
                 <LoadingSpinner />
@@ -943,14 +979,17 @@ const FeeManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Academic Year
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={feeStructureForm.academicYear}
                     onChange={(e) => setFeeStructureForm(prev => ({ ...prev, academicYear: e.target.value }))}
-                    placeholder="e.g., 2024-2025"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
-                  />
+                  >
+                    <option value="">Select Academic Year</option>
+                    {generateAcademicYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div>

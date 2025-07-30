@@ -24,6 +24,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 
 // Admin components
 const Students = lazy(() => import('./pages/admin/Students'));
+const AdmitCards = lazy(() => import('./pages/admin/AdmitCards'));
 const Complaints = lazy(() => import('./pages/admin/Complaints'));
 const FoundLostManagement = lazy(() => import('./pages/admin/FoundLostManagement'));
 const Announcements = lazy(() => import('./pages/admin/Announcements'));
@@ -153,6 +154,11 @@ function App() {
               <Route path="students" element={
                 <ProtectedSection permission="student_management" sectionName="Student Management">
                   <Students />
+                </ProtectedSection>
+              } />
+              <Route path="students/admit-cards" element={
+                <ProtectedSection permission="student_management" sectionName="Admit Cards">
+                  <AdmitCards />
                 </ProtectedSection>
               } />
               <Route path="complaints" element={
