@@ -230,7 +230,8 @@ const PrincipalHome = () => {
     open: false,
     students: [],
     status: '',
-    count: 0
+    count: 0,
+    loading: false
   });
 
   useEffect(() => {
@@ -278,6 +279,15 @@ const PrincipalHome = () => {
 
   const handleStatClick = async (status) => {
     try {
+      // Open modal instantly with loading state
+      setStudentsModal({
+        open: true,
+        students: [],
+        status: status,
+        count: 0,
+        loading: true
+      });
+
       // Always use today's date for the modal
       const today = new Date().toISOString().split('T')[0];
       const response = await api.get(`/api/attendance/principal/students/by-status?date=${today}&status=${status}`);
@@ -287,12 +297,21 @@ const PrincipalHome = () => {
           open: true,
           students: response.data.data.students,
           status: status,
-          count: response.data.data.count
+          count: response.data.data.count,
+          loading: false
         });
       }
     } catch (error) {
       console.error('Error fetching students by status:', error);
       toast.error('Failed to load students');
+      // Close modal on error
+      setStudentsModal({
+        open: false,
+        students: [],
+        status: '',
+        count: 0,
+        loading: false
+      });
     }
   };
 
@@ -646,23 +665,27 @@ const PrincipalHome = () => {
       </div>
 
       {/* Students Modal */}
-      <Modal isOpen={studentsModal.open} onClose={() => setStudentsModal({ open: false, students: [], status: '', count: 0 })} title={`${studentsModal.status} Students (${studentsModal.count})`}>
-        <div className="w-full">
-          {studentsModal.students.length === 0 ? (
-            <div className="text-center py-6 sm:py-8">
-              <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <p className="text-gray-500 text-sm sm:text-base">No students found for this status</p>
-            </div>
-          ) : (
-            <div className="overflow-y-auto max-h-[60vh] sm:max-h-96">
-              <div className="grid gap-2 sm:gap-3">
-                {studentsModal.students.map((student, index) => (
-                  <StudentCard key={student._id || index} student={student} />
-                ))}
+      <Modal isOpen={studentsModal.open} onClose={() => setStudentsModal({ open: false, students: [], status: '', count: 0, loading: false })} title={`${studentsModal.status} Students (${studentsModal.count})`}>
+        {studentsModal.loading ? (
+          <LoadingSpinner />
+        ) : (
+          <div className="w-full">
+            {studentsModal.students.length === 0 ? (
+              <div className="text-center py-6 sm:py-8">
+                <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                <p className="text-gray-500 text-sm sm:text-base">No students found for this status</p>
               </div>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="overflow-y-auto max-h-[60vh] sm:max-h-96">
+                <div className="grid gap-2 sm:gap-3">
+                  {studentsModal.students.map((student, index) => (
+                    <StudentCard key={student._id || index} student={student} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   );
