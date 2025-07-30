@@ -63,6 +63,7 @@ const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
 const PrincipalHome = lazy(() => import('./pages/principal/PrincipalHome'));
 const PrincipalAttendance = lazy(() => import('./pages/principal/PrincipalAttendance'));
 const PrincipalStudents = lazy(() => import('./pages/principal/Students'));
+const PrincipalViewComplaints = lazy(() => import('./pages/principal/PrincipalViewComplaints'));
 const PrincipalStayInHostelRequests = lazy(() => import('./pages/principal/StayInHostelRequests'));
 const PrincipalLeaveManagement = lazy(() => import('./pages/principal/LeaveManagement'));
 
@@ -269,6 +270,7 @@ function App() {
               <Route index element={<PrincipalHome />} />
               <Route path="attendance" element={<PrincipalAttendance />} />
               <Route path="students" element={<PrincipalStudents />} />
+              <Route path="complaints" element={<PrincipalViewComplaints />} />
               <Route path="leave-management" element={<PrincipalLeaveManagement />} />
               <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
             </Route>

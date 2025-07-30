@@ -12,6 +12,7 @@ import {
 import PrincipalHome from './PrincipalHome';
 import PrincipalAttendance from './PrincipalAttendance';
 import PrincipalStudents from './Students';
+import PrincipalViewComplaints from './PrincipalViewComplaints';
 import NotificationBell from '../../components/NotificationBell';
 import ResetPasswordModal from '../admin/ResetPasswordModal';
 
@@ -98,55 +99,30 @@ const PrincipalDashboard = () => {
         
         // Temporarily disable notification API calls
         setNotificationCount(0);
-        setNotificationStates({
-          complaint: false,
-          announcement: false,
-          poll: false
-        });
         
-        console.log('🔔 Notification states set to defaults');
-      } catch (err) {
-        console.error('🔔 Failed to fetch notification count:', err);
-        // Don't let notification errors cause logout - just set defaults
-        setNotificationCount(0);
-        setNotificationStates({
-          complaint: false,
-          announcement: false,
-          poll: false
-        });
+        // const response = await api.get('/api/notifications/count');
+        // if (response.data.success) {
+        //   setNotificationCount(response.data.count);
+        // }
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
       }
     };
 
     fetchNotificationCount();
     
-    // Refresh count when new notification arrives
-    const refreshHandler = () => fetchNotificationCount();
-    window.addEventListener('refresh-notifications', refreshHandler);
+    // Set up polling for notifications
+    const interval = setInterval(fetchNotificationCount, 30000); // Poll every 30 seconds
     
-    // Poll for new notifications every minute
-    const interval = setInterval(fetchNotificationCount, 60000);
-
-    return () => {
-      window.removeEventListener('refresh-notifications', refreshHandler);
-      clearInterval(interval);
-    };
-  }, [pathname]);
-
-  // Initialize scroll indicators
-  useEffect(() => {
-    const nav = document.querySelector('nav.overflow-y-auto');
-    const bottomFade = document.getElementById('bottom-fade');
-    
-    if (nav && bottomFade) {
-      // Check if content is scrollable
-      const isScrollable = nav.scrollHeight > nav.clientHeight;
-      bottomFade.style.opacity = isScrollable ? '1' : '0';
-    }
+    return () => clearInterval(interval);
   }, []);
 
-  const isSuperAdmin = user?.role === 'super_admin';
-  const isPrincipal = user?.role === 'principal';
+  const refreshHandler = () => fetchNotificationCount();
+
   const hasPermission = (permission) => {
+    const isSuperAdmin = user?.role === 'super_admin';
+    const isPrincipal = user?.role === 'principal';
+    
     console.log('🔐 Permission check:', {
       permission,
       userRole: user?.role,
@@ -178,6 +154,13 @@ const PrincipalDashboard = () => {
       name: 'Students',
       icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
       path: '/principal/dashboard/students',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'Complaints',
+      icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      path: '/principal/dashboard/complaints',
       show: true,
       locked: false
     },
