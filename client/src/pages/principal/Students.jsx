@@ -263,15 +263,13 @@ const PrincipalStudents = () => {
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {tableLoading ? (
                 <tr>
-                  <td colSpan="6" className="px-3 sm:px-6 py-4 text-center">
+                  <td colSpan="5" className="px-3 sm:px-6 py-4 text-center">
                     <div className="flex items-center justify-center">
                       <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                       <span className="ml-2 text-gray-600 text-xs sm:text-sm">Loading students...</span>
@@ -280,14 +278,22 @@ const PrincipalStudents = () => {
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-3 sm:px-6 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
-                    No students found
+                  <td colSpan="5" className="px-3 sm:px-6 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
+                    <div className="flex flex-col items-center">
+                      <UserIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-300 mb-2" />
+                      <p>No students found</p>
+                      <p className="text-xs text-gray-400 mt-1">Try adjusting your filters</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
                 students.map((student) => (
-                  <tr key={student._id} className="hover:bg-gray-50">
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                  <tr 
+                    key={student._id} 
+                    className="hover:bg-purple-50 cursor-pointer transition-all duration-200"
+                    onClick={() => openStudentDetailsModal(student)}
+                  >
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap hover:border-l-4 hover:border-l-purple-500">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
                           {student.studentPhoto ? (
@@ -354,16 +360,7 @@ const PrincipalStudents = () => {
                         {student.hostelStatus || 'Active'}
                       </span>
                     </td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                      <button
-                        onClick={() => openStudentDetailsModal(student)}
-                        className="text-purple-600 hover:text-purple-900 flex items-center gap-1 touch-manipulation"
-                      >
-                        <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span className="hidden sm:inline">View Details</span>
-                        <span className="sm:hidden">View</span>
-                      </button>
-                    </td>
+
                   </tr>
                 ))
               )}
