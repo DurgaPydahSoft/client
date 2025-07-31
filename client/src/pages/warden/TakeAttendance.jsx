@@ -26,10 +26,31 @@ const TakeAttendance = () => {
   console.log('🔍 TakeAttendance Component - User hostelType:', user?.hostelType);
   console.log('🔍 TakeAttendance Component - User role:', user?.role);
   
+  // Session time windows (IST)
+  const SESSION_TIMES = {
+    morning: { start: 7, end: 9 }, // 7:00 AM - 9:00 AM
+    evening: { start: 17.5, end: 19 }, // 5:30 PM - 7:00 PM
+    night: { start: 20, end: 22 } // 8:00 PM - 10:00 PM
+  };
+
+  // Get current time in IST
+  const getCurrentISTTime = () => {
+    const now = new Date();
+    // Get IST time by creating a new date with IST timezone
+    const istTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    return istTime;
+  };
+
+  // Get current date in YYYY-MM-DD format (IST)
+  const getCurrentISTDate = () => {
+    const istTime = getCurrentISTTime();
+    return istTime.toISOString().split('T')[0];
+  };
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [students, setStudents] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getCurrentISTDate());
   const [attendanceData, setAttendanceData] = useState({});
   const [filters, setFilters] = useState({
     course: '',
@@ -51,15 +72,127 @@ const TakeAttendance = () => {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
-  // Get current date in YYYY-MM-DD format
-  const currentDate = new Date().toISOString().split('T')[0];
+  // Time-based session management
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [sessionStatus, setSessionStatus] = useState({
+    morning: { isActive: false, timeLeft: '', canEdit: false },
+    evening: { isActive: false, timeLeft: '', canEdit: false },
+    night: { isActive: false, timeLeft: '', canEdit: false }
+  });
 
-  // Force selectedDate to always be current date for warden
-  useEffect(() => {
-    if (selectedDate !== currentDate) {
-      setSelectedDate(currentDate);
+
+
+  // Check if a session is currently active
+  const isSessionActive = (session) => {
+    const currentTime = getCurrentISTTime();
+    const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60);
+    const sessionTime = SESSION_TIMES[session];
+    
+    console.log(`🔍 Session ${session}: Current hour: ${currentHour}, Session: ${sessionTime.start}-${sessionTime.end}, Active: ${currentHour >= sessionTime.start && currentHour < sessionTime.end}`);
+    
+    return currentHour >= sessionTime.start && currentHour < sessionTime.end;
+  };
+
+  // Calculate time left for a session with seconds precision
+  const getTimeLeft = (session) => {
+    const currentTime = getCurrentISTTime();
+    const sessionTime = SESSION_TIMES[session];
+    const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60) + (currentTime.getSeconds() / 3600);
+    
+    if (currentHour < sessionTime.start) {
+      // Session hasn't started yet
+      const timeUntilStart = sessionTime.start - currentHour;
+      const hours = Math.floor(timeUntilStart);
+      const minutes = Math.floor((timeUntilStart - hours) * 60);
+      const seconds = Math.floor(((timeUntilStart - hours) * 60 - minutes) * 60);
+      
+      if (hours > 0) {
+        return `Starts in ${hours}h ${minutes}m`;
+      } else if (minutes > 0) {
+        return `Starts in ${minutes}m ${seconds}s`;
+      } else {
+        return `Starts in ${seconds}s`;
+      }
+    } else if (currentHour >= sessionTime.start && currentHour < sessionTime.end) {
+      // Session is active
+      const timeLeft = sessionTime.end - currentHour;
+      const hours = Math.floor(timeLeft);
+      const minutes = Math.floor((timeLeft - hours) * 60);
+      const seconds = Math.floor(((timeLeft - hours) * 60 - minutes) * 60);
+      
+      if (hours > 0) {
+        return `Ends in ${hours}h ${minutes}m`;
+      } else if (minutes > 0) {
+        return `Ends in ${minutes}m ${seconds}s`;
+      } else {
+        return `Ends in ${seconds}s`;
+      }
+    } else {
+      // Session has ended
+      return 'Session ended';
     }
-  }, [selectedDate, currentDate]);
+  };
+
+  // Check if any session is currently active
+  const isAnySessionActive = () => {
+    return Object.values(sessionStatus).some(session => session.isActive);
+  };
+
+  // Check if a session has been completed (attendance already taken)
+  const isSessionCompleted = (studentId, session) => {
+    return attendanceData[studentId]?.[session] === true;
+  };
+
+  // Get session status for a student
+  const getSessionStatus = (studentId, session) => {
+    const isActive = sessionStatus[session].isActive;
+    const isCompleted = isSessionCompleted(studentId, session);
+    const canEdit = sessionStatus[session].canEdit;
+    
+    if (isCompleted) return 'completed';
+    if (isActive && canEdit) return 'active';
+    if (!isActive) return 'inactive';
+    return 'disabled';
+  };
+
+  // Update session status every second for real-time countdown
+  useEffect(() => {
+    const updateTime = () => {
+      const now = getCurrentISTTime();
+      setCurrentTime(now);
+      
+      const newSessionStatus = {};
+      Object.keys(SESSION_TIMES).forEach(session => {
+        const isActive = isSessionActive(session);
+        const timeLeft = getTimeLeft(session);
+        const canEdit = isActive;
+        
+        newSessionStatus[session] = {
+          isActive,
+          timeLeft,
+          canEdit
+        };
+      });
+      
+      setSessionStatus(newSessionStatus);
+    };
+
+    // Update immediately
+    updateTime();
+    
+    // Update every second for real-time countdown
+    const interval = setInterval(updateTime, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Force selectedDate to always be current IST date for warden
+  useEffect(() => {
+    const currentISTDate = getCurrentISTDate();
+    if (selectedDate !== currentISTDate) {
+      setSelectedDate(currentISTDate);
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -126,6 +259,7 @@ const TakeAttendance = () => {
   const fetchStudents = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching students for date:', selectedDate, 'Current IST date:', getCurrentISTDate());
       const params = new URLSearchParams({
         date: selectedDate
       });
@@ -274,9 +408,16 @@ const TakeAttendance = () => {
 
   const handleSubmit = async () => {
     // Validate that warden can only submit for current date
-    if (selectedDate !== currentDate) {
+    const currentISTDate = getCurrentISTDate();
+    if (selectedDate !== currentISTDate) {
       toast.error('Warden can only take attendance for today');
-      setSelectedDate(currentDate);
+      setSelectedDate(currentISTDate);
+      return;
+    }
+
+    // Check if any session is currently active
+    if (!isAnySessionActive()) {
+      toast.error('No attendance session is currently active. Please wait for an active session.');
       return;
     }
 
@@ -421,6 +562,42 @@ const TakeAttendance = () => {
               </div>
             </div>
           </div>
+          
+          {/* Session Status Indicator */}
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ClockIcon className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-800">Current Session Status</span>
+              </div>
+              <div className="text-xs text-blue-600">
+                IST: {currentTime.toLocaleTimeString('en-IN', { 
+                  hour: '2-digit', 
+                  minute: '2-digit',
+                  second: '2-digit'
+                })} | Date: {selectedDate}
+              </div>
+            </div>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {Object.entries(sessionStatus).map(([session, status]) => (
+                <div key={session} className={`p-2 rounded-lg text-xs ${
+                  status.isActive 
+                    ? 'bg-green-100 border border-green-300 text-green-800' 
+                    : 'bg-gray-100 border border-gray-300 text-gray-600'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium capitalize">{session}</span>
+                    <span className={`w-2 h-2 rounded-full ${
+                      status.isActive ? 'bg-green-500' : 'bg-gray-400'
+                    }`}></span>
+                  </div>
+                  <div className="mt-1 text-xs">
+                    {status.timeLeft}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         {/* Controls */}
@@ -547,9 +724,9 @@ const TakeAttendance = () => {
               <div className="relative">
                 <input
                   type="date"
-                  value={currentDate}
-                  min={currentDate}
-                  max={currentDate}
+                  value={getCurrentISTDate()}
+                  min={getCurrentISTDate()}
+                  max={getCurrentISTDate()}
                   disabled={true}
                   className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-green-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm bg-green-50 cursor-not-allowed text-green-700 font-medium"
                 />
@@ -653,13 +830,23 @@ const TakeAttendance = () => {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
           <button
             onClick={handleSubmit}
-            disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-green-600 text-white rounded-lg sm:rounded-xl hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base"
+            disabled={submitting || !isAnySessionActive()}
+              className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${
+                submitting || !isAnySessionActive()
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
+              }`}
           >
             {submitting ? (
               <>
                   <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   <span className="text-xs sm:text-sm">Saving Attendance...</span>
+              </>
+            ) : !isAnySessionActive() ? (
+              <>
+                <ClockIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+                <span className="hidden sm:inline">No Active Session</span>
+                <span className="sm:hidden text-xs">No Active Session</span>
               </>
             ) : (
               <>
@@ -756,42 +943,144 @@ const TakeAttendance = () => {
 
                     {/* Attendance Controls */}
                     <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
-                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                      {/* Morning Session */}
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
+                        getSessionStatus(student._id, 'morning') === 'completed' 
+                          ? 'bg-blue-50 border border-blue-200' 
+                          : sessionStatus.morning.isActive 
+                            ? 'bg-green-50 border border-green-200' 
+                            : 'bg-gray-50 border border-gray-200'
+                      }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <SunIcon className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-600" />
-                          <span className="text-xs sm:text-sm font-medium">Morning</span>
+                          <SunIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                            getSessionStatus(student._id, 'morning') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.morning.isActive 
+                                ? 'text-yellow-600' 
+                                : 'text-gray-400'
+                          }`} />
+                          <div>
+                            <span className={`text-xs sm:text-sm font-medium ${
+                              getSessionStatus(student._id, 'morning') === 'completed'
+                                ? 'text-blue-800'
+                                : sessionStatus.morning.isActive 
+                                  ? 'text-green-800' 
+                                  : 'text-gray-500'
+                            }`}>
+                              Morning
+                              {getSessionStatus(student._id, 'morning') === 'completed' && (
+                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
+                              )}
+                            </span>
+                            <div className="text-xs text-gray-500">{sessionStatus.morning.timeLeft}</div>
+                          </div>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.morning || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          disabled={!sessionStatus.morning.canEdit}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
+                            getSessionStatus(student._id, 'morning') === 'completed'
+                              ? 'text-blue-600 bg-blue-50'
+                              : sessionStatus.morning.canEdit 
+                                ? 'text-green-600' 
+                                : 'text-gray-400 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                       
-                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                      {/* Evening Session */}
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
+                        getSessionStatus(student._id, 'evening') === 'completed' 
+                          ? 'bg-blue-50 border border-blue-200' 
+                          : sessionStatus.evening.isActive 
+                            ? 'bg-green-50 border border-green-200' 
+                            : 'bg-gray-50 border border-gray-200'
+                      }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <MoonIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                          <span className="text-xs sm:text-sm font-medium">Evening</span>
+                          <MoonIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                            getSessionStatus(student._id, 'evening') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.evening.isActive 
+                                ? 'text-blue-600' 
+                                : 'text-gray-400'
+                          }`} />
+                          <div>
+                            <span className={`text-xs sm:text-sm font-medium ${
+                              getSessionStatus(student._id, 'evening') === 'completed'
+                                ? 'text-blue-800'
+                                : sessionStatus.evening.isActive 
+                                  ? 'text-green-800' 
+                                  : 'text-gray-500'
+                            }`}>
+                              Evening
+                              {getSessionStatus(student._id, 'evening') === 'completed' && (
+                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
+                              )}
+                            </span>
+                            <div className="text-xs text-gray-500">{sessionStatus.evening.timeLeft}</div>
+                          </div>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.evening || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          disabled={!sessionStatus.evening.canEdit}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
+                            getSessionStatus(student._id, 'evening') === 'completed'
+                              ? 'text-blue-600 bg-blue-50'
+                              : sessionStatus.evening.canEdit 
+                                ? 'text-green-600' 
+                                : 'text-gray-400 cursor-not-allowed'
+                          }`}
                         />
                       </div>
 
-                      <div className="flex items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg">
+                      {/* Night Session */}
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
+                        getSessionStatus(student._id, 'night') === 'completed' 
+                          ? 'bg-blue-50 border border-blue-200' 
+                          : sessionStatus.night.isActive 
+                            ? 'bg-green-50 border border-green-200' 
+                            : 'bg-gray-50 border border-gray-200'
+                      }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600" />
-                          <span className="text-xs sm:text-sm font-medium">Night</span>
+                          <StarIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
+                            getSessionStatus(student._id, 'night') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.night.isActive 
+                                ? 'text-purple-600' 
+                                : 'text-gray-400'
+                          }`} />
+                          <div>
+                            <span className={`text-xs sm:text-sm font-medium ${
+                              getSessionStatus(student._id, 'night') === 'completed'
+                                ? 'text-blue-800'
+                                : sessionStatus.night.isActive 
+                                  ? 'text-green-800' 
+                                  : 'text-gray-500'
+                            }`}>
+                              Night
+                              {getSessionStatus(student._id, 'night') === 'completed' && (
+                                <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
+                              )}
+                            </span>
+                            <div className="text-xs text-gray-500">{sessionStatus.night.timeLeft}</div>
+                          </div>
                         </div>
                         <input
                           type="checkbox"
                           checked={attendanceData[student._id]?.night || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                          disabled={!sessionStatus.night.canEdit}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
+                            getSessionStatus(student._id, 'night') === 'completed'
+                              ? 'text-blue-600 bg-blue-50'
+                              : sessionStatus.night.canEdit 
+                                ? 'text-green-600' 
+                                : 'text-gray-400 cursor-not-allowed'
+                          }`}
                         />
                       </div>
                     </div>
@@ -870,30 +1159,108 @@ const TakeAttendance = () => {
                         </td>
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <input
-                            type="checkbox"
-                            checked={attendanceData[student._id]?.morning || false}
-                            onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                          />
+                          <div className="flex flex-col items-center">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={attendanceData[student._id]?.morning || false}
+                                onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
+                                disabled={!sessionStatus.morning.canEdit}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
+                                  getSessionStatus(student._id, 'morning') === 'completed'
+                                    ? 'text-blue-600 bg-blue-50'
+                                    : sessionStatus.morning.canEdit 
+                                      ? 'text-green-600' 
+                                      : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                              />
+                              {getSessionStatus(student._id, 'morning') === 'completed' && (
+                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </div>
+                            <div className={`text-xs mt-1 ${
+                              getSessionStatus(student._id, 'morning') === 'completed'
+                                ? 'text-blue-600'
+                                : sessionStatus.morning.isActive 
+                                  ? 'text-green-600' 
+                                  : 'text-gray-500'
+                            }`}>
+                              {getSessionStatus(student._id, 'morning') === 'completed' 
+                                ? '✓ Taken' 
+                                : sessionStatus.morning.timeLeft
+                              }
+                            </div>
+                          </div>
                         </td>
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <input
-                            type="checkbox"
-                            checked={attendanceData[student._id]?.evening || false}
-                            onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                          />
+                          <div className="flex flex-col items-center">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={attendanceData[student._id]?.evening || false}
+                                onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
+                                disabled={!sessionStatus.evening.canEdit}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
+                                  getSessionStatus(student._id, 'evening') === 'completed'
+                                    ? 'text-blue-600 bg-blue-50'
+                                    : sessionStatus.evening.canEdit 
+                                      ? 'text-green-600' 
+                                      : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                              />
+                              {getSessionStatus(student._id, 'evening') === 'completed' && (
+                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </div>
+                            <div className={`text-xs mt-1 ${
+                              getSessionStatus(student._id, 'evening') === 'completed'
+                                ? 'text-blue-600'
+                                : sessionStatus.evening.isActive 
+                                  ? 'text-green-600' 
+                                  : 'text-gray-500'
+                            }`}>
+                              {getSessionStatus(student._id, 'evening') === 'completed' 
+                                ? '✓ Taken' 
+                                : sessionStatus.evening.timeLeft
+                              }
+                            </div>
+                          </div>
                         </td>
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <input
-                            type="checkbox"
-                            checked={attendanceData[student._id]?.night || false}
-                            onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                          />
+                          <div className="flex flex-col items-center">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={attendanceData[student._id]?.night || false}
+                                onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
+                                disabled={!sessionStatus.night.canEdit}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
+                                  getSessionStatus(student._id, 'night') === 'completed'
+                                    ? 'text-blue-600 bg-blue-50'
+                                    : sessionStatus.night.canEdit 
+                                      ? 'text-green-600' 
+                                      : 'text-gray-400 cursor-not-allowed'
+                                }`}
+                              />
+                              {getSessionStatus(student._id, 'night') === 'completed' && (
+                                <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
+                              )}
+                            </div>
+                            <div className={`text-xs mt-1 ${
+                              getSessionStatus(student._id, 'night') === 'completed'
+                                ? 'text-blue-600'
+                                : sessionStatus.night.isActive 
+                                  ? 'text-green-600' 
+                                  : 'text-gray-500'
+                            }`}>
+                              {getSessionStatus(student._id, 'night') === 'completed' 
+                                ? '✓ Taken' 
+                                : sessionStatus.night.timeLeft
+                              }
+                            </div>
+                          </div>
                         </td>
                         
                         <td className="px-6 py-4 whitespace-nowrap text-center">

@@ -252,8 +252,8 @@ const AdminManagement = () => {
         return;
       }
       
-      if (formData.passwordDeliveryMethod === 'mobile') {
-        toast.error('Mobile delivery is not available yet. Please use email delivery.');
+      if (formData.passwordDeliveryMethod === 'mobile' && !formData.phoneNumber.trim()) {
+        toast.error('Please enter a phone number for mobile delivery');
         return;
       }
     }
@@ -269,7 +269,8 @@ const AdminManagement = () => {
           leaveManagementCourses: formData.leaveManagementCourses,
           permissionAccessLevels: formData.permissionAccessLevels,
           passwordDeliveryMethod: formData.passwordDeliveryMethod,
-          email: formData.email
+          email: formData.email,
+          phoneNumber: formData.phoneNumber
         };
       } else if (activeTab === 'wardens') {
         endpoint = '/api/admin-management/wardens';
@@ -287,7 +288,9 @@ const AdminManagement = () => {
         // Handle delivery result for sub-admins
         if (activeTab === 'sub-admins' && response.data.deliveryResult) {
           if (response.data.deliveryResult.success) {
-            toast.success(`${userType} added successfully! Credentials sent via ${formData.passwordDeliveryMethod}.`);
+            const deliveryMethod = formData.passwordDeliveryMethod === 'email' ? 'email' : 
+                                 formData.passwordDeliveryMethod === 'mobile' ? 'SMS' : 'manual';
+            toast.success(`${userType} added successfully! Credentials sent via ${deliveryMethod}.`);
           } else if (response.data.deliveryResult.error) {
             toast.success(`${userType} added successfully!`, { duration: 3000 });
             toast.error(`Failed to send credentials: ${response.data.deliveryResult.error}`, { duration: 5000 });
@@ -837,7 +840,7 @@ const AdminManagement = () => {
                           onChange={handleFormChange}
                           className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">Send via Mobile (Coming Soon)</span>
+                        <span className="text-xs sm:text-sm text-gray-700">Send via Mobile</span>
                       </label>
                     </div>
 
@@ -859,11 +862,23 @@ const AdminManagement = () => {
                       </div>
                     )}
 
-                    {/* Phone Number Input (for future use) */}
+                    {/* Phone Number Input */}
                     {formData.passwordDeliveryMethod === 'mobile' && (
-                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-xs sm:text-sm text-yellow-800">
-                          📱 Mobile delivery feature is coming soon. Please use email delivery for now.
+                      <div className="mt-3">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                          Phone Number <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via mobile)</span>
+                        </label>
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleFormChange}
+                          required={formData.passwordDeliveryMethod === 'mobile'}
+                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter phone number (e.g., 9876543210)"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Enter 10-digit phone number without country code
                         </p>
                       </div>
                     )}
