@@ -4302,7 +4302,7 @@ const Students = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         {photoEditStudentPhotoPreview ? (
                           <div className="relative">
@@ -4337,7 +4337,7 @@ const Students = () => {
                   <button
                     type="button"
                     onClick={() => startCamera('edit_student')}
-                    className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                    className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
                   >
                     <CameraIcon className="w-4 h-4" />
                     <span>Take Photo</span>
@@ -4350,7 +4350,7 @@ const Students = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Parents</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         {photoEditGuardianPhoto1Preview ? (
                           <div className="relative">
@@ -4398,17 +4398,17 @@ const Students = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Local Guardian</label>
                 <div className="space-y-2">
                   <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100">
                       <div className="flex flex-col items-center justify-center pt-5 pb-6">
                         {photoEditGuardianPhoto2Preview ? (
                           <div className="relative">
-                            <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                            <img src={photoEditGuardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
-                                setGuardianPhoto2(null);
-                                setGuardianPhoto2Preview(null);
+                                setPhotoEditGuardianPhoto2(null);
+                                setPhotoEditGuardianPhoto2Preview(null);
                               }}
                               className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                             >
@@ -4426,14 +4426,14 @@ const Students = () => {
                         type="file"
                         className="hidden"
                         accept="image/*"
-                        onChange={(e) => handlePhotoChange(e, 'guardian2')}
+                        onChange={(e) => handlePhotoEditChange(e, 'guardian2')}
                       />
                     </label>
                   </div>
                   <button
                     type="button"
-                    onClick={() => startCamera('guardian2')}
-                    className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2"
+                    onClick={() => startCamera('edit_guardian2')}
+                    className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
                   >
                     <CameraIcon className="w-4 h-4" />
                     <span>Take Photo</span>
