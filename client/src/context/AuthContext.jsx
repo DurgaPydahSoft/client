@@ -66,8 +66,8 @@ export const AuthProvider = ({ children }) => {
         const userRole = safeLocalStorage.getItem('userRole');
         
         let res;
-        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal') {
-          console.log('🔍 Validating admin/warden/principal token...');
+        if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal' || userRole === 'custom') {
+          console.log('🔍 Validating admin/warden/principal/custom token...');
           res = await api.get('/api/admin-management/validate');
         } else {
           console.log('🔍 Validating student token...');

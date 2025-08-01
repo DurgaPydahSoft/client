@@ -40,7 +40,7 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
   if (role) {
     const isPermitted = () => {
       if (role === 'admin') {
-        return ['admin', 'super_admin', 'sub_admin'].includes(user?.role);
+        return ['admin', 'super_admin', 'sub_admin', 'custom'].includes(user?.role);
       }
       if (role === 'warden') {
         return user?.role === 'warden';

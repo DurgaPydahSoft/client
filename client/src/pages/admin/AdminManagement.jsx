@@ -37,6 +37,9 @@ const PERMISSIONS = [
   { id: 'feature_controls', label: 'Feature Controls' }
 ];
 
+// Course assignment permissions that need course selection
+const COURSE_ASSIGNMENT_PERMISSIONS = ['leave_management', 'student_management', 'attendance_management'];
+
 const ToggleSwitch = ({ label, checked, onChange }) => (
   <label className="flex items-center gap-3 cursor-pointer select-none">
     <span className="text-gray-800 font-medium">{label}</span>
@@ -118,10 +121,13 @@ const AdminManagement = () => {
   const [subAdmins, setSubAdmins] = useState([]);
   const [wardens, setWardens] = useState([]);
   const [principals, setPrincipals] = useState([]);
+  const [customRoles, setCustomRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
+  const [selectedRole, setSelectedRole] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -132,7 +138,17 @@ const AdminManagement = () => {
     leaveManagementCourses: [], // New field for course selection
     passwordDeliveryMethod: '', // New field for password delivery
     email: '', // New field for email
-    phoneNumber: '' // New field for phone number
+    phoneNumber: '', // New field for phone number
+    customRoleId: '' // New field for custom role assignment
+  });
+  const [roleType, setRoleType] = useState('sub_admin'); // Track selected role type
+  const [roleFormData, setRoleFormData] = useState({
+    name: '',
+    description: '',
+    permissions: [],
+    permissionAccessLevels: {},
+    courseAssignment: 'all',
+    assignedCourses: []
   });
   const [courses, setCourses] = useState([]);
 
@@ -142,16 +158,18 @@ const AdminManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [subAdminsRes, wardensRes, principalsRes] = await Promise.all([
+      const [subAdminsRes, wardensRes, principalsRes, customRolesRes] = await Promise.all([
         api.get('/api/admin-management/sub-admins'),
         api.get('/api/admin-management/wardens'),
-        api.get('/api/admin-management/principals')
+        api.get('/api/admin-management/principals'),
+        api.get('/api/admin-management/custom-roles')
       ]);
       
       console.log('🔍 Admin data responses:', {
         subAdmins: subAdminsRes.data,
         wardens: wardensRes.data,
-        principals: principalsRes.data
+        principals: principalsRes.data,
+        customRoles: customRolesRes.data
       });
       
       if (subAdminsRes.data.success) {
@@ -162,6 +180,9 @@ const AdminManagement = () => {
       }
       if (principalsRes.data.success) {
         setPrincipals(principalsRes.data.data || []);
+      }
+      if (customRolesRes.data.success) {
+        setCustomRoles(customRolesRes.data.data || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -223,6 +244,66 @@ const AdminManagement = () => {
         ? [...prev.leaveManagementCourses, courseId]
         : prev.leaveManagementCourses.filter(id => id !== courseId)
     }));
+  };
+
+  // Handle role form changes
+  const handleRoleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (type === 'checkbox') {
+      setRoleFormData(prev => {
+        const newPermissions = checked 
+          ? [...prev.permissions, value]
+          : prev.permissions.filter(p => p !== value);
+        
+        // Set default access level when permission is added
+        let newAccessLevels = { ...prev.permissionAccessLevels };
+        if (checked) {
+          newAccessLevels[value] = 'view';
+        } else {
+          delete newAccessLevels[value];
+        }
+        
+        return {
+          ...prev,
+          permissions: newPermissions,
+          permissionAccessLevels: newAccessLevels
+        };
+      });
+    } else {
+      setRoleFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // Handle role access level changes
+  const handleRoleAccessLevelChange = (permission, accessLevel) => {
+    setRoleFormData(prev => ({
+      ...prev,
+      permissionAccessLevels: {
+        ...prev.permissionAccessLevels,
+        [permission]: accessLevel
+      }
+    }));
+  };
+
+  // Handle role course assignment
+  const handleRoleCourseSelection = (courseId, checked) => {
+    console.log('🔧 Role course selection:', { courseId, checked });
+    setRoleFormData(prev => {
+      const newAssignedCourses = checked 
+        ? [...prev.assignedCourses, courseId]
+        : prev.assignedCourses.filter(id => id !== courseId);
+      
+      console.log('🔧 Updated assigned courses:', newAssignedCourses);
+      
+      return {
+        ...prev,
+        assignedCourses: newAssignedCourses
+      };
+    });
   };
 
   // Handle access level changes for permissions
@@ -439,6 +520,15 @@ const AdminManagement = () => {
 
   const openEditModal = (admin) => {
     setSelectedAdmin(admin);
+    setRoleType(admin.role === 'custom' ? 'custom' : 'sub_admin');
+    
+    // Convert leaveManagementCourses to proper format for editing
+    const leaveManagementCourses = admin.leaveManagementCourses ? admin.leaveManagementCourses.map(course => 
+      typeof course === 'object' ? course._id : course
+    ) : [];
+    
+    console.log('🔧 Editing admin with leave management courses:', leaveManagementCourses);
+    
     setFormData({
       username: admin.username,
       password: '',
@@ -446,11 +536,12 @@ const AdminManagement = () => {
       permissionAccessLevels: admin.permissionAccessLevels || {},
       hostelType: admin.hostelType || '',
       course: admin.course?._id || admin.course || '',
-      leaveManagementCourses: admin.leaveManagementCourses || [],
+      leaveManagementCourses: leaveManagementCourses,
       // Don't include password delivery fields for editing
       passwordDeliveryMethod: '',
       email: '',
-      phoneNumber: ''
+      phoneNumber: '',
+      customRoleId: admin.customRoleId || ''
     });
     setShowEditModal(true);
   };
@@ -458,7 +549,10 @@ const AdminManagement = () => {
   const resetForm = () => {
     setShowAddModal(false);
     setShowEditModal(false);
+    setShowRoleModal(false);
     setSelectedAdmin(null);
+    setSelectedRole(null);
+    setRoleType('sub_admin');
     setFormData({ 
       username: '', 
       password: '', 
@@ -469,16 +563,121 @@ const AdminManagement = () => {
       leaveManagementCourses: [],
       passwordDeliveryMethod: '',
       email: '',
-      phoneNumber: ''
+      phoneNumber: '',
+      customRoleId: ''
     });
+    setRoleFormData({
+      name: '',
+      description: '',
+      permissions: [],
+      permissionAccessLevels: {},
+      courseAssignment: 'all',
+      assignedCourses: []
+    });
+  };
+
+  // Custom Role Management Functions
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const response = await api.post('/api/admin-management/custom-roles', roleFormData);
+      if (response.data.success) {
+        toast.success('Custom role created successfully');
+        setShowRoleModal(false);
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to create custom role');
+    }
+  };
+
+  const handleUpdateRole = async (e) => {
+    e.preventDefault();
+    
+    try {
+      const response = await api.put(`/api/admin-management/custom-roles/${selectedRole._id}`, roleFormData);
+      if (response.data.success) {
+        toast.success('Custom role updated successfully');
+        setShowRoleModal(false);
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update custom role');
+    }
+  };
+
+  const handleDeleteRole = async (roleId) => {
+    if (!window.confirm('Are you sure you want to delete this custom role?')) return;
+    
+    try {
+      const response = await api.delete(`/api/admin-management/custom-roles/${roleId}`);
+      if (response.data.success) {
+        toast.success('Custom role deleted successfully');
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete custom role');
+    }
+  };
+
+  const openRoleModal = (role = null) => {
+    if (role) {
+      setSelectedRole(role);
+      // Convert assignedCourses to proper format for editing
+      const assignedCourses = role.assignedCourses ? role.assignedCourses.map(course => 
+        typeof course === 'object' ? course._id : course
+      ) : [];
+      
+      console.log('🔧 Editing role with assigned courses:', assignedCourses);
+      
+      setRoleFormData({
+        name: role.name,
+        description: role.description,
+        permissions: role.permissions || [],
+        permissionAccessLevels: role.permissionAccessLevels || {},
+        courseAssignment: role.courseAssignment || 'all',
+        assignedCourses: assignedCourses
+      });
+    } else {
+      setSelectedRole(null);
+      setRoleFormData({
+        name: '',
+        description: '',
+        permissions: [],
+        permissionAccessLevels: {},
+        courseAssignment: 'all',
+        assignedCourses: []
+      });
+    }
+    setShowRoleModal(true);
+    
+    // Fetch courses when opening role modal
+    console.log('🔍 Fetching courses for custom role modal...');
+    api.get('/api/course-management/courses')
+      .then(res => {
+        console.log('✅ Courses fetched for role modal:', res.data);
+        if (res.data.success) {
+          setCourses(res.data.data);
+          console.log('📚 Courses set in state for role modal:', res.data.data);
+        } else {
+          console.error('❌ API returned success: false for role modal');
+          setCourses([]);
+        }
+      })
+      .catch(error => {
+        console.error('❌ Error fetching courses for role modal:', error);
+        console.error('❌ Error response:', error.response?.data);
+        setCourses([]);
+      });
   };
 
 
 
-  // Fetch courses when principal tab/modal is open or when sub-admin modal is open
+  // Fetch courses when principal tab/modal is open, when sub-admin modal is open, or when custom role modal is open
   useEffect(() => {
-    if ((activeTab === 'principals' || activeTab === 'sub-admins') && (showAddModal || showEditModal)) {
-      console.log('🔍 Fetching courses for admin creation...');
+    if ((activeTab === 'principals' || activeTab === 'sub-admins') && (showAddModal || showEditModal) || showRoleModal) {
+      console.log('🔍 Fetching courses for admin/role creation...');
       api.get('/api/course-management/courses')
         .then(res => {
           console.log('✅ Courses fetched successfully:', res.data);
@@ -496,7 +695,7 @@ const AdminManagement = () => {
           setCourses([]);
         });
     }
-  }, [activeTab, showAddModal, showEditModal]);
+  }, [activeTab, showAddModal, showEditModal, showRoleModal]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -516,11 +715,13 @@ const AdminManagement = () => {
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage sub-admin, warden, and principal accounts</p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => activeTab === 'custom-roles' ? openRoleModal() : setShowAddModal(true)}
           className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
         >
           <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-          Add {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
+          {activeTab === 'custom-roles' ? 'Add Custom Role' : 
+           isWardenTab ? 'Add Warden' : 
+           isPrincipalTab ? 'Add Principal' : 'Add Sub-Admin'}
         </button>
       </div>
 
@@ -560,6 +761,17 @@ const AdminManagement = () => {
           Principals
         </button>
         <button
+          onClick={() => setActiveTab('custom-roles')}
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
+            activeTab === 'custom-roles'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+          Custom Roles
+        </button>
+        <button
           onClick={() => setActiveTab('courses')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
             activeTab === 'courses'
@@ -575,8 +787,94 @@ const AdminManagement = () => {
       {/* Course Management Tab */}
       {activeTab === 'courses' && <CourseManagement />}
 
+      {/* Custom Roles Tab */}
+      {activeTab === 'custom-roles' && (
+        <>
+          {/* Custom Roles List */}
+          <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
+            {customRoles.length === 0 ? (
+              <div className="p-6 sm:p-8 text-center">
+                <ShieldCheckIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-3" />
+                <p className="text-sm sm:text-base text-gray-500">No custom roles found</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-200">
+                {customRoles.map((role) => (
+                  <div key={role._id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                          <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
+                          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{role.name}</h3>
+                          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${role.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex-shrink-0`}>
+                            {role.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        {role.description && (
+                          <p className="text-xs sm:text-sm text-gray-600 mb-2">{role.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                          {role.permissions && role.permissions.map(permission => {
+                            const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
+                            const accessLevel = role.permissionAccessLevels?.[permission] || 'view';
+                            return (
+                              <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs flex items-center gap-1">
+                                <span className="truncate">{permissionLabel}</span>
+                                <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${
+                                  accessLevel === 'full' 
+                                    ? 'bg-green-100 text-green-700' 
+                                    : 'bg-gray-100 text-gray-600'
+                                }`}>
+                                  {accessLevel === 'full' ? 'Full' : 'View'}
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {role.courseAssignment && (
+                          <div className="mt-2">
+                            <span className="text-xs text-gray-600">
+                              Course Assignment: {role.courseAssignment === 'all' ? 'All Courses' : (
+                                role.assignedCourses && role.assignedCourses.length > 0 ? (
+                                  <span>
+                                    {role.assignedCourses.map((course, index) => (
+                                      <span key={course._id || course}>
+                                        {typeof course === 'object' ? course.name : course}
+                                        {index < role.assignedCourses.length - 1 ? ', ' : ''}
+                                      </span>
+                                    ))}
+                                  </span>
+                                ) : 'No courses selected'
+                              )}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => openRoleModal(role)}
+                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        >
+                          <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteRole(role._id)}
+                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Admin Management Content */}
-      {activeTab !== 'courses' && (
+      {activeTab !== 'courses' && activeTab !== 'custom-roles' && (
         <>
           {/* Users List */}
           <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
@@ -606,6 +904,11 @@ const AdminManagement = () => {
                         </div>
                         {!isWardenTab && !isPrincipalTab && (
                           <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                            {admin.role === 'custom' && admin.customRoleId && (
+                              <span className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">
+                                Custom Role: {admin.customRole || 'Unknown Role'}
+                              </span>
+                            )}
                             {admin.permissions && admin.permissions.map(permission => {
                               const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
                               const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
@@ -737,65 +1040,146 @@ const AdminManagement = () => {
 
                 {!isWardenTab && !isPrincipalTab && (
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                      Permissions
-                    </label>
-                    <div className="space-y-1 sm:space-y-2 max-h-40 sm:max-h-48 lg:max-h-64 overflow-y-auto">
-                      {PERMISSIONS.map(permission => (
-                        <div key={permission.id}>
-                          <label className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              value={permission.id}
-                              checked={formData.permissions.includes(permission.id)}
-                              onChange={handleFormChange}
-                              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
-                          </label>
-                          
-                          {/* Access Level Selector for each permission */}
-                          {formData.permissions.includes(permission.id) && (
-                            <AccessLevelSelector
-                              permissionId={permission.id}
-                              permissionLabel={permission.label}
-                              accessLevel={formData.permissionAccessLevels[permission.id] || 'view'}
-                              onAccessLevelChange={handleAccessLevelChange}
-                              disabled={false}
-                            />
-                          )}
-                          
-                          {/* Course selection for Leave Management */}
-                          {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
-                            <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
-                              <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
-                                Select Courses for Leave Management Access
+                    <div className="mb-3">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                        Role Type
+                      </label>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="roleType"
+                            value="sub_admin"
+                            checked={roleType === 'sub_admin'}
+                            onChange={() => {
+                              setRoleType('sub_admin');
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                customRoleId: '',
+                                permissions: [],
+                                permissionAccessLevels: {},
+                                leaveManagementCourses: []
+                              }));
+                            }}
+                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700">Sub-Admin (Custom Permissions)</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="roleType"
+                            value="custom"
+                            checked={roleType === 'custom'}
+                            onChange={() => {
+                              setRoleType('custom');
+                              setFormData(prev => ({ 
+                                ...prev, 
+                                customRoleId: '',
+                                permissions: [],
+                                permissionAccessLevels: {},
+                                leaveManagementCourses: []
+                              }));
+                            }}
+                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700">Custom Role</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {roleType === 'sub_admin' ? (
+                      // Sub-Admin permissions
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                          Permissions
+                        </label>
+                        <div className="space-y-1 sm:space-y-2 max-h-40 sm:max-h-48 lg:max-h-64 overflow-y-auto">
+                          {PERMISSIONS.map(permission => (
+                            <div key={permission.id}>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  value={permission.id}
+                                  checked={formData.permissions.includes(permission.id)}
+                                  onChange={handleFormChange}
+                                  className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
                               </label>
-                              <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
-                                {courses.length > 0 ? (
-                                  courses.map(course => (
-                                    <label key={course._id} className="flex items-center gap-1 sm:gap-2">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.leaveManagementCourses.includes(course._id)}
-                                        onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
-                                        className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                      />
-                                      <span className="text-xs text-blue-700 truncate">{course.name}</span>
-                                    </label>
-                                  ))
-                                ) : (
-                                  <p className="text-xs text-blue-600">Loading courses...</p>
-                                )}
-                              </div>
-                              {formData.leaveManagementCourses.length === 0 && (
-                                <p className="text-xs text-red-600 mt-1">Please select at least one course</p>
+                              
+                              {/* Access Level Selector for each permission */}
+                              {formData.permissions.includes(permission.id) && (
+                                <AccessLevelSelector
+                                  permissionId={permission.id}
+                                  permissionLabel={permission.label}
+                                  accessLevel={formData.permissionAccessLevels[permission.id] || 'view'}
+                                  onAccessLevelChange={handleAccessLevelChange}
+                                  disabled={false}
+                                />
+                              )}
+                              
+                              {/* Course selection for Leave Management */}
+                              {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
+                                <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                                  <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
+                                    Select Courses for Leave Management Access
+                                  </label>
+                                                                     <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
+                                     {courses.length > 0 ? (
+                                       courses.map(course => {
+                                         const isChecked = formData.leaveManagementCourses.includes(course._id);
+                                         console.log(`🔧 Sub-admin course ${course.name} (${course._id}) checked:`, isChecked);
+                                         return (
+                                           <label key={course._id} className="flex items-center gap-1 sm:gap-2">
+                                             <input
+                                               type="checkbox"
+                                               checked={isChecked}
+                                               onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
+                                               className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                             />
+                                             <span className="text-xs text-blue-700 truncate">{course.name}</span>
+                                           </label>
+                                         );
+                                       })
+                                     ) : (
+                                       <p className="text-xs text-blue-600">Loading courses...</p>
+                                     )}
+                                   </div>
+                                  {formData.leaveManagementCourses.length === 0 && (
+                                    <p className="text-xs text-red-600 mt-1">Please select at least one course</p>
+                                  )}
+                                </div>
                               )}
                             </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      // Custom Role selection
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                          Select Custom Role <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                          name="customRoleId"
+                          value={formData.customRoleId}
+                          onChange={handleFormChange}
+                          required
+                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Select a custom role</option>
+                          {customRoles.filter(role => role.isActive).map(role => (
+                            <option key={role._id} value={role._id}>
+                              {role.name} - {role.description}
+                            </option>
+                          ))}
+                        </select>
+                        {customRoles.filter(role => role.isActive).length === 0 && (
+                          <p className="text-xs text-red-600 mt-1">No active custom roles available. Create one first.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -963,6 +1347,179 @@ const AdminManagement = () => {
                   >
                     <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                     {showAddModal ? `Add ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Custom Role Modal */}
+      <AnimatePresence>
+        {showRoleModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">
+                  {selectedRole ? `Edit Custom Role` : `Create Custom Role`}
+                </h2>
+                <button
+                  onClick={resetForm}
+                  className="p-1 sm:p-1.5 lg:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                </button>
+              </div>
+              
+              <form onSubmit={selectedRole ? handleUpdateRole : handleCreateRole} className="space-y-3 sm:space-y-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Role Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={roleFormData.name}
+                    onChange={handleRoleFormChange}
+                    required
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter role name (e.g., Security Manager)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={roleFormData.description}
+                    onChange={handleRoleFormChange}
+                    rows="3"
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter role description"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                    Permissions
+                  </label>
+                  <div className="space-y-1 sm:space-y-2 max-h-40 sm:max-h-48 lg:max-h-64 overflow-y-auto">
+                    {PERMISSIONS.map(permission => (
+                      <div key={permission.id}>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            value={permission.id}
+                            checked={roleFormData.permissions.includes(permission.id)}
+                            onChange={handleRoleFormChange}
+                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                          <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
+                        </label>
+                        
+                        {/* Access Level Selector for each permission */}
+                        {roleFormData.permissions.includes(permission.id) && (
+                          <AccessLevelSelector
+                            permissionId={permission.id}
+                            permissionLabel={permission.label}
+                            accessLevel={roleFormData.permissionAccessLevels[permission.id] || 'view'}
+                            onAccessLevelChange={handleRoleAccessLevelChange}
+                            disabled={false}
+                          />
+                        )}
+                        
+                        {/* Course selection for permissions that need courses */}
+                        {COURSE_ASSIGNMENT_PERMISSIONS.includes(permission.id) && roleFormData.permissions.includes(permission.id) && (
+                          <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-purple-50 rounded-lg">
+                            <label className="block text-xs sm:text-sm font-medium text-purple-700 mb-2">
+                              Course Assignment for {permission.label}
+                            </label>
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`courseAssignment_${permission.id}`}
+                                  value="all"
+                                  checked={roleFormData.courseAssignment === 'all'}
+                                  onChange={() => setRoleFormData(prev => ({ ...prev, courseAssignment: 'all' }))}
+                                  className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                                />
+                                <span className="text-xs sm:text-sm text-purple-700">All Courses</span>
+                              </label>
+                              <label className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`courseAssignment_${permission.id}`}
+                                  value="selected"
+                                  checked={roleFormData.courseAssignment === 'selected'}
+                                  onChange={() => setRoleFormData(prev => ({ ...prev, courseAssignment: 'selected' }))}
+                                  className="w-3 h-3 sm:w-4 sm:h-4 text-purple-600 border-gray-300 focus:ring-purple-500"
+                                />
+                                <span className="text-xs sm:text-sm text-purple-700">Selected Courses</span>
+                              </label>
+                            </div>
+                            
+                            {roleFormData.courseAssignment === 'selected' && (
+                              <div className="mt-2 space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
+                                {courses.length > 0 ? (
+                                  <>
+                                    <p className="text-xs text-purple-600 mb-2">Available courses: {courses.length}</p>
+                                    {courses.map(course => {
+                                      const isChecked = roleFormData.assignedCourses.includes(course._id);
+                                      console.log(`🔧 Course ${course.name} (${course._id}) checked:`, isChecked);
+                                      return (
+                                        <label key={course._id} className="flex items-center gap-1 sm:gap-2">
+                                          <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={(e) => handleRoleCourseSelection(course._id, e.target.checked)}
+                                            className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                                          />
+                                          <span className="text-xs text-purple-700 truncate">{course.name}</span>
+                                        </label>
+                                      );
+                                    })}
+                                    <p className="text-xs text-purple-600 mt-2">Selected courses: {roleFormData.assignedCourses.length}</p>
+                                  </>
+                                ) : (
+                                  <p className="text-xs text-purple-600">Loading courses...</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                  >
+                    <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                    {selectedRole ? 'Update Custom Role' : 'Create Custom Role'}
                   </button>
                 </div>
               </form>

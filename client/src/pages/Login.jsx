@@ -66,7 +66,7 @@ const Login = () => {
           } else if (result.user.role === 'principal') {
             console.log('Principal detected, navigating to principal dashboard');
             navigate('/principal/dashboard', { replace: true });
-          } else if (result.user.role === 'super_admin' || result.user.role === 'sub_admin' || result.user.role === 'admin') {
+          } else if (result.user.role === 'super_admin' || result.user.role === 'sub_admin' || result.user.role === 'admin' || result.user.role === 'custom') {
             console.log('Admin detected, navigating to admin dashboard');
             navigate('/admin/dashboard', { replace: true });
           } else {
