@@ -845,7 +845,39 @@ const Students = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      toast.success('Student added successfully');
+      
+      // Handle success message based on delivery results
+      let successMessage = 'Student added successfully';
+      
+      // Check for email and SMS delivery results
+      const { emailSent, emailError, smsSent, smsError } = res.data.data;
+      
+      if (emailSent && smsSent) {
+        successMessage += '. Email and SMS credentials sent successfully';
+      } else if (emailSent && !smsSent) {
+        successMessage += '. Email sent successfully';
+        if (smsError) {
+          successMessage += ', SMS failed: ' + smsError;
+        } else {
+          successMessage += ', no phone number provided for SMS';
+        }
+      } else if (smsSent && !emailSent) {
+        successMessage += '. SMS sent successfully';
+        if (emailError) {
+          successMessage += ', email failed: ' + emailError;
+        } else {
+          successMessage += ', no email provided';
+        }
+      } else {
+        // Neither email nor SMS sent
+        if (!emailSent && !smsSent) {
+          successMessage += '. No credentials sent (no email or phone provided)';
+        } else if (emailError && smsError) {
+          successMessage += '. Both email and SMS failed';
+        }
+      }
+      
+      toast.success(successMessage);
       setForm(initialForm);
       resetPhotoForm();
       setGeneratedPassword(res.data.data.generatedPassword);
