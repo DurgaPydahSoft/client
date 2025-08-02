@@ -430,9 +430,15 @@ const LeaveManagement = () => {
                               <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                               <span>{leave.parentPhone || 'N/A'}</span>
                             </div>
-                            {leave.student?.gender && (
+                            
+                            {leave.student?.course && (
                               <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                                <span>Gender: {leave.student.gender === 'Male' ? 'Male' : 'Female'}</span>
+                                <span>Course: {leave.student.course?.name || leave.student.course}</span>
+                              </div>
+                            )}
+                            {leave.student?.branch && (
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
+                                <span>Branch: {leave.student.branch?.name || leave.student.branch}</span>
                               </div>
                             )}
                           </div>
