@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -29,6 +29,7 @@ const Leave = () => {
   const [applicationType, setApplicationType] = useState('Leave');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const isSubmittingRef = useRef(false);
   
   // Form data for Leave applications
   const [leaveFormData, setLeaveFormData] = useState({
@@ -92,12 +93,18 @@ const Leave = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Prevent multiple submissions
-    if (isSubmitting) {
+    // Prevent multiple submissions using both state and ref
+    if (isSubmitting || isSubmittingRef.current) {
+      console.log('Submission already in progress, ignoring click');
       return;
     }
     
+    // Immediately disable the form to prevent multiple clicks
     setIsSubmitting(true);
+    isSubmittingRef.current = true;
+    
+    // Add a small delay to ensure state updates before processing
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     try {
       let formData;
@@ -162,6 +169,7 @@ const Leave = () => {
       }
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -183,6 +191,7 @@ const Leave = () => {
       reason: ''
     });
     setIsSubmitting(false);
+    isSubmittingRef.current = false;
   };
 
   const getStatusColor = (status) => {
@@ -788,7 +797,7 @@ const Leave = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
               {applicationType === 'Leave' ? (
                 // Leave Application Form - Mobile optimized
                 <>
