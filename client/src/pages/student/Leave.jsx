@@ -13,7 +13,9 @@ import {
   ArrowRightIcon,
   HomeIcon,
   DocumentArrowDownIcon,
-  PlusIcon
+  PlusIcon,
+  TrashIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -29,6 +31,9 @@ const Leave = () => {
   const [applicationType, setApplicationType] = useState('Leave');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [showApplicationTypeDropdown, setShowApplicationTypeDropdown] = useState(false);
   const isSubmittingRef = useRef(false);
   
   // Form data for Leave applications
@@ -58,6 +63,20 @@ const Leave = () => {
   useEffect(() => {
     fetchLeaves();
   }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showApplicationTypeDropdown && !event.target.closest('.application-type-dropdown')) {
+        setShowApplicationTypeDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showApplicationTypeDropdown]);
 
   const fetchLeaves = async () => {
     try {
@@ -192,6 +211,40 @@ const Leave = () => {
     });
     setIsSubmitting(false);
     isSubmittingRef.current = false;
+  };
+
+  // Check if a request can be deleted based on status
+  const canDeleteRequest = (status) => {
+    const deletableStatuses = ['Pending', 'Pending OTP Verification', 'Warden Verified', 'Warden Recommended'];
+    return deletableStatuses.includes(status);
+  };
+
+  // Handle delete request
+  const handleDeleteRequest = async (leaveId) => {
+    if (!window.confirm('Are you sure you want to delete this request? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeletingId(leaveId);
+
+    try {
+      const response = await api.delete(`/api/leave/${leaveId}`);
+      
+      if (response.data.success) {
+        toast.success('Request deleted successfully');
+        // Remove the deleted request from the list
+        setLeaves(leaves.filter(leave => leave._id !== leaveId));
+      } else {
+        throw new Error(response.data.message || 'Failed to delete request');
+      }
+    } catch (error) {
+      console.error('Error deleting request:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete request');
+    } finally {
+      setIsDeleting(false);
+      setDeletingId(null);
+    }
   };
 
   const getStatusColor = (status) => {
@@ -589,6 +642,31 @@ const Leave = () => {
                           )}
                         </button>
 
+                        {/* Delete Button - Only show for deletable requests */}
+                        {canDeleteRequest(leave.status) && (
+                          <button
+                            onClick={() => handleDeleteRequest(leave._id)}
+                            disabled={isDeleting && deletingId === leave._id}
+                            className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
+                              isDeleting && deletingId === leave._id
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                            }`}
+                          >
+                            {isDeleting && deletingId === leave._id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                <span className="text-xs sm:text-sm">Deleting...</span>
+                              </>
+                            ) : (
+                              <>
+                                <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="text-xs sm:text-sm">Delete Request</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+
                         {/* QR Code Button for Approved Leave/Permission */}
                         {leave.status === 'Approved' && (
                           <>
@@ -755,53 +833,71 @@ const Leave = () => {
             
             <h2 className="text-lg sm:text-xl font-semibold mb-4 pr-8 sm:pr-10">New Request</h2>
             
-            {/* Application Type Selector - Mobile optimized */}
+            {/* Application Type Selector - Dropdown for better mobile UX */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 Application Type
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="relative application-type-dropdown">
                 <button
                   type="button"
-                  onClick={() => setApplicationType('Leave')}
-                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
-                    applicationType === 'Leave'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
+                  onClick={() => setShowApplicationTypeDropdown(!showApplicationTypeDropdown)}
+                  className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg bg-white text-left text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
                 >
-                  Leave
+                  <span className={`font-medium ${
+                    applicationType === 'Leave' ? 'text-blue-600' :
+                    applicationType === 'Permission' ? 'text-purple-600' :
+                    applicationType === 'Stay in Hostel' ? 'text-green-600' : 'text-gray-700'
+                  }`}>
+                    {applicationType}
+                  </span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform ${
+                    showApplicationTypeDropdown ? 'rotate-180' : ''
+                  }`} />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setApplicationType('Permission')}
-                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
-                    applicationType === 'Permission'
-                      ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
-                >
-                  Permission
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setApplicationType('Stay in Hostel')}
-                  className={`px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg border transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
-                    applicationType === 'Stay in Hostel'
-                      ? 'bg-green-600 text-white border-green-600 shadow-sm'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 active:bg-gray-100'
-                  }`}
-                >
-                  Stay in Hostel
-                </button>
+                
+                {showApplicationTypeDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApplicationType('Leave');
+                        setShowApplicationTypeDropdown(false);
+                      }}
+                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-blue-50 focus:bg-blue-50 transition-colors"
+                    >
+                      <span className="text-blue-600 font-medium">Leave</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApplicationType('Permission');
+                        setShowApplicationTypeDropdown(false);
+                      }}
+                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-purple-50 focus:bg-purple-50 transition-colors"
+                    >
+                      <span className="text-purple-600 font-medium">Permission</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApplicationType('Stay in Hostel');
+                        setShowApplicationTypeDropdown(false);
+                      }}
+                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-green-50 focus:bg-green-50 transition-colors"
+                    >
+                      <span className="text-green-600 font-medium">Stay in Hostel</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
               {applicationType === 'Leave' ? (
                 // Leave Application Form - Mobile optimized
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Start Date
@@ -831,12 +927,11 @@ const Leave = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Gate Pass Date and Time
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">Date must be on or before start date. Time must be after 4:30 PM.</p>
+                      <p className="text-xs text-gray-500 mb-2">Time must be after 4:30 PM.</p>
                       <input
                         type="datetime-local"
                         value={leaveFormData.gatePassDateTime}
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
-                        max={leaveFormData.startDate ? `${leaveFormData.startDate}T23:59` : ''}
                         required
                         className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       />
@@ -868,7 +963,7 @@ const Leave = () => {
               ) : applicationType === 'Permission' ? (
                 // Permission Application Form - Mobile optimized
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Permission Date
@@ -925,7 +1020,7 @@ const Leave = () => {
               ) : (
                 // Stay in Hostel Application Form - Mobile optimized
                 <>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Stay Date
@@ -958,7 +1053,7 @@ const Leave = () => {
               )}
               
               {/* Action Buttons - Mobile optimized */}
-              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 sm:pt-6">
                 <button
                   type="submit"
                   disabled={isSubmitting}

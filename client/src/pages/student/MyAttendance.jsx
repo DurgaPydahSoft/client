@@ -257,7 +257,7 @@ const MyAttendance = () => {
                       {record.morning ? (
                         <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                       ) : (
-                        <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                        <span className="text-gray-400 text-sm font-medium">-</span>
                       )}
                     </div>
                     <div className="text-center p-2 bg-gray-50 rounded-lg">
@@ -268,7 +268,7 @@ const MyAttendance = () => {
                       {record.evening ? (
                         <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                       ) : (
-                        <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                        <span className="text-gray-400 text-sm font-medium">-</span>
                       )}
                     </div>
                     <div className="text-center p-2 bg-gray-50 rounded-lg">
@@ -279,7 +279,7 @@ const MyAttendance = () => {
                       {record.night ? (
                         <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                       ) : (
-                        <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                        <span className="text-gray-400 text-sm font-medium">-</span>
                       )}
                     </div>
                   </div>
@@ -342,7 +342,7 @@ const MyAttendance = () => {
                         {record.morning ? (
                           <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       
@@ -350,7 +350,7 @@ const MyAttendance = () => {
                         {record.evening ? (
                           <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       
@@ -358,7 +358,7 @@ const MyAttendance = () => {
                         {record.night ? (
                           <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-5 h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       

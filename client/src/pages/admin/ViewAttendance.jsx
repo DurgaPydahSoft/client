@@ -983,7 +983,7 @@ const ViewAttendance = () => {
                         {record.morning ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       
@@ -991,7 +991,7 @@ const ViewAttendance = () => {
                         {record.evening ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       
@@ -999,7 +999,7 @@ const ViewAttendance = () => {
                         {record.night ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                         ) : (
-                          <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                          <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
                       
@@ -1144,21 +1144,21 @@ const ViewAttendance = () => {
                                             {attRecord.morning ? (
                                               <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
+                                              <span className="text-gray-400 text-xs font-medium">-</span>
                                             )}
                                           </td>
                                           <td className="px-1 sm:px-3 py-1 sm:py-2 text-center">
                                             {attRecord.evening ? (
                                               <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
+                                              <span className="text-gray-400 text-xs font-medium">-</span>
                                             )}
                                           </td>
                                           <td className="px-1 sm:px-3 py-1 sm:py-2 text-center">
                                             {attRecord.night ? (
                                               <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 mx-auto" />
                                             ) : (
-                                              <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 mx-auto" />
+                                              <span className="text-gray-400 text-xs font-medium">-</span>
                                             )}
                                           </td>
                                           <td className="px-2 sm:px-3 py-1 sm:py-2 text-center">

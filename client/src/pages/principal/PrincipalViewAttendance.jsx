@@ -853,7 +853,7 @@ const PrincipalViewAttendance = () => {
                           {record.morning ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                            <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
                         
@@ -861,7 +861,7 @@ const PrincipalViewAttendance = () => {
                           {record.evening ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                            <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
                         
@@ -869,7 +869,7 @@ const PrincipalViewAttendance = () => {
                           {record.night ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
                           ) : (
-                            <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 mx-auto" />
+                            <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
                         
@@ -992,7 +992,7 @@ const PrincipalViewAttendance = () => {
                                         </span>
                                       </div>
                                       <div className="text-xs text-gray-400 mt-1">
-                                        {attRecord.morning ? '✓' : '✗'} Morning • {attRecord.evening ? '✓' : '✗'} Evening • {attRecord.night ? '✓' : '✗'} Night
+                                        {attRecord.morning ? '✓' : '-'} Morning • {attRecord.evening ? '✓' : '-'} Evening • {attRecord.night ? '✓' : '-'} Night
                                       </div>
                                     </div>
                                   ))}
