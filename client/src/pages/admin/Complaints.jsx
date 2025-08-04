@@ -1265,29 +1265,9 @@ const Complaints = () => {
 
                 {status === 'In Progress' && (
                   (() => {
-                    const complaintCategory = selected?.category;
-                    const complaintSubCategory = selected?.subCategory;
-                    
-                    // Normalize function to avoid case mismatches
-                    const normalize = str => str?.toLowerCase();
-
-                    const categoryToFilterBy = complaintCategory === 'Maintenance' && complaintSubCategory 
-                      ? complaintSubCategory 
-                      : complaintCategory;
-
-                    // Debug logs
-                    console.log('Selected complaint:', selected);
-                    console.log('Members object:', members);
-                    console.log('categoryToFilterBy:', categoryToFilterBy);
-
-                    // Build available members, robust to case
-                    const availableMembersForCategory = [
-                      ...(members[categoryToFilterBy] || []),
-                      ...(members['Maintenance'] || []),
-                      ...(members[normalize(categoryToFilterBy)] || []),
-                      ...(members[normalize('Maintenance')] || [])
-                    ];
-                    console.log('Available members for category:', availableMembersForCategory);
+                    // Get all members from all categories
+                    const allMembers = Object.values(members).flat();
+                    console.log('All available members:', allMembers);
 
                     return (
                       <div>
@@ -1302,19 +1282,18 @@ const Complaints = () => {
                           required={status === 'In Progress'}
                         >
                           <option key="default" value="">Select a member</option>
-                          {availableMembersForCategory?.map(member => {
+                          {allMembers?.map(member => {
                             const memberId = member._id || member.id;
-                            const isGenericMaintenance = member.category === 'Maintenance';
                             return (
                               <option key={memberId} value={memberId}>
-                                {member.name} ({member.category}{isGenericMaintenance ? ' - All Maintenance' : ''})
+                                {member.name} ({member.category})
                               </option>
                             );
                           })}
                         </select>
-                        {(!availableMembersForCategory || availableMembersForCategory.length === 0) && (
+                        {(!allMembers || allMembers.length === 0) && (
                           <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                            No members available for {complaintCategory === 'Maintenance' ? complaintSubCategory : complaintCategory}
+                            No members available
                           </p>
                         )}
                       </div>
