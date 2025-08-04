@@ -476,6 +476,8 @@ const DashboardHome = () => {
   const [modalMenu, setModalMenu] = useState(null);
   const [loadingMenu, setLoadingMenu] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
+  const [selectedMealType, setSelectedMealType] = useState('breakfast');
+  const [expandedItems, setExpandedItems] = useState(new Set());
 
   // Function to refresh electricity bills data
   const refreshElectricityBills = async () => {
@@ -570,6 +572,7 @@ const DashboardHome = () => {
   const handleCloseMenuModal = () => {
     setShowMenuModal(false);
     setModalMenu(null);
+    setExpandedItems(new Set()); // Reset expanded items when modal closes
   };
 
   const handleRatingSubmit = () => {
@@ -1008,85 +1011,158 @@ const DashboardHome = () => {
 
       {/* Today's Menu Modal */}
       {showMenuModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
-            <button
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-xl"
-              onClick={handleCloseMenuModal}
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-            <h3 className="text-xl font-extrabold mb-4 text-green-900 flex items-center gap-2">
-              <span role="img" aria-label="menu">🍽️</span> Today's Menu
-            </h3>
-            {modalLoading ? (
-              <div className="text-gray-400 text-sm flex items-center gap-2"><span role="img" aria-label="hourglass">⏳</span>Loading menu...</div>
-            ) : modalMenu ? (
-              <div className="space-y-6">
-                {/* Menu Display */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="flex items-center gap-2 bg-green-50 rounded p-3">
-                    <span className="text-2xl">🥞</span>
-                    <div>
-                      <span className="font-semibold">Breakfast:</span>
-                      <div className="text-sm text-gray-600">
-                        {modalMenu.meals.breakfast.length ? modalMenu.meals.breakfast.join(', ') : <span className="text-gray-400">No items</span>}
-                      </div>
-                      {modalMenu.avgRatings?.breakfast?.average > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          ⭐ {modalMenu.avgRatings.breakfast.average}/5 ({modalMenu.avgRatings.breakfast.totalRatings} ratings)
-                        </div>
-                      )}
-                    </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
+              <h3 className="text-base sm:text-lg font-bold text-green-900">Today's Menu</h3>
+              <button
+                onClick={handleCloseMenuModal}
+                className="text-gray-500 hover:text-gray-700 text-lg p-1 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Meal Type Tabs */}
+            <div className="flex border-b border-gray-200 bg-gray-50">
+              {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => (
+                <button
+                  key={meal}
+                  onClick={() => setSelectedMealType(meal)}
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                    selectedMealType === meal
+                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-sm">
+                      {meal === 'breakfast' && '🥞'}
+                      {meal === 'lunch' && '🍛'}
+                      {meal === 'snacks' && '🍿'}
+                      {meal === 'dinner' && '🍽️'}
+                    </span>
+                    <span className="capitalize">{meal}</span>
                   </div>
-                  <div className="flex items-center gap-2 bg-yellow-50 rounded p-3">
-                    <span className="text-2xl">🍛</span>
-                    <div>
-                      <span className="font-semibold">Lunch:</span>
-                      <div className="text-sm text-gray-600">
-                        {modalMenu.meals.lunch.length ? modalMenu.meals.lunch.join(', ') : <span className="text-gray-400">No items</span>}
-                      </div>
-                      {modalMenu.avgRatings?.lunch?.average > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          ⭐ {modalMenu.avgRatings.lunch.average}/5 ({modalMenu.avgRatings.lunch.totalRatings} ratings)
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 bg-blue-50 rounded p-3">
-                    <span className="text-2xl">🍽️</span>
-                    <div>
-                      <span className="font-semibold">Dinner:</span>
-                      <div className="text-sm text-gray-600">
-                        {modalMenu.meals.dinner.length ? modalMenu.meals.dinner.join(', ') : <span className="text-gray-400">No items</span>}
-                      </div>
-                      {modalMenu.avgRatings?.dinner?.average > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          ⭐ {modalMenu.avgRatings.dinner.average}/5 ({modalMenu.avgRatings.dinner.totalRatings} ratings)
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                </button>
+              ))}
+            </div>
+            
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+              {modalLoading ? (
+                <div className="text-center py-8 text-gray-500 text-sm flex items-center justify-center gap-2">
+                  <span role="img" aria-label="hourglass">⏳</span>Loading menu...
                 </div>
-
-                {/* Rating Section */}
-                <div className="border-t pt-6">
-                  <h4 className="text-lg font-semibold mb-4 text-gray-800">Rate Today's Meals</h4>
-                  <div className="space-y-4">
-                    {['breakfast', 'lunch', 'dinner'].map(mealType => (
+              ) : modalMenu ? (
+                <div className="space-y-4">
+                  {/* Items List */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">Menu Items</h4>
+                    <div className="space-y-3 max-h-48 sm:max-h-56 overflow-y-auto">
+                      {modalMenu.meals[selectedMealType]?.map((item, idx) => {
+                        const itemKey = `${selectedMealType}-${idx}`;
+                        const isExpanded = expandedItems.has(itemKey);
+                        
+                        return (
+                          <div key={idx} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
+                            {/* Clickable Header */}
+                            <button
+                              onClick={() => {
+                                setExpandedItems(prev => {
+                                  const newSet = new Set(prev);
+                                  if (isExpanded) {
+                                    newSet.delete(itemKey);
+                                  } else {
+                                    newSet.add(itemKey);
+                                  }
+                                  return newSet;
+                                });
+                              }}
+                              className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-gray-100 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 sm:gap-4 flex-1">
+                                <span className="text-sm sm:text-base text-gray-700 font-medium truncate">
+                                  {item.name || item}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {item.imageUrl && (
+                                  <span className="text-xs text-blue-600 font-medium">
+                                    {isExpanded ? 'Hide' : 'View'} Image
+                                  </span>
+                                )}
+                                <svg
+                                  className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M19 9l-7 7-7-7"
+                                  />
+                                </svg>
+                              </div>
+                            </button>
+                            
+                            {/* Expandable Image Section */}
+                            {isExpanded && item.imageUrl && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                                className="border-t border-gray-200 bg-white"
+                              >
+                                <div className="p-4 flex justify-center">
+                                  <img 
+                                    src={item.imageUrl} 
+                                    alt={item.name || item}
+                                    className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-lg border border-gray-200 shadow-md"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                    crossOrigin="anonymous"
+                                    loading="lazy"
+                                  />
+                                </div>
+                              </motion.div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {(!modalMenu.meals[selectedMealType] || modalMenu.meals[selectedMealType].length === 0) && (
+                        <div className="text-center py-4 text-gray-400 text-xs">
+                          No items added yet
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Rating Section */}
+                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) && (
+                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                      <h5 className="text-xs font-medium text-gray-700 mb-3">Rate This Meal</h5>
                       <MealRating
-                        key={mealType}
-                        mealType={mealType}
+                        mealType={selectedMealType}
                         date={new Date().toISOString().slice(0, 10)}
                         onRatingSubmit={handleRatingSubmit}
                       />
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="text-gray-400 text-sm flex items-center gap-2"><span role="img" aria-label="sad">😔</span>No menu set for today.</div>
-            )}
+              ) : (
+                <div className="text-center py-8 text-gray-400 text-sm flex items-center justify-center gap-2">
+                  <span role="img" aria-label="sad">😔</span>No menu set for today.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
