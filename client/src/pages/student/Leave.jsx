@@ -15,7 +15,8 @@ import {
   DocumentArrowDownIcon,
   PlusIcon,
   TrashIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -34,6 +35,9 @@ const Leave = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [showApplicationTypeDropdown, setShowApplicationTypeDropdown] = useState(false);
+  const [resendOtpStates, setResendOtpStates] = useState({});
+  const [isResendingOtp, setIsResendingOtp] = useState(false);
+  const [resendingLeaveId, setResendingLeaveId] = useState(null);
   const isSubmittingRef = useRef(false);
   
   // Form data for Leave applications
@@ -78,6 +82,44 @@ const Leave = () => {
     };
   }, [showApplicationTypeDropdown]);
 
+  // Timer effect for resend OTP functionality
+  useEffect(() => {
+    const timers = {};
+    
+    leaves.forEach(leave => {
+      if (leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel') {
+        const timer = setInterval(() => {
+          updateResendOtpState(leave._id);
+        }, 1000); // Update every second
+        timers[leave._id] = timer;
+      }
+    });
+
+    return () => {
+      Object.values(timers).forEach(timer => clearInterval(timer));
+    };
+  }, [leaves]);
+
+  const updateResendOtpState = (leaveId) => {
+    const leave = leaves.find(l => l._id === leaveId);
+    if (!leave) return;
+
+    const now = new Date();
+    const createdAt = new Date(leave.createdAt);
+    const fiveMinutesInMs = 5 * 60 * 1000;
+    const timeSinceCreation = now - createdAt;
+    const timeUntilResend = fiveMinutesInMs - timeSinceCreation;
+
+    setResendOtpStates(prev => ({
+      ...prev,
+      [leaveId]: {
+        canResend: timeSinceCreation >= fiveMinutesInMs,
+        timeUntilResend: Math.max(0, timeUntilResend),
+        minutesUntilResend: Math.ceil(timeUntilResend / (60 * 1000))
+      }
+    }));
+  };
+
   const fetchLeaves = async () => {
     try {
       console.log('Fetching leave requests...');
@@ -86,6 +128,13 @@ const Leave = () => {
       
       if (response.data.success) {
         setLeaves(response.data.data);
+        // Initialize resend OTP states
+        const initialStates = {};
+        response.data.data.forEach(leave => {
+          if (leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel') {
+            updateResendOtpState(leave._id);
+          }
+        });
       } else {
         throw new Error(response.data.message || 'Failed to fetch leave requests');
       }
@@ -106,6 +155,31 @@ const Leave = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async (leaveId) => {
+    if (isResendingOtp) return;
+    
+    setIsResendingOtp(true);
+    setResendingLeaveId(leaveId);
+    
+    try {
+      const response = await api.post('/api/leave/resend-otp', { leaveId });
+      
+      if (response.data.success) {
+        toast.success('OTP resend request processed. Same OTP (4 digits) has been sent to your parent\'s phone in both Telugu and English.');
+        // Refresh the leaves to get updated data
+        fetchLeaves();
+      } else {
+        throw new Error(response.data.message || 'Failed to resend OTP');
+      }
+    } catch (error) {
+      console.error('Error resending OTP:', error);
+      toast.error(error.response?.data?.message || 'Failed to resend OTP');
+    } finally {
+      setIsResendingOtp(false);
+      setResendingLeaveId(null);
     }
   };
 
@@ -665,6 +739,42 @@ const Leave = () => {
                               </>
                             )}
                           </button>
+                        )}
+
+                        {/* Resend OTP Button - Only show for pending OTP verification requests */}
+                        {leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel' && (
+                          <div className="w-full sm:w-auto">
+                            {resendOtpStates[leave._id]?.canResend ? (
+                              <button
+                                onClick={() => handleResendOTP(leave._id)}
+                                disabled={isResendingOtp && resendingLeaveId === leave._id}
+                                className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
+                                  isResendingOtp && resendingLeaveId === leave._id
+                                    ? 'bg-gray-400 text-white cursor-not-allowed'
+                                    : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                                }`}
+                              >
+                                {isResendingOtp && resendingLeaveId === leave._id ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                    <span className="text-xs sm:text-sm">Resending...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ArrowPathIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <span className="text-xs sm:text-sm">Resend OTP</span>
+                                  </>
+                                )}
+                              </button>
+                            ) : (
+                              <div className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded bg-gray-100 text-gray-500 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2">
+                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <span className="text-xs sm:text-sm">
+                                  Resend in {resendOtpStates[leave._id]?.minutesUntilResend || 0}m
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
 
                         {/* QR Code Button for Approved Leave/Permission */}
