@@ -738,77 +738,183 @@ const SectionTable = ({
               </div>
 
               {/* Mobile Layout */}
-              <div className="md:hidden flex flex-col gap-2 sm:gap-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                      <span className="font-bold text-sm sm:text-base text-gray-900">{leave.student?.name || 'N/A'}</span>
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-600 ml-6">{leave.student?.rollNumber || 'N/A'}</div>
-                  </div>
-                  <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                    {leave.applicationType}
-                  </span>
-                </div>
-
-                <div className="border-t border-gray-100 pt-2 sm:pt-3">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
-                    {getBlinkingDot(leave)}
-                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500" />
-                    {leave.applicationType === 'Leave' ? (
-                      <span>{new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}</span>
-                    ) : (
-                      <span>{new Date(leave.permissionDate).toLocaleDateString()}</span>
-                    )}
-                  </div>
-                  {leave.applicationType === 'Permission' && (
-                    <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 ml-6">
-                      <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>{leave.outTime} - {leave.inTime}</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
-                    style={{ minWidth: '70px' }}>
-                    {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
-                    <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
-                  </span>
-                  <div className="text-xs sm:text-sm text-blue-600 font-medium">
-                    Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
-                    {leave.incomingQrGenerated && (
-                      <div className="text-xs text-green-600">
-                        Incoming: {leave.incomingVisitCount || 0}/1
+              <div className="md:hidden">
+                {/* Compact Layout for Expired/Recent Requests */}
+                {title === "Expired / Recent Requests" ? (
+                  <div className="border border-gray-200 rounded-lg p-3">
+                    {/* Compact Header */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <UserIcon className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                          <span className="font-semibold text-sm text-gray-900 truncate">{leave.student?.name || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-600 ml-6">
+                          <AcademicCapIcon className="w-3 h-3" />
+                          <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
+                        </div>
                       </div>
-                    )}
+                      <div className="flex flex-col items-end gap-1 ml-2">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          {leave.applicationType}
+                        </span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}>
+                          {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                          <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Compact Time Info */}
+                    <div className="bg-gray-50 rounded p-2 mb-2">
+                      <div className="flex items-center gap-2 text-xs text-gray-700">
+                        <CalendarIcon className="w-3 h-3 text-gray-500" />
+                        <span className="font-medium">
+                          {leave.applicationType === 'Leave' ? (
+                            `${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+                          ) : (
+                            new Date(leave.permissionDate).toLocaleDateString()
+                          )}
+                        </span>
+                      </div>
+                      
+                      {leave.applicationType === 'Permission' && (
+                        <div className="flex items-center gap-2 text-xs text-gray-700 ml-5 mt-1">
+                          <ClockIcon className="w-3 h-3" />
+                          <span>{leave.outTime} - {leave.inTime}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Compact Action */}
+                    <div className="flex justify-center">
+                      {leave.verificationStatus === 'Completed' ? (
+                        <div className="flex items-center gap-1 text-purple-600 text-xs font-medium px-2 py-1 bg-purple-50 rounded">
+                          <CheckCircleIcon className="w-3 h-3" />
+                          <span>Completed</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' ? (
+                        <div className="flex items-center gap-1 text-green-600 text-xs font-medium px-2 py-1 bg-green-50 rounded">
+                          <CheckCircleIcon className="w-3 h-3" />
+                          <span>Verified</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs font-medium flex items-center gap-1"
+                        >
+                          <EyeIcon className="w-3 h-3" />
+                          <span>View</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  {leave.verificationStatus !== 'Verified' && !leave._frontendExpired && (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-xs font-medium flex items-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      Verify
-                    </button>
-                  )}
-                  {leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired && (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-xs font-medium flex items-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      Scan Incoming
-                    </button>
-                  )}
-                </div>
+                ) : (
+                  /* Regular Layout for Other Sections */
+                  <>
+                    {/* Header Section */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                          <span className="font-bold text-sm sm:text-base text-gray-900 truncate">{leave.student?.name || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 ml-6">
+                          <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 ml-6 mt-1">
+                          <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="truncate">{leave.parentPhone || 'N/A'}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2 ml-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          {leave.applicationType}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}>
+                          {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                          <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Time and Details Section */}
+                    <div className="bg-gray-50 rounded-lg p-3 mb-3">
+                      <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                        {getBlinkingDot(leave)}
+                        <CalendarIcon className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium">
+                          {leave.applicationType === 'Leave' ? (
+                            `${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+                          ) : (
+                            new Date(leave.permissionDate).toLocaleDateString()
+                          )}
+                        </span>
+                      </div>
+                      
+                      {leave.applicationType === 'Permission' && (
+                        <div className="flex items-center gap-2 text-sm text-gray-700 ml-6">
+                          <ClockIcon className="w-4 h-4" />
+                          <span className="font-medium">{leave.outTime} - {leave.inTime}</span>
+                        </div>
+                      )}
+                      
+                      <div className="mt-2 text-xs text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Visit Count:</span>
+                          <span className="text-blue-600">Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}</span>
+                        </div>
+                        {leave.incomingQrGenerated && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="font-medium">Incoming:</span>
+                            <span className="text-green-600">{leave.incomingVisitCount || 0}/1</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Button Section */}
+                    <div className="flex justify-center">
+                      {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium px-4 py-2 bg-green-50 rounded-lg">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span>Outgoing Verified</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                          <span>Scan Incoming QR</span>
+                        </button>
+                      ) : leave.verificationStatus === 'Completed' ? (
+                        <div className="flex items-center gap-2 text-purple-600 text-sm font-medium px-4 py-2 bg-purple-50 rounded-lg">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span>Completed</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center justify-center gap-2"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                          <span>Verify Request</span>
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           ))}
