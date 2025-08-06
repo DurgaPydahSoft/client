@@ -204,14 +204,24 @@ const Leave = () => {
       if (applicationType === 'Leave') {
         // Gate Pass Time Validation
         const gatePassTime = new Date(leaveFormData.gatePassDateTime);
-        const hours = gatePassTime.getHours();
-        const minutes = gatePassTime.getMinutes();
+        const startDate = new Date(leaveFormData.startDate);
+        const today = new Date();
+        
+        // Check if start date is today
+        const isStartDateToday = startDate.toDateString() === today.toDateString();
+        
+        if (!isStartDateToday) {
+          // For future dates, gate pass must be after 4:30 PM
+          const hours = gatePassTime.getHours();
+          const minutes = gatePassTime.getMinutes();
 
-        if (hours < 16 || (hours === 16 && minutes <= 30)) {
-          toast.error('Gate Pass time must be after 4:30 PM.');
-          setIsSubmitting(false);
-          return; // Stop submission
+          if (hours < 16 || (hours === 16 && minutes <= 30)) {
+            toast.error('Gate Pass time must be after 4:30 PM for future dates.');
+            setIsSubmitting(false);
+            return; // Stop submission
+          }
         }
+        // For same day leave, any time is allowed
         
         formData = {
           applicationType: 'Leave',
@@ -1016,6 +1026,7 @@ const Leave = () => {
                         type="date"
                         value={leaveFormData.startDate}
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
+                        min={todayStr}
                         required
                         className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       />
@@ -1037,11 +1048,17 @@ const Leave = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Gate Pass Date and Time
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">Time must be after 4:30 PM.</p>
+                      <p className="text-xs text-gray-500 mb-2">
+                        {leaveFormData.startDate === todayStr 
+                          ? 'Select current or future time for today.' 
+                          : 'Time must be after 4:30 PM for future dates.'
+                        }
+                      </p>
                       <input
                         type="datetime-local"
                         value={leaveFormData.gatePassDateTime}
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
+                        min={leaveFormData.startDate === todayStr ? new Date().toISOString().slice(0, 16) : `${leaveFormData.startDate}T16:30`}
                         required
                         className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       />

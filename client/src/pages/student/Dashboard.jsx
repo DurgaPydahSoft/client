@@ -600,11 +600,133 @@ const DashboardHome = () => {
         </div>
         {/* Quick Actions - order-2 on mobile, order-none on lg+ */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6 lg:mt-0 order-2 lg:order-none">
+          {/* First 6 buttons for all screen sizes */}
+          <div className="contents">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("raise")}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-red-50 to-red-100 text-red-700 hover:from-red-100 hover:to-red-200 transition-all duration-300 touch-manipulation border border-red-200"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                />
+              </svg>
+              <span className="text-xs sm:text-sm">Raise Complaint</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("my-complaints")}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 hover:from-emerald-100 hover:to-emerald-200 transition-all duration-300 touch-manipulation border border-emerald-200"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              <span className="text-xs sm:text-sm">View Complaints</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("leave")}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-violet-50 to-violet-100 text-violet-700 hover:from-violet-100 hover:to-violet-200 transition-all duration-300 touch-manipulation border border-violet-200"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span className="text-xs sm:text-sm">Apply Leave</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate("attendance")}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-sky-50 to-sky-100 text-sky-700 hover:from-sky-100 hover:to-sky-200 transition-all duration-300 touch-manipulation border border-sky-200"
+            >
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+              <span className="text-xs sm:text-sm">Attendance</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowBillModal(true)}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 transition-all duration-300 touch-manipulation border border-amber-200"
+            >
+              <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" />
+              <span className="text-xs sm:text-sm">Electricity Bills</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleOpenMenuModal}
+              className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-rose-50 to-rose-100 text-rose-700 hover:from-rose-100 hover:to-rose-200 transition-all duration-300 touch-manipulation border border-rose-200"
+            >
+              <div className="w-20 h-6 sm:w-24 sm:h-7 lg:w-28 lg:h-8 mb-1.5 sm:mb-2 mx-auto overflow-hidden">
+                <div className="flex animate-scroll-left">
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍳</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍽️</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🥗</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍰</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍳</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍽️</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🥗</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍰</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍳</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍽️</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🥗</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-2">🍰</span>
+                </div>
+              </div>
+              <span className="text-xs sm:text-sm">Today's Menu</span>
+            </motion.button>
+          </div>
+          
+          {/* FAQ Button - Only visible on mobile and tablet, spans full width */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("raise")}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-all duration-300 touch-manipulation"
+            onClick={() => navigate("faq")}
+            className="lg:hidden col-span-2 p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-teal-50 to-teal-100 text-teal-700 hover:from-teal-100 hover:to-teal-200 transition-all duration-300 touch-manipulation border border-teal-200"
           >
             <svg
               className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
@@ -616,95 +738,11 @@ const DashboardHome = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth="2"
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="text-xs sm:text-sm">Raise Complaint</span>
+            <span className="text-xs sm:text-sm">FAQ</span>
           </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("my-complaints")}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-all duration-300 touch-manipulation"
-          >
-            <svg
-              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-            <span className="text-xs sm:text-sm">View Complaints</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("leave")}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 transition-all duration-300 touch-manipulation"
-          >
-            <svg
-              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            <span className="text-xs sm:text-sm">Apply Leave</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate("attendance")}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all duration-300 touch-manipulation"
-          >
-            <svg
-              className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
-            <span className="text-xs sm:text-sm">Attendance</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setShowBillModal(true)}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100 transition-all duration-300 touch-manipulation"
-          >
-            <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" />
-            <span className="text-xs sm:text-sm">Electricity Bills</span>
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleOpenMenuModal}
-            className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 transition-all duration-300 touch-manipulation"
-          >
-            <svg className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-            </svg>
-            <span className="text-xs sm:text-sm">Today's Menu</span>
-          </motion.button>
-
         </div>
       </div>
 
