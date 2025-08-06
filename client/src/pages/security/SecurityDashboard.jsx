@@ -14,7 +14,8 @@ import {
   ShieldCheckIcon,
   EyeIcon,
   FunnelIcon,
-  TagIcon
+  TagIcon,
+  ClipboardDocumentIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 
@@ -267,22 +268,33 @@ const SecurityDashboard = () => {
     // Green dot: within 30 min of start time (urgent - student is about to leave)
     if (diff > 0 && diff <= 30 * 60 * 1000) {
       return (
-        <span className="inline-block align-middle mr-2">
-          <span className="animate-pulse bg-green-500 rounded-full w-4 h-4 inline-block shadow-sm"></span>
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="animate-pulse bg-green-500 rounded-full w-3 h-3 shadow-sm"></span>
+          <span className="text-xs text-green-600 font-medium">Urgent</span>
+        </div>
       );
     }
     
     // Red dot: overdue leaves (any time past start and not verified)
     if (diffPast > 0) {
       return (
-        <span className="inline-block align-middle mr-2">
-          <span className="animate-pulse bg-red-500 rounded-full w-4 h-4 inline-block shadow-sm"></span>
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="animate-pulse bg-red-500 rounded-full w-3 h-3 shadow-sm"></span>
+          <span className="text-xs text-red-600 font-medium">Overdue</span>
+        </div>
       );
     }
     
     return null;
+  };
+
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   const handleSearch = async (e) => {
@@ -359,7 +371,7 @@ const SecurityDashboard = () => {
         />
 
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
+        <div className="bg-white rounded-lg shadow-sm p-3 mb-3 mt-8">
           <div className="flex flex-col gap-2">
             {/* Title Section */}
             <div className="flex items-center gap-2">
@@ -463,6 +475,7 @@ const SecurityDashboard = () => {
                 setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
+                copyToClipboard={copyToClipboard}
               />
               
               {/* Incoming Leaves */}
@@ -477,6 +490,7 @@ const SecurityDashboard = () => {
                 setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
+                copyToClipboard={copyToClipboard}
               />
               
               {/* Completed Leaves */}
@@ -491,6 +505,7 @@ const SecurityDashboard = () => {
                 setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
+                copyToClipboard={copyToClipboard}
               />
               
               {/* Upcoming Leaves - Only show when toggled */}
@@ -506,6 +521,7 @@ const SecurityDashboard = () => {
                   setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
+                  copyToClipboard={copyToClipboard}
                 />
               )}
               {/* Expired/Recent Requests */}
@@ -520,6 +536,7 @@ const SecurityDashboard = () => {
                 setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
+                copyToClipboard={copyToClipboard}
               />
             </>
           )}
@@ -573,24 +590,24 @@ const SecurityDashboard = () => {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
-              <button
-                onClick={() => {
-                  setShowVerificationModal(false);
-                  setVerificationStatus('Verified');
-                }}
-                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-sm"
-              >
-                Cancel
-              </button>
+            <div className="flex flex-col gap-2 sm:gap-3">
               <button
                 onClick={handleVerification}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 {selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated 
                   ? 'Scan Incoming QR' 
                   : 'Update Status'
                 }
+              </button>
+              <button
+                onClick={() => {
+                  setShowVerificationModal(false);
+                  setVerificationStatus('Verified');
+                }}
+                className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium border border-red-200"
+              >
+                Cancel
               </button>
             </div>
           </motion.div>
@@ -610,7 +627,8 @@ const SectionTable = ({
   getVerificationStatusIcon,
   setSelectedLeave,
   setShowVerificationModal,
-  getRequestDate
+  getRequestDate,
+  copyToClipboard
 }) => (
   <div className="mb-6 sm:mb-8">
     <h2 className="text-base sm:text-lg font-bold text-blue-800 p-3 sm:p-4">{title} ({leaves.length})</h2>
@@ -767,7 +785,7 @@ const SectionTable = ({
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 mb-3 mx-1">
                 {/* Status Badge */}
                 <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                       {leave.applicationType}
                     </span>
@@ -776,7 +794,9 @@ const SectionTable = ({
                       <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                     </span>
                   </div>
-                  {getBlinkingDot(leave)}
+                  <div className="flex-shrink-0">
+                    {getBlinkingDot(leave)}
+                  </div>
                 </div>
 
                 {/* Student Information */}
@@ -787,7 +807,16 @@ const SectionTable = ({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-sm text-gray-900 truncate">{leave.student?.name || 'N/A'}</h3>
-                      <p className="text-xs text-gray-600">Roll: {leave.student?.rollNumber || 'N/A'}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs text-gray-600">Roll: {leave.student?.rollNumber || 'N/A'}</p>
+                        <button
+                          onClick={() => copyToClipboard(leave.student?.rollNumber || 'N/A')}
+                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Copy roll number"
+                        >
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                   
