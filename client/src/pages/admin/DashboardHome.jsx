@@ -121,11 +121,11 @@ const AnalyticsCharts = ({ categoryChartData, pieData, trends, barData, totalCat
           <span className="font-bold text-blue-900">Complaints by Category</span>
         </div>
         <div className="h-48 overflow-x-auto">
-          <ResponsiveContainer width={Math.max(ALL_CATEGORIES.length * 100, 300)} height="100%">
-            <BarChart data={categoryChartData}>
+          <ResponsiveContainer width={Math.max(categoryChartData.length * 60, 300)} height="100%">
+            <BarChart data={categoryChartData} margin={{ left: 10, right: 10, top: 5, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" fontSize={12} />
-              <YAxis allowDecimals={false} fontSize={12} />
+              <XAxis dataKey="name" fontSize={10} angle={-45} textAnchor="end" height={60} />
+              <YAxis allowDecimals={false} fontSize={10} />
               <Tooltip content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const { name, value } = payload[0].payload;
@@ -140,7 +140,7 @@ const AnalyticsCharts = ({ categoryChartData, pieData, trends, barData, totalCat
                 }
                 return null;
               }} />
-              <Bar dataKey="value" fill="#0ea5e9">
+              <Bar dataKey="value" fill="#0ea5e9" barSize={20}>
                 {categoryChartData.map((entry, idx) => (
                   <Cell key={`cell-${idx}`} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
                 ))}
