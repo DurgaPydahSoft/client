@@ -1183,14 +1183,16 @@ const DashboardHome = () => {
                     </div>
                   </div>
                   
-                  {/* Rating Section */}
-                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) && (
+                  {/* Rating Section - Only show if meal has items */}
+                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) && 
+                   modalMenu?.meals[selectedMealType]?.length > 0 && (
                     <div className="bg-white rounded-lg border border-gray-200 p-3">
                       <h5 className="text-xs font-medium text-gray-700 mb-3">Rate This Meal</h5>
                       <MealRating
                         mealType={selectedMealType}
                         date={new Date().toISOString().slice(0, 10)}
                         onRatingSubmit={handleRatingSubmit}
+                        hasItems={modalMenu?.meals[selectedMealType]?.length > 0}
                       />
                     </div>
                   )}

@@ -520,6 +520,7 @@ const MenuManagement = () => {
         meal.some(item => item.imageFile)
       );
       
+      let savePromise;
       if (hasImages) {
         const formData = new FormData();
         // Convert ISO string to simple date format
@@ -546,58 +547,66 @@ const MenuManagement = () => {
           });
         }
         
-        try {
-          const response = await api.post('/api/cafeteria/menu/date', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        } catch (error) {
-          throw error;
-        }
+        savePromise = api.post('/api/cafeteria/menu/date', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
       } else {
-      await api.post('/api/cafeteria/menu/date', {
-        date: todayFormatted,
+        savePromise = api.post('/api/cafeteria/menu/date', {
+          date: todayFormatted,
           meals: mealsData
         });
       }
       
-      // Delete images from S3 for removed items
-      if (modalDeletedImages.length > 0) {
-        try {
-          await api.post('/api/cafeteria/menu/delete-images', {
-            imageUrls: modalDeletedImages
-          });
-        } catch (err) {
-          console.error('Error deleting images from S3:', err);
-          // Don't fail the entire operation if image deletion fails
-        }
-      }
-      
-      toast.success("Today's menu updated!");
-      // Refetch today's menu to update card
-      const res = await api.get('/api/cafeteria/menu/today');
-      const menuData = res.data.data;
-      // Convert legacy items to new format and ensure all meal types exist
-      if (menuData && menuData.meals) {
-        menuData.meals = ensureAllMealTypes(menuData.meals);
-      } else {
-        menuData.meals = ensureAllMealTypes(null);
-      }
-      setTodaysMenu(menuData);
-      // Refresh today's rating stats
-      const todayFormattedForRefresh = getTodayISOString();
-      try {
-        const statsRes = await api.get(`/api/cafeteria/menu/ratings/stats?date=${todayFormattedForRefresh}`);
-        setTodaysRatingStats(statsRes.data.data);
-              } catch (err) {
-          // Ignore errors for rating stats refresh
-        }
+      // Show immediate success feedback
+      toast.success("Today's menu updated successfully!");
       setShowTodayModal(false);
       setModalDeletedImages([]); // Clear the deleted images array
+      setSavingToday(false);
+      
+      // Continue processing in background
+      try {
+        await savePromise;
+        
+        // Delete images from S3 for removed items (background task)
+        if (modalDeletedImages.length > 0) {
+          api.post('/api/cafeteria/menu/delete-images', {
+            imageUrls: modalDeletedImages
+          }).catch(err => {
+            console.error('Error deleting images from S3:', err);
+          });
+        }
+        
+        // Refetch today's menu to update card (background task)
+        api.get('/api/cafeteria/menu/today').then(res => {
+          const menuData = res.data.data;
+          // Convert legacy items to new format and ensure all meal types exist
+          if (menuData && menuData.meals) {
+            menuData.meals = ensureAllMealTypes(menuData.meals);
+          } else {
+            menuData.meals = ensureAllMealTypes(null);
+          }
+          setTodaysMenu(menuData);
+        }).catch(err => {
+          console.error('Error refetching today\'s menu:', err);
+        });
+        
+        // Refresh today's rating stats (background task)
+        const todayFormattedForRefresh = getTodayISOString();
+        api.get(`/api/cafeteria/menu/ratings/stats?date=${todayFormattedForRefresh}`).then(statsRes => {
+          setTodaysRatingStats(statsRes.data.data);
+        }).catch(err => {
+          console.error('Error refreshing rating stats:', err);
+        });
+        
+      } catch (error) {
+        console.error('Background processing error:', error);
+        toast.error('Menu saved but some background tasks failed');
+      }
+      
     } catch (err) {
       toast.error("Failed to update today's menu");
-    } finally {
       setSavingToday(false);
     }
   };

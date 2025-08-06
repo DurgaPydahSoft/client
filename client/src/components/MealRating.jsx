@@ -4,7 +4,7 @@ import { StarIcon as StarOutlineIcon } from '@heroicons/react/24/outline';
 import api from '../utils/axios';
 import { toast } from 'react-hot-toast';
 
-const MealRating = ({ mealType, date, onRatingSubmit }) => {
+const MealRating = ({ mealType, date, onRatingSubmit, hasItems = true }) => {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState('');
@@ -12,6 +12,11 @@ const MealRating = ({ mealType, date, onRatingSubmit }) => {
   const [userRating, setUserRating] = useState(null);
   const [avgRating, setAvgRating] = useState(0);
   const [totalRatings, setTotalRatings] = useState(0);
+
+  // Don't render if there are no items for this meal type
+  if (!hasItems) {
+    return null;
+  }
 
   const mealEmojis = {
     breakfast: '🥞',
