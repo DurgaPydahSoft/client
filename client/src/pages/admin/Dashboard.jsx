@@ -152,6 +152,14 @@ const AdminDashboard = () => {
         'Cafeteria ': true
       }));
     }
+    
+    // Auto-expand Security submenu if on security-related pages
+    if (pathname.startsWith('/admin/dashboard/security')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Security': true
+      }));
+    }
   }, [pathname]);
 
   // Auto-expand Cafeteria submenu for users with menu management permission
@@ -164,6 +172,16 @@ const AdminDashboard = () => {
     }
   }, [user?.permissions, isSuperAdmin]);
 
+  // Auto-expand Security submenu for users with security management permission
+  useEffect(() => {
+    if (hasPermission(user, 'security_management') && !isSuperAdmin) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Security': true
+      }));
+    }
+  }, [user?.permissions, isSuperAdmin]);
+
   // Auto-redirect sub-admins without dashboard_home permission to their first available section
   useEffect(() => {
     if (!isSuperAdmin && pathname === '/admin/dashboard') {
@@ -171,6 +189,13 @@ const AdminDashboard = () => {
       if (hasPermission(user, 'menu_management')) {
         console.log('🔄 Auto-redirecting to menu management page');
         navigate('/admin/dashboard/cafeteria/menu', { replace: true });
+        return;
+      }
+      
+      // If user has security management permission, redirect to security dashboard
+      if (hasPermission(user, 'security_management')) {
+        console.log('🔄 Auto-redirecting to security dashboard');
+        navigate('/admin/dashboard/security', { replace: true });
         return;
       }
       
