@@ -144,16 +144,44 @@ const AdminDashboard = () => {
         'Maintenance Ticket Management': true
       }));
     }
+    
+    // Auto-expand Cafeteria submenu if on cafeteria-related pages
+    if (pathname.startsWith('/admin/dashboard/cafeteria')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Cafeteria ': true
+      }));
+    }
   }, [pathname]);
+
+  // Auto-expand Cafeteria submenu for users with menu management permission
+  useEffect(() => {
+    if (hasPermission(user, 'menu_management') && !isSuperAdmin) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Cafeteria ': true
+      }));
+    }
+  }, [user?.permissions, isSuperAdmin]);
 
   // Auto-redirect sub-admins without dashboard_home permission to their first available section
   useEffect(() => {
-    if (!isSuperAdmin && !hasPermission(user, 'dashboard_home') && pathname === '/admin/dashboard') {
-      const firstSection = getFirstAvailableSection();
+    if (!isSuperAdmin && pathname === '/admin/dashboard') {
+      // If user has menu management permission, redirect to menu management page
+      if (hasPermission(user, 'menu_management')) {
+        console.log('🔄 Auto-redirecting to menu management page');
+        navigate('/admin/dashboard/cafeteria/menu', { replace: true });
+        return;
+      }
       
-      if (firstSection) {
-        console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
-        navigate(firstSection.path, { replace: true });
+      // If user doesn't have dashboard_home permission, redirect to first available section
+      if (!hasPermission(user, 'dashboard_home')) {
+        const firstSection = getFirstAvailableSection();
+        
+        if (firstSection) {
+          console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
+          navigate(firstSection.path, { replace: true });
+        }
       }
     }
   }, [pathname, isSuperAdmin, user?.permissions, navigate]);

@@ -203,7 +203,7 @@ function App() {
                 </ProtectedSection>
               } />
               <Route path="cafeteria/menu" element={
-                <ProtectedSection permission="cafeteria_management" sectionName="Cafeteria Management">
+                <ProtectedSection permission="menu_management" sectionName="Menu Management">
                   <MenuManagement />
                 </ProtectedSection>
               } />
