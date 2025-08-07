@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon } from '@heroicons/react/24/outline';
@@ -126,6 +127,7 @@ const Students = () => {
   console.log('👥 Students component loaded');
   
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isSuperAdmin = user?.role === 'super_admin';
   const canEditStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'edit');
   const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
@@ -3128,7 +3130,18 @@ const Students = () => {
             Please save this password securely. It will be needed for the student's first login.
           </p>
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-between">
+          <button
+            onClick={() => {
+              setShowPasswordModal(false);
+              navigate(`/admin/dashboard/students/admit-cards?password=${encodeURIComponent(generatedPassword)}`);
+              setGeneratedPassword(null);
+            }}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
+          >
+            <DocumentDuplicateIcon className="w-4 h-4" />
+            Generate Admit Card
+          </button>
           <button
             onClick={() => {
               setShowPasswordModal(false);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { 
@@ -17,6 +18,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const AdmitCards = () => {
+  const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -42,6 +44,32 @@ const AdmitCards = () => {
   const [feeStructureCache, setFeeStructureCache] = useState({});
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
+  
+  // Get password from URL parameters (for recently added students)
+  const passwordFromURL = searchParams.get('password');
+  
+  // Check if we came from password popup (has password in URL)
+  const isFromPasswordPopup = !!passwordFromURL;
+  
+  // Function to fetch password for a specific student
+  const fetchStudentPassword = async (studentId) => {
+    try {
+      console.log('🔍 Frontend: Fetching password for student ID:', studentId);
+      // Check if this student has a TempStudent record (recently added students)
+      const tempResponse = await api.get(`/api/admin/students/${studentId}/temp-password`);
+      console.log('🔍 Frontend: API response:', tempResponse.data);
+      
+      if (tempResponse.data.success && tempResponse.data.data.password) {
+        console.log('🔍 Frontend: Password found:', tempResponse.data.data.password);
+        return tempResponse.data.data.password;
+      }
+      console.log('❌ Frontend: No password found in response');
+      return null;
+    } catch (error) {
+      console.error('❌ Frontend: Error fetching student password:', error);
+      return null;
+    }
+  };
 
   // Fetch courses from backend
   const fetchCourses = async () => {
@@ -279,7 +307,7 @@ const AdmitCards = () => {
     }
   };
 
-  // Generate PDF for individual admit card
+  // Generate PDF for individual admit card with student and warden copies
   const generateAdmitCardPDF = async (student) => {
     try {
       console.log('Generating PDF for student:', student);
@@ -304,181 +332,242 @@ const AdmitCards = () => {
       const feeStructure = await fetchFeeStructure(student.category || 'A', studentAcademicYear);
       console.log('Fee structure for student:', feeStructure);
       
-      const doc = new jsPDF();
+      // Fetch student password
+      const studentPassword = await fetchStudentPassword(student._id);
+      console.log('Student password fetched:', studentPassword ? 'Yes' : 'No');
+      
+      // For recently added students, use URL password if available
+      const finalPassword = passwordFromURL || studentPassword;
+      console.log('Final password for student:', finalPassword ? 'Available' : 'Not available');
+      
+      // Create A4 size document for full page with two copies
+      const doc = new jsPDF('p', 'mm', 'a4');
       console.log('doc.autoTable available:', typeof doc.autoTable);
       
-      // Set up the page
-      const pageWidth = doc.internal.pageSize.width;
-      const pageHeight = doc.internal.pageSize.height;
-      const margin = 15;
+      // Set up the page for full A4 size
+      const pageWidth = doc.internal.pageSize.width; // 210mm
+      const pageHeight = doc.internal.pageSize.height; // 297mm
+      const halfPageHeight = pageHeight / 2; // 148.5mm
+      const margin = 10;
       const contentWidth = pageWidth - (margin * 2);
       
-      // Draw main border
-      doc.rect(margin, margin, contentWidth, pageHeight - (margin * 2));
-      
-      // Header section
-      let yPos = margin + 10;
-      
-      // Logo placeholder (left side)
-      doc.rect(margin + 5, yPos, 30, 15);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'bold');
-      doc.text('PYDAH', margin + 20, yPos + 8, { align: 'center' });
-      doc.text('GROUP', margin + 20, yPos + 12, { align: 'center' });
-      
-      // Main title (center)
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Pydah Group Of Institutions', pageWidth / 2, yPos + 10, { align: 'center' });
-      
-      // Right side - Admit Card title
-      doc.setFontSize(12);
-      doc.text('Hostel Admit Card', pageWidth - margin - 5, yPos + 5, { align: 'right' });
-      doc.setFontSize(10);
-      doc.text(`${studentAcademicYear} AY`, pageWidth - margin - 5, yPos + 12, { align: 'right' });
-      
-      // Student details section (left side)
-      yPos = margin + 40;
-      const leftColumnX = margin + 10;
-      
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Student Name & Details', leftColumnX, yPos);
-      yPos += 8;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      
-      // Student details in table format
-      const studentDetails = [
-        ['Name:', String(student.name || '')],
-        ['Roll Number:', String(student.rollNumber || '')],
-        ['Course:', String(student.course?.name || student.course || '')],
-        ['Year:', String(student.year || '')],
-        ['Student Mobile:', String(student.studentPhone || '')],
-        ['Parent Mobile:', String(student.parentPhone || '')],
-        ['Address:', String(student.address || '')],
-        ['Hostel ID:', String(student.hostelId || '')],
-        ['Category:', String(student.category || '')],
-        ['Room Number:', String(student.roomNumber || '')]
-      ];
-      
-      studentDetails.forEach(([label, value]) => {
-        doc.text(label, leftColumnX, yPos);
-        doc.text(value || '', leftColumnX + 40, yPos);
+      // Function to generate one copy of admit card
+      const generateOneCopy = (startY, copyLabel, password) => {
+        // Draw border for this copy
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(margin, startY, contentWidth, halfPageHeight - (margin * 2));
+        
+        // Add copy label
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(copyLabel, margin + 5, startY + 5);
+        
+        // Header section
+        let yPos = startY + 8;
+        
+                 // Logo image (left side)
+         try {
+           // Add the Pydah logo image
+           doc.addImage('/PYDAH_LOGO_PHOTO.jpg', 'JPEG', margin + 4, yPos, 22, 12);
+         } catch (error) {
+           console.error('Error adding logo image:', error);
+           // Fallback to placeholder if image fails to load
+           doc.setFillColor(240, 240, 240);
+           doc.rect(margin + 4, yPos, 22, 12);
+           doc.setFontSize(6);
+           doc.setFont('helvetica', 'bold');
+           doc.setTextColor(0, 0, 0);
+           doc.text('PYDAH', margin + 15, yPos + 6, { align: 'center' });
+           doc.text('GROUP', margin + 15, yPos + 9, { align: 'center' });
+         }
+        
+        // Main title (center)
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Pydah Group Of Institutions', pageWidth / 2, yPos + 8, { align: 'center' });
+        
+        // Right side - Admit Card title
+        doc.setFontSize(8);
+        doc.text('HOSTEL ADMIT CARD', pageWidth - margin - 5, yPos + 4, { align: 'right' });
+        doc.setFontSize(6);
+        doc.text(`${studentAcademicYear} AY`, pageWidth - margin - 5, yPos + 8, { align: 'right' });
+        
+        // Divider line
+        yPos = startY + 24;
+        doc.setDrawColor(100, 100, 100);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos);
+        
+        // Student details and photo section
         yPos += 6;
-      });
-      
-             // Photo section (right side)
-       const photoX = pageWidth - margin - 45;
-       const photoY = margin + 45;
-       const photoWidth = 40;
-       const photoHeight = 50;
-       
-       // Photo border
-       doc.rect(photoX, photoY, photoWidth, photoHeight);
-       
-               // Add student photo if available
+        
+        // Create a centered layout with photo and details side by side
+        const centerX = pageWidth / 2;
+        const photoWidth = 28;
+        const photoHeight = 35;
+        
+        // Photo section
+        const photoX = centerX + 25;
+        const photoY = yPos;
+        
+        // Photo border
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.4);
+        doc.rect(photoX, photoY, photoWidth, photoHeight);
+        
+        // Add student photo if available
         if (student.studentPhoto) {
           try {
-            console.log('Student photo data type:', typeof student.studentPhoto);
-            
-            // The backend now returns base64 image data
             if (student.studentPhoto.startsWith('data:image')) {
-              // Add the image to PDF
               doc.addImage(student.studentPhoto, 'JPEG', photoX, photoY, photoWidth, photoHeight);
-              console.log('Photo added to PDF successfully');
             } else {
-              // Fallback to placeholder if not base64
-              console.warn('Photo data is not in base64 format');
-              doc.setFontSize(8);
+              doc.setFontSize(4);
               doc.text('Photo', photoX + photoWidth/2, photoY + photoHeight/2, { align: 'center' });
             }
           } catch (error) {
-            console.error('Error adding photo to PDF:', error);
-            // Fallback to placeholder
-            doc.setFontSize(8);
+            doc.setFontSize(4);
             doc.text('Photo', photoX + photoWidth/2, photoY + photoHeight/2, { align: 'center' });
           }
         } else {
-          // No photo available, show placeholder
-          doc.setFontSize(8);
+          doc.setFontSize(4);
           doc.text('Photo', photoX + photoWidth/2, photoY + photoHeight/2, { align: 'center' });
         }
+        
+        // Signature section below photo
+        const signatureY = photoY + photoHeight + 3;
+        doc.rect(photoX, signatureY, photoWidth, 10);
+        doc.setFontSize(4);
+        doc.text('Signature', photoX + photoWidth/2, signatureY + 4, { align: 'center' });
+        doc.text('& Stamp', photoX + photoWidth/2, signatureY + 7, { align: 'center' });
+        
+        // Student details section
+        const detailsX = centerX - 40;
+        
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('STUDENT DETAILS', detailsX, yPos);
+        yPos += 4;
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6);
+        
+              // Student details
+      const studentDetails = [
+        ['Name:', String(student.name || '')],
+        ['Roll No:', String(student.rollNumber || '')],
+        ['Course:', String(student.course?.name || student.course || '')],
+        ['Year:', String(student.year || '')],
+        ['Mobile:', String(student.studentPhone || '')],
+        ['Parent:', String(student.parentPhone || '')],
+        ['Address:', String(student.address || '')],
+        ['Hostel ID:', String(student.hostelId || '')],
+        ['Category:', String(student.category || '')],
+        ['Room:', String(student.roomNumber || '')]
+      ];
       
-      // Signature section below photo
-      const signatureY = photoY + photoHeight + 5;
-      doc.rect(photoX, signatureY, photoWidth, 20);
-      doc.setFontSize(7);
-      doc.text('Authorised Signature', photoX + photoWidth/2, signatureY + 8, { align: 'center' });
-      doc.text('with Stamp', photoX + photoWidth/2, signatureY + 13, { align: 'center' });
-      
-      // Fee terms table
-      yPos = margin + 160;
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Fee Terms', leftColumnX, yPos);
-      yPos += 8;
-      
-              // Use dynamic fee structure or fallback to 0
-        const feeData = [
-          ['Term', 'Due Amount', 'Due Date', 'Remarks'],
-          ['First Term', `Rs${feeStructure?.term1Fee || 0}`, '', ''],
-          ['Second Term', `Rs${feeStructure?.term2Fee || 0}`, '', 'On or before Second MID Term exam in First Sem'],
-          ['Third Term', `Rs${feeStructure?.term3Fee || 0}`, '', 'On or before Second semester starting Date']
-        ];
-      
-              if (typeof doc.autoTable === 'function') {
-          doc.autoTable({
-            startY: yPos,
-            head: [feeData[0]],
-            body: feeData.slice(1),
-            theme: 'grid',
-            styles: {
-              fontSize: 7,
-              cellPadding: 2
-            },
-            headStyles: {
-              fillColor: [80, 80, 80],
-              textColor: 255,
-              fontStyle: 'bold',
-              fontSize: 8
-            },
-            columnStyles: {
-              0: { cellWidth: 25, fontSize: 7 },
-              1: { cellWidth: 20, fontSize: 7 },
-              2: { cellWidth: 20, fontSize: 7 },
-              3: { cellWidth: 50, fontSize: 6 }
-            }
-          });
-        } else {
-          // Fallback: manually draw the table
-          console.warn('doc.autoTable not available, using fallback table');
-          doc.setFontSize(7);
-          feeData.forEach((row, rowIndex) => {
-            const rowY = yPos + (rowIndex * 7);
-            doc.text(row[0], leftColumnX, rowY);
-            doc.text(row[1], leftColumnX + 25, rowY);
-            doc.text(row[2], leftColumnX + 45, rowY);
-            doc.text(row[3], leftColumnX + 65, rowY);
-          });
-          yPos += (feeData.length * 7) + 8;
+      // Add password to student copy only
+      if (copyLabel === 'STUDENT COPY') {
+        // Priority: URL password (for recently added) > fetched password (for existing)
+        const finalPassword = passwordFromURL || password;
+        if (finalPassword) {
+          studentDetails.push(['Password:', String(finalPassword)]);
         }
+        // If no password available, don't add password field at all
+      }
+        
+        studentDetails.forEach(([label, value]) => {
+          doc.setFont('helvetica', 'bold');
+          doc.text(label, detailsX, yPos);
+          doc.setFont('helvetica', 'normal');
+          doc.text(value || '', detailsX + 25, yPos);
+          yPos += 3;
+        });
+        
+                 // Fee terms table
+         yPos = startY + 80;
+         doc.setFontSize(8);
+         doc.setFont('helvetica', 'bold');
+         doc.text('FEE STRUCTURE', centerX - 35, yPos);
+         yPos += 4;
+         
+         // Fee data
+         const feeData = [
+           ['Term', 'Amount', 'Due Date', 'Remarks'],
+           ['1st Term', `Rs${feeStructure?.term1Fee || 0}`, '', ''],
+           ['2nd Term', `Rs${feeStructure?.term2Fee || 0}`, '', 'Before 2nd MID Term'],
+           ['3rd Term', `Rs${feeStructure?.term3Fee || 0}`, '', 'Before 2nd Sem Start']
+         ];
+         
+         if (typeof doc.autoTable === 'function') {
+           doc.autoTable({
+             startY: yPos,
+             head: [feeData[0]],
+             body: feeData.slice(1),
+             theme: 'grid',
+             styles: {
+               fontSize: 5,
+               cellPadding: 1.5,
+               lineColor: [0, 0, 0],
+               lineWidth: 0.3
+             },
+             headStyles: {
+               fillColor: [70, 70, 70],
+               textColor: 255,
+               fontStyle: 'bold',
+               fontSize: 6,
+               lineColor: [0, 0, 0],
+               lineWidth: 0.3
+             },
+             columnStyles: {
+               0: { cellWidth: 22, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
+               1: { cellWidth: 18, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
+               2: { cellWidth: 18, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
+               3: { cellWidth: 28, fontSize: 4, lineColor: [0, 0, 0], lineWidth: 0.3 }
+             },
+             margin: { left: centerX - 40 }
+           });
+         } else {
+           doc.setFontSize(5);
+           feeData.forEach((row, rowIndex) => {
+             const rowY = yPos + (rowIndex * 5);
+             doc.text(row[0], centerX - 40, rowY);
+             doc.text(row[1], centerX - 18, rowY);
+             doc.text(row[2], centerX + 4, rowY);
+             doc.text(row[3], centerX + 22, rowY);
+           });
+         }
+         
+         // Important notes - positioned after fee table with proper spacing
+         const tableEndY = doc.lastAutoTable ? doc.lastAutoTable.finalY : yPos;
+         yPos = tableEndY + 24;
+         
+         doc.setFontSize(6);
+         doc.setFont('helvetica', 'bold');
+         doc.text('IMPORTANT NOTES:', centerX - 35, yPos);
+         yPos += 3;
+         
+         doc.setFont('helvetica', 'normal');
+         doc.setFontSize(5);
+         doc.text('1. Late fee Rs.500/- per term if not paid on time', centerX - 35, yPos);
+         yPos += 2.5;
+         doc.text('2. Electricity bill extra monthly as per room sharing', centerX - 35, yPos);
+         yPos += 2.5;
+         doc.text('3. Present this card at hostel entrance for verification', centerX - 35, yPos);
+      };
       
-      // Important notes
-      const tableEndY = doc.lastAutoTable ? doc.lastAutoTable.finalY : yPos;
-      yPos = tableEndY + 10;
+      // Generate Student Copy (top half)
+      generateOneCopy(margin, 'STUDENT COPY', finalPassword);
       
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Important Note:', leftColumnX, yPos);
-      yPos += 6;
+      // Add divider line between copies
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.3);
+      doc.line(margin + 5, halfPageHeight, pageWidth - margin - 5, halfPageHeight);
       
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('1. Late fee of Rs.500/- will be applicable for each term if not paid on or before the above due dates', leftColumnX, yPos);
-      yPos += 5;
-      doc.text('2. Electricity bill have to be paid extra on monthly basis as per the room sharing for all type category hostels', leftColumnX, yPos);
+      // Generate Warden Copy (bottom half)
+      generateOneCopy(halfPageHeight + 2, 'WARDEN COPY', null);
       
       // Save the PDF
       const fileName = `AdmitCard_${student.name || 'Student'}_${student.rollNumber || 'Unknown'}.pdf`;
@@ -670,14 +759,19 @@ const AdmitCards = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student) => (
-                    <tr key={student._id} className="hover:bg-gray-50">
+                  {students.map((student, index) => {
+                    // If we came from password popup, only enable the first student
+                    const isDisabled = isFromPasswordPopup && index !== 0;
+                    
+                    return (
+                      <tr key={student._id} className={`hover:bg-gray-50 ${isDisabled ? 'opacity-50 bg-gray-100' : ''}`}>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                         <input
                           type="checkbox"
                           checked={selectedStudents.includes(student._id)}
                           onChange={() => handleStudentSelect(student._id)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          disabled={isDisabled}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
@@ -698,6 +792,11 @@ const AdmitCards = () => {
                           <div className="ml-2 sm:ml-4 min-w-0 flex-1">
                             <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                               {student.name}
+                              {isFromPasswordPopup && index === 0 && (
+                                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  Recent
+                                </span>
+                              )}
                             </div>
                             <div className="text-xs sm:text-sm text-gray-500 truncate">
                               {student.rollNumber}
@@ -742,14 +841,15 @@ const AdmitCards = () => {
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                           <button
                             onClick={() => handlePreview(student)}
-                            className="text-blue-600 hover:text-blue-900 flex items-center justify-center sm:justify-start"
+                            disabled={isDisabled}
+                            className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
                           >
                             <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                             <span className="text-xs sm:text-sm">Preview</span>
                           </button>
                           <button
                             onClick={() => handleGenerateAdmitCard(student)}
-                            disabled={!student.studentPhoto || generating}
+                            disabled={!student.studentPhoto || generating || isDisabled}
                             className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
                           >
                             <DocumentArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -758,7 +858,8 @@ const AdmitCards = () => {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>
