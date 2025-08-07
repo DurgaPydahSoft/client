@@ -1,5 +1,11 @@
 import { Helmet } from 'react-helmet-async';
 
+const defaultTitle = 'Pydah Hostel Digital | Online Hostel Portal';
+const defaultDescription = 'Pydah Hostel\'s official digital platform for hostel operations and student services. A Pydah Soft Product.';
+const defaultKeywords = 'Pydah Hostel, Hostel Digital, Pydah College Hostel, Hostel Operations, Hostel Services, Online Hostel Portal, Student Services, Pydah Soft';
+const defaultAuthor = 'Pydah Educational Institutions';
+const defaultGenerator = 'Pydah Soft';
+
 const SEO = ({ 
   title, 
   description, 
@@ -8,10 +14,6 @@ const SEO = ({
   ogType = 'website',
   canonicalUrl = 'https://hostel.pydah.edu'
 }) => {
-  const defaultTitle = 'Pydah Hostel Complaint Management System | Online Hostel Grievance Portal';
-  const defaultDescription = 'Pydah Hostel\'s official complaint management system. Submit and track hostel-related complaints online. Quick resolution for maintenance, canteen, internet, and other hostel services.';
-  const defaultKeywords = 'Pydah Hostel, Hostel Complaint, Hostel Grievance, Pydah College Hostel, Hostel Maintenance, Hostel Services, Online Complaint System, Student Grievance Portal';
-
   const seoTitle = title ? `${title} | Pydah Hostel` : defaultTitle;
   const seoDescription = description || defaultDescription;
   const seoKeywords = keywords || defaultKeywords;
@@ -23,6 +25,8 @@ const SEO = ({
       <meta name="title" content={seoTitle} />
       <meta name="description" content={seoDescription} />
       <meta name="keywords" content={seoKeywords} />
+      <meta name="author" content={defaultAuthor} />
+      <meta name="generator" content={defaultGenerator} />
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={ogType} />

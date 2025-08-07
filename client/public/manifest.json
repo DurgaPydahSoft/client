@@ -1,7 +1,7 @@
 {
-  "name": "Pydah Hostel Complaint Management System",
+  "name": "Pydah Hostel Digital",
   "short_name": "Pydah Hostel",
-  "description": "Pydah Hostel's official complaint management system. Submit and track hostel-related complaints online.",
+  "description": "Pydah Hostel's official digital platform for hostel operations and student services.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1E40AF",
@@ -63,9 +63,9 @@
   ],
   "shortcuts": [
     {
-      "name": "Submit Complaint",
-      "short_name": "Complaint",
-      "description": "Submit a new hostel complaint",
+      "name": "Submit Request",
+      "short_name": "Request",
+      "description": "Submit a new hostel request",
       "url": "/student/raise-complaint",
       "icons": [
         {

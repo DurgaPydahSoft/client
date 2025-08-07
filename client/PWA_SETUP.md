@@ -1,7 +1,7 @@
 # PWA (Progressive Web App) Setup Guide
 
 ## Overview
-This guide helps you set up the PWA functionality for the Pydah Hostel Complaint Management System, enabling users to install the app on their home screen with your logo.
+This guide helps you set up the PWA functionality for the Pydah Hostel Digital platform, enabling users to install the app on their home screen with your logo.
 
 ## Features Implemented
 - ✅ PWA manifest with proper app metadata
@@ -49,7 +49,7 @@ Create the following icon files in `client/public/images/`:
 ## PWA Features
 
 ### Manifest.json
-- App name: "Pydah Hostel Complaint Management System"
+- App name: "Pydah Hostel Digital"
 - Short name: "Pydah Hostel"
 - Theme color: #1E40AF (blue)
 - Display mode: standalone (full-screen app)

@@ -249,7 +249,7 @@ const DeveloperCard = () => {
     >
       <div className="flex flex-col items-center text-center">
         {/* PydahSoft Logo/Brand */}
-        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 p-1 mb-6">
+        <div className="w-40 h-40 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 p-1 mb-6">
           <div className="w-full h-full rounded-full bg-white p-1">
             <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center overflow-hidden">
               <img 
@@ -348,14 +348,14 @@ const Home = () => {
   return (
     <div className="w-full overflow-hidden">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-deepsea-900 via-deepsea-800 to-primary-700 text-white pb-24 pt-20 px-4">
+      <section className="relative min-h-screen flex items-center justify-center bg-white text-gray-900 pb-24 pt-20 px-4">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute w-full h-full bg-[url('/images/pattern-grid.svg')] opacity-5"></div>
           {[...Array(10)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute rounded-full bg-white bg-opacity-10"
+              className="absolute rounded-full bg-gray-300 bg-opacity-20"
               initial={{
                 top: `${Math.random() * 100}%`,
                 left: `${Math.random() * 100}%`,
@@ -385,13 +385,13 @@ const Home = () => {
               transition={{ duration: 0.8 }}
               className="mb-8"
             >
-              <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-cyan-200 leading-[1.15]">
+              <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-600 leading-[1.15]">
                  HOSTEL
                 <br />
                 
                 CONNECTIFY 
               </h1>
-              <p className="text-xl md:text-2xl mb-10 font-light text-cyan-100 max-w-2xl mx-auto leading-relaxed">
+              <p className="text-xl md:text-2xl mb-10 font-light text-gray-600 max-w-2xl mx-auto leading-relaxed">
                 Transforming hostel communication with a modern, transparent, and efficient digital platform.
               </p>
             </motion.div>
@@ -403,14 +403,14 @@ const Home = () => {
               className="flex justify-center md:justify-start"
             >
               <button 
-                className="group relative px-8 py-4 bg-white text-deepsea-900 font-semibold rounded-2xl hover:bg-cyan-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95 overflow-hidden"
+                className="group relative px-8 py-4 bg-blue-600 text-white font-semibold rounded-2xl hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95 overflow-hidden"
                 onClick={() => navigate('/login')}
               >
                 <span className="relative z-10 flex items-center gap-2">
                   Get Started
                   <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-200 to-blue-200 opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-cyan-600 opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
               </button>
             </motion.div>
           </div>
@@ -423,13 +423,13 @@ const Home = () => {
             className="hidden md:block relative"
           >
             <div className="relative w-full aspect-square">
-              <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-blue-500/20 rounded-full animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full animate-pulse"></div>
               {/* Wrap bubbles and grid in a single parent */}
               <div className="absolute inset-0 pointer-events-none">
                 {[...Array(8)].map((_, i) => (
                   <motion.div
                     key={i}
-                    className="absolute rounded-full bg-white/30 blur-lg"
+                    className="absolute rounded-full bg-blue-200/30 blur-lg"
                     style={{
                       top: `${10 + Math.random() * 70}%`,
                       left: `${10 + Math.random() * 70}%`,
@@ -635,7 +635,7 @@ const Home = () => {
               <h3 className="font-display text-2xl font-bold text-deepsea-900 mb-4">
                 Pydah HOSTEL
                 <br />
-                Complaint Management System
+                Digital
               </h3>
               <p className="text-gray-600 max-w-sm">
                 Transforming hostel management through digital innovation and efficient communication.
@@ -673,7 +673,7 @@ const Home = () => {
           </div>
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-center text-gray-600">
-              © {new Date().getFullYear()} Pydah HOSTEL Management System. All rights reserved.
+              © {new Date().getFullYear()} Pydah HOSTEL Digital. All rights reserved.
             </p>
           </div>
         </div>

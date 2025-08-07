@@ -51,7 +51,7 @@ self.addEventListener('activate', event => {
 // Handle push notifications
 self.addEventListener('push', event => {
   const options = {
-    body: event.data ? event.data.text() : 'New notification from Pydah Hostel',
+    body: event.data ? event.data.text() : 'New notification from Pydah Hostel Digital',
     icon: '/images/icon-192x192.png',
     badge: '/images/icon-72x72.png',
     vibrate: [100, 50, 100],
@@ -74,7 +74,7 @@ self.addEventListener('push', event => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('Pydah Hostel', options)
+    self.registration.showNotification('Pydah Hostel Digital', options)
   );
 });
 
