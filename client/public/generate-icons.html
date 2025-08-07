@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .icon-item {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        button {
+            background: #1E40AF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #1e3a8a;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PWA Icon Generator</h1>
+        <p>Upload your logo to generate PWA icons for home screen installation.</p>
+        
+        <input type="file" id="logoInput" accept="image/*">
+        <button onclick="generateIcons()">Generate Icons</button>
+        <button onclick="downloadAll()">Download All Icons</button>
+        
+        <div class="icon-grid" id="iconGrid"></div>
+    </div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 167, 180, 192, 384, 512];
+        let generatedIcons = [];
+
+        function generateIcons() {
+            const file = document.getElementById('logoInput').files[0];
+            if (!file) {
+                alert('Please select a logo file first');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const iconGrid = document.getElementById('iconGrid');
+                    iconGrid.innerHTML = '';
+                    generatedIcons = [];
+
+                    sizes.forEach(size => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+
+                        // Create a blue background
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.fillRect(0, 0, size, size);
+
+                        // Calculate icon size (80% of canvas)
+                        const iconSize = size * 0.8;
+                        const iconX = (size - iconSize) / 2;
+                        const iconY = (size - iconSize) / 2;
+
+                        // Draw the logo
+                        ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
+
+                        const iconItem = document.createElement('div');
+                        iconItem.className = 'icon-item';
+                        iconItem.innerHTML = `
+                            <h3>${size}x${size}</h3>
+                            <canvas id="canvas-${size}" width="${size}" height="${size}"></canvas>
+                            <br>
+                            <button onclick="downloadIcon(${size})">Download</button>
+                        `;
+                        iconGrid.appendChild(iconItem);
+
+                        // Store the canvas for download
+                        generatedIcons.push({
+                            size: size,
+                            canvas: canvas
+                        });
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function downloadIcon(size) {
+            const icon = generatedIcons.find(i => i.size === size);
+            if (icon) {
+                const link = document.createElement('a');
+                link.download = `icon-${size}x${size}.png`;
+                link.href = icon.canvas.toDataURL();
+                link.click();
+            }
+        }
+
+        function downloadAll() {
+            if (generatedIcons.length === 0) {
+                alert('Please generate icons first');
+                return;
+            }
+
+            generatedIcons.forEach(icon => {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.download = `icon-${icon.size}x${icon.size}.png`;
+                    link.href = icon.canvas.toDataURL();
+                    link.click();
+                }, 100);
+            });
+        }
+
+        // Auto-load the existing logo if available
+        window.onload = function() {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                // Create a file input and trigger icon generation
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+                
+                // Convert canvas to blob and create file
+                canvas.toBlob(function(blob) {
+                    const file = new File([blob], 'logo.png', { type: 'image/png' });
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    document.getElementById('logoInput').files = dataTransfer.files;
+                    generateIcons();
+                });
+            };
+            img.src = './PYDAH_LOGO_PHOTO.jpg';
+        };
+    </script>
+</body>
+</html> 

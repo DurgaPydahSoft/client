@@ -10,6 +10,7 @@ import LeaveQRDetails from './pages/student/LeaveQRDetails';
 import SecurityDashboard from './pages/security/SecurityDashboard';
 import PushNotificationInitializer from './components/PushNotificationInitializer';
 import MenuManagement from './pages/admin/MenuManagement';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
 import IOSErrorBoundary from './components/IOSErrorBoundary';
@@ -328,6 +329,7 @@ function App() {
       
       {/* iOS Debug Panel - always available on iOS devices */}
       <IOSDebugPanel />
+      <PWAInstallPrompt />
     </ErrorBoundary>
     </HelmetProvider>
   );

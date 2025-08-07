@@ -5,10 +5,26 @@
     <link rel="icon" type="image/svg+xml" href="./PYDAHSOFT LOGO.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icons for iOS -->
+    <link rel="apple-touch-icon" href="/images/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/images/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/icon-180x180.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/images/icon-167x167.png" />
+    
     <!-- Safari-specific meta tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Pydah Hostel">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1E40AF">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Pydah Hostel">
+    <meta name="msapplication-TileColor" content="#1E40AF">
+    <meta name="msapplication-TileImage" content="/images/icon-144x144.png">
     
     <!-- Safari polyfills and compatibility fixes -->
     <script>
@@ -173,13 +189,6 @@
     <meta property="twitter:description" content="Pydah Hostel's official complaint management system. Submit and track hostel-related complaints online. Quick resolution for maintenance, canteen, internet, and other hostel services. A Pydah Soft Product.">
     <meta property="twitter:image" content="https://hostel.pydah.edu/og-image.jpg">
 
-    <!-- Additional Meta Tags -->
-    <meta name="theme-color" content="#1E40AF">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Pydah Hostel">
-    
     <!-- Canonical URL -->
     <link rel="canonical" href="https://hostel.pydah.edu/">
     
@@ -209,6 +218,57 @@
     }
     </script>
     <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+      // Register service worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+      
+      // Handle beforeinstallprompt for PWA installation
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        deferredPrompt = e;
+        // Show install prompt to user
+        showInstallPrompt();
+      });
+      
+      function showInstallPrompt() {
+        // You can show a custom install button here
+        console.log('PWA install prompt available');
+        // Example: show a custom install button
+        // document.getElementById('install-button').style.display = 'block';
+      }
+      
+      function installPWA() {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User accepted the install prompt');
+            } else {
+              console.log('User dismissed the install prompt');
+            }
+            deferredPrompt = null;
+          });
+        }
+      }
+      
+      // Make installPWA available globally
+      window.installPWA = installPWA;
+    </script>
   </head>
   <body>
     <div id="root"></div>
