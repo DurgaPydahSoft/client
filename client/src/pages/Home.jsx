@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
+import { useAuth } from '../context/AuthContext';
 import {
   ChatBubbleLeftRightIcon,
   BellIcon,
@@ -311,6 +312,7 @@ const DeveloperCard = () => {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const controls = useAnimation();
   const [ref, inView] = useInView({
     threshold: 0.1,
@@ -326,6 +328,22 @@ const Home = () => {
       });
     }
   }, [controls, inView]);
+
+  // Redirect logged-in users away from home page
+  useEffect(() => {
+    if (token && user) {
+      // User is already logged in, redirect to appropriate dashboard
+      if (user.role === 'warden') {
+        navigate('/warden/dashboard', { replace: true });
+      } else if (user.role === 'principal') {
+        navigate('/principal/dashboard', { replace: true });
+      } else if (['super_admin', 'sub_admin', 'admin', 'custom'].includes(user.role)) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === 'student') {
+        navigate('/student', { replace: true });
+      }
+    }
+  }, [token, user, navigate]);
 
   return (
     <div className="w-full overflow-hidden">

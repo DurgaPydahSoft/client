@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
@@ -19,10 +19,39 @@ const Login = () => {
   const [form, setForm] = useState({ rollNumber: '', password: '', username: '', adminPassword: '' });
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [showStudentPassword, setShowStudentPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, user, token } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  // Redirect logged-in users away from login page
+  useEffect(() => {
+    if (token && user) {
+      // User is already logged in, redirect to appropriate dashboard
+      if (user.role === 'warden') {
+        navigate('/warden/dashboard', { replace: true });
+      } else if (user.role === 'principal') {
+        navigate('/principal/dashboard', { replace: true });
+      } else if (['super_admin', 'sub_admin', 'admin', 'custom'].includes(user.role)) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === 'student') {
+        navigate('/student', { replace: true });
+      }
+    }
+  }, [token, user, navigate]);
+
+  // Prevent going back to home page from login
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (window.location.pathname === '/login') {
+        // If user tries to go back from login page, prevent it
+        e.preventDefault();
+        window.history.pushState(null, '', '/login');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });

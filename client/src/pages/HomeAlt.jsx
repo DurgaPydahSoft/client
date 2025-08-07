@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
   ChatBubbleLeftRightIcon,
   BellIcon,
@@ -41,12 +42,29 @@ const gridIcons = [
 
 const HomeAlt = () => {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [rotation, setRotation] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [circleSize, setCircleSize] = useState(420);
   const containerRef = useRef();
   const requestRef = useRef();
+
+  // Redirect logged-in users away from home page
+  useEffect(() => {
+    if (token && user) {
+      // User is already logged in, redirect to appropriate dashboard
+      if (user.role === 'warden') {
+        navigate('/warden/dashboard', { replace: true });
+      } else if (user.role === 'principal') {
+        navigate('/principal/dashboard', { replace: true });
+      } else if (['super_admin', 'sub_admin', 'admin', 'custom'].includes(user.role)) {
+        navigate('/admin/dashboard', { replace: true });
+      } else if (user.role === 'student') {
+        navigate('/student', { replace: true });
+      }
+    }
+  }, [token, user, navigate]);
 
   // Responsive circle size
   useEffect(() => {

@@ -46,6 +46,87 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // Handle browser back button for logged-in users
+  useEffect(() => {
+    if (!token || !user) return;
+
+    const handleBeforeUnload = (e) => {
+      // Only show confirmation if user is on a protected route
+      const protectedRoutes = ['/admin', '/student', '/warden', '/principal'];
+      const currentPath = window.location.pathname;
+      const isOnProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
+      
+      if (isOnProtectedRoute) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? You will be logged out.';
+        return 'Are you sure you want to leave? You will be logged out.';
+      }
+    };
+
+    const handlePopState = (e) => {
+      // Check if user is trying to go back to login/home page
+      const currentPath = window.location.pathname;
+      const isOnProtectedRoute = ['/admin', '/student', '/warden', '/principal'].some(route => 
+        currentPath.startsWith(route)
+      );
+      
+      if (isOnProtectedRoute) {
+        // User is on a protected route, prevent going back to login
+        e.preventDefault();
+        
+        // Detect if it's a mobile device
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // On mobile, try to close the browser/tab
+          try {
+            // Try multiple methods to close the browser
+            if (window.navigator && window.navigator.app && window.navigator.app.exitApp) {
+              // For Cordova/PhoneGap apps
+              window.navigator.app.exitApp();
+            } else if (window.close) {
+              // Try to close the window (works in some mobile browsers)
+              window.close();
+              
+              // If window.close() doesn't work, show a message
+              setTimeout(() => {
+                if (!window.closed) {
+                  toast.error('Please close the browser tab manually');
+                }
+              }, 100);
+            }
+          } catch (error) {
+            console.log('Could not close browser automatically');
+            toast.error('Please close the browser tab manually');
+          }
+        } else {
+          // On desktop, just prevent navigation
+          toast.error('Cannot go back while logged in');
+        }
+        
+        // Push current state back to prevent navigation
+        window.history.pushState(null, '', currentPath);
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    
+    // Push current state to prevent back navigation to login
+    const currentPath = window.location.pathname;
+    if (['/admin', '/student', '/warden', '/principal'].some(route => currentPath.startsWith(route))) {
+      // Add an extra history entry to prevent going back to login
+      window.history.pushState(null, '', currentPath);
+      window.history.pushState(null, '', currentPath);
+    }
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [token, user]);
+
   // Validate token on mount and token change
   useEffect(() => {
     const validateToken = async () => {
@@ -240,6 +321,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    // Add confirmation for logout
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // On mobile, show a more prominent confirmation
+      const confirmed = window.confirm('Are you sure you want to logout? You will need to login again.');
+      if (!confirmed) {
+        return;
+      }
+    } else {
+      // On desktop, show a toast confirmation
+      const confirmed = window.confirm('Are you sure you want to logout?');
+      if (!confirmed) {
+        return;
+      }
+    }
+    
     safeLocalStorage.removeItem('token');
     safeLocalStorage.removeItem('user');
     safeLocalStorage.removeItem('userRole');
