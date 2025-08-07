@@ -4,7 +4,7 @@
   "description": "Pydah Hostel's official digital platform for hostel operations and student services.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1E40AF",
+  "background_color": "#FFFFFF",
   "theme_color": "#1E40AF",
   "orientation": "portrait-primary",
   "scope": "/",
