@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         if (isMobile) {
-          // On mobile, try to close the browser/tab
+          // On mobile, try to close the browser/tab silently
           try {
             // Try multiple methods to close the browser
             if (window.navigator && window.navigator.app && window.navigator.app.exitApp) {
@@ -88,16 +88,11 @@ export const AuthProvider = ({ children }) => {
               // Try to close the window (works in some mobile browsers)
               window.close();
               
-              // If window.close() doesn't work, show a message
-              setTimeout(() => {
-                if (!window.closed) {
-                  toast.error('Please close the browser tab manually');
-                }
-              }, 100);
+              // Don't show any message on mobile - let it close silently
             }
           } catch (error) {
-            console.log('Could not close browser automatically');
-            toast.error('Please close the browser tab manually');
+            console.log('Could not close browser automatically on mobile');
+            // Don't show any error message on mobile
           }
         } else {
           // On desktop, just prevent navigation
