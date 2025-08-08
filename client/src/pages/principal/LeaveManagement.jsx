@@ -30,6 +30,7 @@ const LeaveManagement = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [previousLeaves, setPreviousLeaves] = useState([]);
   const [loadingPreviousLeaves, setLoadingPreviousLeaves] = useState(false);
+  const [notifiedLeaves, setNotifiedLeaves] = useState(new Set());
   const [filters, setFilters] = useState({
     status: 'Warden Verified',
     applicationType: '',
@@ -40,6 +41,8 @@ const LeaveManagement = () => {
 
   useEffect(() => {
     fetchLeaves();
+    // Clear notified leaves when filters change to ensure notifications work properly
+    setNotifiedLeaves(new Set());
   }, [filters]);
 
   // Add real-time notification polling
@@ -58,9 +61,12 @@ const LeaveManagement = () => {
     
     window.addEventListener('refresh-notifications', handleNotificationRefresh);
     
+    // Cleanup function
     return () => {
       clearInterval(interval);
       window.removeEventListener('refresh-notifications', handleNotificationRefresh);
+      // Clear notified leaves on cleanup to prevent memory leaks
+      setNotifiedLeaves(new Set());
     };
   }, [filters]);
 
@@ -81,22 +87,31 @@ const LeaveManagement = () => {
         
         // Check if there are new warden-verified leaves and show notification
         const wardenVerifiedLeaves = newLeaves.filter(leave => leave.status === 'Warden Verified');
-        if (wardenVerifiedLeaves.length > 0) {
-          console.log('🔔 New warden-verified leaves detected:', wardenVerifiedLeaves.length);
+        
+        // Find truly new leaves that haven't been notified about yet
+        const newLeavesToNotify = wardenVerifiedLeaves.filter(leave => !notifiedLeaves.has(leave._id));
+        
+        if (newLeavesToNotify.length > 0) {
+          console.log('🔔 New warden-verified leaves detected:', newLeavesToNotify.length);
           
           // Show toast notification for new leaves
-          if (wardenVerifiedLeaves.length === 1) {
-            const leave = wardenVerifiedLeaves[0];
+          if (newLeavesToNotify.length === 1) {
+            const leave = newLeavesToNotify[0];
             toast.success(`${leave.student?.name || 'A student'}'s ${leave.applicationType} request is ready for approval!`, {
               duration: 5000,
               icon: '🔔'
             });
           } else {
-            toast.success(`${wardenVerifiedLeaves.length} new leave requests are ready for approval!`, {
+            toast.success(`${newLeavesToNotify.length} new leave requests are ready for approval!`, {
               duration: 5000,
               icon: '🔔'
             });
           }
+          
+          // Add these leaves to the notified set
+          const newNotifiedSet = new Set(notifiedLeaves);
+          newLeavesToNotify.forEach(leave => newNotifiedSet.add(leave._id));
+          setNotifiedLeaves(newNotifiedSet);
           
           // Trigger notification refresh
           window.dispatchEvent(new Event('refresh-notifications'));
