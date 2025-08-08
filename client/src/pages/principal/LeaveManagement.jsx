@@ -94,20 +94,6 @@ const LeaveManagement = () => {
         if (newLeavesToNotify.length > 0) {
           console.log('🔔 New warden-verified leaves detected:', newLeavesToNotify.length);
           
-          // Show toast notification for new leaves
-          if (newLeavesToNotify.length === 1) {
-            const leave = newLeavesToNotify[0];
-            toast.success(`${leave.student?.name || 'A student'}'s ${leave.applicationType} request is ready for approval!`, {
-              duration: 5000,
-              icon: '🔔'
-            });
-          } else {
-            toast.success(`${newLeavesToNotify.length} new leave requests are ready for approval!`, {
-              duration: 5000,
-              icon: '🔔'
-            });
-          }
-          
           // Add these leaves to the notified set
           const newNotifiedSet = new Set(notifiedLeaves);
           newLeavesToNotify.forEach(leave => newNotifiedSet.add(leave._id));
