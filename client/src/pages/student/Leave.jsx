@@ -996,7 +996,7 @@ const Leave = () => {
                       }}
                       className="w-full px-3 py-2.5 text-left text-sm hover:bg-purple-50 focus:bg-purple-50 transition-colors"
                     >
-                      <span className="text-purple-600 font-medium">Permission</span>
+                      <span className="text-purple-600 font-medium">Outing</span>
                     </button>
                     <button
                       type="button"

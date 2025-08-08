@@ -57,6 +57,8 @@ const NotificationBell = () => {
         console.log('🔔 NotificationBell: Fetching notifications for role: student');
       }
 
+      console.log('🔔 NotificationBell: Using endpoint prefix:', endpointPrefix);
+
       // Safari-specific timeout handling
       const timeoutDuration = isSafari ? 45000 : 30000;
       
@@ -115,6 +117,7 @@ const NotificationBell = () => {
       }
       
       // Don't let notification errors cause logout - just set defaults
+      console.log('🔔 NotificationBell: Setting default values due to error');
       setNotifications([]);
       setUnreadCount(0);
       setHasNewNotification(false);
@@ -144,6 +147,7 @@ const NotificationBell = () => {
     let pollInterval;
     if (!isWarden) {
       pollInterval = setInterval(fetchNotifications, 30000); // 30 seconds
+      console.log('🔔 NotificationBell: Polling enabled for role:', user?.role);
     }
 
     // Listen for push-triggered refresh (disabled for wardens)

@@ -42,6 +42,28 @@ const LeaveManagement = () => {
     fetchLeaves();
   }, [filters]);
 
+  // Add real-time notification polling
+  useEffect(() => {
+    // Initial fetch
+    fetchLeaves();
+    
+    // Set up polling for real-time updates
+    const interval = setInterval(fetchLeaves, 30000); // Poll every 30 seconds
+    
+    // Listen for notification events
+    const handleNotificationRefresh = () => {
+      console.log('🔔 LeaveManagement: Notification refresh triggered');
+      fetchLeaves();
+    };
+    
+    window.addEventListener('refresh-notifications', handleNotificationRefresh);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('refresh-notifications', handleNotificationRefresh);
+    };
+  }, [filters]);
+
   const fetchLeaves = async () => {
     try {
       console.log('Fetching leaves with filters:', filters);
@@ -53,8 +75,32 @@ const LeaveManagement = () => {
       const response = await api.get('/api/leave/principal/all', { params });
       console.log('Leave response:', response.data);
       if (response.data.success) {
-        setLeaves(response.data.data.leaves);
-        console.log('Set leaves:', response.data.data.leaves);
+        const newLeaves = response.data.data.leaves;
+        setLeaves(newLeaves);
+        console.log('Set leaves:', newLeaves);
+        
+        // Check if there are new warden-verified leaves and show notification
+        const wardenVerifiedLeaves = newLeaves.filter(leave => leave.status === 'Warden Verified');
+        if (wardenVerifiedLeaves.length > 0) {
+          console.log('🔔 New warden-verified leaves detected:', wardenVerifiedLeaves.length);
+          
+          // Show toast notification for new leaves
+          if (wardenVerifiedLeaves.length === 1) {
+            const leave = wardenVerifiedLeaves[0];
+            toast.success(`${leave.student?.name || 'A student'}'s ${leave.applicationType} request is ready for approval!`, {
+              duration: 5000,
+              icon: '🔔'
+            });
+          } else {
+            toast.success(`${wardenVerifiedLeaves.length} new leave requests are ready for approval!`, {
+              duration: 5000,
+              icon: '🔔'
+            });
+          }
+          
+          // Trigger notification refresh
+          window.dispatchEvent(new Event('refresh-notifications'));
+        }
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);
@@ -198,6 +244,8 @@ const LeaveManagement = () => {
       fetchPreviousLeaves(student._id);
     }
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">

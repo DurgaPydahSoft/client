@@ -95,17 +95,16 @@ const PrincipalDashboard = () => {
   useEffect(() => {
     const fetchNotificationCount = async () => {
       try {
-        console.log('🔔 Temporarily disabled notification fetching for testing');
+        console.log('🔔 Fetching notification count for principal');
         
-        // Temporarily disable notification API calls
-        setNotificationCount(0);
-        
-        // const response = await api.get('/api/notifications/count');
-        // if (response.data.success) {
-        //   setNotificationCount(response.data.count);
-        // }
+        const response = await api.get('/api/notifications/principal/count');
+        if (response.data.success) {
+          setNotificationCount(response.data.count);
+          console.log('🔔 Principal notification count:', response.data.count);
+        }
       } catch (error) {
         console.error('Error fetching notification count:', error);
+        // Don't set count to 0 on error, keep previous count
       }
     };
 
@@ -165,14 +164,14 @@ const PrincipalDashboard = () => {
       locked: false
     },
     {
-      name: 'Leave Management',
+      name: 'Leaves',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       path: '/principal/dashboard/leave-management',
       show: true,
       locked: false
     },
     {
-      name: 'Stay in Hostel Requests',
+      name: 'Stay in Requests',
       icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2 M12 12v3 M12 12a2 2 0 100-4 2 2 0 000 4z',
       path: '/principal/dashboard/stay-in-hostel-requests',
       show: true,
