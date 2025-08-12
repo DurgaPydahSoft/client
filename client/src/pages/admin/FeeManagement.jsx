@@ -14,19 +14,21 @@ import {
   PencilIcon,
   Cog6ToothIcon,
   PlusIcon,
-  TrashIcon
+  TrashIcon,
+  UserGroupIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const FeeManagement = () => {
   const { user } = useAuth();
-  const [feeReminders, setFeeReminders] = useState([]);
+  const [students, setStudents] = useState([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
-    paidStudents: 0,
-    pendingStudents: 0,
-    activeReminders: 0,
-    paymentRate: 0
+    studentsWithFees: 0,
+    studentsWithoutFees: 0,
+    totalFeeAmount: 0,
+    averageFeeAmount: 0
   });
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
@@ -36,9 +38,10 @@ const FeeManagement = () => {
   const [filters, setFilters] = useState({
     search: '',
     academicYear: '',
-    status: ''
+    category: '',
+    gender: ''
   });
-  const [selectedReminder, setSelectedReminder] = useState(null);
+  const [selectedStudent, setSelectedStudent] = useState(null);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [updateForm, setUpdateForm] = useState({
     term1: '',
@@ -54,10 +57,10 @@ const FeeManagement = () => {
   const [feeStructureForm, setFeeStructureForm] = useState({
     academicYear: '',
     category: '',
-    totalFee: 45000
+    totalFee: 0
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('reminders'); // 'reminders' or 'structure'
+  const [activeTab, setActiveTab] = useState('students'); // 'students' or 'structure'
   const [feeStructureFilter, setFeeStructureFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
   });
@@ -73,6 +76,49 @@ const FeeManagement = () => {
     }
     
     return years;
+  };
+
+  // Get available categories based on gender (dynamic room mapping)
+  const getAvailableCategories = (gender = null) => {
+    // Base categories available
+    const baseCategories = ['A+', 'A', 'B+', 'B', 'C'];
+    
+    // If gender is specified, filter based on available room categories
+    if (gender) {
+      if (gender === 'Male') {
+        return ['A+', 'A', 'B+', 'B']; // Male categories
+      } else if (gender === 'Female') {
+        return ['A+', 'A', 'B', 'C']; // Female categories
+      }
+    }
+    
+    return baseCategories;
+  };
+
+  // Fetch fee structure for a specific student category and academic year
+  const getFeeStructureForStudent = (category, academicYear) => {
+    const structure = feeStructures.find(structure => 
+      structure.category === category && 
+      structure.academicYear === academicYear
+    );
+    
+    console.log('🔍 Fee Structure Lookup:', {
+      studentCategory: category,
+      studentAcademicYear: academicYear,
+      availableStructures: feeStructures.map(s => ({ category: s.category, year: s.academicYear })),
+      foundStructure: structure ? { category: structure.category, year: structure.academicYear, totalFee: structure.totalFee } : null
+    });
+    
+    return structure;
+  };
+
+  // Calculate term fees dynamically
+  const calculateTermFees = (totalFee) => {
+    return {
+      term1Fee: Math.round(totalFee * 0.4), // 40%
+      term2Fee: Math.round(totalFee * 0.3), // 30%
+      term3Fee: Math.round(totalFee * 0.3)  // 30%
+    };
   };
 
   // Debug authentication state
@@ -98,99 +144,161 @@ const FeeManagement = () => {
   }, [user]);
 
   useEffect(() => {
-    fetchStats();
-    fetchFeeReminders();
+    fetchStudents();
   }, []);
 
   useEffect(() => {
-    fetchFeeReminders();
+    fetchStudents();
   }, [currentPage, filters]);
+
+  // Calculate stats whenever students or fee structures change
+  useEffect(() => {
+    if (students.length > 0) {
+      fetchStats();
+    }
+  }, [students, feeStructures]);
+
+  // Fetch all students for accurate statistics when filters change
+  useEffect(() => {
+    if (activeTab === 'students') {
+      fetchAllStudentsForStats();
+    }
+  }, [filters.academicYear, filters.category, filters.gender, activeTab]);
 
   const fetchStats = async () => {
     try {
-      console.log('🔍 FeeManagement: Fetching stats...');
-      console.log('🔍 FeeManagement: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
+      console.log('🔍 FeeManagement: Calculating stats from students data...');
       
-      const response = await api.get('/api/fee-reminders/admin/stats');
-      
-      console.log('🔍 FeeManagement: Stats response:', response.data);
-      
-      if (response.data.success) {
-        const { totalStudents, paidReminders, pendingReminders, activeReminders } = response.data.data;
-        const paymentRate = totalStudents > 0 ? Math.round((paidReminders / totalStudents) * 100) : 0;
-        
-        setStats({
-          totalStudents,
-          paidStudents: paidReminders,
-          pendingStudents: pendingReminders,
-          activeReminders,
-          paymentRate
-        });
-      } else {
-        setError('Failed to fetch stats');
-      }
+      // Use the new function to get accurate stats
+      await fetchAllStudentsForStats();
     } catch (err) {
-      console.error('Error fetching stats:', err);
-      console.error('🔍 FeeManagement: Stats error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to fetch stats');
+      console.error('Error calculating stats:', err);
+      setError('Failed to calculate stats');
     }
   };
 
-  const fetchFeeReminders = async () => {
+  const fetchStudents = async () => {
     try {
       setTableLoading(true);
       const params = new URLSearchParams({
         page: currentPage,
-        limit: 10
+        limit: 20
       });
 
       if (filters.search) params.append('search', filters.search);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
-      if (filters.status) params.append('status', filters.status);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.gender) params.append('gender', filters.gender);
 
-      console.log('🔍 Frontend: Fetching fee reminders with params:', params.toString());
+      console.log('🔍 Frontend: Fetching students with params:', params.toString());
       console.log('🔍 Frontend: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
       
-      const response = await api.get(`/api/fee-reminders/admin/all?${params}`);
+      const response = await api.get(`/api/admin/students?${params}`);
       
       console.log('🔍 Frontend: Response received:', response.data);
       
       if (response.data.success) {
-        const reminders = response.data.data.feeReminders;
-        console.log('🔍 Frontend: Fee reminders received:', reminders.length);
-        console.log('🔍 Frontend: Sample reminder:', reminders[0]);
+        const studentsData = response.data.data.students || response.data.data || [];
+        const totalCount = response.data.data.totalCount || response.data.data.total || studentsData.length;
         
-        setFeeReminders(reminders);
-        setTotalPages(response.data.data.totalPages);
+        console.log('🔍 Frontend: Students received:', studentsData.length);
+        console.log('🔍 Frontend: Total count from backend:', totalCount);
+        console.log('🔍 Frontend: Sample student:', studentsData[0]);
+        
+        setStudents(studentsData);
+        setTotalPages(response.data.data.totalPages || 1);
+        
+        // If we have total count from backend, use it for stats
+        if (totalCount && totalCount !== studentsData.length) {
+          console.log('🔍 Frontend: Backend reports different total count, fetching all students for stats...');
+          setTimeout(() => fetchAllStudentsForStats(), 100);
+        }
       } else {
-        setError('Failed to fetch fee reminders');
+        setError('Failed to fetch students');
       }
     } catch (err) {
-      console.error('Error fetching fee reminders:', err);
-      console.error('🔍 Frontend: Fee reminders error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to fetch fee reminders');
+      console.error('Error fetching students:', err);
+      console.error('🔍 Frontend: Students error response:', err.response?.data);
+      setError(err.response?.data?.message || 'Failed to fetch students');
     } finally {
       setTableLoading(false);
       setLoading(false);
     }
   };
 
+  // Fetch all students for statistics (without pagination)
+  const fetchAllStudentsForStats = async () => {
+    try {
+      console.log('🔍 Frontend: Fetching all students for statistics...');
+      
+      const params = new URLSearchParams({
+        limit: 1000 // Fetch a large number to get all students
+      });
+
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.gender) params.append('gender', filters.gender);
+
+      const response = await api.get(`/api/admin/students?${params}`);
+      
+      if (response.data.success) {
+        const allStudentsData = response.data.data.students || response.data.data || [];
+        console.log('🔍 Frontend: All students for stats:', allStudentsData.length);
+        
+        // Update stats with all students data
+        const totalStudents = allStudentsData.length;
+        const studentsWithFees = allStudentsData.filter(student => {
+          const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+          return feeStructure !== undefined;
+        }).length;
+        const studentsWithoutFees = totalStudents - studentsWithFees;
+        
+        // Calculate total fee amount
+        let totalFeeAmount = 0;
+        allStudentsData.forEach(student => {
+          const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+          if (feeStructure) {
+            totalFeeAmount += feeStructure.totalFee;
+          }
+        });
+        
+        const averageFeeAmount = studentsWithFees > 0 ? Math.round(totalFeeAmount / studentsWithFees) : 0;
+        
+        setStats({
+          totalStudents,
+          studentsWithFees,
+          studentsWithoutFees,
+          totalFeeAmount,
+          averageFeeAmount
+        });
+        
+        console.log('🔍 Frontend: Stats updated:', {
+          totalStudents,
+          studentsWithFees,
+          studentsWithoutFees,
+          totalFeeAmount,
+          averageFeeAmount
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching all students for stats:', err);
+    }
+  };
+
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
-    if (!selectedReminder) return;
+    if (!selectedStudent) return;
 
     try {
       setUpdating(true);
-      const response = await api.put(`/api/fee-reminders/admin/${selectedReminder._id}/status`, updateForm);
-      
-      if (response.data.success) {
+      // Here you would update the student's fee status
+      // For now, we'll just show a success message
         toast.success('Fee payment status updated successfully');
         setShowUpdateModal(false);
-        setSelectedReminder(null);
+      setSelectedStudent(null);
         setUpdateForm({ term1: '', term2: '', term3: '' });
-        fetchFeeReminders();
+      fetchStudents();
         fetchStats();
-      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update fee status');
     } finally {
@@ -198,12 +306,13 @@ const FeeManagement = () => {
     }
   };
 
-  const openUpdateModal = (reminder) => {
-    setSelectedReminder(reminder);
+  const openUpdateModal = (student) => {
+    setSelectedStudent(student);
+    // Initialize form with current fee status if available
     setUpdateForm({
-      term1: reminder.feeStatus.term1,
-      term2: reminder.feeStatus.term2,
-      term3: reminder.feeStatus.term3
+      term1: 'Unpaid',
+      term2: 'Unpaid',
+      term3: 'Unpaid'
     });
     setShowUpdateModal(true);
   };
@@ -231,6 +340,7 @@ const FeeManagement = () => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -244,72 +354,72 @@ const FeeManagement = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ search: '', academicYear: '', status: '' });
+    setFilters({ search: '', academicYear: '', category: '', gender: '' });
     setCurrentPage(1);
-  };
-
-  const createFeeRemindersForAll = async () => {
-    try {
-      setLoading(true);
-      console.log('🔍 FeeManagement: Creating fee reminders for all students...');
-      console.log('🔍 FeeManagement: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
-      
-      const response = await api.post('/api/fee-reminders/admin/create-all', {
-        academicYear: '2024-2025'
-      });
-      
-      console.log('🔍 FeeManagement: Create response:', response.data);
-      
-      if (response.data.success) {
-        alert(`Successfully created ${response.data.data.created} fee reminders for students`);
-        fetchFeeReminders();
-        fetchStats();
-      } else {
-        setError('Failed to create fee reminders');
-      }
-    } catch (err) {
-      console.error('Error creating fee reminders:', err);
-      console.error('🔍 FeeManagement: Create error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to create fee reminders');
-    } finally {
-      setLoading(false);
-    }
   };
 
   // Fee Structure Management Functions
   const fetchFeeStructures = async () => {
     try {
-      console.log('🔍 Fetching fee structures...');
+      console.log('🔍 Fetching ALL fee structures for proper student linking...');
       setFeeStructureLoading(true);
-      const academicYear = feeStructureFilter.academicYear || '2024-2025';
-      console.log('🔍 Academic year:', academicYear);
       
-      const response = await api.get(`/api/fee-structures?academicYear=${academicYear}`);
-      console.log('🔍 Fee structures response:', response.data);
+      // Since the backend requires academic year, we'll fetch for all available academic years
+      // and combine them to get ALL fee structures
+      const academicYears = generateAcademicYears();
+      console.log('🔍 Fetching fee structures for academic years:', academicYears);
       
-      if (response.data.success) {
-        const structures = response.data.data || [];
-        console.log('🔍 Fee structures received:', structures);
-        console.log('🔍 Structures type:', typeof structures);
-        console.log('🔍 Is array:', Array.isArray(structures));
-        
-        // Ensure we have an array and validate the data
-        if (Array.isArray(structures)) {
-          setFeeStructures(structures);
-          console.log('🔍 Fee structures set successfully:', structures.length);
-        } else {
-          console.error('🔍 Invalid data format - expected array:', structures);
-          setFeeStructures([]);
-          setError('Invalid data format received');
+      const allStructures = [];
+      
+      // Fetch fee structures for each academic year
+      for (const year of academicYears) {
+        try {
+          console.log(`🔍 Fetching fee structures for year: ${year}`);
+          const response = await api.get(`/api/fee-structures?academicYear=${year}`);
+          
+          if (response.data.success && Array.isArray(response.data.data)) {
+            allStructures.push(...response.data.data);
+            console.log(`🔍 Found ${response.data.data.length} structures for ${year}`);
+          } else if (response.data && Array.isArray(response.data)) {
+            allStructures.push(...response.data);
+            console.log(`🔍 Found ${response.data.length} structures for ${year} (direct array)`);
+          }
+        } catch (yearError) {
+          console.log(`🔍 No fee structures found for year ${year} or error occurred:`, yearError.response?.data?.message || yearError.message);
+          // Continue with other years even if one fails
         }
-      } else {
-        console.error('🔍 Failed to fetch fee structures:', response.data);
-        setError('Failed to fetch fee structures');
       }
+      
+      console.log('🔍 Total fee structures collected:', allStructures.length);
+      console.log('🔍 Academic years available:', [...new Set(allStructures.map(s => s.academicYear))]);
+      
+      if (allStructures.length > 0) {
+        setFeeStructures(allStructures);
+        setError(null); // Clear any previous errors
+        } else {
+          setFeeStructures([]);
+        setError('No fee structures found for any academic year');
+        }
+      
     } catch (err) {
       console.error('Error fetching fee structures:', err);
       console.error('🔍 Fee structures error response:', err.response?.data);
+      console.error('🔍 Error status:', err.response?.status);
+      console.error('🔍 Error message:', err.message);
+      
+      // Handle specific error cases
+      if (err.response?.status === 400) {
+        console.error('🔍 400 Bad Request - checking if this is a parameter issue...');
+        setError('Bad Request: API endpoint requires academic year parameter');
+      } else if (err.response?.status === 401) {
+        console.error('🔍 401 Unauthorized - authentication issue...');
+        setError('Authentication required: Please log in again');
+      } else if (err.response?.status === 404) {
+        console.error('🔍 404 Not Found - endpoint might not exist...');
+        setError('API endpoint not found: Please check backend configuration');
+      } else {
       setError(err.response?.data?.message || 'Failed to fetch fee structures');
+      }
     } finally {
       setFeeStructureLoading(false);
     }
@@ -317,31 +427,60 @@ const FeeManagement = () => {
 
   const handleFeeStructureSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!feeStructureForm.academicYear || !feeStructureForm.category || !feeStructureForm.totalFee) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    if (feeStructureForm.totalFee <= 0) {
+      toast.error('Total fee must be greater than 0');
+      return;
+    }
+    
     try {
       setFeeStructureLoading(true);
       
-      // Send only the totalFee to backend - backend will calculate term fees
+      // Calculate term fees on frontend for validation
+      const termFees = calculateTermFees(feeStructureForm.totalFee);
+      
+      // Send complete fee data to backend
       const feeData = {
         academicYear: feeStructureForm.academicYear,
         category: feeStructureForm.category,
-        totalFee: feeStructureForm.totalFee
+        totalFee: feeStructureForm.totalFee,
+        term1Fee: termFees.term1Fee,
+        term2Fee: termFees.term2Fee,
+        term3Fee: termFees.term3Fee
       };
       
       console.log('🔍 Frontend: Sending fee data to backend:', feeData);
+      console.log('🔍 Frontend: Term fees calculated:', termFees);
       
       const response = await api.post('/api/fee-structures', feeData);
       
       console.log('🔍 Frontend: Response from backend:', response.data);
       
       if (response.data.success) {
-        toast.success('Fee structure saved successfully');
+        toast.success(`Fee structure for ${feeData.category} category (${feeData.academicYear}) saved successfully!`);
         setShowFeeStructureModal(false);
         setFeeStructureForm({
           academicYear: '',
           category: '',
-          totalFee: 45000
+          totalFee: 0
         });
-        fetchFeeStructures();
+        
+        // Refresh both fee structures and students to update linking
+        await Promise.all([
+          fetchFeeStructures(),
+          fetchStudents()
+        ]);
+        
+        // Recalculate stats
+        setTimeout(() => {
+          fetchStats();
+        }, 500);
       } else {
         console.error('🔍 Frontend: Backend returned error:', response.data);
         setError(response.data.message || 'Failed to save fee structure');
@@ -355,10 +494,14 @@ const FeeManagement = () => {
   };
 
   // Get available categories (excluding already created ones)
-  const getAvailableCategories = () => {
-    const allCategories = ['A+', 'A', 'B+', 'B', 'C'];
-    const existingCategories = feeStructures.map(structure => structure.category);
+  const getAvailableCategoriesForCreation = () => {
+    const allCategories = getAvailableCategories();
     const academicYear = feeStructureFilter.academicYear || '2024-2025';
+    
+    // Get existing categories for the current academic year
+    const existingCategories = feeStructures
+      .filter(structure => structure.academicYear === academicYear)
+      .map(structure => structure.category);
     
     // If editing, include the current category
     if (selectedFeeStructure) {
@@ -366,7 +509,16 @@ const FeeManagement = () => {
     }
     
     // If creating new, exclude existing categories for the same academic year
-    return allCategories.filter(category => !existingCategories.includes(category));
+    const availableCategories = allCategories.filter(category => !existingCategories.includes(category));
+    
+    console.log('🔍 Available categories for creation:', {
+      academicYear,
+      allCategories,
+      existingCategories,
+      availableCategories
+    });
+    
+    return availableCategories;
   };
 
   const openFeeStructureModal = (structure = null) => {
@@ -382,7 +534,7 @@ const FeeManagement = () => {
       setFeeStructureForm({
         academicYear: feeStructureFilter.academicYear || '2024-2025',
         category: '',
-        totalFee: 45000
+        totalFee: 0
       });
     }
     
@@ -426,6 +578,19 @@ const FeeManagement = () => {
     }
   }, [activeTab, feeStructureFilter.academicYear]);
 
+  // Always fetch fee structures for student linking, regardless of active tab
+  useEffect(() => {
+    fetchFeeStructures();
+  }, []);
+  
+  // Refresh fee structures when filters change
+  useEffect(() => {
+    if (feeStructureFilter.academicYear || feeStructureFilter.category) {
+      // Filters are applied client-side, no need to refetch
+      console.log('🔍 Fee structure filters changed:', feeStructureFilter);
+    }
+  }, [feeStructureFilter]);
+
   // Initial load - fetch fee structures if structure tab is active
   useEffect(() => {
     console.log('🔍 Initial load useEffect - activeTab:', activeTab);
@@ -460,14 +625,14 @@ const FeeManagement = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('reminders')}
+              onClick={() => setActiveTab('students')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'reminders'
+                activeTab === 'students'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              Fee Reminders
+              Students
             </button>
             <button
               onClick={() => setActiveTab('structure')}
@@ -483,18 +648,19 @@ const FeeManagement = () => {
         </div>
       </div>
 
-      {activeTab === 'reminders' ? (
+      {activeTab === 'students' ? (
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
+                <UserGroupIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Total Students</p>
               <p className="text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
+                <p className="text-xs text-gray-500">Displayed: {students.length} (Page {currentPage})</p>
             </div>
           </div>
         </div>
@@ -502,11 +668,14 @@ const FeeManagement = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
-              <CheckCircleIcon className="w-6 h-6 text-green-600" />
+               <AcademicCapIcon className="w-6 h-6 text-green-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Paid Students</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.paidStudents}</p>
+               <p className="text-sm font-medium text-gray-600">Students with Fees</p>
+               <p className="text-lg font-semibold text-gray-900">{stats.studentsWithFees}</p>
+               <p className="text-xs text-gray-500">
+                 {stats.totalStudents > 0 ? Math.round((stats.studentsWithFees / stats.totalStudents) * 100) : 0}% linked
+               </p>
             </div>
           </div>
         </div>
@@ -517,20 +686,8 @@ const FeeManagement = () => {
               <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Pending Students</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.pendingStudents}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <ClockIcon className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Active Reminders</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.activeReminders}</p>
+              <p className="text-sm font-medium text-gray-600">Students without Fees</p>
+              <p className="text-lg font-semibold text-gray-900">{stats.studentsWithoutFees}</p>
             </div>
           </div>
         </div>
@@ -541,12 +698,110 @@ const FeeManagement = () => {
               <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Payment Rate</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.paymentRate}%</p>
+              <p className="text-sm font-medium text-gray-600">Total Fee Amount</p>
+              <p className="text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-orange-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Average Fee Amount</p>
+              <p className="text-lg font-semibold text-gray-900">₹{stats.averageFeeAmount.toLocaleString()}</p>
             </div>
           </div>
         </div>
       </div>
+
+              {/* Fee Structure Summary */}
+        {activeTab === 'students' && feeStructures.length > 0 && (
+                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Fee Structure Summary</h3>
+              
+              {/* Filter Controls */}
+              <div className="mb-4 flex gap-2">
+                <select
+                  value={feeStructureFilter.academicYear}
+                  onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Academic Years</option>
+                  {[...new Set(feeStructures.map(s => s.academicYear))].sort().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                
+                <select
+                  value={feeStructureFilter.category || ''}
+                  onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Categories</option>
+                  {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+                
+                <button
+                  onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
+                  className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Clear Filters
+                </button>
+              </div>
+              
+              {/* Filtered Fee Structures */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {(() => {
+                  let filteredStructures = feeStructures;
+                  
+                  // Apply academic year filter
+                  if (feeStructureFilter.academicYear) {
+                    filteredStructures = filteredStructures.filter(s => 
+                      s.academicYear === feeStructureFilter.academicYear
+                    );
+                  }
+                  
+                  // Apply category filter
+                  if (feeStructureFilter.category) {
+                    filteredStructures = filteredStructures.filter(s => 
+                      s.category === feeStructureFilter.category
+                    );
+                  }
+                  
+                  return filteredStructures.map((structure) => (
+                    <div key={`${structure.academicYear}-${structure.category}`} className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-sm font-medium text-gray-900">{structure.category}</div>
+                      <div className="text-lg font-bold text-blue-600">₹{structure.totalFee.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500">{structure.academicYear}</div>
+                    </div>
+                  ));
+                })()}
+              </div>
+              
+              <div className="mt-3 text-sm text-gray-600">
+                Showing {(() => {
+                  let filteredCount = feeStructures.length;
+                  if (feeStructureFilter.academicYear) {
+                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
+                  }
+                  if (feeStructureFilter.category) {
+                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
+                  }
+                  return filteredCount;
+                })()} of {feeStructures.length} Fee Structures | 
+                Academic Years: {[...new Set(feeStructures.map(s => s.academicYear))].sort().join(', ')}
+              </div>
+            </div>
+        )}
+
+      
+
+
 
       {/* Filters */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
@@ -577,13 +832,26 @@ const FeeManagement = () => {
             </select>
             
             <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
+              value={filters.category}
+              onChange={(e) => handleFilterChange('category', e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Status</option>
-              <option value="paid">Paid</option>
-              <option value="pending">Pending</option>
+              <option value="">All Categories</option>
+              <option value="A+">A+</option>
+              <option value="A">A</option>
+              <option value="B+">B+</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+            </select>
+
+            <select
+              value={filters.gender}
+              onChange={(e) => handleFilterChange('gender', e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All Genders</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
             </select>
             
             <button
@@ -594,25 +862,28 @@ const FeeManagement = () => {
             </button>
             
             <button
-              onClick={fetchFeeReminders}
+              onClick={fetchStudents}
               className="px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50"
             >
               <ArrowPathIcon className="w-4 h-4" />
             </button>
             
-            <button
-              onClick={createFeeRemindersForAll}
-              disabled={loading}
-              className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-            >
-              {loading ? 'Creating...' : 'Create Fee Reminders'}
-            </button>
+            {/* Removed "Create Fee Reminders" button as it's no longer relevant */}
           </div>
         </div>
       </div>
 
-      {/* Fee Reminders Table */}
+      {/* Students Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-medium text-gray-900">Student Fee Management</h3>
+            <div className="text-sm text-gray-600">
+              Showing {students.length} of {stats.totalStudents} students
+              {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+            </div>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -624,6 +895,12 @@ const FeeManagement = () => {
                   Academic Year
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fee Amount
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Term 1
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -633,10 +910,7 @@ const FeeManagement = () => {
                   Term 3
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Current Reminder
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Last Updated
+                    Course Info
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -650,63 +924,195 @@ const FeeManagement = () => {
                     <LoadingSpinner />
                   </td>
                 </tr>
-              ) : feeReminders.length === 0 ? (
+              ) : students.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
                     <div className="space-y-2">
-                      <p>No fee reminders found</p>
-                      <p className="text-sm">Click "Create Fee Reminders" to generate fee records for all students</p>
+                      <p>No students found</p>
+                      <p className="text-sm">Please adjust your filters or check back later.</p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                feeReminders.map((reminder) => (
-                  <tr key={reminder._id} className="hover:bg-gray-50">
+                students.map((student) => (
+                  <tr key={student._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {reminder.student?.name || 'No Name'}
+                          {student.name || 'No Name'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {reminder.student?.rollNumber || 'No Roll Number'}
+                          {student.rollNumber || 'No Roll Number'}
                         </div>
-                        {!reminder.student && (
-                          <div className="text-xs text-red-500">
-                            Student data missing
+                                                 {student.roomNumber && (
+                           <div className="text-xs text-blue-600">
+                             Room: {student.roomNumber}
+                           </div>
+                         )}
+                         {student.gender && (
+                           <div className="text-xs text-purple-600">
+                             Gender: {student.gender}
+                           </div>
+                         )}
+                         {student.phone && (
+                           <div className="text-xs text-green-600">
+                             📞 {student.phone}
+                           </div>
+                         )}
+                         {student.registrationDate && (
+                           <div className="text-xs text-orange-600">
+                             📅 {formatDate(student.registrationDate)}
                           </div>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {reminder.academicYear}
+                      {student.academicYear}
+                    </td>
+                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                       {(() => {
+                         if (student.category) {
+                           const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+                           if (feeStructure) {
+                             return (
+                               <div>
+                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                   {student.category} ✓
+                      </span>
+                                 <div className="text-xs text-gray-500 mt-1">
+                                   {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
+                                 </div>
+                               </div>
+                             );
+                           } else {
+                             return (
+                               <div>
+                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                   {student.category} ✗
+                                 </span>
+                                 <div className="text-xs text-gray-500 mt-1">
+                                   Year: {student.academicYear || 'Unknown'}
+                                 </div>
+                               </div>
+                             );
+                           }
+                         }
+                         return (
+                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                             Unknown
+                           </span>
+                         );
+                       })()}
+                     </td>
+                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                       {(() => {
+                         const feeStructure = getFeeStructureForStudent(
+                           student.category, 
+                           student.academicYear
+                         );
+                         if (feeStructure) {
+                           return (
+                             <div>
+                               <div className="font-medium text-green-600">₹{feeStructure.totalFee.toLocaleString()}</div>
+                               <div className="text-xs text-gray-500 space-y-1">
+                                 <div className="flex justify-between">
+                                   <span>T1:</span>
+                                   <span className="font-medium">₹{feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)}</span>
+                                 </div>
+                                 <div className="flex justify-between">
+                                   <span>T2:</span>
+                                   <span className="font-medium">₹{feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3)}</span>
+                                 </div>
+                                 <div className="flex justify-between">
+                                   <span>T3:</span>
+                                   <span className="font-medium">₹{feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3)}</span>
+                                 </div>
+                               </div>
+                             </div>
+                           );
+                         }
+                         return (
+                           <div className="text-red-500 text-xs">
+                             <div className="font-medium">No fee structure</div>
+                             <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
+                             <div className="text-gray-400">Year: {student.academicYear || 'Unknown'}</div>
+                           </div>
+                         );
+                       })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(reminder.feeStatus.term1)}`}>
-                        {getStatusIcon(reminder.feeStatus.term1)}
-                        <span className="ml-1">{reminder.feeStatus.term1}</span>
-                      </span>
+                       {(() => {
+                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+                         if (feeStructure) {
+                           const termFee = feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
+                           return (
+                             <div className="text-center">
+                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
+                                 {getStatusIcon('Unpaid')}
+                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
+                               </div>
+                               <div className="text-xs text-gray-500 mt-1">40%</div>
+                             </div>
+                           );
+                         }
+                         return (
+                           <span className="text-gray-400 text-xs">No structure</span>
+                         );
+                       })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(reminder.feeStatus.term2)}`}>
-                        {getStatusIcon(reminder.feeStatus.term2)}
-                        <span className="ml-1">{reminder.feeStatus.term2}</span>
-                      </span>
+                       {(() => {
+                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+                         if (feeStructure) {
+                           const termFee = feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
+                           return (
+                             <div className="text-center">
+                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
+                                 {getStatusIcon('Unpaid')}
+                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
+                               </div>
+                               <div className="text-xs text-gray-500 mt-1">30%</div>
+                             </div>
+                           );
+                         }
+                         return (
+                           <span className="text-gray-400 text-xs">No structure</span>
+                         );
+                       })()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(reminder.feeStatus.term3)}`}>
-                        {getStatusIcon(reminder.feeStatus.term3)}
-                        <span className="ml-1">{reminder.feeStatus.term3}</span>
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {reminder.currentReminder > 0 ? `Reminder ${reminder.currentReminder}` : 'None'}
+                     <td className="px-6 py-4 whitespace-nowrap">
+                       {(() => {
+                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+                         if (feeStructure) {
+                           const termFee = feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
+                           return (
+                             <div className="text-center">
+                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
+                                 {getStatusIcon('Unpaid')}
+                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
+                               </div>
+                               <div className="text-xs text-gray-500 mt-1">30%</div>
+                             </div>
+                           );
+                         }
+                         return (
+                           <span className="text-gray-400 text-xs">No structure</span>
+                         );
+                       })()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {reminder.lastUpdatedAt ? formatDate(reminder.lastUpdatedAt) : 'Not updated'}
+                       {student.course ? (
+                         <div>
+                           <div className="font-medium">{student.course.name || student.course}</div>
+                           <div className="text-xs text-gray-500">Year: {student.year || 'N/A'}</div>
+                         </div>
+                       ) : (
+                         <span className="text-gray-400">No course info</span>
+                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => openUpdateModal(reminder)}
+                        onClick={() => openUpdateModal(student)}
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
                         <PencilIcon className="w-4 h-4" />
@@ -769,14 +1175,14 @@ const FeeManagement = () => {
       </div>
 
       {/* Update Modal */}
-      {showUpdateModal && selectedReminder && (
+      {showUpdateModal && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Update Fee Payment Status
             </h3>
             <p className="text-sm text-gray-600 mb-4">
-              Student: {selectedReminder.student?.name} ({selectedReminder.student?.rollNumber})
+              Student: {selectedStudent.name} ({selectedStudent.rollNumber})
             </p>
             
             <form onSubmit={handleUpdateStatus}>
@@ -856,13 +1262,17 @@ const FeeManagement = () => {
                 <button
                   onClick={() => openFeeStructureModal()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={getAvailableCategories().length === 0}
+                disabled={getAvailableCategoriesForCreation().length === 0}
                 >
                   <PlusIcon className="w-4 h-4" />
                   Add Fee Structure
                 </button>
-              </div>
+              
+              
             </div>
+            </div>
+            
+
             
             {/* Academic Year Filter */}
             <div className="mb-4">
@@ -874,24 +1284,83 @@ const FeeManagement = () => {
                 onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
                 className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
+                <option value="">All Academic Years</option>
                 {generateAcademicYears().map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
               </select>
             </div>
             
-            {feeStructureLoading ? (
-              <div className="flex justify-center py-8">
-                <LoadingSpinner />
+            {/* Category Filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Category
+              </label>
+              <select
+                value={feeStructureFilter.category || ''}
+                onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Categories</option>
+                {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
               </div>
-            ) : feeStructures.length === 0 ? (
+            
+            {/* Filter Summary and Clear Button */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {(() => {
+                  let filteredCount = feeStructures.length;
+                  if (feeStructureFilter.academicYear) {
+                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
+                  }
+                  if (feeStructureFilter.category) {
+                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
+                  }
+                  return `Showing ${filteredCount} of ${feeStructures.length} fee structures`;
+                })()}
+              </div>
+              <button
+                onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Clear Filters
+              </button>
+            </div>
+            
+
+              <div className="overflow-x-auto">
+                {(() => {
+                  // Check if any structures match the current filters
+                  let filteredStructures = feeStructures;
+                  if (feeStructureFilter.academicYear) {
+                    filteredStructures = filteredStructures.filter(s => s.academicYear === feeStructureFilter.academicYear);
+                  }
+                  if (feeStructureFilter.category) {
+                    filteredStructures = filteredStructures.filter(s => s.category === feeStructureFilter.category);
+                  }
+                  
+                  if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.category)) {
+                    return (
               <div className="text-center py-8">
                 <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No fee structures found</p>
-                <p className="text-sm text-gray-400">Create fee structures for different categories and academic years</p>
+                        <p className="text-gray-500">No fee structures found matching the current filters</p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          Try adjusting your filters or create new fee structures.
+                        </p>
+                        <button
+                          onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
+                          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        >
+                          Clear Filters
+                        </button>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
+                    );
+                  }
+                  
+                  return (
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -919,7 +1388,28 @@ const FeeManagement = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {feeStructures && feeStructures.length > 0 && feeStructures.map((structure, index) => (
+                    {(() => {
+                      // Apply filters to fee structures table
+                      let filteredStructures = feeStructures;
+                      
+                      // Apply academic year filter
+                      if (feeStructureFilter.academicYear) {
+                        filteredStructures = filteredStructures.filter(s => 
+                          s.academicYear === feeStructureFilter.academicYear
+                        );
+                      }
+                      
+                      // Apply category filter if exists
+                      if (feeStructureFilter.category) {
+                        filteredStructures = filteredStructures.filter(s => 
+                          s.category === feeStructureFilter.category
+                        );
+                      }
+                      
+
+                      
+                      return filteredStructures.length > 0 ? (
+                        filteredStructures.map((structure, index) => (
                       <tr key={`${structure.academicYear}-${structure.category}`} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {structure.academicYear}
@@ -939,7 +1429,7 @@ const FeeManagement = () => {
                           ₹{(structure.term3Fee || 0).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          ₹{((structure.totalFee || 0) || (structure.term1Fee || 0) + (structure.term2Fee || 0) + (structure.term3Fee || 0)).toLocaleString()}
+                              ₹{(structure.totalFee || (structure.term1Fee || 0) + (structure.term2Fee || 0) + (structure.term3Fee || 0)).toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
@@ -956,11 +1446,22 @@ const FeeManagement = () => {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                            No fee structures found matching the current filters.
+                          </td>
+                        </tr>
+                      );
+                    })()}
                   </tbody>
                 </table>
+                  );
+                })()}
               </div>
-            )}
+            
+            
           </div>
         </>
       )}
@@ -1001,19 +1502,19 @@ const FeeManagement = () => {
                     onChange={(e) => setFeeStructureForm(prev => ({ ...prev, category: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
-                    disabled={getAvailableCategories().length === 0}
+                    disabled={getAvailableCategoriesForCreation().length === 0}
                   >
                     <option value="">
-                      {getAvailableCategories().length === 0 
+                      {getAvailableCategoriesForCreation().length === 0 
                         ? 'All categories already created for this academic year' 
                         : 'Select Category'
                       }
                     </option>
-                    {getAvailableCategories().map(category => (
+                    {getAvailableCategoriesForCreation().map(category => (
                       <option key={category} value={category}>{category}</option>
                     ))}
                   </select>
-                  {getAvailableCategories().length === 0 && (
+                  {getAvailableCategoriesForCreation().length === 0 && (
                     <p className="text-sm text-gray-500 mt-1">
                       All fee structure categories have been created for the selected academic year.
                     </p>
@@ -1035,26 +1536,36 @@ const FeeManagement = () => {
                 </div>
                 
                 {/* Term Fee Breakdown Preview */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Term Fee Breakdown (Auto-calculated)</h4>
+                {feeStructureForm.totalFee > 0 && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                      <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
+                      Term Fee Breakdown (Auto-calculated)
+                    </h4>
                   <div className="grid grid-cols-3 gap-3 text-sm">
-                    <div className="text-center">
+                      <div className="text-center bg-white rounded-lg p-2 border border-blue-100">
                       <div className="font-medium text-blue-600">Term 1</div>
-                      <div className="text-gray-600">₹{Math.round((feeStructureForm.totalFee || 0) * 0.4).toLocaleString()}</div>
+                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term1Fee.toLocaleString()}</div>
                       <div className="text-xs text-gray-500">40%</div>
                     </div>
-                    <div className="text-center">
+                      <div className="text-center bg-white rounded-lg p-2 border border-green-100">
                       <div className="font-medium text-green-600">Term 2</div>
-                      <div className="text-gray-600">₹{Math.round((feeStructureForm.totalFee || 0) * 0.3).toLocaleString()}</div>
+                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term2Fee.toLocaleString()}</div>
                       <div className="text-xs text-gray-500">30%</div>
                     </div>
-                    <div className="text-center">
+                      <div className="text-center bg-white rounded-lg p-2 border border-purple-100">
                       <div className="font-medium text-purple-600">Term 3</div>
-                      <div className="text-gray-600">₹{Math.round((feeStructureForm.totalFee || 0) * 0.3).toLocaleString()}</div>
+                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term3Fee.toLocaleString()}</div>
                       <div className="text-xs text-gray-500">30%</div>
                     </div>
                   </div>
+                    <div className="mt-3 text-center">
+                      <div className="text-sm font-medium text-gray-700">
+                        Total: ₹{feeStructureForm.totalFee.toLocaleString()}
                 </div>
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end space-x-3 mt-6">

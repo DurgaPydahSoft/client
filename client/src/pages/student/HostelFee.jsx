@@ -10,27 +10,49 @@ import {
   CalendarIcon,
   DocumentTextIcon,
   BellIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  InformationCircleIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const HostelFee = () => {
   const { user } = useAuth();
   const [feeData, setFeeData] = useState(null);
+  const [feeStructure, setFeeStructure] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchFeeData();
-  }, []);
+  }, [refreshKey]);
 
   const fetchFeeData = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/api/fee-reminders/student/${user._id}`);
+      setError(null);
       
-      if (response.data.success) {
-        setFeeData(response.data.data);
+      // Fetch fee reminder data and fee structure in parallel
+      const [feeResponse, structureResponse] = await Promise.all([
+        api.get(`/api/fee-reminders/student/${user._id}`),
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}`)
+      ]);
+      
+      if (feeResponse.data.success) {
+        setFeeData(feeResponse.data.data);
+        
+        // Find fee structure for student's category
+        if (structureResponse.data.success && structureResponse.data.data) {
+          const studentStructure = structureResponse.data.data.find(
+            structure => structure.category === user.category
+          );
+          setFeeStructure(studentStructure);
+          
+          if (!studentStructure) {
+            console.warn(`No fee structure found for category: ${user.category} and academic year: ${user.academicYear}`);
+          }
+        }
       } else {
         setError('Failed to fetch fee data');
       }
@@ -40,6 +62,65 @@ const HostelFee = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate fee amounts dynamically
+  const calculateFeeAmounts = () => {
+    if (!feeStructure || !feeData?.feeReminder) return { totalFee: 0, paidAmount: 0, pendingAmount: 0 };
+    
+    const { totalFee, term1Fee, term2Fee, term3Fee } = feeStructure;
+    const { feeStatus } = feeData.feeReminder;
+    
+    const paidAmount = [
+      feeStatus.term1 === 'Paid' ? (term1Fee || Math.round(totalFee * 0.4)) : 0,
+      feeStatus.term2 === 'Paid' ? (term2Fee || Math.round(totalFee * 0.3)) : 0,
+      feeStatus.term3 === 'Paid' ? (term3Fee || Math.round(totalFee * 0.3)) : 0
+    ].reduce((sum, amount) => sum + amount, 0);
+    
+    const pendingAmount = [
+      feeStatus.term1 === 'Unpaid' ? (term1Fee || Math.round(totalFee * 0.4)) : 0,
+      feeStatus.term2 === 'Unpaid' ? (term2Fee || Math.round(totalFee * 0.3)) : 0,
+      feeStatus.term3 === 'Unpaid' ? (term3Fee || Math.round(totalFee * 0.3)) : 0
+    ].reduce((sum, amount) => sum + amount, 0);
+    
+    return { totalFee, paidAmount, pendingAmount };
+  };
+
+  // Get term fee amount
+  const getTermFee = (term) => {
+    if (!feeStructure) return 0;
+    
+    switch (term) {
+      case 'term1':
+        return feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
+      case 'term2':
+        return feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
+      case 'term3':
+        return feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
+      default:
+        return 0;
+    }
+  };
+
+  // Get term status with amount
+  const getTermStatus = (term) => {
+    if (!feeData?.feeReminder) return { status: 'Unknown', amount: 0 };
+    
+    const status = feeData.feeReminder.feeStatus[term];
+    const amount = getTermFee(term);
+    
+    return { status, amount };
+  };
+
+  // Calculate payment progress percentage
+  const calculatePaymentProgress = () => {
+    if (!feeStructure || !feeData?.feeReminder) return 0;
+    
+    const { feeStatus } = feeData.feeReminder;
+    const paidTerms = [feeStatus.term1, feeStatus.term2, feeStatus.term3]
+      .filter(status => status === 'Paid').length;
+    
+    return Math.round((paidTerms / 3) * 100);
   };
 
   const getStatusColor = (status) => {
@@ -65,6 +146,7 @@ const HostelFee = () => {
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -84,6 +166,11 @@ const HostelFee = () => {
     return 'active';
   };
 
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+    toast.success('Refreshing fee data...');
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -100,12 +187,20 @@ const HostelFee = () => {
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mr-2" />
             <span className="text-red-800">{error}</span>
           </div>
-          <button 
-            onClick={fetchFeeData}
-            className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
-          >
-            Try again
-          </button>
+          <div className="mt-3 flex gap-2">
+            <button 
+              onClick={handleRefresh}
+              className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={fetchFeeData}
+              className="px-3 py-2 text-red-600 hover:text-red-800 border border-red-300 rounded-lg hover:bg-red-50 text-sm"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -119,23 +214,101 @@ const HostelFee = () => {
             <DocumentTextIcon className="w-5 h-5 text-blue-600 mr-2" />
             <span className="text-blue-800">No fee data available for this academic year.</span>
           </div>
+          <button 
+            onClick={handleRefresh}
+            className="mt-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Check if fee structure exists for student's category
+  if (!feeStructure) {
+    return (
+      <div className="p-4 sm:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" />
+            <div className="flex-1">
+              <span className="text-yellow-800 font-medium">No Fee Structure Found</span>
+              <p className="text-yellow-700 text-sm mt-1">
+                No fee structure has been configured for your room category ({user.category || 'Unknown'}) 
+                and academic year ({user.academicYear || 'Unknown'}).
+              </p>
+              <div className="mt-3 p-3 bg-yellow-100 rounded-lg">
+                <p className="text-yellow-800 text-sm font-medium mb-2">What this means:</p>
+                <ul className="text-yellow-700 text-sm space-y-1">
+                  <li>• Your hostel fees have not been configured yet</li>
+                  <li>• Contact the hostel administration to set up your fee structure</li>
+                  <li>• This usually happens when you're newly assigned to a room</li>
+                </ul>
+              </div>
+              <button 
+                onClick={handleRefresh}
+                className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+              >
+                Check Again
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   const { feeReminder, visibleReminders, allTermsPaid } = feeData;
+  const { totalFee, paidAmount, pendingAmount } = calculateFeeAmounts();
+  const paymentProgress = calculatePaymentProgress();
 
   return (
     <div className="p-4 sm:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          Hostel Fee Management
-        </h1>
-        <p className="text-gray-600">
-          Track your hostel fee payments and reminders for {feeReminder.academicYear}
-        </p>
+      {/* Header with Refresh Button */}
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            Hostel Fee Management
+          </h1>
+          <p className="text-gray-600">
+            Track your hostel fee payments and reminders for {feeReminder.academicYear}
+          </p>
+          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
+            <span>Room: {user.roomNumber || 'Not Assigned'}</span>
+            <span>Category: {user.category || 'Unknown'}</span>
+            <span>Academic Year: {user.academicYear || 'Unknown'}</span>
+          </div>
+        </div>
+        <button
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+        >
+          <CogIcon className="w-4 h-4" />
+          Refresh
+        </button>
+      </div>
+
+      {/* Fee Structure Information */}
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-6 mb-6">
+        <div className="flex items-center mb-4">
+          <InformationCircleIcon className="w-6 h-6 text-indigo-600 mr-2" />
+          <h2 className="text-lg font-semibold text-gray-900">Fee Structure Details</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg p-4 border border-indigo-100">
+            <div className="text-sm font-medium text-gray-600 mb-1">Room Category</div>
+            <div className="text-lg font-bold text-indigo-600">{feeStructure.category}</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 border border-indigo-100">
+            <div className="text-sm font-medium text-gray-600 mb-1">Academic Year</div>
+            <div className="text-lg font-bold text-indigo-600">{feeStructure.academicYear}</div>
+          </div>
+          <div className="bg-white rounded-lg p-4 border border-indigo-100">
+            <div className="text-sm font-medium text-gray-600 mb-1">Total Annual Fee</div>
+            <div className="text-lg font-bold text-indigo-600">₹{feeStructure.totalFee.toLocaleString()}</div>
+          </div>
+        </div>
       </div>
 
       {/* Fee Total Statistics */}
@@ -152,7 +325,7 @@ const HostelFee = () => {
               <span className="text-sm font-medium text-gray-600">Total Fee</span>
               <CurrencyDollarIcon className="w-4 h-4 text-blue-600" />
             </div>
-            <p className="text-2xl font-bold text-gray-900">₹45,000</p>
+            <p className="text-2xl font-bold text-gray-900">₹{totalFee.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Per Academic Year</p>
           </div>
 
@@ -162,11 +335,7 @@ const HostelFee = () => {
               <span className="text-sm font-medium text-gray-600">Paid Amount</span>
               <CheckCircleIcon className="w-4 h-4 text-green-600" />
             </div>
-            <p className="text-2xl font-bold text-green-600">
-              ₹{feeReminder.feeStatus.term1 === 'Paid' ? 15000 : 0 + 
-                 feeReminder.feeStatus.term2 === 'Paid' ? 15000 : 0 + 
-                 feeReminder.feeStatus.term3 === 'Paid' ? 15000 : 0}
-            </p>
+            <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Completed Payments</p>
           </div>
 
@@ -176,11 +345,7 @@ const HostelFee = () => {
               <span className="text-sm font-medium text-gray-600">Pending Amount</span>
               <ExclamationTriangleIcon className="w-4 h-4 text-orange-600" />
             </div>
-            <p className="text-2xl font-bold text-orange-600">
-              ₹{feeReminder.feeStatus.term1 === 'Unpaid' ? 15000 : 0 + 
-                 feeReminder.feeStatus.term2 === 'Unpaid' ? 15000 : 0 + 
-                 feeReminder.feeStatus.term3 === 'Unpaid' ? 15000 : 0}
-            </p>
+            <p className="text-2xl font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Outstanding Balance</p>
           </div>
 
@@ -190,59 +355,36 @@ const HostelFee = () => {
               <span className="text-sm font-medium text-gray-600">Payment Progress</span>
               <ChartBarIcon className="w-4 h-4 text-purple-600" />
             </div>
-            <p className="text-2xl font-bold text-purple-600">
-              {Math.round(([feeReminder.feeStatus.term1, feeReminder.feeStatus.term2, feeReminder.feeStatus.term3]
-                .filter(status => status === 'Paid').length / 3) * 100)}%
-            </p>
+            <p className="text-2xl font-bold text-purple-600">{paymentProgress}%</p>
             <p className="text-xs text-gray-500">Completion Rate</p>
           </div>
         </div>
 
         {/* Payment Breakdown */}
         <div className="mt-6 bg-white rounded-lg p-4 border border-blue-100">
-          <h3 className="font-medium text-gray-900 mb-3">Payment Breakdown</h3>
+          <h3 className="font-medium text-gray-900 mb-3">Payment Breakdown by Term</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Term 1</p>
-                <p className="text-xs text-gray-500">₹15,000</p>
-              </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                feeReminder.feeStatus.term1 === 'Paid' 
-                  ? 'text-green-600 bg-green-100' 
-                  : 'text-red-600 bg-red-100'
-              }`}>
-                {feeReminder.feeStatus.term1 === 'Paid' ? 'Paid' : 'Unpaid'}
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Term 2</p>
-                <p className="text-xs text-gray-500">₹15,000</p>
-              </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                feeReminder.feeStatus.term2 === 'Paid' 
-                  ? 'text-green-600 bg-green-100' 
-                  : 'text-red-600 bg-red-100'
-              }`}>
-                {feeReminder.feeStatus.term2 === 'Paid' ? 'Paid' : 'Unpaid'}
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Term 3</p>
-                <p className="text-xs text-gray-500">₹15,000</p>
-              </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                feeReminder.feeStatus.term3 === 'Paid' 
-                  ? 'text-green-600 bg-green-100' 
-                  : 'text-red-600 bg-red-100'
-              }`}>
-                {feeReminder.feeStatus.term3 === 'Paid' ? 'Paid' : 'Unpaid'}
-              </div>
-            </div>
+            {['term1', 'term2', 'term3'].map((term, index) => {
+              const { status, amount } = getTermStatus(term);
+              const termNumber = index + 1;
+              const percentage = termNumber === 1 ? 40 : 30;
+              
+              return (
+                <div key={term} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">Term {termNumber}</p>
+                    <p className="text-xs text-gray-500">₹{amount.toLocaleString()} ({percentage}%)</p>
+                  </div>
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    status === 'Paid' 
+                      ? 'text-green-600 bg-green-100' 
+                      : 'text-red-600 bg-red-100'
+                  }`}>
+                    {status === 'Paid' ? 'Paid' : 'Unpaid'}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -261,32 +403,21 @@ const HostelFee = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Term 1 */}
-          <div className={`p-4 rounded-lg border ${getStatusColor(feeReminder.feeStatus.term1)}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Term 1</span>
-              {getStatusIcon(feeReminder.feeStatus.term1)}
-            </div>
-            <p className="text-sm capitalize">{feeReminder.feeStatus.term1}</p>
-          </div>
-
-          {/* Term 2 */}
-          <div className={`p-4 rounded-lg border ${getStatusColor(feeReminder.feeStatus.term2)}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Term 2</span>
-              {getStatusIcon(feeReminder.feeStatus.term2)}
-            </div>
-            <p className="text-sm capitalize">{feeReminder.feeStatus.term2}</p>
-          </div>
-
-          {/* Term 3 */}
-          <div className={`p-4 rounded-lg border ${getStatusColor(feeReminder.feeStatus.term3)}`}>
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Term 3</span>
-              {getStatusIcon(feeReminder.feeStatus.term3)}
-            </div>
-            <p className="text-sm capitalize">{feeReminder.feeStatus.term3}</p>
-          </div>
+          {['term1', 'term2', 'term3'].map((term, index) => {
+            const { status, amount } = getTermStatus(term);
+            const termNumber = index + 1;
+            
+            return (
+              <div key={term} className={`p-4 rounded-lg border ${getStatusColor(status)}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Term {termNumber}</span>
+                  {getStatusIcon(status)}
+                </div>
+                <p className="text-sm capitalize mb-1">{status}</p>
+                <p className="text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -382,6 +513,7 @@ const HostelFee = () => {
           <div>
             <h3 className="font-medium text-blue-900 mb-1">Important Information</h3>
             <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Your fees are calculated based on your room category ({user.category})</li>
               <li>• Reminders are automatically generated based on your registration date</li>
               <li>• Each reminder is visible for 3 days from the date it's issued</li>
               <li>• Once a term is marked as paid, its reminders will no longer appear</li>
