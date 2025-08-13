@@ -392,7 +392,7 @@ const SecurityDashboard = () => {
           <div className="flex flex-col gap-2">
             {/* Title Section */}
             <div className="flex items-center gap-2">
-              <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+              <ShieldCheckIcon className="w-5 h-5 text-blue-600 hidden sm:block" />
               <div>
                 <h1 className="text-lg font-bold text-blue-900">Security Dashboard</h1>
                 <p className="text-xs text-gray-600">Manage approved leave & permission verifications</p>
