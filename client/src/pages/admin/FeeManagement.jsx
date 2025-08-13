@@ -124,13 +124,6 @@ const FeeManagement = () => {
       structure.academicYear === academicYear
     );
     
-    console.log('🔍 Fee Structure Lookup:', {
-      studentCategory: category,
-      studentAcademicYear: academicYear,
-      availableStructures: feeStructures.map(s => ({ category: s.category, year: s.academicYear })),
-      foundStructure: structure ? { category: structure.category, year: structure.academicYear, totalFee: structure.totalFee } : null
-    });
-    
     return structure;
   };
 
