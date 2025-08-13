@@ -16,9 +16,15 @@ import {
   PlusIcon,
   TrashIcon,
   UserGroupIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  ReceiptRefundIcon,
+  CreditCardIcon,
+  BanknotesIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const FeeManagement = () => {
   const { user } = useAuth();
@@ -64,6 +70,22 @@ const FeeManagement = () => {
   const [feeStructureFilter, setFeeStructureFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
   });
+
+  // Payment Tracking State
+  const [payments, setPayments] = useState([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedStudentForPayment, setSelectedStudentForPayment] = useState(null);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    paymentMethod: 'Cash',
+    term: '',
+    notes: ''
+  });
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [selectedStudentBalance, setSelectedStudentBalance] = useState(null);
+  const [studentPayments, setStudentPayments] = useState([]);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   // Generate academic years dynamically (3 years before and after current year)
   const generateAcademicYears = () => {
@@ -570,6 +592,236 @@ const FeeManagement = () => {
     setFeeStructureFilter(prev => ({ ...prev, [key]: value }));
   };
 
+  // Payment Tracking Functions
+  const openPaymentModal = (student) => {
+    setSelectedStudentForPayment(student);
+    const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+    
+    if (!feeStructure) {
+      toast.error('No fee structure found for this student');
+      return;
+    }
+
+    // Initialize payment form with student's fee structure
+    setPaymentForm({
+      amount: '',
+      paymentMethod: 'Cash',
+      term: '',
+      notes: ''
+    });
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedStudentForPayment || !paymentForm.amount || !paymentForm.term) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    try {
+      setPaymentLoading(true);
+      
+      const paymentData = {
+        studentId: selectedStudentForPayment._id,
+        studentName: selectedStudentForPayment.name,
+        studentRollNumber: selectedStudentForPayment.rollNumber,
+        academicYear: selectedStudentForPayment.academicYear,
+        category: selectedStudentForPayment.category,
+        amount: parseFloat(paymentForm.amount),
+        paymentMethod: paymentForm.paymentMethod,
+        term: paymentForm.term,
+        notes: paymentForm.notes,
+        collectedBy: user._id,
+        collectedByName: user.username
+      };
+
+      // For now, we'll store payments in localStorage (in production, this would go to backend)
+      const newPayment = {
+        ...paymentData,
+        _id: Date.now().toString(),
+        paymentDate: new Date().toISOString(),
+        transactionId: `TXN${Date.now()}`,
+        receiptNumber: `RCPT${Date.now()}`,
+        status: 'Completed'
+      };
+
+      // Add to payments array
+      setPayments(prev => [newPayment, ...prev]);
+      
+      // Generate receipt
+      generateReceipt(newPayment);
+      
+      toast.success('Payment recorded successfully!');
+      setShowPaymentModal(false);
+      setSelectedStudentForPayment(null);
+      setPaymentForm({
+        amount: '',
+        paymentMethod: 'Cash',
+        term: '',
+        notes: ''
+      });
+      
+      // Refresh students to update balance display
+      fetchStudents();
+      
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      toast.error('Failed to record payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  const generateReceipt = (payment) => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.text('HOSTEL FEE RECEIPT', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text('PYDAH SOFT HOSTEL MANAGEMENT SYSTEM', 105, 30, { align: 'center' });
+    
+    // Receipt details
+    doc.setFontSize(14);
+    doc.text('Receipt Details', 20, 50);
+    
+    doc.setFontSize(10);
+    doc.text(`Receipt No: ${payment.receiptNumber}`, 20, 65);
+    doc.text(`Transaction ID: ${payment.transactionId}`, 20, 75);
+    doc.text(`Date: ${new Date(payment.paymentDate).toLocaleDateString()}`, 20, 85);
+    
+    // Student details
+    doc.setFontSize(14);
+    doc.text('Student Details', 20, 105);
+    
+    doc.setFontSize(10);
+    doc.text(`Name: ${payment.studentName}`, 20, 120);
+    doc.text(`Roll Number: ${payment.studentRollNumber}`, 20, 130);
+    doc.text(`Academic Year: ${payment.academicYear}`, 20, 140);
+    doc.text(`Category: ${payment.category}`, 20, 150);
+    
+    // Payment details
+    doc.setFontSize(14);
+    doc.text('Payment Details', 20, 170);
+    
+    doc.setFontSize(10);
+    doc.text(`Amount: ₹${payment.amount.toLocaleString()}`, 20, 185);
+    doc.text(`Term: ${payment.term}`, 20, 195);
+    doc.text(`Payment Method: ${payment.paymentMethod}`, 20, 205);
+    doc.text(`Collected By: ${payment.collectedByName}`, 20, 215);
+    
+    if (payment.notes) {
+      doc.text(`Notes: ${payment.notes}`, 20, 225);
+    }
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.text('This is a computer generated receipt', 105, 270, { align: 'center' });
+    
+    // Save the PDF
+    doc.save(`receipt_${payment.receiptNumber}.pdf`);
+  };
+
+  const openBalanceModal = async (student) => {
+    setSelectedStudentBalance(student);
+    setShowBalanceModal(true);
+    setBalanceLoading(true);
+    
+    try {
+      // Get student's fee structure
+      const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+      
+      if (!feeStructure) {
+        toast.error('No fee structure found for this student');
+        return;
+      }
+      
+      // Get student's payments (filter from payments array)
+      const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
+      setStudentPayments(studentPaymentHistory);
+      
+    } catch (error) {
+      console.error('Error fetching student balance:', error);
+      toast.error('Failed to fetch student balance');
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  // Calculate student's current balance
+  const calculateStudentBalance = (student) => {
+    const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+    if (!feeStructure) return null;
+    
+    const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
+    const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
+    
+    // Calculate term-wise balance
+    const termBalances = {
+      term1: {
+        required: feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'Term1')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      },
+      term2: {
+        required: feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'Term2')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      },
+      term3: {
+        required: feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'Term3')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      }
+    };
+    
+    // Calculate remaining balance for each term
+    Object.keys(termBalances).forEach(term => {
+      termBalances[term].balance = Math.max(0, termBalances[term].required - termBalances[term].paid);
+    });
+    
+    const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
+    const isFullyPaid = totalBalance === 0;
+    
+    return {
+      feeStructure,
+      totalPaid,
+      totalBalance,
+      isFullyPaid,
+      termBalances,
+      paymentHistory: studentPaymentHistory
+    };
+  };
+
+  // Get available terms for payment (terms with remaining balance)
+  const getAvailableTermsForPayment = (student) => {
+    const balance = calculateStudentBalance(student);
+    if (!balance) return [];
+    
+    const availableTerms = [];
+    Object.entries(balance.termBalances).forEach(([term, termData]) => {
+      if (termData.balance > 0) {
+        availableTerms.push({
+          value: term,
+          label: term.replace('term', 'Term '),
+          balance: termData.balance,
+          required: termData.required
+        });
+      }
+    });
+    
+    return availableTerms;
+  };
+
   useEffect(() => {
     console.log('🔍 useEffect triggered - activeTab:', activeTab);
     if (activeTab === 'structure') {
@@ -644,11 +896,21 @@ const FeeManagement = () => {
             >
               Fee Structure
             </button>
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'payments'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Payments
+            </button>
           </nav>
         </div>
       </div>
 
-      {activeTab === 'students' ? (
+      {activeTab === 'students' && (
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
@@ -1117,6 +1379,20 @@ const FeeManagement = () => {
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
+                      <button
+                        onClick={() => openPaymentModal(student)}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                        title="Record Payment"
+                      >
+                        <ReceiptRefundIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => openBalanceModal(student)}
+                        className="text-purple-600 hover:text-purple-900"
+                        title="View Balance"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -1173,6 +1449,182 @@ const FeeManagement = () => {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {activeTab === 'structure' && (
+        <>
+          {/* Fee Structure Management */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Fee Structure Management</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openFeeStructureModal()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={getAvailableCategoriesForCreation().length === 0}
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  Add Fee Structure
+                </button>
+              </div>
+            </div>
+            
+            {/* Academic Year Filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Academic Year
+              </label>
+              <select
+                value={feeStructureFilter.academicYear}
+                onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Academic Years</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Category Filter */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Category
+              </label>
+              <select
+                value={feeStructureFilter.category || ''}
+                onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Categories</option>
+                {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Filter Summary and Clear Button */}
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-sm text-gray-600">
+                {(() => {
+                  let filteredCount = feeStructures.length;
+                  if (feeStructureFilter.academicYear) {
+                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
+                  }
+                  if (feeStructureFilter.category) {
+                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
+                  }
+                  return `Showing ${filteredCount} of ${feeStructures.length} fee structures`;
+                })()}
+              </div>
+              <button
+                onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Clear Filters
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              {(() => {
+                // Check if any structures match the current filters
+                let filteredStructures = feeStructures;
+                if (feeStructureFilter.academicYear) {
+                  filteredStructures = filteredStructures.filter(s => s.academicYear === feeStructureFilter.academicYear);
+                }
+                if (feeStructureFilter.category) {
+                  filteredStructures = filteredStructures.filter(s => s.category === feeStructureFilter.category);
+                }
+                
+                if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.category)) {
+                  return (
+                    <div className="text-center py-8">
+                      <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500">No fee structures found matching the current filters</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Try adjusting your filters or create new fee structures.
+                      </p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Academic Year
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Fee
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 1 (40%)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 2 (30%)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 3 (30%)
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredStructures.map((structure) => (
+                        <tr key={`${structure.academicYear}-${structure.category}`} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {structure.academicYear}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {structure.category}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            ₹{structure.totalFee.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{structure.term1Fee || Math.round(structure.totalFee * 0.4).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{structure.term2Fee || Math.round(structure.totalFee * 0.3).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ₹{structure.term3Fee || Math.round(structure.totalFee * 0.3).toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => openFeeStructureModal(structure)}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => deleteFeeStructure(structure.academicYear, structure.category)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+          </div>
+        </>
+      )}
+
+
 
       {/* Update Modal */}
       {showUpdateModal && selectedStudent && (
@@ -1251,222 +1703,285 @@ const FeeManagement = () => {
         </div>
       )}
 
-        </>
-      ) : (
-        <>
-          {/* Fee Structure Management */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Fee Structure Management</h2>
-              <div className="flex gap-2">
+      {/* Payment Modal */}
+      {showPaymentModal && selectedStudentForPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Record Fee Payment
+            </h3>
+            
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">Student Details</h4>
+              <div className="text-sm text-blue-800">
+                <p><strong>Name:</strong> {selectedStudentForPayment.name}</p>
+                <p><strong>Roll Number:</strong> {selectedStudentForPayment.rollNumber}</p>
+                <p><strong>Category:</strong> {selectedStudentForPayment.category}</p>
+                <p><strong>Academic Year:</strong> {selectedStudentForPayment.academicYear}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePaymentSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Method
+                  </label>
+                  <select
+                    value={paymentForm.paymentMethod}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Online">Online</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Term to Pay
+                  </label>
+                  <select
+                    value={paymentForm.term}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, term: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">Select Term</option>
+                    {getAvailableTermsForPayment(selectedStudentForPayment).map(term => (
+                      <option key={term.value} value={term.value}>
+                        {term.label} - Balance: ₹{term.balance.toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                  {getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
+                    <p className="text-sm text-red-500 mt-1">
+                      All terms are fully paid for this student
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                    min="0"
+                    step="0.01"
+                    placeholder="Enter payment amount"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    value={paymentForm.notes}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    rows="3"
+                    placeholder="Any additional notes about this payment"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
-                  onClick={() => openFeeStructureModal()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={getAvailableCategoriesForCreation().length === 0}
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                 >
-                  <PlusIcon className="w-4 h-4" />
-                  Add Fee Structure
+                  Cancel
                 </button>
-              
-              
-            </div>
-            </div>
-            
-
-            
-            {/* Academic Year Filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Academic Year
-              </label>
-              <select
-                value={feeStructureFilter.academicYear}
-                onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Academic Years</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-            
-            {/* Category Filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Category
-              </label>
-              <select
-                value={feeStructureFilter.category || ''}
-                onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Categories</option>
-                {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+                <button
+                  type="submit"
+                  disabled={paymentLoading || getAvailableTermsForPayment(selectedStudentForPayment).length === 0}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {paymentLoading ? 'Recording...' : 'Record Payment'}
+                </button>
               </div>
-            
-            {/* Filter Summary and Clear Button */}
-            <div className="mb-4 flex items-center justify-between">
-              <div className="text-sm text-gray-600">
-                {(() => {
-                  let filteredCount = feeStructures.length;
-                  if (feeStructureFilter.academicYear) {
-                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
-                  }
-                  if (feeStructureFilter.category) {
-                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
-                  }
-                  return `Showing ${filteredCount} of ${feeStructures.length} fee structures`;
-                })()}
-              </div>
-              <button
-                onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-              >
-                Clear Filters
-              </button>
-            </div>
-            
-
-              <div className="overflow-x-auto">
-                {(() => {
-                  // Check if any structures match the current filters
-                  let filteredStructures = feeStructures;
-                  if (feeStructureFilter.academicYear) {
-                    filteredStructures = filteredStructures.filter(s => s.academicYear === feeStructureFilter.academicYear);
-                  }
-                  if (feeStructureFilter.category) {
-                    filteredStructures = filteredStructures.filter(s => s.category === feeStructureFilter.category);
-                  }
-                  
-                  if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.category)) {
-                    return (
-              <div className="text-center py-8">
-                <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-gray-500">No fee structures found matching the current filters</p>
-                        <p className="text-sm text-gray-400 mt-2">
-                          Try adjusting your filters or create new fee structures.
-                        </p>
-                        <button
-                          onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
-                          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          Clear Filters
-                        </button>
-              </div>
-                    );
-                  }
-                  
-                  return (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Academic Year
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Category
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Term 1 Fee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Term 2 Fee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Term 3 Fee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Total Fee
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(() => {
-                      // Apply filters to fee structures table
-                      let filteredStructures = feeStructures;
-                      
-                      // Apply academic year filter
-                      if (feeStructureFilter.academicYear) {
-                        filteredStructures = filteredStructures.filter(s => 
-                          s.academicYear === feeStructureFilter.academicYear
-                        );
-                      }
-                      
-                      // Apply category filter if exists
-                      if (feeStructureFilter.category) {
-                        filteredStructures = filteredStructures.filter(s => 
-                          s.category === feeStructureFilter.category
-                        );
-                      }
-                      
-
-                      
-                      return filteredStructures.length > 0 ? (
-                        filteredStructures.map((structure, index) => (
-                      <tr key={`${structure.academicYear}-${structure.category}`} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {structure.academicYear}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            {structure.category}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ₹{(structure.term1Fee || 0).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ₹{(structure.term2Fee || 0).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          ₹{(structure.term3Fee || 0).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              ₹{(structure.totalFee || (structure.term1Fee || 0) + (structure.term2Fee || 0) + (structure.term3Fee || 0)).toLocaleString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => openFeeStructureModal(structure)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => deleteFeeStructure(structure.academicYear, structure.category)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
-                            No fee structures found matching the current filters.
-                          </td>
-                        </tr>
-                      );
-                    })()}
-                  </tbody>
-                </table>
-                  );
-                })()}
-              </div>
-            
-            
+            </form>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Fee Structure Modal - Outside conditional blocks so it's always available */}
+      {/* Student Balance Modal */}
+      {showBalanceModal && selectedStudentBalance && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Student Balance Details
+            </h3>
+            
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-medium text-blue-900 mb-2">Student Information</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
+                <div>
+                  <p><strong>Name:</strong> {selectedStudentBalance.name}</p>
+                  <p><strong>Roll Number:</strong> {selectedStudentBalance.rollNumber}</p>
+                </div>
+                <div>
+                  <p><strong>Category:</strong> {selectedStudentBalance.category}</p>
+                  <p><strong>Academic Year:</strong> {selectedStudentBalance.academicYear}</p>
+                </div>
+              </div>
+            </div>
+
+            {balanceLoading ? (
+              <div className="text-center py-8">
+                <LoadingSpinner />
+                <p className="mt-2 text-gray-500">Loading balance details...</p>
+              </div>
+            ) : (
+              <>
+                {/* Balance Summary */}
+                {(() => {
+                  const balance = calculateStudentBalance(selectedStudentBalance);
+                  if (!balance) return null;
+                  
+                  return (
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-900 mb-3">Balance Summary</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="text-sm font-medium text-gray-600">Total Fee</div>
+                          <div className="text-lg font-bold text-gray-900">₹{balance.feeStructure.totalFee.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="text-sm font-medium text-gray-600">Total Paid</div>
+                          <div className="text-lg font-bold text-green-600">₹{balance.totalPaid.toLocaleString()}</div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="text-sm font-medium text-gray-600">Total Balance</div>
+                          <div className={`text-lg font-bold ${balance.totalBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ₹{balance.totalBalance.toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="text-sm font-medium text-gray-600">Status</div>
+                          <div className={`text-lg font-bold ${balance.isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                            {balance.isFullyPaid ? 'Fully Paid' : 'Payment Pending'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Term-wise Breakdown */}
+                {(() => {
+                  const balance = calculateStudentBalance(selectedStudentBalance);
+                  if (!balance) return null;
+                  
+                  return (
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-900 mb-3">Term-wise Breakdown</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {Object.entries(balance.termBalances).map(([term, termData]) => (
+                          <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
+                            <div className="text-sm font-medium text-gray-600 mb-2">
+                              {term.replace('term', 'Term ')}
+                            </div>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span>Required:</span>
+                                <span className="font-medium">₹{termData.required.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Paid:</span>
+                                <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Balance:</span>
+                                <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  ₹{termData.balance.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Payment History */}
+                <div className="mb-6">
+                  <h4 className="font-medium text-gray-900 mb-3">Payment History</h4>
+                  {studentPayments.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      <ReceiptRefundIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                      <p>No payments recorded yet</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {studentPayments.map((payment) => (
+                          <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{payment.term}</span>
+                                <span className="text-sm text-gray-500">
+                                  {new Date(payment.paymentDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-600">
+                                {payment.paymentMethod} • {payment.notes || 'No notes'}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-medium text-green-600">₹{payment.amount.toLocaleString()}</div>
+                              <div className="text-xs text-gray-500">{payment.transactionId}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowBalanceModal(false);
+                      setSelectedStudentBalance(null);
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBalanceModal(false);
+                      openPaymentModal(selectedStudentBalance);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Record Payment
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+
+            
+
+            
+
+
+      {/* Fee Structure Modal */}
       {showFeeStructureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
@@ -1542,27 +2057,27 @@ const FeeManagement = () => {
                       <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
                       Term Fee Breakdown (Auto-calculated)
                     </h4>
-                  <div className="grid grid-cols-3 gap-3 text-sm">
+                    <div className="grid grid-cols-3 gap-3 text-sm">
                       <div className="text-center bg-white rounded-lg p-2 border border-blue-100">
-                      <div className="font-medium text-blue-600">Term 1</div>
+                        <div className="font-medium text-blue-600">Term 1</div>
                         <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term1Fee.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">40%</div>
-                    </div>
+                        <div className="text-xs text-gray-500">40%</div>
+                      </div>
                       <div className="text-center bg-white rounded-lg p-2 border border-green-100">
-                      <div className="font-medium text-green-600">Term 2</div>
+                        <div className="font-medium text-green-600">Term 2</div>
                         <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term2Fee.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">30%</div>
-                    </div>
+                        <div className="text-xs text-gray-500">30%</div>
+                      </div>
                       <div className="text-center bg-white rounded-lg p-2 border border-purple-100">
-                      <div className="font-medium text-purple-600">Term 3</div>
+                        <div className="font-medium text-purple-600">Term 3</div>
                         <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term3Fee.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">30%</div>
+                        <div className="text-xs text-gray-500">30%</div>
+                      </div>
                     </div>
-                  </div>
                     <div className="mt-3 text-center">
                       <div className="text-sm font-medium text-gray-700">
                         Total: ₹{feeStructureForm.totalFee.toLocaleString()}
-                </div>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1587,6 +2102,170 @@ const FeeManagement = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Payments Tab Content */}
+      {activeTab === 'payments' && (
+        <>
+          {/* Payment Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <ReceiptRefundIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                  <p className="text-lg font-semibold text-gray-900">{payments.length}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    ₹{payments.reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <BanknotesIcon className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Cash Payments</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {payments.filter(p => p.paymentMethod === 'Cash').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <CreditCardIcon className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Online Payments</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {payments.filter(p => p.paymentMethod === 'Online').length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment History Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Payment History</h3>
+                <div className="text-sm text-gray-600">
+                  Showing {payments.length} payments
+                </div>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              {payments.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <ReceiptRefundIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p>No payments recorded yet</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Start recording payments from the Students tab
+                  </p>
+                </div>
+              ) : (
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Student
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Payment Details
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Method
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {payments.map((payment) => (
+                      <tr key={payment._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {payment.studentName}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {payment.studentRollNumber}
+                            </div>
+                            <div className="text-xs text-blue-600">
+                              {payment.category} - {payment.academicYear}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {payment.term}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {payment.notes || 'No notes'}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                          ₹{payment.amount.toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            payment.paymentMethod === 'Cash' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {payment.paymentMethod}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(payment.paymentDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => generateReceipt(payment)}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            title="Download Receipt"
+                          >
+                            <DocumentTextIcon className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

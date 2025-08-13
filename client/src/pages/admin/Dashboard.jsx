@@ -107,10 +107,20 @@ const AdminDashboard = () => {
 
   // Helper function to get first available section for sub-admins
   const getFirstAvailableSection = () => {
-    const availableSections = menuItems.filter(item => 
-      item.show && !item.locked && item.path !== '/admin/dashboard'
-    );
-    return availableSections.length > 0 ? availableSections[0] : null;
+    console.log('🔍 getFirstAvailableSection called');
+    console.log('🔍 All menu items:', menuItems);
+    
+    const availableSections = menuItems.filter(item => {
+      const isAvailable = item.show && !item.locked && item.path !== '/admin/dashboard';
+      console.log(`🔍 Menu item "${item.name}": show=${item.show}, locked=${item.locked}, path=${item.path}, isAvailable=${isAvailable}`);
+      return isAvailable;
+    });
+    
+    console.log('🔍 Available sections:', availableSections);
+    const firstSection = availableSections.length > 0 ? availableSections[0] : null;
+    console.log('🔍 First available section:', firstSection);
+    
+    return firstSection;
   };
   
   const handleLogout = () => {
@@ -183,31 +193,42 @@ const AdminDashboard = () => {
   }, [user?.permissions, isSuperAdmin]);
 
   // Auto-redirect sub-admins without dashboard_home permission to their first available section
+  // 
+  // IMPORTANT: This logic prioritizes dashboard_home permission over other permissions.
+  // Users with dashboard_home permission will stay on the dashboard home page,
+  // regardless of whether they have menu_management, security_management, or other permissions.
+  // 
+  // Only users WITHOUT dashboard_home permission will be redirected to their first available section.
   useEffect(() => {
+    console.log('🔄 Auto-redirect useEffect triggered');
+    console.log('🔄 Current pathname:', pathname);
+    console.log('🔄 Is super admin:', isSuperAdmin);
+    console.log('🔄 User permissions:', user?.permissions);
+    console.log('🔄 Has dashboard_home permission:', hasPermission(user, 'dashboard_home'));
+    
     if (!isSuperAdmin && pathname === '/admin/dashboard') {
-      // If user has menu management permission, redirect to menu management page
-      if (hasPermission(user, 'menu_management')) {
-        console.log('🔄 Auto-redirecting to menu management page');
-        navigate('/admin/dashboard/cafeteria/menu', { replace: true });
+      console.log('🔄 Processing auto-redirect logic for sub-admin on dashboard home');
+      
+      // PRIORITY 1: If user has dashboard_home permission, stay on dashboard home
+      // This prevents redirects for users who should see the dashboard home page
+      if (hasPermission(user, 'dashboard_home')) {
+        console.log('🔄 User has dashboard_home permission - staying on dashboard home');
         return;
       }
       
-      // If user has security management permission, redirect to security dashboard
-      if (hasPermission(user, 'security_management')) {
-        console.log('🔄 Auto-redirecting to security dashboard');
-        navigate('/admin/dashboard/security', { replace: true });
-        return;
-      }
+      // PRIORITY 2: If no dashboard_home permission, redirect to first available section
+      // This only happens for users who don't have access to dashboard home
+      console.log('🔄 User lacks dashboard_home permission - redirecting to first available section');
+      const firstSection = getFirstAvailableSection();
       
-      // If user doesn't have dashboard_home permission, redirect to first available section
-      if (!hasPermission(user, 'dashboard_home')) {
-        const firstSection = getFirstAvailableSection();
-        
-        if (firstSection) {
-          console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
-          navigate(firstSection.path, { replace: true });
-        }
+      if (firstSection) {
+        console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
+        navigate(firstSection.path, { replace: true });
+      } else {
+        console.log('🔄 No available sections found for redirect');
       }
+    } else {
+      console.log('🔄 Auto-redirect conditions not met - skipping');
     }
   }, [pathname, isSuperAdmin, user?.permissions, navigate]);
 

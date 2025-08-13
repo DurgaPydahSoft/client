@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission, getAccessLevel } from '../../utils/permissionUtils';
 import {
   CalendarIcon,
   ClockIcon,
@@ -16,11 +18,13 @@ import {
   FunnelIcon,
   TagIcon,
   ClipboardDocumentIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 
 const SecurityDashboard = () => {
+  const { user } = useAuth();
   const [leaves, setLeaves] = useState([]);
   const [filteredLeaves, setFilteredLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,6 +54,30 @@ const SecurityDashboard = () => {
     upcoming: false,
     expired: false
   });
+
+  // Permission checks
+  const hasSecurityPermission = hasPermission(user, 'security_management');
+  const securityAccessLevel = getAccessLevel(user, 'security_management');
+  const isViewOnly = hasSecurityPermission && securityAccessLevel === 'view';
+  const isSuperAdmin = user?.role === 'super_admin';
+
+  // Check if user can access security dashboard
+  if (!hasSecurityPermission && !isSuperAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-t flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
+            <LockClosedIcon className="w-10 h-10 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+          <p className="text-gray-600 mb-6">
+            You don't have permission to access the Security Dashboard. 
+            Please contact your super admin to request access.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     fetchApprovedLeaves();
@@ -406,10 +434,24 @@ const SecurityDashboard = () => {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search student by Roll Number..."
-                  className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder={isViewOnly ? "Search disabled for view-only access" : "Search student by Roll Number..."}
+                  disabled={isViewOnly}
+                  className={`w-full pl-3 pr-10 py-2 border rounded-lg text-sm ${
+                    isViewOnly 
+                      ? 'border-gray-200 bg-gray-100 text-gray-500 cursor-not-allowed' 
+                      : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                 />
-                <button type="submit" disabled={isSearching} className="absolute inset-y-0 right-0 px-2 flex items-center bg-transparent text-gray-500 hover:text-blue-600">
+                <button 
+                  type="submit" 
+                  disabled={isSearching || isViewOnly} 
+                  className={`absolute inset-y-0 right-0 px-2 flex items-center ${
+                    isViewOnly 
+                      ? 'text-gray-400 cursor-not-allowed' 
+                      : 'text-gray-500 hover:text-blue-600'
+                  }`}
+                  title={isViewOnly ? 'Search disabled for view-only access' : 'Search student'}
+                >
                   {isSearching 
                     ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                     : <EyeIcon className="w-4 h-4" />
@@ -480,7 +522,7 @@ const SecurityDashboard = () => {
             </div>
           ) : (
             <>
-              {/* Outgoing Leaves */}
+                            {/* Outgoing Leaves - Always visible for all users */}
               <SectionTable 
                 title="Outgoing Requests (Exit)" 
                 leaves={outgoingLeaves} 
@@ -496,46 +538,53 @@ const SecurityDashboard = () => {
                 isExpanded={expandedSections.outgoing}
                 onToggle={() => toggleSection('outgoing')}
                 sectionKey="outgoing"
+                isViewOnly={isViewOnly}
               />
               
-              {/* Incoming Leaves */}
-              <SectionTable 
-                title="Incoming Requests (Re-entry)" 
-                leaves={incomingLeaves} 
-                getBlinkingDot={getBlinkingDot} 
-                isLeaveExpired={isLeaveExpired} 
-                getVerificationStatusColor={getVerificationStatusColor}
-                getApplicationTypeColor={getApplicationTypeColor}
-                getVerificationStatusIcon={getVerificationStatusIcon}
-                setSelectedLeave={setSelectedLeave}
-                setShowVerificationModal={setShowVerificationModal}
-                getRequestDate={getRequestDate}
-                copyToClipboard={copyToClipboard}
-                isExpanded={expandedSections.incoming}
-                onToggle={() => toggleSection('incoming')}
-                sectionKey="incoming"
-              />
+              {/* Incoming Leaves - Only visible for full access users */}
+              {!isViewOnly && (
+                <SectionTable 
+                  title="Incoming Requests (Re-entry)" 
+                  leaves={incomingLeaves} 
+                  getBlinkingDot={getBlinkingDot} 
+                  isLeaveExpired={isLeaveExpired} 
+                  getVerificationStatusColor={getVerificationStatusColor}
+                  getApplicationTypeColor={getApplicationTypeColor}
+                  getVerificationStatusIcon={getVerificationStatusIcon}
+                  setSelectedLeave={setSelectedLeave}
+                  setShowVerificationModal={setShowVerificationModal}
+                  getRequestDate={getRequestDate}
+                  copyToClipboard={copyToClipboard}
+                  isExpanded={expandedSections.incoming}
+                  onToggle={() => toggleSection('incoming')}
+                  sectionKey="incoming"
+                  isViewOnly={isViewOnly}
+                />
+              )}
               
-              {/* Completed Leaves */}
-              <SectionTable 
-                title="Completed Requests" 
-                leaves={completedLeaves} 
-                getBlinkingDot={getBlinkingDot} 
-                isLeaveExpired={isLeaveExpired} 
-                getVerificationStatusColor={getVerificationStatusColor}
-                getApplicationTypeColor={getApplicationTypeColor}
-                getVerificationStatusIcon={getVerificationStatusIcon}
-                setSelectedLeave={setSelectedLeave}
-                setShowVerificationModal={setShowVerificationModal}
-                getRequestDate={getRequestDate}
-                copyToClipboard={copyToClipboard}
-                isExpanded={expandedSections.completed}
-                onToggle={() => toggleSection('completed')}
-                sectionKey="completed"
-              />
+              {/* Completed Leaves - Only visible for full access users */}
+              {!isViewOnly && (
+                <SectionTable 
+                  title="Completed Requests" 
+                  leaves={completedLeaves} 
+                  getBlinkingDot={getBlinkingDot} 
+                  isLeaveExpired={isLeaveExpired} 
+                  getVerificationStatusColor={getVerificationStatusColor}
+                  getApplicationTypeColor={getApplicationTypeColor}
+                  getVerificationStatusIcon={getVerificationStatusIcon}
+                  setSelectedLeave={setSelectedLeave}
+                  setShowVerificationModal={setShowVerificationModal}
+                  getRequestDate={getRequestDate}
+                  copyToClipboard={copyToClipboard}
+                  isExpanded={expandedSections.completed}
+                  onToggle={() => toggleSection('completed')}
+                  sectionKey="completed"
+                  isViewOnly={isViewOnly}
+                />
+              )}
               
-              {/* Upcoming Leaves - Only show when toggled */}
-              {showUpcomingPasses && (
+              {/* Upcoming Leaves - Only show when toggled and for full access users */}
+              {!isViewOnly && showUpcomingPasses && (
                 <SectionTable 
                   title="Upcoming Requests" 
                   leaves={upcomingLeaves} 
@@ -551,25 +600,30 @@ const SecurityDashboard = () => {
                   isExpanded={expandedSections.upcoming}
                   onToggle={() => toggleSection('upcoming')}
                   sectionKey="upcoming"
+                  isViewOnly={isViewOnly}
                 />
               )}
-              {/* Expired/Recent Requests */}
-              <SectionTable 
-                title="Expired / Recent Requests" 
-                leaves={expiredLeaves} 
-                getBlinkingDot={getBlinkingDot} 
-                isLeaveExpired={isLeaveExpired} 
-                getVerificationStatusColor={getVerificationStatusColor}
-                getApplicationTypeColor={getApplicationTypeColor}
-                getVerificationStatusIcon={getVerificationStatusIcon}
-                setSelectedLeave={setSelectedLeave}
-                setShowVerificationModal={setShowVerificationModal}
-                getRequestDate={getRequestDate}
-                copyToClipboard={copyToClipboard}
-                isExpanded={expandedSections.expired}
-                onToggle={() => toggleSection('expired')}
-                sectionKey="expired"
-              />
+              
+              {/* Expired/Recent Requests - Only visible for full access users */}
+              {!isViewOnly && (
+                <SectionTable 
+                  title="Expired / Recent Requests" 
+                  leaves={expiredLeaves} 
+                  getBlinkingDot={getBlinkingDot} 
+                  isLeaveExpired={isLeaveExpired} 
+                  getVerificationStatusColor={getVerificationStatusColor}
+                  getApplicationTypeColor={getApplicationTypeColor}
+                  getVerificationStatusIcon={getVerificationStatusIcon}
+                  setSelectedLeave={setSelectedLeave}
+                  setShowVerificationModal={setShowVerificationModal}
+                  getRequestDate={getRequestDate}
+                  copyToClipboard={copyToClipboard}
+                  isExpanded={expandedSections.expired}
+                  onToggle={() => toggleSection('expired')}
+                  sectionKey="expired"
+                  isViewOnly={isViewOnly}
+                />
+              )}
             </>
           )}
         </div>
@@ -663,7 +717,8 @@ const SectionTable = ({
   copyToClipboard,
   isExpanded,
   onToggle,
-  sectionKey
+  sectionKey,
+  isViewOnly = false
 }) => (
   <div className="mb-6 sm:mb-8 bg-white rounded-lg shadow-sm overflow-hidden">
     {/* Section Header with Toggle */}
@@ -814,13 +869,21 @@ const SectionTable = ({
                       ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
                         <button
                           onClick={() => {
-                            setSelectedLeave(leave);
-                            setShowVerificationModal(true);
+                            if (!isViewOnly) {
+                              setSelectedLeave(leave);
+                              setShowVerificationModal(true);
+                            }
                           }}
-                          className="px-2 sm:px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium flex items-center gap-1"
+                          disabled={isViewOnly}
+                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+                            isViewOnly 
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          }`}
+                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Scan Incoming</span>
+                          <span>{isViewOnly ? 'View Only' : 'Scan Incoming'}</span>
                         </button>
                       ) : leave.verificationStatus === 'Completed' ? (
                         <div className="flex items-center justify-center gap-1 text-purple-600 text-xs">
@@ -830,13 +893,21 @@ const SectionTable = ({
                       ) : (
                         <button
                           onClick={() => {
-                            setSelectedLeave(leave);
-                            setShowVerificationModal(true);
+                            if (!isViewOnly) {
+                              setSelectedLeave(leave);
+                              setShowVerificationModal(true);
+                            }
                           }}
-                          className="px-2 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                          disabled={isViewOnly}
+                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
+                            isViewOnly 
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Verify Request'}
                         >
                           <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Verify</span>
+                          <span>{isViewOnly ? 'View Only' : 'Verify'}</span>
                         </button>
                       )}
                     </div>
@@ -957,13 +1028,21 @@ const SectionTable = ({
                       ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
                         <button
                           onClick={() => {
-                            setSelectedLeave(leave);
-                            setShowVerificationModal(true);
+                            if (!isViewOnly) {
+                              setSelectedLeave(leave);
+                              setShowVerificationModal(true);
+                            }
                           }}
-                          className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          disabled={isViewOnly}
+                          className={`w-full px-3 py-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                            isViewOnly 
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                              : 'bg-green-600 text-white hover:bg-green-700'
+                          }`}
+                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3 h-3" />
-                          <span>Scan Incoming QR</span>
+                          <span>{isViewOnly ? 'View Only' : 'Scan Incoming QR'}</span>
                         </button>
                       ) : leave.verificationStatus === 'Completed' ? (
                         <div className="flex items-center gap-1 text-purple-600 text-xs font-medium px-3 py-2 bg-purple-50 rounded w-full justify-center border border-purple-200">
@@ -973,13 +1052,21 @@ const SectionTable = ({
                       ) : (
                         <button
                           onClick={() => {
-                            setSelectedLeave(leave);
-                            setShowVerificationModal(true);
+                            if (!isViewOnly) {
+                              setSelectedLeave(leave);
+                              setShowVerificationModal(true);
+                            }
                           }}
-                          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          disabled={isViewOnly}
+                          className={`w-full px-3 py-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                            isViewOnly 
+                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Verify Request'}
                         >
                           <EyeIcon className="w-3 h-3" />
-                          <span>Verify Request</span>
+                          <span>{isViewOnly ? 'View Only' : 'Verify Request'}</span>
                         </button>
                       )}
                     </div>
