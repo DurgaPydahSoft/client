@@ -15,7 +15,8 @@ import {
   EyeIcon,
   FunnelIcon,
   TagIcon,
-  ClipboardDocumentIcon
+  ClipboardDocumentIcon,
+  ChevronDownIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 
@@ -40,6 +41,14 @@ const SecurityDashboard = () => {
     viewProfilePictures: true,
     viewPhoneNumbers: true,
     viewGuardianImages: true
+  });
+  // Add state for expandable sections
+  const [expandedSections, setExpandedSections] = useState({
+    outgoing: true, // Default open
+    incoming: false,
+    completed: false,
+    upcoming: false,
+    expired: false
   });
 
   useEffect(() => {
@@ -361,6 +370,14 @@ const SecurityDashboard = () => {
     return (now - start > 24 * 60 * 60 * 1000);
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
+  // Toggle section expansion
+  const toggleSection = (sectionKey) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey]
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-t">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-6">
@@ -476,6 +493,9 @@ const SecurityDashboard = () => {
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
                 copyToClipboard={copyToClipboard}
+                isExpanded={expandedSections.outgoing}
+                onToggle={() => toggleSection('outgoing')}
+                sectionKey="outgoing"
               />
               
               {/* Incoming Leaves */}
@@ -491,6 +511,9 @@ const SecurityDashboard = () => {
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
                 copyToClipboard={copyToClipboard}
+                isExpanded={expandedSections.incoming}
+                onToggle={() => toggleSection('incoming')}
+                sectionKey="incoming"
               />
               
               {/* Completed Leaves */}
@@ -506,6 +529,9 @@ const SecurityDashboard = () => {
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
                 copyToClipboard={copyToClipboard}
+                isExpanded={expandedSections.completed}
+                onToggle={() => toggleSection('completed')}
+                sectionKey="completed"
               />
               
               {/* Upcoming Leaves - Only show when toggled */}
@@ -522,6 +548,9 @@ const SecurityDashboard = () => {
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
                   copyToClipboard={copyToClipboard}
+                  isExpanded={expandedSections.upcoming}
+                  onToggle={() => toggleSection('upcoming')}
+                  sectionKey="upcoming"
                 />
               )}
               {/* Expired/Recent Requests */}
@@ -537,6 +566,9 @@ const SecurityDashboard = () => {
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
                 copyToClipboard={copyToClipboard}
+                isExpanded={expandedSections.expired}
+                onToggle={() => toggleSection('expired')}
+                sectionKey="expired"
               />
             </>
           )}
@@ -628,293 +660,336 @@ const SectionTable = ({
   setSelectedLeave,
   setShowVerificationModal,
   getRequestDate,
-  copyToClipboard
+  copyToClipboard,
+  isExpanded,
+  onToggle,
+  sectionKey
 }) => (
-  <div className="mb-6 sm:mb-8">
-    <h2 className="text-base sm:text-lg font-bold text-blue-800 p-3 sm:p-4">{title} ({leaves.length})</h2>
-    {leaves.length === 0 ? (
-      <div className="p-3 sm:p-4 text-center text-gray-400 text-sm">No requests in this section.</div>
-    ) : (
-      <div className="overflow-x-auto">
-        {/* Desktop Table Header */}
-        <div className="hidden md:block">
-          <div className="bg-gray-50 border-b border-gray-200 text-left" style={{ minWidth: '900px' }}>
-            <div className="grid grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700">
-              <div className="col-span-3">Student Details</div>
-              <div className="col-span-3">Timeframe</div>
-              <div className="col-span-3">Details</div>
-              <div className="col-span-2">Status</div>
-              <div className="col-span-1 text-center">Action</div>
+  <div className="mb-6 sm:mb-8 bg-white rounded-lg shadow-sm overflow-hidden">
+    {/* Section Header with Toggle */}
+    <div className="flex justify-between items-center p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200 cursor-pointer hover:from-blue-100 hover:to-blue-200 transition-all duration-200" onClick={onToggle}>
+      <div className="flex items-center gap-2">
+        <h2 className="text-base sm:text-lg font-bold text-blue-800">{title} ({leaves.length})</h2>
+        {leaves.length > 0 && (
+          <span className="px-2 py-1 bg-blue-200 text-blue-800 text-xs font-medium rounded-full">
+            {leaves.length}
+          </span>
+        )}
+      </div>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }} 
+        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-200 rounded-full transition-all duration-200 flex-shrink-0"
+      >
+        {isExpanded ? (
+          <ChevronDownIcon className="w-5 h-5 sm:w-6 sm:h-6 transform rotate-180 transition-transform duration-200" />
+        ) : (
+          <ChevronDownIcon className="w-5 h-5 sm:w-6 sm:h-6 transition-transform duration-200" />
+        )}
+      </button>
+    </div>
+    
+    {/* Expandable Content */}
+    {isExpanded && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: "auto" }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+        className="overflow-hidden"
+      >
+        {leaves.length === 0 ? (
+          <div className="p-6 text-center text-gray-400 text-sm bg-gray-50">
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                <ClipboardDocumentIcon className="w-6 h-6 text-gray-400" />
+              </div>
+              <p>No requests in this section</p>
             </div>
           </div>
-        </div>
-        
-        {/* Desktop Body */}
-        <div className="hidden md:block divide-y divide-gray-100" style={{ minWidth: '900px' }}>
-          {leaves.map((leave) => (
-            <motion.div
-              key={leave._id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-3 sm:p-4 hover:bg-gray-50 transition-colors"
-            >
-              {/* Desktop Layout */}
-              <div className="hidden md:grid md:grid-cols-12 md:gap-2 lg:gap-4 md:items-center">
-                {/* Student Details */}
-                <div className="col-span-3 flex flex-col gap-1">
-                  <div className="flex items-center gap-2">
-                    <UserIcon className="w-4 h-4 text-gray-500" />
-                    <span className="font-medium text-gray-900 text-sm truncate">{leave.student?.name || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600 ml-6">
-                    <AcademicCapIcon className="w-4 h-4" />
-                    <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600 ml-6">
-                    <PhoneIcon className="w-4 h-4" />
-                    <span className="truncate">{leave.parentPhone || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Timeframe */}
-                <div className="col-span-3 flex flex-col gap-1 text-sm">
-                  <div className="flex items-center">
-                    {getBlinkingDot(leave)}
-                    {leave.applicationType === 'Leave' ? (
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="w-4 h-4 text-gray-500" />
-                        <span className="font-medium">{new Date(leave.startDate).toLocaleDateString()}</span>
-                        <span>-</span>
-                        <span className="font-medium">{new Date(leave.endDate).toLocaleDateString()}</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1">
-                        <CalendarIcon className="w-4 h-4 text-gray-500" />
-                        <span className="font-medium">{new Date(leave.permissionDate).toLocaleDateString()}</span>
-                      </div>
-                    )}
-                  </div>
-                  {leave.applicationType === 'Permission' && (
-                    <div className="flex items-center gap-1 text-xs text-gray-600 ml-6">
-                      <ClockIcon className="w-4 h-4" />
-                      <span>{leave.outTime} - {leave.inTime}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Details */}
-                <div className="col-span-3 flex flex-col gap-1 text-xs">
-                  <div className="flex items-center gap-1">
-                    <TagIcon className="w-4 h-4 text-gray-500" />
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                      {leave.applicationType}
-                    </span>
-                  </div>
-                  <div className="text-gray-500 mt-1 truncate">
-                    Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
-                    {leave.incomingQrGenerated && (
-                      <div className="text-xs text-green-600">
-                        Incoming: {leave.incomingVisitCount || 0}/1
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="col-span-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
-                    style={{ minWidth: '90px' }}>
-                    {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
-                    <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
-                  </span>
-                </div>
-
-                {/* Action */}
-                <div className="col-span-1 text-center">
-                  {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
-                    <div className="flex items-center justify-center gap-1 text-blue-600 text-xs">
-                      <CheckCircleIcon className="w-4 h-4" />
-                      <span>Outgoing Verified</span>
-                    </div>
-                  ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="px-2 sm:px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium flex items-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>Scan Incoming</span>
-                    </button>
-                  ) : leave.verificationStatus === 'Completed' ? (
-                    <div className="flex items-center justify-center gap-1 text-purple-600 text-xs">
-                      <CheckCircleIcon className="w-4 h-4" />
-                      <span>Completed</span>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="px-2 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span>Verify</span>
-                    </button>
-                  )}
+        ) : (
+          <div className="overflow-x-auto">
+            {/* Desktop Table Header */}
+            <div className="hidden md:block">
+              <div className="bg-gray-50 border-b border-gray-200 text-left" style={{ minWidth: '900px' }}>
+                <div className="grid grid-cols-12 gap-2 sm:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700">
+                  <div className="col-span-3">Student Details</div>
+                  <div className="col-span-3">Timeframe</div>
+                  <div className="col-span-3">Details</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-1 text-center">Action</div>
                 </div>
               </div>
-
-
-            </motion.div>
-          ))}
-        </div>
-        
-        {/* Mobile Layout */}
-        <div className="md:hidden">
-          {leaves.map((leave) => (
-            <motion.div
-              key={leave._id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-3"
-            >
-              {/* Mobile Layout - Compact Design for Small Screens */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 mb-3 mx-1">
-                {/* Status Badge */}
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                      {leave.applicationType}
-                    </span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}>
-                      {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
-                      <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
-                    </span>
-                  </div>
-                  <div className="flex-shrink-0">
-                    {getBlinkingDot(leave)}
-                  </div>
-                </div>
-
-                {/* Student Information */}
-                <div className="bg-blue-50 rounded-lg p-2 mb-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                      <UserIcon className="w-3 h-3 text-blue-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-sm text-gray-900 truncate">{leave.student?.name || 'N/A'}</h3>
-                      <div className="flex items-center gap-1">
-                        <p className="text-xs text-gray-600">Roll: {leave.student?.rollNumber || 'N/A'}</p>
-                        <button
-                          onClick={() => copyToClipboard(leave.student?.rollNumber || 'N/A')}
-                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
-                          title="Copy roll number"
-                        >
-                          <ClipboardDocumentIcon className="w-3 h-3" />
-                        </button>
+            </div>
+            
+            {/* Desktop Body */}
+            <div className="hidden md:block divide-y divide-gray-100" style={{ minWidth: '900px' }}>
+              {leaves.map((leave) => (
+                <motion.div
+                  key={leave._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 sm:p-4 hover:bg-gray-50 transition-colors"
+                >
+                  {/* Desktop Layout */}
+                  <div className="hidden md:grid md:grid-cols-12 md:gap-2 lg:gap-4 md:items-center">
+                    {/* Student Details */}
+                    <div className="col-span-3 flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <UserIcon className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium text-gray-900 text-sm truncate">{leave.student?.name || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 ml-6">
+                        <AcademicCapIcon className="w-4 h-4" />
+                        <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 ml-6">
+                        <PhoneIcon className="w-4 h-4" />
+                        <span className="truncate">{leave.parentPhone || 'N/A'}</span>
                       </div>
                     </div>
-                  </div>
-                  
-                  {/* Course Information */}
-                  <div className="bg-white rounded p-1 mb-1">
-                    <div className="flex items-center gap-1 text-xs">
-                      <AcademicCapIcon className="w-3 h-3 text-gray-500" />
-                      <span className="font-medium text-gray-700 truncate">
-                        {leave.student?.course?.name || leave.student?.course} - {leave.student?.branch?.name || leave.student?.branch}
+
+                    {/* Timeframe */}
+                    <div className="col-span-3 flex flex-col gap-1 text-sm">
+                      <div className="flex items-center">
+                        {getBlinkingDot(leave)}
+                        {leave.applicationType === 'Leave' ? (
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="w-4 h-4 text-gray-500" />
+                            <span className="font-medium">{new Date(leave.startDate).toLocaleDateString()}</span>
+                            <span>-</span>
+                            <span className="font-medium">{new Date(leave.endDate).toLocaleDateString()}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <CalendarIcon className="w-4 h-4 text-gray-500" />
+                            <span className="font-medium">{new Date(leave.permissionDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                      {leave.applicationType === 'Permission' && (
+                        <div className="flex items-center gap-1 text-xs text-gray-600 ml-6">
+                          <ClockIcon className="w-4 h-4" />
+                          <span>{leave.outTime} - {leave.inTime}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Details */}
+                    <div className="col-span-3 flex flex-col gap-1 text-xs">
+                      <div className="flex items-center gap-1">
+                        <TagIcon className="w-4 h-4 text-gray-500" />
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          {leave.applicationType}
+                        </span>
+                      </div>
+                      <div className="text-gray-500 mt-1 truncate">
+                        Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
+                        {leave.incomingQrGenerated && (
+                          <div className="text-xs text-green-600">
+                            Incoming: {leave.incomingVisitCount || 0}/1
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status */}
+                    <div className="col-span-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
+                        style={{ minWidth: '90px' }}>
+                        {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                        <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
                       </span>
                     </div>
-                  </div>
 
-                  {/* Contact Information */}
-                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                    <PhoneIcon className="w-3 h-3" />
-                    <span className="truncate">{leave.parentPhone || 'N/A'}</span>
-                  </div>
-                </div>
-
-                {/* Time Information */}
-                <div className="bg-gray-50 rounded p-2 mb-2">
-                  <div className="flex items-center gap-1 text-xs text-gray-700 mb-1">
-                    <CalendarIcon className="w-3 h-3 text-gray-500" />
-                    <span className="font-medium">
-                      {leave.applicationType === 'Leave' ? (
-                        `${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+                    {/* Action */}
+                    <div className="col-span-1 text-center">
+                      {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                        <div className="flex items-center justify-center gap-1 text-blue-600 text-xs">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span>Outgoing Verified</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="px-2 sm:px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-medium flex items-center gap-1"
+                        >
+                          <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span>Scan Incoming</span>
+                        </button>
+                      ) : leave.verificationStatus === 'Completed' ? (
+                        <div className="flex items-center justify-center gap-1 text-purple-600 text-xs">
+                          <CheckCircleIcon className="w-4 h-4" />
+                          <span>Completed</span>
+                        </div>
                       ) : (
-                        new Date(leave.permissionDate).toLocaleDateString()
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="px-2 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                        >
+                          <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span>Verify</span>
+                        </button>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  
-                  {leave.applicationType === 'Permission' && (
-                    <div className="flex items-center gap-1 text-xs text-gray-700 ml-4">
-                      <ClockIcon className="w-3 h-3" />
-                      <span>{leave.outTime} - {leave.inTime}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Visit Count Information */}
-                <div className="bg-blue-50 rounded p-2 mb-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium text-gray-700">Outgoing:</span>
-                      <span className="text-blue-600 font-bold">{leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}</span>
-                    </div>
-                    {leave.incomingQrGenerated && (
-                      <div className="flex items-center gap-1">
-                        <span className="font-medium text-gray-700">Incoming:</span>
-                        <span className="text-green-600 font-bold">{leave.incomingVisitCount || 0}/1</span>
+                </motion.div>
+              ))}
+            </div>
+            
+            {/* Mobile Layout */}
+            <div className="md:hidden">
+              {leaves.map((leave) => (
+                <motion.div
+                  key={leave._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-3"
+                >
+                  {/* Mobile Layout - Compact Design for Small Screens */}
+                  <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3 mb-3 mx-1">
+                    {/* Status Badge */}
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          {leave.applicationType}
+                        </span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}>
+                          {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
+                          <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
+                        </span>
                       </div>
-                    )}
-                  </div>
-                </div>
+                      <div className="flex-shrink-0">
+                        {getBlinkingDot(leave)}
+                      </div>
+                    </div>
 
-                {/* Action Button */}
-                <div className="flex justify-center">
-                  {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
-                    <div className="flex items-center gap-1 text-green-600 text-xs font-medium px-3 py-2 bg-green-50 rounded w-full justify-center border border-green-200">
-                      <CheckCircleIcon className="w-3 h-3" />
-                      <span>Outgoing Verified</span>
+                    {/* Student Information */}
+                    <div className="bg-blue-50 rounded-lg p-2 mb-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                          <UserIcon className="w-3 h-3 text-blue-600" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-sm text-gray-900 truncate">{leave.student?.name || 'N/A'}</h3>
+                          <div className="flex items-center gap-1">
+                            <p className="text-xs text-gray-600">Roll: {leave.student?.rollNumber || 'N/A'}</p>
+                            <button
+                              onClick={() => copyToClipboard(leave.student?.rollNumber || 'N/A')}
+                              className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                              title="Copy roll number"
+                            >
+                              <ClipboardDocumentIcon className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Course Information */}
+                      <div className="bg-white rounded p-1 mb-1">
+                        <div className="flex items-center gap-1 text-xs">
+                          <AcademicCapIcon className="w-3 h-3 text-gray-500" />
+                          <span className="font-medium text-gray-700 truncate">
+                            {leave.student?.course?.name || leave.student?.course} - {leave.student?.branch?.name || leave.student?.branch}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Contact Information */}
+                      <div className="flex items-center gap-1 text-xs text-gray-600">
+                        <PhoneIcon className="w-3 h-3" />
+                        <span className="truncate">{leave.parentPhone || 'N/A'}</span>
+                      </div>
                     </div>
-                  ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3" />
-                      <span>Scan Incoming QR</span>
-                    </button>
-                  ) : leave.verificationStatus === 'Completed' ? (
-                    <div className="flex items-center gap-1 text-purple-600 text-xs font-medium px-3 py-2 bg-purple-50 rounded w-full justify-center border border-purple-200">
-                      <CheckCircleIcon className="w-3 h-3" />
-                      <span>Completed</span>
+
+                    {/* Time Information */}
+                    <div className="bg-gray-50 rounded p-2 mb-2">
+                      <div className="flex items-center gap-1 text-xs text-gray-700 mb-1">
+                        <CalendarIcon className="w-3 h-3 text-gray-500" />
+                        <span className="font-medium">
+                          {leave.applicationType === 'Leave' ? (
+                            `${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+                          ) : (
+                            new Date(leave.permissionDate).toLocaleDateString()
+                          )}
+                        </span>
+                      </div>
+                      
+                      {leave.applicationType === 'Permission' && (
+                        <div className="flex items-center gap-1 text-xs text-gray-700 ml-4">
+                          <ClockIcon className="w-3 h-3" />
+                          <span>{leave.outTime} - {leave.inTime}</span>
+                        </div>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setSelectedLeave(leave);
-                        setShowVerificationModal(true);
-                      }}
-                      className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
-                    >
-                      <EyeIcon className="w-3 h-3" />
-                      <span>Verify Request</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </div>
+
+                    {/* Visit Count Information */}
+                    <div className="bg-blue-50 rounded p-2 mb-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium text-gray-700">Outgoing:</span>
+                          <span className="text-blue-600 font-bold">{leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}</span>
+                        </div>
+                        {leave.incomingQrGenerated && (
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-gray-700">Incoming:</span>
+                            <span className="text-green-600 font-bold">{leave.incomingVisitCount || 0}/1</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="flex justify-center">
+                      {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                        <div className="flex items-center gap-1 text-green-600 text-xs font-medium px-3 py-2 bg-green-50 rounded w-full justify-center border border-green-200">
+                          <CheckCircleIcon className="w-3 h-3" />
+                          <span>Outgoing Verified</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' && leave.incomingQrGenerated ? (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          <EyeIcon className="w-3 h-3" />
+                          <span>Scan Incoming QR</span>
+                        </button>
+                      ) : leave.verificationStatus === 'Completed' ? (
+                        <div className="flex items-center gap-1 text-purple-600 text-xs font-medium px-3 py-2 bg-purple-50 rounded w-full justify-center border border-purple-200">
+                          <CheckCircleIcon className="w-3 h-3" />
+                          <span>Completed</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
+                          }}
+                          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                        >
+                          <EyeIcon className="w-3 h-3" />
+                          <span>Verify Request</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+      </motion.div>
     )}
   </div>
 );
