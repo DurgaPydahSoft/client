@@ -64,39 +64,67 @@ const HostelFee = () => {
     }
   };
 
-  // Calculate fee amounts dynamically
+  // Calculate fee amounts dynamically with concession
   const calculateFeeAmounts = () => {
-    if (!feeStructure || !feeData?.feeReminder) return { totalFee: 0, paidAmount: 0, pendingAmount: 0 };
+    if (!feeStructure || !feeData?.feeReminder) return { 
+      totalFee: 0, 
+      totalOriginalFee: 0,
+      totalCalculatedFee: 0,
+      concession: 0,
+      paidAmount: 0, 
+      pendingAmount: 0 
+    };
     
     const { totalFee, term1Fee, term2Fee, term3Fee } = feeStructure;
     const { feeStatus } = feeData.feeReminder;
     
+    // Get concession and calculated fees from user data
+    const concession = user.concession || 0;
+    const calculatedTerm1Fee = user.calculatedTerm1Fee || term1Fee || Math.round(totalFee * 0.4);
+    const calculatedTerm2Fee = user.calculatedTerm2Fee || term2Fee || Math.round(totalFee * 0.3);
+    const calculatedTerm3Fee = user.calculatedTerm3Fee || term3Fee || Math.round(totalFee * 0.3);
+    
+    const totalOriginalFee = totalFee;
+    const totalCalculatedFee = calculatedTerm1Fee + calculatedTerm2Fee + calculatedTerm3Fee;
+    
     const paidAmount = [
-      feeStatus.term1 === 'Paid' ? (term1Fee || Math.round(totalFee * 0.4)) : 0,
-      feeStatus.term2 === 'Paid' ? (term2Fee || Math.round(totalFee * 0.3)) : 0,
-      feeStatus.term3 === 'Paid' ? (term3Fee || Math.round(totalFee * 0.3)) : 0
+      feeStatus.term1 === 'Paid' ? calculatedTerm1Fee : 0,
+      feeStatus.term2 === 'Paid' ? calculatedTerm2Fee : 0,
+      feeStatus.term3 === 'Paid' ? calculatedTerm3Fee : 0
     ].reduce((sum, amount) => sum + amount, 0);
     
     const pendingAmount = [
-      feeStatus.term1 === 'Unpaid' ? (term1Fee || Math.round(totalFee * 0.4)) : 0,
-      feeStatus.term2 === 'Unpaid' ? (term2Fee || Math.round(totalFee * 0.3)) : 0,
-      feeStatus.term3 === 'Unpaid' ? (term3Fee || Math.round(totalFee * 0.3)) : 0
+      feeStatus.term1 === 'Unpaid' ? calculatedTerm1Fee : 0,
+      feeStatus.term2 === 'Unpaid' ? calculatedTerm2Fee : 0,
+      feeStatus.term3 === 'Unpaid' ? calculatedTerm3Fee : 0
     ].reduce((sum, amount) => sum + amount, 0);
     
-    return { totalFee, paidAmount, pendingAmount };
+    return { 
+      totalFee, 
+      totalOriginalFee,
+      totalCalculatedFee,
+      concession,
+      paidAmount, 
+      pendingAmount 
+    };
   };
 
-  // Get term fee amount
+  // Get term fee amount with concession
   const getTermFee = (term) => {
     if (!feeStructure) return 0;
     
+    // Get calculated fees from user data, fallback to fee structure
+    const calculatedTerm1Fee = user.calculatedTerm1Fee || feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
+    const calculatedTerm2Fee = user.calculatedTerm2Fee || feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
+    const calculatedTerm3Fee = user.calculatedTerm3Fee || feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
+    
     switch (term) {
       case 'term1':
-        return feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
+        return calculatedTerm1Fee;
       case 'term2':
-        return feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
+        return calculatedTerm2Fee;
       case 'term3':
-        return feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
+        return calculatedTerm3Fee;
       default:
         return 0;
     }
@@ -260,122 +288,157 @@ const HostelFee = () => {
   }
 
   const { feeReminder, visibleReminders, allTermsPaid } = feeData;
-  const { totalFee, paidAmount, pendingAmount } = calculateFeeAmounts();
+  const { totalFee, totalOriginalFee, totalCalculatedFee, concession, paidAmount, pendingAmount } = calculateFeeAmounts();
   const paymentProgress = calculatePaymentProgress();
 
   return (
-    <div className="p-4 sm:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
-      {/* Header with Refresh Button */}
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-            Hostel Fee Management
-          </h1>
-          <p className="text-gray-600">
-            Track your hostel fee payments and reminders for {feeReminder.academicYear}
-          </p>
-          <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
-            <span>Room: {user.roomNumber || 'Not Assigned'}</span>
-            <span>Category: {user.category || 'Unknown'}</span>
-            <span>Academic Year: {user.academicYear || 'Unknown'}</span>
-          </div>
+    <div className="p-3 sm:p-4 lg:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
+      {/* Header */}
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-2">
+          Hostel Fee Management
+        </h1>
+        <p className="text-sm sm:text-base text-gray-600">
+          Track your hostel fee payments and reminders for {feeReminder.academicYear}
+        </p>
+        <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+          <span className="flex items-center">
+            <span className="font-medium">Room:</span> {user.roomNumber || 'Not Assigned'}
+          </span>
+          <span className="flex items-center">
+            <span className="font-medium">Category:</span> {user.category || 'Unknown'}
+          </span>
+          <span className="flex items-center">
+            <span className="font-medium">Academic Year:</span> {user.academicYear || 'Unknown'}
+          </span>
         </div>
-        <button
-          onClick={handleRefresh}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <CogIcon className="w-4 h-4" />
-          Refresh
-        </button>
       </div>
 
       {/* Fee Structure Information */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-6 mb-6">
-        <div className="flex items-center mb-4">
-          <InformationCircleIcon className="w-6 h-6 text-indigo-600 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-900">Fee Structure Details</h2>
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex items-center mb-3 sm:mb-4">
+          <InformationCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 mr-2" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Fee Structure Details</h2>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg p-4 border border-indigo-100">
-            <div className="text-sm font-medium text-gray-600 mb-1">Room Category</div>
-            <div className="text-lg font-bold text-indigo-600">{feeStructure.category}</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-indigo-100">
+            <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Room Category</div>
+            <div className="text-base sm:text-lg font-bold text-indigo-600">{feeStructure.category}</div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-indigo-100">
-            <div className="text-sm font-medium text-gray-600 mb-1">Academic Year</div>
-            <div className="text-lg font-bold text-indigo-600">{feeStructure.academicYear}</div>
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-indigo-100">
+            <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Academic Year</div>
+            <div className="text-base sm:text-lg font-bold text-indigo-600">{feeStructure.academicYear}</div>
           </div>
-          <div className="bg-white rounded-lg p-4 border border-indigo-100">
-            <div className="text-sm font-medium text-gray-600 mb-1">Total Annual Fee</div>
-            <div className="text-lg font-bold text-indigo-600">₹{feeStructure.totalFee.toLocaleString()}</div>
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-indigo-100 sm:col-span-2 lg:col-span-1">
+            <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Total Annual Fee</div>
+            <div className="text-base sm:text-lg font-bold text-indigo-600">₹{feeStructure.totalFee.toLocaleString()}</div>
           </div>
         </div>
       </div>
 
+      {/* Concession Information */}
+      {concession > 0 && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm border border-green-200 p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex items-center mb-3 sm:mb-4">
+            <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 mr-2" />
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Concession Applied</h2>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Original Total Fee</div>
+              <div className="text-base sm:text-lg font-bold text-gray-900">₹{totalOriginalFee.toLocaleString()}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Concession Amount</div>
+              <div className="text-base sm:text-lg font-bold text-green-600">-₹{concession.toLocaleString()}</div>
+            </div>
+            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100 sm:col-span-2 lg:col-span-1">
+              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Final Total Fee</div>
+              <div className="text-base sm:text-lg font-bold text-green-700">₹{totalCalculatedFee.toLocaleString()}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fee Total Statistics */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-6 mb-6">
-        <div className="flex items-center mb-4">
-          <CurrencyDollarIcon className="w-6 h-6 text-blue-600 mr-2" />
-          <h2 className="text-lg font-semibold text-gray-900">Your Hostel Fee Summary</h2>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex items-center mb-3 sm:mb-4">
+          <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mr-2" />
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Your Hostel Fee Summary</h2>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Total Fee Amount */}
-          <div className="bg-white rounded-lg p-4 border border-blue-100">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Total Fee</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-600">Total Fee</span>
               <CurrencyDollarIcon className="w-4 h-4 text-blue-600" />
             </div>
-            <p className="text-2xl font-bold text-gray-900">₹{totalFee.toLocaleString()}</p>
-            <p className="text-xs text-gray-500">Per Academic Year</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">₹{totalCalculatedFee.toLocaleString()}</p>
+            <p className="text-xs text-gray-500">
+              {concession > 0 ? `After ₹${concession.toLocaleString()} concession` : 'Per Academic Year'}
+            </p>
           </div>
 
           {/* Paid Amount */}
-          <div className="bg-white rounded-lg p-4 border border-green-100">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Paid Amount</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-600">Paid Amount</span>
               <CheckCircleIcon className="w-4 h-4 text-green-600" />
             </div>
-            <p className="text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Completed Payments</p>
           </div>
 
           {/* Pending Amount */}
-          <div className="bg-white rounded-lg p-4 border border-orange-100">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-orange-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Pending Amount</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-600">Pending Amount</span>
               <ExclamationTriangleIcon className="w-4 h-4 text-orange-600" />
             </div>
-            <p className="text-2xl font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Outstanding Balance</p>
           </div>
 
           {/* Payment Progress */}
-          <div className="bg-white rounded-lg p-4 border border-purple-100">
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-purple-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">Payment Progress</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-600">Payment Progress</span>
               <ChartBarIcon className="w-4 h-4 text-purple-600" />
             </div>
-            <p className="text-2xl font-bold text-purple-600">{paymentProgress}%</p>
+            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">{paymentProgress}%</p>
             <p className="text-xs text-gray-500">Completion Rate</p>
           </div>
         </div>
 
         {/* Payment Breakdown */}
-        <div className="mt-6 bg-white rounded-lg p-4 border border-blue-100">
+        <div className="mt-4 sm:mt-6 bg-white rounded-lg p-3 sm:p-4 border border-blue-100">
           <h3 className="font-medium text-gray-900 mb-3">Payment Breakdown by Term</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {['term1', 'term2', 'term3'].map((term, index) => {
               const { status, amount } = getTermStatus(term);
               const termNumber = index + 1;
               const percentage = termNumber === 1 ? 40 : 30;
               
+              // Get original term fee for comparison
+              const originalTermFee = term === 'term1' 
+                ? (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4))
+                : (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3));
+              
               return (
-                <div key={term} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
+                <div key={term} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">Term {termNumber}</p>
-                    <p className="text-xs text-gray-500">₹{amount.toLocaleString()} ({percentage}%)</p>
+                    <p className="text-xs text-gray-500">
+                      ₹{amount.toLocaleString()} ({percentage}%)
+                      {concession > 0 && amount !== originalTermFee && (
+                        <span className="block text-green-600 mt-1">
+                          Original: ₹{originalTermFee.toLocaleString()}
+                        </span>
+                      )}
+                    </p>
                   </div>
-                  <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <div className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                     status === 'Paid' 
                       ? 'text-green-600 bg-green-100' 
                       : 'text-red-600 bg-red-100'
@@ -389,11 +452,11 @@ const HostelFee = () => {
         </div>
       </div>
 
-      {/* Overall Status Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Payment Status</h2>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+      {/* Overall Status Card - Mobile Optimized */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Payment Status</h2>
+          <div className={`px-2 py-1 rounded-full text-xs sm:text-sm font-medium self-start sm:self-auto ${
             allTermsPaid 
               ? 'text-green-600 bg-green-50 border border-green-200' 
               : 'text-orange-600 bg-orange-50 border border-orange-200'
@@ -402,50 +465,61 @@ const HostelFee = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {['term1', 'term2', 'term3'].map((term, index) => {
             const { status, amount } = getTermStatus(term);
             const termNumber = index + 1;
             
+            // Get original term fee for comparison
+            const originalTermFee = term === 'term1' 
+              ? (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4))
+              : (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3));
+            
             return (
-              <div key={term} className={`p-4 rounded-lg border ${getStatusColor(status)}`}>
+              <div key={term} className={`p-3 sm:p-4 rounded-lg border ${getStatusColor(status)}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium">Term {termNumber}</span>
+                  <span className="text-sm sm:text-base font-medium">Term {termNumber}</span>
                   {getStatusIcon(status)}
                 </div>
-                <p className="text-sm capitalize mb-1">{status}</p>
-                <p className="text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
+                <p className="text-xs sm:text-sm capitalize mb-1">{status}</p>
+                <p className="text-base sm:text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
+                {concession > 0 && amount !== originalTermFee && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    <span className="line-through">₹{originalTermFee.toLocaleString()}</span>
+                    <span className="text-green-600 ml-1">After concession</span>
+                  </p>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Active Reminders */}
+      {/* Active Reminders - Mobile Optimized */}
       {visibleReminders.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="flex items-center mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="flex items-center mb-3 sm:mb-4">
             <BellIcon className="w-5 h-5 text-orange-600 mr-2" />
-            <h2 className="text-lg font-semibold text-gray-900">Active Reminders</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Active Reminders</h2>
           </div>
           
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             {visibleReminders.map((reminder) => (
               <div 
                 key={reminder.number}
-                className={`p-4 rounded-lg border ${
+                className={`p-3 sm:p-4 rounded-lg border ${
                   getReminderStatus(reminder) === 'active' 
                     ? 'border-orange-200 bg-orange-50' 
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex items-center mb-2">
-                      <span className="font-medium text-gray-900">
+                    <div className="flex flex-col sm:flex-row sm:items-center mb-2 gap-2">
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">
                         Reminder #{reminder.number}
                       </span>
-                      <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                         getReminderStatus(reminder) === 'active'
                           ? 'text-orange-600 bg-orange-100'
                           : 'text-gray-500 bg-gray-100'
@@ -454,13 +528,13 @@ const HostelFee = () => {
                       </span>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div className="grid grid-cols-1 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                       <div className="flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2" />
+                        <CalendarIcon className="w-4 h-4 mr-2 flex-shrink-0" />
                         <span>Issued: {formatDate(reminder.issuedAt)}</span>
                       </div>
                       <div className="flex items-center">
-                        <ClockIcon className="w-4 h-4 mr-2" />
+                        <ClockIcon className="w-4 h-4 mr-2 flex-shrink-0" />
                         <span>Due: {formatDate(reminder.dueDate)}</span>
                       </div>
                     </div>
@@ -472,33 +546,33 @@ const HostelFee = () => {
         </div>
       )}
 
-      {/* Registration Information */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Registration Information</h2>
+      {/* Registration Information - Mobile Optimized */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Registration Information</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-500">Registration Date:</span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">Registration Date:</span>
             <p className="font-medium">{formatDate(feeReminder.registrationDate)}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Academic Year:</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">Academic Year:</span>
             <p className="font-medium">{feeReminder.academicYear}</p>
           </div>
-          <div>
-            <span className="text-gray-500">First Reminder Due:</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">First Reminder Due:</span>
             <p className="font-medium">{formatDate(feeReminder.firstReminderDate)}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Second Reminder Due:</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">Second Reminder Due:</span>
             <p className="font-medium">{formatDate(feeReminder.secondReminderDate)}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Third Reminder Due:</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">Third Reminder Due:</span>
             <p className="font-medium">{formatDate(feeReminder.thirdReminderDate)}</p>
           </div>
-          <div>
-            <span className="text-gray-500">Last Updated:</span>
+          <div className="flex flex-col">
+            <span className="text-gray-500 mb-1">Last Updated:</span>
             <p className="font-medium">
               {feeReminder.lastUpdatedAt ? formatDate(feeReminder.lastUpdatedAt) : 'Not updated yet'}
             </p>
@@ -506,18 +580,39 @@ const HostelFee = () => {
         </div>
       </div>
 
-      {/* Information Note */}
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+      {/* Information Note - Mobile Optimized */}
+      <div className="mt-4 sm:mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
         <div className="flex items-start">
-          <DocumentTextIcon className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
+          <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="font-medium text-blue-900 mb-1">Important Information</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Your fees are calculated based on your room category ({user.category})</li>
-              <li>• Reminders are automatically generated based on your registration date</li>
-              <li>• Each reminder is visible for 3 days from the date it's issued</li>
-              <li>• Once a term is marked as paid, its reminders will no longer appear</li>
-              <li>• Contact the hostel office for any payment-related queries</li>
+            <h3 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">Important Information</h3>
+            <ul className="text-xs sm:text-sm text-blue-800 space-y-1.5">
+              <li className="flex items-start">
+                <span className="mr-2 mt-0.5">•</span>
+                <span>Your fees are calculated based on your room category ({user.category})</span>
+              </li>
+              {concession > 0 && (
+                <li className="flex items-start">
+                  <span className="mr-2 mt-0.5">•</span>
+                  <span>A concession of ₹{concession.toLocaleString()} has been applied to your total fee</span>
+                </li>
+              )}
+              <li className="flex items-start">
+                <span className="mr-2 mt-0.5">•</span>
+                <span>Reminders are automatically generated based on your registration date</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2 mt-0.5">•</span>
+                <span>Each reminder is visible for 3 days from the date it's issued</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2 mt-0.5">•</span>
+                <span>Once a term is marked as paid, its reminders will no longer appear</span>
+              </li>
+              <li className="flex items-start">
+                <span className="mr-2 mt-0.5">•</span>
+                <span>Contact the hostel office for any payment-related queries</span>
+              </li>
             </ul>
           </div>
         </div>

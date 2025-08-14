@@ -55,7 +55,8 @@ const initialForm = {
   batch: '',
   academicYear: '',
   email: '',
-  hostelId: '' // Add hostelId field
+  hostelId: '', // Add hostelId field
+  concession: 0 // Add concession field
 };
 
 // Add BATCHES constant after other constants
@@ -225,6 +226,16 @@ const Students = () => {
   const [photoEditGuardianPhoto2, setPhotoEditGuardianPhoto2] = useState(null);
   const [photoEditStudentPhotoPreview, setPhotoEditStudentPhotoPreview] = useState(null);
   const [photoEditGuardianPhoto1Preview, setPhotoEditGuardianPhoto1Preview] = useState(null);
+
+  // Fee structure and calculation states
+  const [feeStructure, setFeeStructure] = useState(null);
+  const [loadingFeeStructure, setLoadingFeeStructure] = useState(false);
+  const [calculatedFees, setCalculatedFees] = useState({
+    term1: 0,
+    term2: 0,
+    term3: 0,
+    total: 0
+  });
   const [photoEditGuardianPhoto2Preview, setPhotoEditGuardianPhoto2Preview] = useState(null);
   const [photoEditLoading, setPhotoEditLoading] = useState(false);
 
@@ -512,6 +523,68 @@ const Students = () => {
     }
   };
 
+  // Fetch fee structure when category and academic year are selected
+  const fetchFeeStructure = async (category, academicYear) => {
+    if (!category || !academicYear) {
+      setFeeStructure(null);
+      setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+      return;
+    }
+    
+    try {
+      setLoadingFeeStructure(true);
+      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${category}`);
+      
+      if (response.data.success) {
+        const feeData = response.data.data;
+        setFeeStructure(feeData);
+        
+        // Calculate initial fees without concession
+        const term1 = feeData.term1Fee || 0;
+        const term2 = feeData.term2Fee || 0;
+        const term3 = feeData.term3Fee || 0;
+        const total = term1 + term2 + term3;
+        
+        setCalculatedFees({
+          term1,
+          term2,
+          term3,
+          total
+        });
+      } else {
+        setFeeStructure(null);
+        setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+      }
+    } catch (error) {
+      console.error('Error fetching fee structure:', error);
+      setFeeStructure(null);
+      setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+    } finally {
+      setLoadingFeeStructure(false);
+    }
+  };
+
+  // Calculate fees when concession changes
+  const calculateFeesWithConcession = (concessionAmount) => {
+    if (!feeStructure) return;
+    
+    const concession = Number(concessionAmount) || 0;
+    const totalOriginalFee = feeStructure.totalFee;
+    
+    // Apply concession to total fee
+    const totalAfterConcession = Math.max(0, totalOriginalFee - concession);
+    
+    // Calculate proportional concession for each term
+    const concessionRatio = totalAfterConcession / totalOriginalFee;
+    
+    const term1 = Math.round(feeStructure.term1Fee * concessionRatio);
+    const term2 = Math.round(feeStructure.term2Fee * concessionRatio);
+    const term3 = Math.round(feeStructure.term3Fee * concessionRatio);
+    const total = term1 + term2 + term3;
+    
+    setCalculatedFees({ term1, term2, term3, total });
+  };
+
   const fetchStudents = useCallback(async (initialLoad = false) => {
     if (initialLoad) {
       setLoading(true);
@@ -608,6 +681,16 @@ const Students = () => {
       }));
     }
   }, [form.roomNumber]);
+
+  // Fetch fee structure when category or academic year changes
+  useEffect(() => {
+    if (form.category && form.academicYear) {
+      fetchFeeStructure(form.category, form.academicYear);
+    } else {
+      setFeeStructure(null);
+      setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+    }
+  }, [form.category, form.academicYear]);
 
   const handleFormChange = e => {
     const { name, value, type, checked } = e.target;
@@ -2098,6 +2181,24 @@ const Students = () => {
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Concession Amount (₹)</label>
+              <input
+                type="number"
+                name="concession"
+                value={form.concession}
+                onChange={(e) => {
+                  const value = Number(e.target.value) || 0;
+                  setForm(prev => ({ ...prev, concession: value }));
+                  calculateFeesWithConcession(value);
+                }}
+                min="0"
+                step="1"
+                placeholder="Enter concession amount"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">Fixed amount to deduct from total fee</p>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Meal Type</label>
               <select
                 name="mealType"
@@ -2221,6 +2322,85 @@ const Students = () => {
             </div>
           )}
         </div>
+
+        {/* Fee Structure Display Section - Show when category and academic year are selected */}
+        {form.category && form.academicYear && (
+          <div className="bg-green-50 rounded-lg p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoinround="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Fee Structure & Calculation</h3>
+            </div>
+            
+            {loadingFeeStructure ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+                <p className="text-sm text-gray-600 mt-2">Loading fee structure...</p>
+              </div>
+            ) : feeStructure ? (
+              <div className="bg-white rounded-lg p-4 border border-green-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
+                    <div className="text-xs text-gray-600">Term 1</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
+                    <div className="text-xs text-gray-600">Term 2</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
+                    <div className="text-xs text-gray-600">Term 3</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-600">₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
+                    <div className="text-xs text-gray-600">Total</div>
+                  </div>
+                </div>
+                
+                {form.concession > 0 && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium text-yellow-800">Concession Applied</div>
+                        <div className="text-xs text-yellow-600">₹{form.concession} off total fee</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-yellow-800">₹{calculatedFees.total.toLocaleString()}</div>
+                        <div className="text-xs text-yellow-600">Final Amount</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Term 1 (After Concession)</div>
+                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term1.toLocaleString()}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Term 2 (After Concession)</div>
+                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term2.toLocaleString()}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-medium text-gray-700">Term 3 (After Concession)</div>
+                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term3.toLocaleString()}</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                <div className="text-yellow-800 text-sm">
+                  <p>No fee structure found for category <strong>{form.category}</strong> and academic year <strong>{form.academicYear}</strong></p>
+                  <p className="text-xs mt-1">Please ensure fee structure is configured in Fee Management</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
                  {/* Contact Information Section */}
          <div className="bg-blue-50 rounded-lg p-6">

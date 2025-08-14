@@ -57,22 +57,23 @@ Student Login → Profile Section → Update Information → Photo Upload → Va
 ```
 
 #### **Financial Management System**
-- **Fee Payment**: Pay hostel fees through Cashfree payment gateway with multiple options
+- **Fee Payment**: Pay hostel fees through Cashfree payment gateway or manual collection with receipt generation
 - **Payment History**: View complete payment transaction history with receipts
 - **Payment Status**: Track payment status and receipts with real-time updates
 - **Electricity Bills**: View and pay room electricity bills with consumption tracking
 
 **📋 Payment Flow:**
-```
-Student Selects Fee → Payment Gateway → Cashfree Processing → Payment Verification → Receipt Generation → Database Update
-```
+- **Electricity Payments**: Student Selects Fee → Payment Gateway → Cashfree Processing → Payment Verification → Receipt Generation → Database Update
+- **Hostel Fee Payments**: Admin Records Payment → Receipt Generation → Database Update → Balance Calculation
 
 **🔧 Technical Implementation:**
-- Cashfree payment gateway integration
+- Cashfree payment gateway integration for electricity bills
+- Manual hostel fee collection system with receipt generation
 - Webhook handling for payment status updates
 - Receipt generation and storage
 - Payment history tracking
 - Electricity bill calculation and management
+- Hostel fee balance calculation with partial payment handling
 
 #### **Campus Services**
 - **Menu & Cafeteria**: View daily menu with meal ratings and nutritional information
@@ -135,15 +136,15 @@ Admin/Warden Login → Select Date → Mark Attendance → Save → Generate Rep
 
 #### **Financial Administration**
 - **Fee Structure**: Manage fee structures for different categories and academic years
-- **Payment Tracking**: Monitor all payment transactions with detailed analytics
+- **Payment Tracking**: Monitor all payment transactions (electricity and hostel fees) with detailed analytics
 - **Electricity Bills**: Manage room electricity billing with consumption tracking
 - **Fee Reminders**: Automated fee reminder system with customizable schedules
 - **Payment Analytics**: View payment statistics and trends with visual reports
 
 **📋 Fee Management Flow:**
-```
-Fee Structure Setup → Student Assignment → Payment Collection → Receipt Generation → Analytics Update → Reminder System
-```
+- **Fee Structure**: Fee Structure Setup → Student Assignment → Concession Calculation → Term-wise Breakdown
+- **Payment Collection**: Payment Recording → Receipt Generation → Balance Calculation → Partial Payment Handling
+- **Analytics**: Payment Analytics → Reminder System → Status Tracking
 
 #### **Room Management System**
 - **Room Allocation**: Manage room assignments and availability with constraints
@@ -253,15 +254,16 @@ Event Triggered → Notification Service → OneSignal/Socket.IO → User Device
 ```
 
 ### **Payment Integration System**
-- **Cashfree Gateway**: Secure payment processing with PCI compliance
-- **Multiple Payment Methods**: Support for various payment options (UPI, Cards, Net Banking)
+- **Cashfree Gateway**: Secure payment processing for electricity bills with PCI compliance
+- **Hostel Fee Collection**: Manual payment recording system with receipt generation
+- **Multiple Payment Methods**: Support for various payment options (UPI, Cards, Net Banking, Cash)
 - **Payment Webhooks**: Automated payment status updates with real-time processing
 - **Transaction History**: Complete payment transaction records with audit trail
+- **Partial Payment Handling**: Smart balance calculation with excess amount distribution
 
 **📋 Payment Processing Flow:**
-```
-Payment Initiated → Cashfree Gateway → Payment Processing → Webhook → Status Update → Receipt Generation
-```
+- **Electricity Payments**: Payment Initiated → Cashfree Gateway → Payment Processing → Webhook → Status Update → Receipt Generation
+- **Hostel Fee Payments**: Payment Recorded → Receipt Generation → Balance Calculation → Partial Payment Distribution
 
 ### **File Management System**
 - **S3 Integration**: Amazon S3 for secure file storage with CDN support

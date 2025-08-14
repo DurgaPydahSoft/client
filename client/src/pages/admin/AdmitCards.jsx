@@ -333,8 +333,13 @@ const AdmitCards = () => {
       console.log('Fee structure for student:', feeStructure);
       
       // Fetch student password
-      const studentPassword = await fetchStudentPassword(student._id);
+      let studentPassword = null;
+      if (student._id) {
+        studentPassword = await fetchStudentPassword(student._id);
       console.log('Student password fetched:', studentPassword ? 'Yes' : 'No');
+      } else {
+        console.log('⚠️ Student ID is undefined, skipping password fetch');
+      }
       
       // For recently added students, use URL password if available
       const finalPassword = passwordFromURL || studentPassword;
@@ -353,6 +358,25 @@ const AdmitCards = () => {
       
       // Function to generate one copy of admit card
       const generateOneCopy = (startY, copyLabel, password) => {
+        // Validate student object
+        if (!student || typeof student !== 'object') {
+          console.error('❌ Invalid student object:', student);
+          throw new Error('Invalid student object provided to generateOneCopy');
+        }
+        
+        // Check if student has concession
+        const hasConcession = student.concession && student.concession > 0;
+        
+        // Debug logging
+        console.log('🔍 generateOneCopy called with:', {
+          startY,
+          copyLabel,
+          hasConcession,
+          studentConcession: student.concession,
+          feeStructure: feeStructure,
+          studentKeys: Object.keys(student)
+        });
+        
         // Draw border for this copy
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.5);
@@ -486,24 +510,57 @@ const AdmitCards = () => {
           yPos += 3;
         });
         
+
+        
                  // Fee terms table
          yPos = startY + 80;
          doc.setFontSize(8);
          doc.setFont('helvetica', 'bold');
-         doc.text('FEE STRUCTURE', centerX - 35, yPos);
+         doc.setTextColor(0, 0, 0);
+         doc.text('FEE STRUCTURE', centerX - 40, yPos);
          yPos += 4;
          
-         // Fee data
+
+         
+                          // Fee data with concession information
          const feeData = [
-           ['Term', 'Amount', 'Due Date', 'Remarks'],
-           ['1st Term', `Rs${feeStructure?.term1Fee || 0}`, '', ''],
-           ['2nd Term', `Rs${feeStructure?.term2Fee || 0}`, '', 'Before 2nd MID Term'],
-           ['3rd Term', `Rs${feeStructure?.term3Fee || 0}`, '', 'Before 2nd Sem Start']
+           ['Term', 'Original Amount', 'After Concession', 'Remarks'],
+           ['1st Term', `Rs : ${feeStructure?.term1Fee || 0}`, `Rs : ${student.calculatedTerm1Fee || feeStructure?.term1Fee || 0}`, ''],
+           ['2nd Term', `Rs : ${feeStructure?.term2Fee || 0}`, `Rs : ${student.calculatedTerm2Fee || feeStructure?.term2Fee || 0}`, 'Before 2nd MID Term'],
+           ['3rd Term', `Rs : ${feeStructure?.term3Fee || 0}`, `Rs : ${student.calculatedTerm3Fee || feeStructure?.term3Fee || 0}`, 'Before 2nd Sem Start']
          ];
          
+         // Always add total row
+         const totalOriginalFee = (feeStructure?.term1Fee || 0) + (feeStructure?.term2Fee || 0) + (feeStructure?.term3Fee || 0);
+         
+         // Calculate total after concession: if calculated fees exist, use them; otherwise, use original fees
+         const totalAfterConcession = (student.calculatedTerm1Fee || feeStructure?.term1Fee || 0) + 
+                                    (student.calculatedTerm2Fee || feeStructure?.term2Fee || 0) + 
+                                    (student.calculatedTerm3Fee || feeStructure?.term3Fee || 0);
+         
+         feeData.push(['TOTAL', `Rs : ${totalOriginalFee.toLocaleString()}`, `Rs : ${totalAfterConcession.toLocaleString()}`, '']);
+        
+        console.log('🔍 Fee data prepared:', {
+          feeData,
+          feeStructure,
+          studentCalculatedFees: {
+            term1: student.calculatedTerm1Fee,
+            term2: student.calculatedTerm2Fee,
+            term3: student.calculatedTerm3Fee
+          }
+        });
+         
+         // Check if autoTable is available
+         console.log('🔍 autoTable availability check:', {
+           hasAutoTable: typeof doc.autoTable === 'function',
+           docType: typeof doc,
+           docKeys: Object.keys(doc)
+         });
+         
          if (typeof doc.autoTable === 'function') {
+           try {
            doc.autoTable({
-             startY: yPos,
+               startY: yPos + 4,
              head: [feeData[0]],
              body: feeData.slice(1),
              theme: 'grid',
@@ -511,7 +568,9 @@ const AdmitCards = () => {
                fontSize: 5,
                cellPadding: 1.5,
                lineColor: [0, 0, 0],
-               lineWidth: 0.3
+                 lineWidth: 0.2,
+                 halign: 'center',
+                 valign: 'middle'
              },
              headStyles: {
                fillColor: [70, 70, 70],
@@ -519,43 +578,154 @@ const AdmitCards = () => {
                fontStyle: 'bold',
                fontSize: 6,
                lineColor: [0, 0, 0],
-               lineWidth: 0.3
+                 lineWidth: 0.2,
+                 halign: 'center',
+                 valign: 'middle'
              },
              columnStyles: {
-               0: { cellWidth: 22, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
-               1: { cellWidth: 18, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
-               2: { cellWidth: 18, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.3 },
-               3: { cellWidth: 28, fontSize: 4, lineColor: [0, 0, 0], lineWidth: 0.3 }
-             },
-             margin: { left: centerX - 40 }
-           });
-         } else {
+                 0: { cellWidth: 20, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+                 1: { cellWidth: 24, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+                 2: { cellWidth: 24, fontSize: 5, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
+                 3: { cellWidth: 20, fontSize: 4, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' }
+               },
+               margin: { left: centerX - 40 },
+               tableWidth: 'auto',
+               showFoot: 'lastPage',
+               didDrawPage: function(data) {
+                 // Ensure borders are drawn
+                 doc.setDrawColor(0, 0, 0);
+                 doc.setLineWidth(0.5);
+               }
+             });
+             console.log('✅ autoTable executed successfully');
+           } catch (autoTableError) {
+             console.error('❌ autoTable error:', autoTableError);
+                        // Fallback to manual text rendering
            doc.setFontSize(5);
+           const tableStartY = yPos + 4;
+           
+           // Draw table borders manually
+           doc.setDrawColor(0, 0, 0);
+           doc.setLineWidth(0.2);
+           
+           // Calculate table dimensions based on actual column positions
+           const col1Start = centerX - 40;
+           const col1End = centerX - 20;
+           const col2Start = centerX - 20;
+           const col2End = centerX + 4;
+           const col3Start = centerX + 4;
+           const col3End = centerX + 28;
+           const col4Start = centerX + 28;
+           const col4End = centerX + 48;
+           
+           const tableWidth = col4End - col1Start;
+           const tableHeight = feeData.length * 5;
+           
+           // Draw outer border
+           doc.rect(col1Start, tableStartY - 2, tableWidth, tableHeight + 2);
+           
+           // Draw horizontal lines between rows (but not the extra bottom line)
+           for (let i = 0; i < feeData.length; i++) {
+             const lineY = tableStartY - 2 + (i * 5);
+             doc.line(col1Start, lineY, col4End, lineY);
+           }
+           
+           // Draw vertical lines between columns
+           doc.line(col2Start, tableStartY - 2, col2Start, tableStartY + tableHeight);
+           doc.line(col3Start, tableStartY - 2, col3Start, tableStartY + tableHeight);
+           doc.line(col4Start, tableStartY - 2, col4Start, tableStartY + tableHeight);
+           
            feeData.forEach((row, rowIndex) => {
-             const rowY = yPos + (rowIndex * 5);
-             doc.text(row[0], centerX - 40, rowY);
-             doc.text(row[1], centerX - 18, rowY);
-             doc.text(row[2], centerX + 4, rowY);
-             doc.text(row[3], centerX + 22, rowY);
+             const rowY = tableStartY + (rowIndex * 5);
+             
+             // Style the header row and total row differently
+             if (rowIndex === 0 || row[0] === 'TOTAL') {
+               doc.setFont('helvetica', 'bold');
+               doc.setFontSize(6);
+         } else {
+               doc.setFont('helvetica', 'normal');
+           doc.setFontSize(5);
+             }
+               
+               // Center text in each column
+               doc.text(row[0], centerX - 30, rowY, { align: 'center' });
+               doc.text(row[1], centerX - 8, rowY, { align: 'center' });
+               doc.text(row[2], centerX + 16, rowY, { align: 'center' });
+               doc.text(row[3], centerX + 38, rowY, { align: 'center' });
+             });
+           }
+         } else {
+           console.log('⚠️ autoTable not available, using manual text rendering');
+           doc.setFontSize(5);
+           const tableStartY = yPos + 4;
+           
+           // Draw table borders manually
+           doc.setDrawColor(0, 0, 0);
+           doc.setLineWidth(0.2);
+           
+           // Calculate table dimensions based on actual column positions
+           const col1Start = centerX - 40;
+           const col1End = centerX - 20;
+           const col2Start = centerX - 20;
+           const col2End = centerX + 4;
+           const col3Start = centerX + 4;
+           const col3End = centerX + 28;
+           const col4Start = centerX + 28;
+           const col4End = centerX + 48;
+           
+           const tableWidth = col4End - col1Start;
+           const tableHeight = feeData.length * 5;
+           
+           // Draw outer border
+           doc.rect(col1Start, tableStartY - 2, tableWidth, tableHeight + 2);
+           
+           // Draw horizontal lines between rows (but not the extra bottom line)
+           for (let i = 0; i < feeData.length; i++) {
+             const lineY = tableStartY - 2 + (i * 5);
+             doc.line(col1Start, lineY, col4End, lineY);
+           }
+           
+           // Draw vertical lines between columns
+           doc.line(col2Start, tableStartY - 2, col2Start, tableStartY + tableHeight);
+           doc.line(col3Start, tableStartY - 2, col3Start, tableStartY + tableHeight);
+           doc.line(col4Start, tableStartY - 2, col4Start, tableStartY + tableHeight);
+           
+           feeData.forEach((row, rowIndex) => {
+             const rowY = tableStartY + (rowIndex * 5);
+             
+             // Style the header row and total row differently
+             if (rowIndex === 0 || row[0] === 'TOTAL') {
+               doc.setFont('helvetica', 'bold');
+               doc.setFontSize(6);
+             } else {
+               doc.setFont('helvetica', 'normal');
+               doc.setFontSize(5);
+             }
+             
+             // Center text in each column
+             doc.text(row[0], centerX - 30, rowY, { align: 'center' });
+             doc.text(row[1], centerX - 8, rowY, { align: 'center' });
+             doc.text(row[2], centerX + 16, rowY, { align: 'center' });
+             doc.text(row[3], centerX + 38, rowY, { align: 'center' });
            });
          }
          
          // Important notes - positioned after fee table with proper spacing
-         const tableEndY = doc.lastAutoTable ? doc.lastAutoTable.finalY : yPos;
-         yPos = tableEndY + 24;
+         const tableEndY = doc.lastAutoTable ? doc.lastAutoTable.finalY : (yPos + 4);
+         yPos = tableEndY + 30;
          
          doc.setFontSize(6);
          doc.setFont('helvetica', 'bold');
-         doc.text('IMPORTANT NOTES:', centerX - 35, yPos);
+         doc.text('IMPORTANT NOTES:', centerX - 40, yPos);
          yPos += 3;
          
          doc.setFont('helvetica', 'normal');
          doc.setFontSize(5);
-         doc.text('1. Late fee Rs.500/- per term if not paid on time', centerX - 35, yPos);
+         doc.text('1. Late fee Rs.500/- per term if not paid on time', centerX - 40, yPos);
          yPos += 2.5;
-         doc.text('2. Electricity bill extra monthly as per room sharing', centerX - 35, yPos);
+         doc.text('2. Electricity bill extra monthly as per room sharing', centerX - 40, yPos);
          yPos += 2.5;
-         doc.text('3. Present this card at hostel entrance for verification', centerX - 35, yPos);
+         doc.text('3. Present this card at hostel entrance for verification', centerX - 40, yPos);
       };
       
       // Generate Student Copy (top half)
@@ -985,6 +1155,9 @@ const AdmitCards = () => {
                        </div>
                      </div>
                    )}
+
+
+
                   
                                      <div className="mt-4 sm:mt-6">
                      <h5 className="font-semibold mb-2 text-sm sm:text-base">Fee Terms</h5>
@@ -993,8 +1166,8 @@ const AdmitCards = () => {
                          <thead className="bg-gray-100">
                            <tr>
                              <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Term</th>
-                             <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Due Amount</th>
-                             <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Due Date</th>
+                             <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Original Amount</th>
+                             <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">After Concession</th>
                              <th className="px-2 sm:px-3 py-1 sm:py-2 text-left">Remarks</th>
                            </tr>
                          </thead>
@@ -1002,19 +1175,19 @@ const AdmitCards = () => {
                            <tr>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">First Term</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.feeStructure?.term1Fee || 0}</td>
-                             <td className="px-2 sm:px-3 py-1 sm:py-2"></td>
+                             <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.student.calculatedTerm1Fee || previewModal.feeStructure?.term1Fee || 0}</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2"></td>
                            </tr>
                            <tr>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">Second Term</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.feeStructure?.term2Fee || 0}</td>
-                             <td className="px-2 sm:px-3 py-1 sm:py-2"></td>
+                             <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.student.calculatedTerm2Fee || previewModal.feeStructure?.term2Fee || 0}</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">On or before Second MID Term exam in First Sem</td>
                            </tr>
                            <tr>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">Third Term</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.feeStructure?.term3Fee || 0}</td>
-                             <td className="px-2 sm:px-3 py-1 sm:py-2"></td>
+                             <td className="px-2 sm:px-3 py-1 sm:py-2">Rs{previewModal.student.calculatedTerm3Fee || previewModal.feeStructure?.term3Fee || 0}</td>
                              <td className="px-2 sm:px-3 py-1 sm:py-2">On or before Second semester starting Date</td>
                            </tr>
                          </tbody>

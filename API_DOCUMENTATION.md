@@ -496,6 +496,14 @@ Authorization: Bearer <your-jwt-token>
 |--------|----------|-------------|---------------|
 | GET | `/payments/stats` | Get payment statistics | Admin |
 
+### Hostel Fee Payment Routes
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/payments/hostel-fee` | Record hostel fee payment | Admin |
+| GET | `/payments/hostel-fee/:studentId` | Get student's hostel fee payments | Admin |
+| GET | `/payments/hostel-fee/history/:studentId` | Get student's own payment history | Student |
+| GET | `/payments/hostel-fee/stats` | Get hostel fee payment statistics | Admin |
+
 ### Webhook Routes
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
@@ -602,7 +610,7 @@ The system supports real-time notifications via WebSocket connections on the sam
 3. **Role-Based Access**: Different endpoints require different user roles (student, admin, warden, principal)
 4. **Real-time Features**: The system supports real-time notifications and updates
 5. **AI Integration**: Complaint processing includes AI-powered features for automated responses
-6. **Payment Integration**: Supports Cashfree payment gateway for fee payments
+6. **Payment Integration**: Supports Cashfree payment gateway for electricity payments and manual hostel fee collection system
 7. **Push Notifications**: Integrated with OneSignal for push notifications
 8. **QR Code System**: Leave management includes QR code generation and scanning
 9. **Bulk Operations**: Supports bulk uploads and operations for efficiency

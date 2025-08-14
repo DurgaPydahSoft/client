@@ -87,6 +87,7 @@ const FeeManagement = () => {
   const [studentPayments, setStudentPayments] = useState([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
+
   // Generate academic years dynamically (3 years before and after current year)
   const generateAcademicYears = () => {
     const currentYear = new Date().getFullYear();
@@ -241,6 +242,23 @@ const FeeManagement = () => {
     }
   };
 
+  // Fetch hostel fee payments from backend
+  const fetchHostelFeePayments = async () => {
+    try {
+      console.log('🔍 Fetching hostel fee payments from backend...');
+      const response = await api.get('/api/payments/hostel-fee/stats');
+      
+      if (response.data.success) {
+        // For now, we'll get all payments by fetching from each student
+        // In a production system, you might want a bulk endpoint
+        console.log('🔍 Hostel fee payment stats fetched:', response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching hostel fee payments:', error);
+      // Don't show error to user as this is background fetch
+    }
+  };
+
   // Fetch all students for statistics (without pagination)
   const fetchAllStudentsForStats = async () => {
     try {
@@ -268,23 +286,42 @@ const FeeManagement = () => {
         }).length;
         const studentsWithoutFees = totalStudents - studentsWithFees;
         
-        // Calculate total fee amount
+        // Calculate total fee amount (including concession)
         let totalFeeAmount = 0;
+        let totalCalculatedFeeAmount = 0;
+        let totalConcessionAmount = 0;
+        let studentsWithConcession = 0;
+        
         allStudentsData.forEach(student => {
           const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
           if (feeStructure) {
-            totalFeeAmount += feeStructure.totalFee;
+            const originalFee = feeStructure.totalFee;
+            const calculatedFee = student.totalCalculatedFee || originalFee;
+            const concession = student.concession || 0;
+            
+            totalFeeAmount += originalFee;
+            totalCalculatedFeeAmount += calculatedFee;
+            totalConcessionAmount += concession;
+            
+            if (concession > 0) {
+              studentsWithConcession++;
+            }
           }
         });
         
         const averageFeeAmount = studentsWithFees > 0 ? Math.round(totalFeeAmount / studentsWithFees) : 0;
+        const averageCalculatedFeeAmount = studentsWithFees > 0 ? Math.round(totalCalculatedFeeAmount / studentsWithFees) : 0;
         
         setStats({
           totalStudents,
           studentsWithFees,
           studentsWithoutFees,
           totalFeeAmount,
-          averageFeeAmount
+          averageFeeAmount,
+          totalCalculatedFeeAmount,
+          totalConcessionAmount,
+          studentsWithConcession,
+          averageCalculatedFeeAmount
         });
         
         console.log('🔍 Frontend: Stats updated:', {
@@ -331,6 +368,8 @@ const FeeManagement = () => {
     });
     setShowUpdateModal(true);
   };
+
+
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -618,35 +657,37 @@ const FeeManagement = () => {
       
       const paymentData = {
         studentId: selectedStudentForPayment._id,
-        studentName: selectedStudentForPayment.name,
-        studentRollNumber: selectedStudentForPayment.rollNumber,
-        academicYear: selectedStudentForPayment.academicYear,
-        category: selectedStudentForPayment.category,
         amount: parseFloat(paymentForm.amount),
         paymentMethod: paymentForm.paymentMethod,
         term: paymentForm.term,
         notes: paymentForm.notes,
-        collectedBy: user._id,
-        collectedByName: user.username
+        academicYear: selectedStudentForPayment.academicYear
       };
 
-      // For now, we'll store payments in localStorage (in production, this would go to backend)
-      const newPayment = {
-        ...paymentData,
-        _id: Date.now().toString(),
-        paymentDate: new Date().toISOString(),
-        transactionId: `TXN${Date.now()}`,
-        receiptNumber: `RCPT${Date.now()}`,
-        status: 'Completed'
-      };
-
-      // Add to payments array
+            // Send payment to backend
+      console.log('🔍 Sending payment data to backend:', paymentData);
+      const response = await api.post('/api/payments/hostel-fee', paymentData);
+      
+      console.log('🔍 Backend response:', response.data);
+      
+      if (response.data.success) {
+        const newPayment = response.data.data;
+        
+        // Add to local payments array
       setPayments(prev => [newPayment, ...prev]);
+        
+        // Debug logging
+        console.log('🔍 New payment recorded:', newPayment);
+        console.log('🔍 Updated payments array:', [newPayment, ...prev]);
       
       // Generate receipt
       generateReceipt(newPayment);
       
       toast.success('Payment recorded successfully!');
+      } else {
+        toast.error('Failed to record payment');
+        return;
+      }
       setShowPaymentModal(false);
       setSelectedStudentForPayment(null);
       setPaymentForm({
@@ -691,10 +732,10 @@ const FeeManagement = () => {
     doc.text('Student Details', 20, 105);
     
     doc.setFontSize(10);
-    doc.text(`Name: ${payment.studentName}`, 20, 120);
-    doc.text(`Roll Number: ${payment.studentRollNumber}`, 20, 130);
-    doc.text(`Academic Year: ${payment.academicYear}`, 20, 140);
-    doc.text(`Category: ${payment.category}`, 20, 150);
+    doc.text(`Name: ${payment.studentName || selectedStudentForPayment?.name}`, 20, 120);
+    doc.text(`Roll Number: ${payment.studentRollNumber || selectedStudentForPayment?.rollNumber}`, 20, 130);
+    doc.text(`Academic Year: ${payment.academicYear || selectedStudentForPayment?.academicYear}`, 20, 140);
+    doc.text(`Category: ${payment.category || selectedStudentForPayment?.category}`, 20, 150);
     
     // Payment details
     doc.setFontSize(14);
@@ -732,19 +773,32 @@ const FeeManagement = () => {
         return;
       }
       
-      // Get student's payments (filter from payments array)
-      const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
+      // Fetch student's payments from backend
+      const response = await api.get(`/api/payments/hostel-fee/${student._id}?academicYear=${student.academicYear}`);
+      
+      if (response.data.success) {
+        const studentPaymentHistory = response.data.data.payments;
       setStudentPayments(studentPaymentHistory);
+        
+        // Update local payments array with fetched payments
+        setPayments(prev => {
+          const existingPayments = prev.filter(p => p.studentId !== student._id);
+          return [...existingPayments, ...studentPaymentHistory];
+        });
+      } else {
+        setStudentPayments([]);
+      }
       
     } catch (error) {
       console.error('Error fetching student balance:', error);
       toast.error('Failed to fetch student balance');
+      setStudentPayments([]);
     } finally {
       setBalanceLoading(false);
     }
   };
 
-  // Calculate student's current balance
+  // Calculate student's current balance with partial payment handling
   const calculateStudentBalance = (student) => {
     const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
     if (!feeStructure) return null;
@@ -752,38 +806,102 @@ const FeeManagement = () => {
     const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
     const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
     
-    // Calculate term-wise balance
+    // Debug logging
+    console.log('🔍 Balance calculation for student:', student.name);
+    console.log('🔍 Student payment history:', studentPaymentHistory);
+    console.log('🔍 All payments:', payments);
+    
+    // Check if student has concession applied
+    const hasConcession = student.concession && student.concession > 0;
+    
+    // Calculate term-wise balance using concession amounts if available
     const termBalances = {
       term1: {
-        required: feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4),
+        required: hasConcession ? 
+          (student.calculatedTerm1Fee || Math.round(feeStructure.totalFee * 0.4)) :
+          (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)),
         paid: studentPaymentHistory
-          .filter(p => p.term === 'Term1')
+          .filter(p => p.term === 'term1')
           .reduce((sum, p) => sum + p.amount, 0),
         balance: 0
       },
       term2: {
-        required: feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3),
+        required: hasConcession ? 
+          (student.calculatedTerm2Fee || Math.round(feeStructure.totalFee * 0.3)) :
+          (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3)),
         paid: studentPaymentHistory
-          .filter(p => p.term === 'Term2')
+          .filter(p => p.term === 'term2')
           .reduce((sum, p) => sum + p.amount, 0),
         balance: 0
       },
       term3: {
-        required: feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3),
+        required: hasConcession ? 
+          (student.calculatedTerm3Fee || Math.round(feeStructure.totalFee * 0.3)) :
+          (feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3)),
         paid: studentPaymentHistory
-          .filter(p => p.term === 'Term3')
+          .filter(p => p.term === 'term3')
           .reduce((sum, p) => sum + p.amount, 0),
         balance: 0
       }
     };
     
-    // Calculate remaining balance for each term
-    Object.keys(termBalances).forEach(term => {
-      termBalances[term].balance = Math.max(0, termBalances[term].required - termBalances[term].paid);
-    });
+    // Debug logging for term balances
+    console.log('🔍 Term balances calculated:', termBalances);
+    
+    // Handle partial payments and excess amounts
+    let remainingExcess = 0;
+    
+    // Process term1 first
+    if (termBalances.term1.paid > termBalances.term1.required) {
+      // Excess payment in term1
+      remainingExcess = termBalances.term1.paid - termBalances.term1.required;
+      termBalances.term1.balance = 0;
+      termBalances.term1.paid = termBalances.term1.required; // Cap at required amount
+    } else {
+      termBalances.term1.balance = Math.max(0, termBalances.term1.required - termBalances.term1.paid);
+    }
+    
+    // Process term2 with any excess from term1
+    if (remainingExcess > 0) {
+      const effectivePayment = termBalances.term2.paid + remainingExcess;
+      if (effectivePayment > termBalances.term2.required) {
+        // Still have excess after term2
+        remainingExcess = effectivePayment - termBalances.term2.required;
+        termBalances.term2.balance = 0;
+        termBalances.term2.paid = termBalances.term2.required;
+      } else {
+        // Excess used up in term2
+        termBalances.term2.balance = Math.max(0, termBalances.term2.required - effectivePayment);
+        remainingExcess = 0;
+      }
+    } else {
+      termBalances.term2.balance = Math.max(0, termBalances.term2.required - termBalances.term2.paid);
+    }
+    
+    // Process term3 with any remaining excess
+    if (remainingExcess > 0) {
+      const effectivePayment = termBalances.term3.paid + remainingExcess;
+      if (effectivePayment > termBalances.term3.required) {
+        // Still have excess after term3
+        remainingExcess = effectivePayment - termBalances.term3.required;
+        termBalances.term3.balance = 0;
+        termBalances.term3.paid = termBalances.term3.required;
+      } else {
+        // Excess used up in term3
+        termBalances.term3.balance = Math.max(0, termBalances.term3.required - effectivePayment);
+        remainingExcess = 0;
+      }
+    } else {
+      termBalances.term3.balance = Math.max(0, termBalances.term3.required - termBalances.term3.paid);
+    }
     
     const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
     const isFullyPaid = totalBalance === 0;
+    
+    // Calculate original vs calculated totals
+    const originalTotalFee = feeStructure.totalFee;
+    const calculatedTotalFee = student.totalCalculatedFee || originalTotalFee;
+    const concessionAmount = student.concession || 0;
     
     return {
       feeStructure,
@@ -791,7 +909,12 @@ const FeeManagement = () => {
       totalBalance,
       isFullyPaid,
       termBalances,
-      paymentHistory: studentPaymentHistory
+      paymentHistory: studentPaymentHistory,
+      originalTotalFee,
+      calculatedTotalFee,
+      concessionAmount,
+      hasConcession,
+      remainingExcess // Add this for debugging
     };
   };
 
@@ -826,6 +949,11 @@ const FeeManagement = () => {
   // Always fetch fee structures for student linking, regardless of active tab
   useEffect(() => {
     fetchFeeStructures();
+  }, []);
+  
+  // Fetch hostel fee payments when component mounts
+  useEffect(() => {
+    fetchHostelFeePayments();
   }, []);
   
   // Refresh fee structures when filters change
@@ -906,7 +1034,7 @@ const FeeManagement = () => {
       {activeTab === 'students' && (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -967,6 +1095,69 @@ const FeeManagement = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-600">Average Fee Amount</p>
               <p className="text-lg font-semibold text-gray-900">₹{stats.averageFeeAmount.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Concession Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <ReceiptRefundIcon className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Students with Concession</p>
+              <p className="text-lg font-semibold text-blue-600">{stats.studentsWithConcession || 0}</p>
+              <p className="text-xs text-gray-500">
+                {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-green-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total Concession Amount</p>
+              <p className="text-lg font-semibold text-green-600">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-500">
+                {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Total After Concession</p>
+              <p className="text-lg font-semibold text-purple-600">₹{(stats.totalCalculatedFeeAmount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-500">
+                Final amount to be collected
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <CurrencyDollarIcon className="w-6 h-6 text-indigo-600" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-gray-600">Average After Concession</p>
+              <p className="text-lg font-semibold text-indigo-600">₹{(stats.averageCalculatedFeeAmount || 0).toLocaleString()}</p>
+              <p className="text-xs text-gray-500">
+                Per student average
+              </p>
             </div>
           </div>
         </div>
@@ -1051,6 +1242,8 @@ const FeeManagement = () => {
                 })()} of {feeStructures.length} Fee Structures | 
                 Academic Years: {[...new Set(feeStructures.map(s => s.academicYear))].sort().join(', ')}
               </div>
+
+
             </div>
         )}
 
@@ -1147,25 +1340,10 @@ const FeeManagement = () => {
                   Student
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Academic Year
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fee Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Term 1
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Term 2
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Term 3
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Course Info
+                <th className="px-6 py-3 text-left text-xs font-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Fee
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -1175,13 +1353,13 @@ const FeeManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {tableLoading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center">
+                  <td colSpan="4" className="px-6 py-4 text-center">
                     <LoadingSpinner />
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
                     <div className="space-y-2">
                       <p>No students found</p>
                       <p className="text-sm">Please adjust your filters or check back later.</p>
@@ -1190,7 +1368,11 @@ const FeeManagement = () => {
                 </tr>
               ) : (
                 students.map((student) => (
-                  <tr key={student._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={student._id} 
+                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                    onClick={() => openBalanceModal(student)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
@@ -1199,36 +1381,18 @@ const FeeManagement = () => {
                         <div className="text-sm text-gray-500">
                           {student.rollNumber || 'No Roll Number'}
                         </div>
-                                                 {student.roomNumber && (
-                           <div className="text-xs text-blue-600">
-                             Room: {student.roomNumber}
+                        <div className="text-xs text-gray-400">
+                          {student.roomNumber && `Room: ${student.roomNumber}`}
+                          {student.gender && ` • ${student.gender}`}
                            </div>
-                         )}
-                         {student.gender && (
-                           <div className="text-xs text-purple-600">
-                             Gender: {student.gender}
-                           </div>
-                         )}
-                         {student.phone && (
-                           <div className="text-xs text-green-600">
-                             📞 {student.phone}
-                           </div>
-                         )}
-                         {student.registrationDate && (
-                           <div className="text-xs text-orange-600">
-                             📅 {formatDate(student.registrationDate)}
-                          </div>
-                        )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {student.academicYear}
                     </td>
                                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                        {(() => {
                          if (student.category) {
                            const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
                            if (feeStructure) {
+                             const hasConcession = student.concession && student.concession > 0;
                              return (
                                <div>
                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -1236,6 +1400,11 @@ const FeeManagement = () => {
                       </span>
                                  <div className="text-xs text-gray-500 mt-1">
                                    {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
+                                   {hasConcession && (
+                                     <div className="text-xs text-blue-600 font-medium">
+                                       Concession: ₹{student.concession.toLocaleString()}
+                                     </div>
+                                   )}
                                  </div>
                                </div>
                              );
@@ -1266,23 +1435,24 @@ const FeeManagement = () => {
                            student.academicYear
                          );
                          if (feeStructure) {
+                           const hasConcession = student.concession && student.concession > 0;
+                           const originalTotal = feeStructure.totalFee;
+                           const calculatedTotal = student.totalCalculatedFee || originalTotal;
+                           
                            return (
                              <div>
-                               <div className="font-medium text-green-600">₹{feeStructure.totalFee.toLocaleString()}</div>
-                               <div className="text-xs text-gray-500 space-y-1">
-                                 <div className="flex justify-between">
-                                   <span>T1:</span>
-                                   <span className="font-medium">₹{feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)}</span>
+                               {hasConcession ? (
+                                 <>
+                                   <div className="font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
+                                   <div className="font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
+                                   <div className="text-xs text-blue-600 font-medium">
+                                     After Concession
                                  </div>
-                                 <div className="flex justify-between">
-                                   <span>T2:</span>
-                                   <span className="font-medium">₹{feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3)}</span>
-                                 </div>
-                                 <div className="flex justify-between">
-                                   <span>T3:</span>
-                                   <span className="font-medium">₹{feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3)}</span>
-                                 </div>
-                               </div>
+                                 </>
+                               ) : (
+                                 <div className="font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
+                               )}
+
                              </div>
                            );
                          }
@@ -1295,92 +1465,32 @@ const FeeManagement = () => {
                          );
                        })()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                       {(() => {
-                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-                         if (feeStructure) {
-                           const termFee = feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
-                           return (
-                             <div className="text-center">
-                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
-                                 {getStatusIcon('Unpaid')}
-                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
-                               </div>
-                               <div className="text-xs text-gray-500 mt-1">40%</div>
-                             </div>
-                           );
-                         }
-                         return (
-                           <span className="text-gray-400 text-xs">No structure</span>
-                         );
-                       })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                       {(() => {
-                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-                         if (feeStructure) {
-                           const termFee = feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
-                           return (
-                             <div className="text-center">
-                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
-                                 {getStatusIcon('Unpaid')}
-                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
-                               </div>
-                               <div className="text-xs text-gray-500 mt-1">30%</div>
-                             </div>
-                           );
-                         }
-                         return (
-                           <span className="text-gray-400 text-xs">No structure</span>
-                         );
-                       })()}
-                    </td>
-                     <td className="px-6 py-4 whitespace-nowrap">
-                       {(() => {
-                         const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-                         if (feeStructure) {
-                           const termFee = feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
-                           return (
-                             <div className="text-center">
-                               <div className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor('Unpaid')}`}>
-                                 {getStatusIcon('Unpaid')}
-                                 <span className="ml-1 font-medium">₹{termFee.toLocaleString()}</span>
-                               </div>
-                               <div className="text-xs text-gray-500 mt-1">30%</div>
-                             </div>
-                           );
-                         }
-                         return (
-                           <span className="text-gray-400 text-xs">No structure</span>
-                         );
-                       })()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                       {student.course ? (
-                         <div>
-                           <div className="font-medium">{student.course.name || student.course}</div>
-                           <div className="text-xs text-gray-500">Year: {student.year || 'N/A'}</div>
-                         </div>
-                       ) : (
-                         <span className="text-gray-400">No course info</span>
-                       )}
-                    </td>
+
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => openUpdateModal(student)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openUpdateModal(student);
+                        }}
                         className="text-blue-600 hover:text-blue-900 mr-3"
                       >
                         <PencilIcon className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => openPaymentModal(student)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openPaymentModal(student);
+                        }}
                         className="text-green-600 hover:text-green-900 mr-3"
                         title="Record Payment"
                       >
                         <ReceiptRefundIcon className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => openBalanceModal(student)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openBalanceModal(student);
+                        }}
                         className="text-purple-600 hover:text-purple-900"
                         title="View Balance"
                       >
@@ -1623,9 +1733,20 @@ const FeeManagement = () => {
       {showUpdateModal && selectedStudent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
               Update Fee Payment Status
             </h3>
+              <button
+                onClick={() => setShowUpdateModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             <p className="text-sm text-gray-600 mb-4">
               Student: {selectedStudent.name} ({selectedStudent.rollNumber})
             </p>
@@ -1698,24 +1819,118 @@ const FeeManagement = () => {
 
       {/* Payment Modal */}
       {showPaymentModal && selectedStudentForPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
               Record Fee Payment
             </h3>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Student Details</h4>
-              <div className="text-sm text-blue-800">
-                <p><strong>Name:</strong> {selectedStudentForPayment.name}</p>
-                <p><strong>Roll Number:</strong> {selectedStudentForPayment.rollNumber}</p>
-                <p><strong>Category:</strong> {selectedStudentForPayment.category}</p>
-                <p><strong>Academic Year:</strong> {selectedStudentForPayment.academicYear}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Student Details */}
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-3">Student Details</h4>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Name:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.name}</span>
               </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Roll Number:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.rollNumber}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Category:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.category}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Academic Year:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.academicYear}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fee Information with Concession */}
+              {(() => {
+                const feeStructure = getFeeStructureForStudent(selectedStudentForPayment.category, selectedStudentForPayment.academicYear);
+                if (feeStructure) {
+                  const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
+                  const originalTotal = feeStructure.totalFee;
+                  const calculatedTotal = selectedStudentForPayment.totalCalculatedFee || originalTotal;
+                  
+                  return (
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <h4 className="font-medium text-green-900 mb-3">Fee Information</h4>
+                      <div className="text-sm text-green-800 space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                          <span className="font-medium min-w-[120px]">Original Total:</span>
+                          <span className="font-semibold">₹{originalTotal.toLocaleString()}</span>
+                        </div>
+                        {hasConcession && (
+                          <>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                              <span className="font-medium min-w-[120px]">Concession:</span>
+                              <span className="font-semibold text-green-700">₹{selectedStudentForPayment.concession.toLocaleString()}</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                              <span className="font-medium min-w-[120px]">Final Amount:</span>
+                              <span className="font-semibold text-blue-700">₹{calculatedTotal.toLocaleString()}</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-green-200">
+                          <p className="font-medium mb-2">Term Breakdown:</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 1:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ? 
+                                  (selectedStudentForPayment.calculatedTerm1Fee || Math.round(originalTotal * 0.4)).toLocaleString() :
+                                  (feeStructure.term1Fee || Math.round(originalTotal * 0.4)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 2:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ? 
+                                  (selectedStudentForPayment.calculatedTerm2Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
+                                  (feeStructure.term2Fee || Math.round(originalTotal * 0.3)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 3:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ? 
+                                  (selectedStudentForPayment.calculatedTerm3Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
+                                  (feeStructure.term3Fee || Math.round(originalTotal * 0.3)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             <form onSubmit={handlePaymentSubmit}>
               <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Payment Method
@@ -1723,7 +1938,7 @@ const FeeManagement = () => {
                   <select
                     value={paymentForm.paymentMethod}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     required
                   >
                     <option value="Cash">Cash</option>
@@ -1738,21 +1953,14 @@ const FeeManagement = () => {
                   <select
                     value={paymentForm.term}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, term: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     required
                   >
                     <option value="">Select Term</option>
-                    {getAvailableTermsForPayment(selectedStudentForPayment).map(term => (
-                      <option key={term.value} value={term.value}>
-                        {term.label} - Balance: ₹{term.balance.toLocaleString()}
-                      </option>
-                    ))}
+                      <option value="term1">Term 1 (40%)</option>
+                      <option value="term2">Term 2 (30%)</option>
+                      <option value="term3">Term 3 (30%)</option>
                   </select>
-                  {getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
-                    <p className="text-sm text-red-500 mt-1">
-                      All terms are fully paid for this student
-                    </p>
-                  )}
                 </div>
                 
                 <div>
@@ -1763,7 +1971,24 @@ const FeeManagement = () => {
                     type="number"
                     value={paymentForm.amount}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                      min="0"
+                      step="0.01"
+                      placeholder="Enter payment amount"
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     required
                     min="0"
                     step="0.01"
@@ -1778,25 +2003,25 @@ const FeeManagement = () => {
                   <textarea
                     value={paymentForm.notes}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     rows="3"
                     placeholder="Any additional notes about this payment"
                   />
                 </div>
               </div>
               
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowPaymentModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={paymentLoading || getAvailableTermsForPayment(selectedStudentForPayment).length === 0}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                 >
                   {paymentLoading ? 'Recording...' : 'Record Payment'}
                 </button>
@@ -1810,9 +2035,23 @@ const FeeManagement = () => {
       {showBalanceModal && selectedStudentBalance && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-blue-900">
               Student Balance Details
             </h3>
+              <button
+                onClick={() => {
+                  setShowBalanceModal(false);
+                  setSelectedStudentBalance(null);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
             <div className="mb-4 p-3 bg-blue-50 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">Student Information</h4>
@@ -1843,10 +2082,41 @@ const FeeManagement = () => {
                   return (
                     <div className="mb-6">
                       <h4 className="font-medium text-gray-900 mb-3">Balance Summary</h4>
+                      
+                      {/* Concession Information */}
+                      {balance.hasConcession && (
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <h5 className="font-medium text-blue-900 mb-2">Concession Applied</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div className="text-center">
+                              <span className="text-gray-600">Original Fee:</span>
+                              <div className="font-bold text-gray-900 line-through">₹{balance.originalTotalFee.toLocaleString()}</div>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-gray-600">Concession:</span>
+                              <div className="font-bold text-green-600">₹{balance.concessionAmount.toLocaleString()}</div>
+                            </div>
+                            <div className="text-center">
+                              <span className="text-gray-600">Final Fee:</span>
+                              <div className="font-bold text-blue-600">₹{balance.calculatedTotalFee.toLocaleString()}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="text-sm font-medium text-gray-600">Total Fee</div>
-                          <div className="text-lg font-bold text-gray-900">₹{balance.feeStructure.totalFee.toLocaleString()}</div>
+                          <div className="text-sm font-medium text-gray-600">
+                            {balance.hasConcession ? 'Final Fee (After Concession)' : 'Total Fee'}
+                          </div>
+                          <div className="text-lg font-bold text-gray-900">
+                            ₹{balance.hasConcession ? balance.calculatedTotalFee.toLocaleString() : balance.feeStructure.totalFee.toLocaleString()}
+                          </div>
+                          {balance.hasConcession && (
+                            <div className="text-xs text-gray-500 line-through">
+                              Original: ₹{balance.originalTotalFee.toLocaleString()}
+                            </div>
+                          )}
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
                           <div className="text-sm font-medium text-gray-600">Total Paid</div>
@@ -1869,6 +2139,44 @@ const FeeManagement = () => {
                   );
                 })()}
 
+                {/* Payment Status Section */}
+                {(() => {
+                  const balance = calculateStudentBalance(selectedStudentBalance);
+                  if (!balance) return null;
+                  
+                  return (
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-900 mb-3">Payment Status Overview</h4>
+                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-orange-700 mb-1">Payment Status</div>
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              balance.isFullyPaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
+                            }`}>
+                              {balance.isFullyPaid ? '✓ Fully Paid' : '⚠ Payment Pending'}
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-sm font-medium text-orange-700 mb-1">Next Due</div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {balance.totalBalance > 0 ? 'Immediate' : 'No Dues'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-orange-200">
+                          <div className="text-center text-sm text-orange-600">
+                            {balance.totalBalance > 0 
+                              ? `₹${balance.totalBalance.toLocaleString()} payment required`
+                              : 'All payments completed successfully'
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Term-wise Breakdown */}
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
@@ -1878,12 +2186,23 @@ const FeeManagement = () => {
                     <div className="mb-6">
                       <h4 className="font-medium text-gray-900 mb-3">Term-wise Breakdown</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {Object.entries(balance.termBalances).map(([term, termData]) => (
+                        {Object.entries(balance.termBalances).map(([term, termData]) => {
+                          // Get original term fee for comparison
+                          const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] || 
+                            Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
+                          
+                          return (
                           <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
                             <div className="text-sm font-medium text-gray-600 mb-2">
                               {term.replace('term', 'Term ')}
                             </div>
                             <div className="space-y-2 text-sm">
+                                {balance.hasConcession && (
+                                  <div className="flex justify-between">
+                                    <span>Original:</span>
+                                    <span className="font-medium text-gray-500 line-through">₹{originalTermFee.toLocaleString()}</span>
+                                  </div>
+                                )}
                               <div className="flex justify-between">
                                 <span>Required:</span>
                                 <span className="font-medium">₹{termData.required.toLocaleString()}</span>
@@ -1900,7 +2219,8 @@ const FeeManagement = () => {
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -1921,7 +2241,7 @@ const FeeManagement = () => {
                           <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium">{payment.term}</span>
+                                <span className="font-medium">{payment.term?.replace('term', 'Term ')}</span>
                                 <span className="text-sm text-gray-500">
                                   {new Date(payment.paymentDate).toLocaleDateString()}
                                 </span>
@@ -1978,9 +2298,20 @@ const FeeManagement = () => {
       {showFeeStructureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
               {selectedFeeStructure ? 'Edit Fee Structure' : 'Add Fee Structure'}
             </h3>
+              <button
+                onClick={() => setShowFeeStructureModal(false)}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
             
             <form onSubmit={handleFeeStructureSubmit}>
               <div className="space-y-4">

@@ -255,14 +255,22 @@ const Profile = () => {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8 lg:py-12"
+      className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8"
     >
-      <div className="bg-white rounded-xl shadow-lg p-3 sm:p-4 lg:p-8 mt-4">
-        {/* Header Section */}
-        <div className="flex flex-col items-center text-center mb-6 sm:mb-8">
-          <div className="relative mb-4">
+      {/* Hero Header Section */}
+      <div className="relative mb-6 sm:mb-8">
+        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 rounded-2xl p-6 sm:p-8 text-white shadow-xl overflow-hidden">
+          {/* Background Pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full -mr-16 -mt-16"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white rounded-full -ml-12 -mb-12"></div>
+          </div>
+          
+          <div className="relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            {/* Profile Photo */}
+            <div className="relative">
             {user?.studentPhoto ? (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden border-4 border-blue-100 shadow-lg">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-4 border-white/30 shadow-2xl ring-4 ring-white/20">
                 <img
                   src={user.studentPhoto}
                   alt={user?.name}
@@ -270,7 +278,7 @@ const Profile = () => {
                 />
               </div>
             ) : (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-lg">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-white/20 to-white/10 flex items-center justify-center text-white text-3xl sm:text-4xl font-bold shadow-2xl ring-4 ring-white/20 backdrop-blur-sm">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
             )}
@@ -279,134 +287,226 @@ const Profile = () => {
                 resetPhotoForm();
                 setShowPhotoModal(true);
               }}
-              className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors shadow-lg"
+                className="absolute -bottom-2 -right-2 p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110"
             >
-              <CameraIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
-          <div>
-            <h2 className="text-lg sm:text-xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">Profile</h2>
-            <p className="text-xs sm:text-sm lg:text-base text-gray-600">View and manage your profile information</p>
+            
+            {/* Profile Info */}
+            <div className="flex-1 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2 text-white">
+                {user?.name}
+              </h1>
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-blue-100">
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                  {user?.rollNumber}
+                </span>
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                  {getCourseName(user?.course)}
+                </span>
+                <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium backdrop-blur-sm">
+                  Year {user?.year || 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
           </div>
         </div>
 
+        {/* Main Content Container */}
+        <div className="max-w-6xl mx-auto">
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-          {/* Left Column */}
-          <div className="space-y-3 sm:space-y-4">
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Name</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-words">{user?.name}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {/* Personal Information Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Roll Number</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.rollNumber}</p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <span className="text-sm font-medium text-gray-600">Name</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.name}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <span className="text-sm font-medium text-gray-600">Roll Number</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.rollNumber}</span>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Hostel ID</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.hostelId || 'Not assigned'}</p>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <span className="text-sm font-medium text-gray-600">Hostel ID</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.hostelId || 'Not assigned'}</span>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Course</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{getCourseName(user?.course)}</p>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <span className="text-sm font-medium text-gray-600">Gender</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.gender || 'Not specified'}</span>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Branch</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{getBranchName(user?.branch)}</p>
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="space-y-3 sm:space-y-4">
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Gender</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.gender || 'Not specified'}</p>
+          {/* Academic Information Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 5.477 5.754 5 7.5 5s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.523 18.246 19 16.5 19c-1.746 0-3.332-.477-4.5-1.253" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Academic Details</h3>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Category</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">
-                {user?.category === 'A+' ? 'A+ (AC)' : user?.category === 'B+' ? 'B+ (AC)' : user?.category || 'Not specified'}
-              </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                <span className="text-sm font-medium text-gray-600">Course</span>
+                <span className="text-sm font-semibold text-gray-900">{getCourseName(user?.course)}</span>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Room Number</h3>
-              <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">Room {user?.roomNumber || 'Not assigned'}</p>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                <span className="text-sm font-medium text-gray-600">Branch</span>
+                <span className="text-sm font-semibold text-gray-900">{getBranchName(user?.branch)}</span>
             </div>
-            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex-1">
-                  <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Year</h3>
-                  <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">Year {user?.year || 'Not specified'}</p>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                <span className="text-sm font-medium text-gray-600">Year</span>
+                <span className="text-sm font-semibold text-gray-900">Year {user?.year || 'Not specified'}</span>
                 </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                <span className="text-sm font-medium text-gray-600">Category</span>
+                <span className="text-sm font-semibold text-gray-900">
+                  {user?.category === 'A+' ? 'A+ (AC)' : user?.category === 'B+' ? 'B+ (AC)' : user?.category || 'Not specified'}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Phone Numbers Section */}
-        <div className="mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-            <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Student Phone</h3>
-            <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-all">{user?.studentPhone || 'Not provided'}</p>
+        {/* Contact & Additional Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          {/* Contact Information Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                <span className="text-sm font-medium text-gray-600">Student Phone</span>
+                <span className="text-sm font-semibold text-gray-900 break-all">{user?.studentPhone || 'Not provided'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                <span className="text-sm font-medium text-gray-600">Parent Phone</span>
+                <span className="text-sm font-semibold text-gray-900 break-all">{user?.parentPhone || 'Not provided'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                <span className="text-sm font-medium text-gray-600">Room Number</span>
+                <span className="text-sm font-semibold text-gray-900">Room {user?.roomNumber || 'Not assigned'}</span>
+              </div>
+            </div>
           </div>
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-            <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Parent Phone</h3>
-            <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900 break-all">{user?.parentPhone || 'Not provided'}</p>
+
+          {/* Additional Details Card */}
+          <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
           </div>
+              <h3 className="text-lg font-semibold text-gray-900">Additional Details</h3>
         </div>
 
-        {/* Additional Info Section */}
-        <div className="mt-6 sm:mt-8 grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-            <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Batch</h3>
-            <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.batch || 'Not specified'}</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                <span className="text-sm font-medium text-gray-600">Batch</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.batch || 'Not specified'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                <span className="text-sm font-medium text-gray-600">Academic Year</span>
+                <span className="text-sm font-semibold text-gray-900">{user?.academicYear || 'Not specified'}</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-100">
+                <span className="text-sm font-medium text-gray-600">Status</span>
+                <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                  Active
+                </span>
+              </div>
           </div>
-          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-            <h3 className="text-xs sm:text-sm font-medium text-gray-500 mb-1">Academic Year</h3>
-            <p className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">{user?.academicYear || 'Not specified'}</p>
           </div>
         </div>
 
         {/* Photo Gallery Section */}
         <div className="mt-8 sm:mt-10 pt-6 sm:pt-8 border-t border-gray-200">
-          <div className="text-center mb-4 sm:mb-6">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">Photo Gallery</h3>
+          <div className="text-center mb-6 sm:mb-8">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="p-2 bg-indigo-100 rounded-lg">
+                <PhotoIcon className="w-5 h-5 text-indigo-600" />
+              </div>
+              <h3 className="text-xl sm:text-2xl font-semibold text-gray-900">Photo Gallery</h3>
+            </div>
             <p className="text-sm text-gray-600">Guardian photos and additional images</p>
           </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Guardian Photo 1 */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Guardian Photo 1</h4>
+            <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900">Guardian Photo 1</h4>
+              </div>
+              
               {user?.guardianPhoto1 ? (
-                <div className="relative aspect-square overflow-hidden rounded-lg border border-gray-200">
+                <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-blue-100 shadow-lg group">
                   <img
                     src={user.guardianPhoto1}
                     alt="Guardian 1"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
               ) : (
-                <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                  <PhotoIcon className="w-8 h-8 text-gray-400" />
+                <div className="aspect-square bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border-2 border-dashed border-blue-200 flex flex-col items-center justify-center text-blue-400 hover:border-blue-300 transition-colors duration-300">
+                  <PhotoIcon className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-medium">No Photo</p>
                 </div>
               )}
             </div>
 
             {/* Guardian Photo 2 */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Guardian Photo 2</h4>
+            <div className="bg-white rounded-2xl shadow-lg p-5 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900">Guardian Photo 2</h4>
+              </div>
+              
               {user?.guardianPhoto2 ? (
-                <div className="relative aspect-square overflow-hidden rounded-lg border border-gray-200">
+                <div className="relative aspect-square overflow-hidden rounded-xl border-2 border-green-100 shadow-lg group">
                   <img
                     src={user.guardianPhoto2}
                     alt="Guardian 2"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
               ) : (
-                <div className="aspect-square bg-gray-200 rounded-lg flex items-center justify-center">
-                  <PhotoIcon className="w-8 h-8 text-gray-400" />
+                <div className="aspect-square bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border-2 border-dashed border-green-200 flex flex-col items-center justify-center text-green-400 hover:border-green-300 transition-colors duration-300">
+                  <PhotoIcon className="w-12 h-12 mb-2" />
+                  <p className="text-sm font-medium">No Photo</p>
                 </div>
               )}
             </div>

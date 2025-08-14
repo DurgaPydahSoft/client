@@ -322,7 +322,7 @@ const StudentDashboardLayout = () => {
           </span>
         </motion.div>
 
-        <nav className="flex-1 px-3 sm:px-4 space-y-1 sm:space-y-2 mt-4 overflow-y-auto">
+        <nav className="flex-1 px-3 sm:px-4 space-y-1 sm:space-y-2 mt-4 overflow-y-auto scrollbar-visible-blue">
           {navItems
             .filter(item => !item.feature || isFeatureEnabled(item.feature))
             .map((item, index) => (
@@ -335,7 +335,7 @@ const StudentDashboardLayout = () => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 sm:py-3 rounded-lg text-base sm:text-sm font-medium transition-all duration-300 touch-manipulation ${
+                  `flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 sm:py-3 rounded-lg text-sm sm:text-sm font-medium transition-all duration-300 touch-manipulation ${
                     isActive
                       ? "bg-white/10 text-white shadow-lg font-semibold"
                       : "text-white/90 hover:bg-white/10 hover:text-white hover:shadow-md"
@@ -398,10 +398,10 @@ const StudentDashboardLayout = () => {
               {user?.name?.charAt(0).toUpperCase()}
             </motion.div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm sm:text-xs font-semibold text-white truncate">
+              <div className="text-xs sm:text-xs font-semibold text-white truncate">
                 {user?.name}
               </div>
-              <div className="text-sm sm:text-xs text-cyan-200/90 truncate">
+              <div className="text-xs sm:text-xs text-cyan-200/90 truncate">
                 {user?.rollNumber}
               </div>
             </div>
@@ -410,7 +410,7 @@ const StudentDashboardLayout = () => {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 text-sm sm:text-xs font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md touch-manipulation"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 sm:py-2 text-xs sm:text-xs font-medium text-white bg-blue-700/50 hover:bg-blue-600 rounded-lg transition-all duration-300 shadow hover:shadow-md touch-manipulation"
           >
             <svg
               className="w-4 h-4 sm:w-5 sm:h-5"
@@ -431,7 +431,7 @@ const StudentDashboardLayout = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen">
+      <main className="flex-1 overflow-y-auto h-screen scrollbar-visible">
         <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-8">
           <div className="flex justify-end mb-3 sm:mb-4">
             <NotificationBell />
@@ -893,7 +893,7 @@ const DashboardHome = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-sm sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl p-3 sm:p-4 lg:p-6 w-full max-w-sm sm:max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto scrollbar-visible"
             >
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 sm:mb-4 lg:mb-6 gap-3">
                 <div className="flex items-center gap-2 sm:gap-3">
@@ -1088,7 +1088,7 @@ const DashboardHome = () => {
             </div>
             
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-visible">
               {modalLoading ? (
                 <div className="text-center py-8 text-gray-500 text-sm flex items-center justify-center gap-2">
                   <span role="img" aria-label="hourglass">⏳</span>Loading menu...
@@ -1098,7 +1098,7 @@ const DashboardHome = () => {
                   {/* Items List */}
                   <div className="mb-4">
                     <h4 className="text-sm font-semibold text-gray-700 mb-2">Menu Items</h4>
-                    <div className="space-y-3 max-h-48 sm:max-h-56 overflow-y-auto">
+                    <div className="space-y-3 max-h-48 sm:max-h-56 overflow-y-auto scrollbar-visible">
                       {modalMenu.meals[selectedMealType]?.map((item, idx) => {
                         const itemKey = `${selectedMealType}-${idx}`;
                         const isExpanded = expandedItems.has(itemKey);
