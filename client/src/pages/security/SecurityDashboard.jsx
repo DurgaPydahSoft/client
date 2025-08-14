@@ -424,6 +424,7 @@ const SecurityDashboard = () => {
               <div>
                 <h1 className="text-lg font-bold text-blue-900">Security Dashboard</h1>
                 <p className="text-xs text-gray-600">Manage approved leave & permission verifications</p>
+                
               </div>
             </div>
             
@@ -880,7 +881,7 @@ const SectionTable = ({
                               ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
                               : 'bg-green-600 text-white hover:bg-green-700'
                           }`}
-                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Scan Incoming QR'}
+                          title={isViewOnly ? 'View-only access - Cannot scan incoming QR' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                           <span>{isViewOnly ? 'View Only' : 'Scan Incoming'}</span>
@@ -893,21 +894,15 @@ const SectionTable = ({
                       ) : (
                         <button
                           onClick={() => {
-                            if (!isViewOnly) {
-                              setSelectedLeave(leave);
-                              setShowVerificationModal(true);
-                            }
+                            // View-only users CAN verify outgoing requests
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
                           }}
-                          disabled={isViewOnly}
-                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
-                            isViewOnly 
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Verify Request'}
+                          className="px-2 sm:px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium flex items-center gap-1"
+                          title="Verify Request"
                         >
                           <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>{isViewOnly ? 'View Only' : 'Verify'}</span>
+                          <span>Verify</span>
                         </button>
                       )}
                     </div>
@@ -1039,7 +1034,7 @@ const SectionTable = ({
                               ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
                               : 'bg-green-600 text-white hover:bg-green-700'
                           }`}
-                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Scan Incoming QR'}
+                          title={isViewOnly ? 'View-only access - Cannot scan incoming QR' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3 h-3" />
                           <span>{isViewOnly ? 'View Only' : 'Scan Incoming QR'}</span>
@@ -1052,21 +1047,15 @@ const SectionTable = ({
                       ) : (
                         <button
                           onClick={() => {
-                            if (!isViewOnly) {
-                              setSelectedLeave(leave);
-                              setShowVerificationModal(true);
-                            }
+                            // View-only users CAN verify outgoing requests
+                            setSelectedLeave(leave);
+                            setShowVerificationModal(true);
                           }}
-                          disabled={isViewOnly}
-                          className={`w-full px-3 py-2 rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
-                            isViewOnly 
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                          title={isViewOnly ? 'View-only access - Cannot perform actions' : 'Verify Request'}
+                          className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-medium flex items-center justify-center gap-1"
+                          title="Verify Request"
                         >
                           <EyeIcon className="w-3 h-3" />
-                          <span>{isViewOnly ? 'View Only' : 'Verify Request'}</span>
+                          <span>Verify Request</span>
                         </button>
                       )}
                     </div>
