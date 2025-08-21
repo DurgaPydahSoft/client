@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import api from '../../utils/axios';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
 import { motion } from 'framer-motion';
@@ -160,7 +160,7 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
     return members.map(member => {
       const memberId = member._id || member.id;
       
-      // Get all complaints assigned to this specific member
+      // Get all complaints assigned to this specific member (including Closed status)
       const assigned = complaints.filter(c => {
         if (!c.assignedTo) return false;
         const assignedToId = c.assignedTo._id || c.assignedTo.id;
@@ -168,21 +168,21 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
       });
 
       // Calculate statistics for this member
-    const resolved = assigned.filter(c => c.currentStatus === 'Resolved');
+      const resolved = assigned.filter(c => c.currentStatus === 'Resolved');
       const active = assigned.filter(c => c.currentStatus === 'In Progress');
       const pending = assigned.filter(c => c.currentStatus === 'Pending');
-    const rate = assigned.length ? ((resolved.length / assigned.length) * 100).toFixed(0) : '-';
+      const rate = assigned.length ? ((resolved.length / assigned.length) * 100).toFixed(0) : '-';
       
-    return {
-      name: member.name,
-      category: member.category,
-      assigned: assigned.length,
-      resolved: resolved.length,
+      return {
+        name: member.name,
+        category: member.category,
+        assigned: assigned.length,
+        resolved: resolved.length,
         active: active.length,
-      rate,
+        rate,
         pending: pending.length,
         reopened: assigned.filter(c => c.isReopened).length
-    };
+      };
     }).sort((a, b) => b.assigned - a.assigned); // Sort by number of assignments
   }, [members, complaints]);
 
@@ -445,10 +445,8 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
 
   // Filter complaints based on the selected days threshold with proper ranges
   const filteredComplaints = complaints.filter(complaint => {
-    if (complaint.currentStatus === 'Resolved') return false;
-    const activeDuration = complaint.getActiveStatusDuration ? 
-      complaint.getActiveStatusDuration() : 
-      Math.floor((new Date() - new Date(complaint.createdAt)) / (1000 * 60 * 60 * 24));
+    if (complaint.currentStatus === 'Resolved' || complaint.currentStatus === 'Closed') return false;
+    const activeDuration = Math.floor((new Date() - new Date(complaint.createdAt)) / (1000 * 60 * 60 * 24));
     
     // Apply different ranges based on the selected days
     switch (days) {
@@ -756,8 +754,6 @@ const DashboardHome = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [announcements, setAnnouncements] = useState([]);
   const [polls, setPolls] = useState([]);
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [debugData, setDebugData] = useState({});
   const [members, setMembers] = useState([]);
   const [selectedDays, setSelectedDays] = useState(null);
   const navigate = useNavigate();
@@ -765,80 +761,280 @@ const DashboardHome = () => {
   // Safari detection - memoized to prevent unnecessary re-renders
   const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
-  // Calculate complaints by threshold
-  const complaintsByThreshold = useMemo(() => {
-    const now = new Date();
-    return complaints.reduce((acc, complaint) => {
-      if (complaint.currentStatus !== 'Resolved') {
-        const activeDuration = complaint.getActiveStatusDuration ? 
-          complaint.getActiveStatusDuration() : 
-          Math.floor((now - new Date(complaint.createdAt)) / (1000 * 60 * 60 * 24));
-        
-        // Update the counting logic to use ranges
-        if (activeDuration > 7) acc.over7++;
-        if (activeDuration > 5 && activeDuration <= 7) acc.over5++;
-        if (activeDuration > 3 && activeDuration <= 5) acc.over3++;
-      }
-      return acc;
-    }, { over3: 0, over5: 0, over7: 0 });
-  }, [complaints]);
+  // Centralized complaint status constants
+  const COMPLAINT_STATUSES = {
+    RECEIVED: 'Received',
+    PENDING: 'Pending',
+    IN_PROGRESS: 'In Progress',
+    RESOLVED: 'Resolved',
+    REOPENED: 'Reopened',
+    CLOSED: 'Closed'
+  };
 
-  // Calculate all derived data from complaints using useMemo to prevent multiple declarations
-  const derivedData = useMemo(() => {
+  // Helper function to validate and normalize complaint data (less strict)
+  const validateComplaintData = useCallback((complaint) => {
     try {
-      const complaintsList = Array.isArray(complaints) ? complaints : [];
-      
-      const processedComplaints = complaintsList.map(c => ({
-        ...c,
-        _id: c._id || c.id || `temp-${Math.random()}`,
-        createdAt: c.createdAt || new Date().toISOString(),
-        currentStatus: c.currentStatus || 'Unknown',
-        category: c.category || 'Uncategorized'
-      }));
+      if (!complaint || typeof complaint !== 'object') {
+        return null;
+      }
 
+      // Only filter out completely broken objects
+      if (!complaint._id && !complaint.id) {
+        return null;
+      }
+
+      // Ensure basic fields exist with fallbacks
+      const validated = {
+        _id: complaint._id || complaint.id,
+        createdAt: complaint.createdAt || new Date().toISOString(),
+        currentStatus: complaint.currentStatus || 'Unknown',
+        category: complaint.category || 'Uncategorized',
+        subCategory: complaint.subCategory || null,
+        resolvedAt: complaint.resolvedAt || null,
+        assignedTo: complaint.assignedTo || null,
+        isReopened: Boolean(complaint.isReopened),
+        feedback: complaint.feedback || null,
+        student: complaint.student || null,
+        description: complaint.description || '',
+        title: complaint.title || ''
+      };
+
+      return validated;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  // Helper function to calculate active duration for a complaint
+  const calculateActiveDuration = useCallback((complaint) => {
+    try {
+      if (!complaint || !complaint.createdAt) return 0;
+      
       const now = new Date();
-      const longPending = processedComplaints.filter(complaint => {
-        try {
-          // Use getActiveStatusDuration if available, otherwise fallback to total age
-          const activeDuration = complaint.getActiveStatusDuration ? 
-            complaint.getActiveStatusDuration() : 
-            Math.ceil(Math.abs(now - new Date(complaint.createdAt)) / (1000 * 60 * 60 * 24));
-          
-          return complaint.currentStatus !== 'Resolved' && activeDuration > 7;
-        } catch (error) {
-          console.error('Error calculating pending days:', error);
-          return false;
+      const createdAt = new Date(complaint.createdAt);
+      
+      // If complaint is resolved and has resolvedAt, calculate duration until resolution
+      if (complaint.currentStatus === COMPLAINT_STATUSES.RESOLVED && complaint.resolvedAt) {
+        const resolvedAt = new Date(complaint.resolvedAt);
+        if (!isNaN(resolvedAt.getTime())) {
+          return Math.floor((resolvedAt - createdAt) / (1000 * 60 * 60 * 24));
         }
-      }).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      }
+      
+      // Calculate current active duration
+      if (!isNaN(createdAt.getTime())) {
+        return Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+      }
+      
+      return 0;
+    } catch (error) {
+      return 0;
+    }
+  }, []);
+
+  // Consolidated analytics calculations using raw complaints array
+  const analyticsData = useMemo(() => {
+    try {
+      // Use raw complaints array directly, only filter completely broken ones
+      const validComplaints = complaints
+        .map(validateComplaintData)
+        .filter(Boolean);
+
+      // Filter out Closed complaints for most analytics
+      const activeComplaints = validComplaints.filter(c => c.currentStatus !== COMPLAINT_STATUSES.CLOSED);
+
+      // Calculate status counts (excluding Closed)
+      const statusCounts = activeComplaints.reduce((acc, c) => {
+        acc[c.currentStatus] = (acc[c.currentStatus] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Calculate category counts (excluding Closed)
+      const categoryCounts = activeComplaints.reduce((acc, c) => {
+        let category = c.category || 'Uncategorized';
+        if (category === 'Maintenance' && c.subCategory) {
+          category = c.subCategory;
+        }
+        category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase();
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Calculate threshold-based counts (exclude Resolved and Closed)
+      const thresholdCounts = validComplaints.reduce((acc, c) => {
+        if (c.currentStatus !== COMPLAINT_STATUSES.RESOLVED && c.currentStatus !== COMPLAINT_STATUSES.CLOSED) {
+          const duration = calculateActiveDuration(c);
+          if (duration > 7) acc.over7++;
+          else if (duration > 5) acc.over5++;
+          else if (duration > 3) acc.over3++;
+        }
+        return acc;
+      }, { over3: 0, over5: 0, over7: 0 });
+
+      // Calculate response time for resolved complaints
+      const resolvedComplaints = validComplaints.filter(c => c.currentStatus === COMPLAINT_STATUSES.RESOLVED);
+      const responseTimeData = resolvedComplaints.reduce((acc, c) => {
+        const duration = calculateActiveDuration(c);
+        if (duration > 0) {
+          acc.total += duration;
+          acc.count++;
+        }
+        return acc;
+      }, { total: 0, count: 0 });
+
+      const avgResponseTime = responseTimeData.count > 0 ? 
+        (responseTimeData.total / responseTimeData.count).toFixed(1) : 0;
+
+      // Calculate daily complaint counts (excluding Closed)
+      const dailyCounts = activeComplaints.reduce((acc, c) => {
+        try {
+          const date = new Date(c.createdAt);
+          if (!isNaN(date.getTime())) {
+            const formattedDate = date.toLocaleDateString();
+            if (!acc[formattedDate]) {
+              acc[formattedDate] = { date: formattedDate, rawDate: date, count: 0 };
+            }
+            acc[formattedDate].count++;
+          }
+        } catch (error) {
+          // Skip complaints with invalid dates
+        }
+        return acc;
+      }, {});
+
+      // Sort daily counts by date
+      const sortedDailyCounts = Object.values(dailyCounts)
+        .sort((a, b) => a.rawDate - b.rawDate);
+
+      // Calculate monthly trends (excluding Closed)
+      const monthlyTrends = activeComplaints.reduce((acc, c) => {
+        try {
+          const date = new Date(c.createdAt);
+          if (!isNaN(date.getTime())) {
+            const month = date.toLocaleString('default', { month: 'short' });
+            if (!acc[month]) {
+              acc[month] = { month, count: 0, resolved: 0 };
+            }
+            acc[month].count++;
+            if (c.currentStatus === COMPLAINT_STATUSES.RESOLVED) {
+              acc[month].resolved++;
+            }
+          }
+        } catch (error) {
+          // Skip complaints with invalid dates
+        }
+        return acc;
+      }, {});
 
       return {
-        longPendingComplaints: longPending,
-        reopenedComplaints: processedComplaints.filter(c => c.currentStatus === 'Reopened'),
-        unassignedComplaints: processedComplaints.filter(c => !c.assignedTo),
-        recentComplaints: [...processedComplaints]
+        total: validComplaints.filter(c => c.currentStatus !== COMPLAINT_STATUSES.CLOSED).length, // Total excluding Closed
+        statusCounts,
+        categoryCounts,
+        thresholdCounts,
+        avgResponseTime,
+        dailyCounts: sortedDailyCounts,
+        monthlyTrends: Object.values(monthlyTrends),
+        resolved: statusCounts[COMPLAINT_STATUSES.RESOLVED] || 0,
+        pending: activeComplaints.filter(c => c.currentStatus !== COMPLAINT_STATUSES.RESOLVED).length,
+        inProgress: statusCounts[COMPLAINT_STATUSES.IN_PROGRESS] || 0,
+        reopened: validComplaints.filter(c => c.isReopened).length, // Include all reopened (including Closed)
+        unassigned: activeComplaints.filter(c => !c.assignedTo).length,
+        feedbackPending: activeComplaints.filter(c => 
+          c.currentStatus === COMPLAINT_STATUSES.RESOLVED && !c.feedback
+        ).length,
+        recentComplaints: [...activeComplaints] // Recent activity excludes Closed
           .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-          .slice(0, 5),
-        feedbackPending: processedComplaints.filter(c => c.currentStatus === 'Resolved' && !c.feedback)
+          .slice(0, 5)
       };
     } catch (error) {
-      console.error('Error calculating derived data:', error);
+      console.error('Error calculating analytics data:', error);
       return {
-        longPendingComplaints: [],
-        reopenedComplaints: [],
-        unassignedComplaints: [],
-        recentComplaints: [],
-        feedbackPending: []
+        total: 0,
+        statusCounts: {},
+        categoryCounts: {},
+        thresholdCounts: { over3: 0, over5: 0, over7: 0 },
+        avgResponseTime: 0,
+        dailyCounts: [],
+        monthlyTrends: [],
+        resolved: 0,
+        pending: 0,
+        inProgress: 0,
+        reopened: 0,
+        unassigned: 0,
+        feedbackPending: 0,
+        recentComplaints: []
       };
     }
-  }, [complaints]);
+  }, [complaints, validateComplaintData, calculateActiveDuration]);
 
-  const { longPendingComplaints, reopenedComplaints, unassignedComplaints, recentComplaints, feedbackPending } = derivedData;
+  // Extract values from analytics data
+  const {
+    total: totalComplaints,
+    resolved,
+    pending,
+    inProgress,
+    reopened,
+    unassigned,
+    feedbackPending,
+    recentComplaints,
+    statusCounts,
+    categoryCounts,
+    thresholdCounts,
+    avgResponseTime,
+    dailyCounts,
+    monthlyTrends
+  } = analyticsData;
+
+  // Use the corrected threshold counts
+  const complaintsByThreshold = thresholdCounts;
+
+  // Prepare chart data
+  const pieData = Object.entries(statusCounts).map(([status, value]) => ({ 
+    name: status, 
+    value 
+  }));
+
+  const categoryChartData = ALL_CATEGORIES.map(category => ({
+    name: category,
+    value: categoryCounts[category] || 0
+  }));
+
+  const totalCategoryComplaints = categoryChartData.reduce((sum, d) => sum + d.value, 0);
+
+  // Polls analytics
+  const activePolls = polls.filter(p => p.status === 'active');
+  const scheduledPolls = polls.filter(p => p.status === 'scheduled');
+  const endedPolls = polls.filter(p => p.status === 'ended');
+  const latestPoll = polls[0];
+
+  // Calculate additional KPIs from filtered complaints
+  const kpiMetrics = useMemo(() => {
+    return {
+      inProgress: inProgress,
+      reopened: reopened,
+      longPending: complaintsByThreshold.over7
+    };
+  }, [inProgress, reopened, complaintsByThreshold.over7]);
+
+  const { inProgress: kpiInProgress, reopened: kpiReopened, longPending: kpiLongPending } = kpiMetrics;
+
+  const avgResolution7 = (() => {
+    const last7Days = complaints.filter(c => c.currentStatus === COMPLAINT_STATUSES.RESOLVED && (new Date() - new Date(c.createdAt)) / (1000 * 60 * 60 * 24) <= 7);
+    if (!last7Days.length) return '-';
+    return (last7Days.reduce((acc, c) => acc + ((new Date() - new Date(c.createdAt)) / (1000 * 60 * 60 * 24)), 0) / last7Days.length).toFixed(1) + 'd';
+  })();
+  const avgResolution30 = (() => {
+    const last30Days = complaints.filter(c => c.currentStatus === COMPLAINT_STATUSES.RESOLVED && (new Date() - new Date(c.createdAt)) / (1000 * 60 * 60 * 24) <= 30);
+    if (!last30Days.length) return '-';
+    return (last30Days.reduce((acc, c) => acc + ((new Date() - new Date(c.createdAt)) / (1000 * 60 * 60 * 24)), 0) / last30Days.length).toFixed(1) + 'd';
+  })();
+
+  // Use derived data from the useMemo hook above
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        console.log('📊 DashboardHome mounted - fetching data from APIs');
         
         // Safari-specific logging
         if (isSafari) {
@@ -868,17 +1064,9 @@ const DashboardHome = () => {
           )
         );
 
-        console.log('📊 API Responses:');
-        console.log('Complaints:', complaintsRes.status === 'fulfilled' ? complaintsRes.value.data : 'Failed');
-        console.log('Students:', studentsRes.status === 'fulfilled' ? studentsRes.value.data : 'Failed');
-        console.log('Announcements:', announcementsRes.status === 'fulfilled' ? announcementsRes.value.data : 'Failed');
-        console.log('Polls:', pollsRes.status === 'fulfilled' ? pollsRes.value.data : 'Failed');
-        console.log('Members:', membersRes.status === 'fulfilled' ? membersRes.value.data : 'Failed');
-
         // Set complaints data with Safari-specific error handling
         if (complaintsRes.status === 'fulfilled' && complaintsRes.value.data.success) {
           setComplaints(complaintsRes.value.data.data.complaints || []);
-          console.log('📊 Set complaints:', complaintsRes.value.data.data.complaints?.length || 0);
         } else {
           console.error('Failed to fetch complaints:', complaintsRes.status === 'fulfilled' ? complaintsRes.value.data : complaintsRes.reason);
           setComplaints([]);
@@ -887,7 +1075,6 @@ const DashboardHome = () => {
         // Set students count with Safari-specific error handling
         if (studentsRes.status === 'fulfilled' && studentsRes.value.data.success) {
           setTotalStudents(studentsRes.value.data.data.count || 0);
-          console.log('📊 Set students count:', studentsRes.value.data.data.count || 0);
         } else {
           console.error('Failed to fetch students count:', studentsRes.status === 'fulfilled' ? studentsRes.value.data : studentsRes.reason);
           setTotalStudents(0);
@@ -896,7 +1083,6 @@ const DashboardHome = () => {
         // Set announcements data with Safari-specific error handling
         if (announcementsRes.status === 'fulfilled' && announcementsRes.value.data.success) {
           setAnnouncements(announcementsRes.value.data.data || []);
-          console.log('📊 Set announcements:', announcementsRes.value.data.data?.length || 0);
         } else {
           console.error('Failed to fetch announcements:', announcementsRes.status === 'fulfilled' ? announcementsRes.value.data : announcementsRes.reason);
           setAnnouncements([]);
@@ -905,7 +1091,6 @@ const DashboardHome = () => {
         // Set polls data with Safari-specific error handling
         if (pollsRes.status === 'fulfilled' && pollsRes.value.data.success) {
           setPolls(pollsRes.value.data.data || []);
-          console.log('📊 Set polls:', pollsRes.value.data.data?.length || 0);
         } else {
           console.error('Failed to fetch polls:', pollsRes.status === 'fulfilled' ? pollsRes.value.data : pollsRes.reason);
           setPolls([]);
@@ -914,13 +1099,11 @@ const DashboardHome = () => {
         // Set members data with Safari-specific error handling
         if (membersRes.status === 'fulfilled' && membersRes.value.data.success) {
           setMembers(membersRes.value.data.data.members || []);
-          console.log('📊 Set members:', membersRes.value.data.data.members?.length || 0);
         } else {
           console.error('Failed to fetch members:', membersRes.status === 'fulfilled' ? membersRes.value.data : membersRes.reason);
           setMembers([]);
         }
         
-        console.log('📊 Dashboard data fetched successfully');
       } catch (err) {
         console.error('📊 Error in fetchData:', err);
         
@@ -975,106 +1158,8 @@ const DashboardHome = () => {
     return filtered;
   };
 
-  // Use filtered complaints everywhere
+  // Use filtered complaints for timeframe-based analytics
   const filteredComplaints = getFilteredComplaints();
-
-  // Metrics
-  const totalComplaints = filteredComplaints?.length || 0;
-  const resolved = filteredComplaints?.filter(c => c.currentStatus === 'Resolved')?.length || 0;
-  const pending = filteredComplaints?.filter(c => c.currentStatus !== 'Resolved')?.length || 0;
-
-  // Pie chart data for complaint status
-  const statusCounts = filteredComplaints?.reduce((acc, c) => {
-    acc[c.currentStatus] = (acc[c.currentStatus] || 0) + 1;
-    return acc;
-  }, {}) || {};
-  const pieData = Object.entries(statusCounts).map(([status, value]) => ({ name: status, value }));
-
-  // Bar chart data (complaints per day)
-  const barData = Object.values(
-    filteredComplaints?.reduce((acc, c) => {
-      const rawDate = new Date(c.createdAt);
-      const formattedDate = rawDate.toLocaleDateString();
-      if (!acc[formattedDate]) {
-        acc[formattedDate] = { date: formattedDate, rawDate, count: 0 };
-      }
-      acc[formattedDate].count++;
-      return acc;
-    }, {}) || {}
-  );
-
-  // Sort barData by rawDate ascending for the line chart
-  const sortedBarData = [...barData].sort((a, b) => a.rawDate - b.rawDate);
-
-  // Normalize category names in reducer
-  const categoryData = filteredComplaints?.reduce((acc, c) => {
-    let cat = c.category ? String(c.category).trim() : '';
-    if (cat === 'Maintenance' && c.subCategory) {
-      cat = String(c.subCategory).trim();
-    }
-    cat = cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase(); // Normalize
-    if (!cat) cat = 'Uncategorized';
-    acc[cat] = (acc[cat] || 0) + 1;
-    return acc;
-  }, {}) || {};
-
-  const categoryChartData = ALL_CATEGORIES.map(category => ({
-    name: category,
-    value: categoryData[category] || 0
-  }));
-
-  // Response time calculation
-  const responseTime = filteredComplaints
-    ?.filter(c => c.currentStatus === 'Resolved')
-    ?.reduce((acc, c) => {
-      const created = new Date(c.createdAt);
-      const resolved = new Date(c.resolvedAt);
-      return acc + (resolved - created) / (1000 * 60 * 60 * 24); // days
-    }, 0) / (resolved || 1) || 0;
-
-  // Monthly trends (filtered)
-  const trends = Object.entries(
-    filteredComplaints?.reduce((acc, c) => {
-      const month = new Date(c.createdAt).toLocaleString('default', { month: 'short' });
-      acc[month] = acc[month] || { month, count: 0, resolved: 0 };
-      acc[month].count++;
-      if (c.currentStatus === 'Resolved') acc[month].resolved++;
-      return acc;
-    }, {}) || {}
-  ).map(([, value]) => value);
-
-  // For category chart tooltips
-  const totalCategoryComplaints = categoryChartData.reduce((sum, d) => sum + d.value, 0);
-
-  // Polls analytics
-  const activePolls = polls.filter(p => p.status === 'active');
-  const scheduledPolls = polls.filter(p => p.status === 'scheduled');
-  const endedPolls = polls.filter(p => p.status === 'ended');
-  const latestPoll = polls[0];
-
-  // Calculate additional KPIs from filtered complaints
-  const kpiMetrics = useMemo(() => {
-    return {
-      inProgress: filteredComplaints.filter(c => c.currentStatus === 'In Progress').length,
-      reopened: filteredComplaints.filter(c => c.isReopened).length,
-      longPending: filteredComplaints.filter(c => c.currentStatus !== 'Resolved' && ((new Date() - new Date(c.createdAt)) / (1000 * 60 * 60 * 24) > 7)).length
-    };
-  }, [filteredComplaints]);
-
-  const { inProgress, reopened, longPending } = kpiMetrics;
-
-  const avgResolution7 = (() => {
-    const last7 = filteredComplaints.filter(c => c.currentStatus === 'Resolved' && (new Date() - new Date(c.resolvedAt)) / (1000 * 60 * 60 * 24) <= 7);
-    if (!last7.length) return '-';
-    return (last7.reduce((acc, c) => acc + ((new Date(c.resolvedAt) - new Date(c.createdAt)) / (1000 * 60 * 60 * 24)), 0) / last7.length).toFixed(1) + 'd';
-  })();
-  const avgResolution30 = (() => {
-    const last30 = filteredComplaints.filter(c => c.currentStatus === 'Resolved' && (new Date() - new Date(c.resolvedAt)) / (1000 * 60 * 60 * 24) <= 30);
-    if (!last30.length) return '-';
-    return (last30.reduce((acc, c) => acc + ((new Date(c.resolvedAt) - new Date(c.createdAt)) / (1000 * 60 * 60 * 24)), 0) / last30.length).toFixed(1) + 'd';
-  })();
-
-  // Use derived data from the useMemo hook above
 
   return (
     <>
@@ -1148,8 +1233,8 @@ const DashboardHome = () => {
           <AnalyticsCharts
             categoryChartData={categoryChartData}
             pieData={pieData}
-            trends={trends}
-            barData={sortedBarData}
+            trends={monthlyTrends}
+            barData={dailyCounts}
             totalCategoryComplaints={totalCategoryComplaints}
           />
 
@@ -1218,10 +1303,10 @@ const DashboardHome = () => {
                   <div key={index} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${
-                        complaint.currentStatus === 'Resolved' ? 'bg-green-100' : 'bg-yellow-100'
+                        complaint.currentStatus === COMPLAINT_STATUSES.RESOLVED ? 'bg-green-100' : 'bg-yellow-100'
                       }`}>
                         <svg className={`w-5 h-5 ${
-                          complaint.currentStatus === 'Resolved' ? 'text-green-600' : 'text-yellow-600'
+                          complaint.currentStatus === COMPLAINT_STATUSES.RESOLVED ? 'text-green-600' : 'text-yellow-600'
                         }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -1238,7 +1323,7 @@ const DashboardHome = () => {
                       </div>
                     </div>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      complaint.currentStatus === 'Resolved' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                      complaint.currentStatus === COMPLAINT_STATUSES.RESOLVED ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
                     }`}>
                       {complaint.currentStatus}
                     </span>
@@ -1355,21 +1440,6 @@ const DashboardHome = () => {
           />
         </div>
       )}
-
-      {/* Debug Output (collapsible) */}
-      <div className="mt-8">
-        <button
-          className="text-xs text-blue-600 underline mb-2"
-          onClick={() => setDebugOpen(v => !v)}
-        >
-          {debugOpen ? 'Hide' : 'Show'} Debug API Data
-        </button>
-        {debugOpen && (
-          <div className="bg-gray-100 rounded p-4 overflow-x-auto text-xs max-h-96">
-            <pre>{JSON.stringify(debugData, null, 2)}</pre>
-          </div>
-        )}
-      </div>
     </div>
     </>
   );
