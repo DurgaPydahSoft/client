@@ -720,7 +720,7 @@ const LeaveManagement = () => {
             </div>
 
             {/* Previous Leaves Section */}
-            <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50 flex-shrink-0">
+            <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50">
               <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
                 <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Previous Leave History
@@ -737,7 +737,7 @@ const LeaveManagement = () => {
                   <p className="text-xs sm:text-sm text-gray-500">No previous leave records found</p>
                 </div>
               ) : (
-                <div className="space-y-3 max-h-60 overflow-y-auto">
+                <div className="space-y-3">
                   {previousLeaves.slice(0, 5).map((leave, index) => {
                     const displayInfo = formatDisplayDate(leave);
                     return (
