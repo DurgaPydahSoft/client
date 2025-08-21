@@ -31,6 +31,7 @@ const LeaveManagement = () => {
   const [previousLeaves, setPreviousLeaves] = useState([]);
   const [loadingPreviousLeaves, setLoadingPreviousLeaves] = useState(false);
   const [notifiedLeaves, setNotifiedLeaves] = useState(new Set());
+  const [leaveHistoryModal, setLeaveHistoryModal] = useState(false);
   const [filters, setFilters] = useState({
     status: 'Warden Verified',
     applicationType: '',
@@ -723,99 +724,24 @@ const LeaveManagement = () => {
             <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50">
               <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
                 <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Previous Leave History
+                Leave History
               </h4>
               
-              {loadingPreviousLeaves ? (
-                <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto"></div>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-2">Loading previous leaves...</p>
-                </div>
-              ) : previousLeaves.length === 0 ? (
-                <div className="text-center py-4">
-                  <DocumentTextIcon className="w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-2 text-gray-400" />
-                  <p className="text-xs sm:text-sm text-gray-500">No previous leave records found</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {previousLeaves.slice(0, 5).map((leave, index) => {
-                    const displayInfo = formatDisplayDate(leave);
-                    return (
-                      <div key={leave._id || index} className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
-                          <div className="flex-1">
-                            <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
-                                {getStatusIcon(leave.status)}
-                                <span className="ml-1">{leave.status}</span>
-                              </span>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                                {leave.applicationType}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {new Date(leave.createdAt).toLocaleDateString()}
-                              </span>
-                            </div>
-                            
-                            <div className="text-xs sm:text-sm text-gray-600 mb-2">
-                              {leave.applicationType === 'Leave' ? (
-                                <>
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>{displayInfo.start} - {displayInfo.end} ({displayInfo.duration})</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <ArrowRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>Gate Pass: {displayInfo.gatePass}</span>
-                                  </div>
-                                </>
-                              ) : leave.applicationType === 'Permission' ? (
-                                <>
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>{displayInfo.date}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>{displayInfo.time}</span>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="flex items-center gap-1 mb-1">
-                                    <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>{displayInfo.date}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span>{displayInfo.duration}</span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                            
-                            <p className="text-xs sm:text-sm text-gray-700 break-words">{leave.reason}</p>
-                            
-                            {leave.rejectionReason && (
-                              <p className="text-xs sm:text-sm text-red-600 mt-1">
-                                Rejection Reason: {leave.rejectionReason}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {previousLeaves.length > 5 && (
-                    <div className="text-center py-2">
-                      <p className="text-xs sm:text-sm text-gray-500">
-                        Showing last 5 records. Total: {previousLeaves.length} leave records
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="text-center py-4">
+                <button
+                  onClick={() => {
+                    setLeaveHistoryModal(true);
+                    if (selectedStudent?._id) {
+                      fetchPreviousLeaves(selectedStudent._id);
+                    }
+                  }}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center mx-auto text-sm font-medium"
+                >
+                  <DocumentTextIcon className="w-4 h-4 mr-2" />
+                  View Leave History
+                </button>
+                <p className="text-xs text-gray-500 mt-2">Click to view all previous leave records</p>
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -825,6 +751,154 @@ const LeaveManagement = () => {
                 className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center text-xs sm:text-sm font-medium touch-manipulation"
               >
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leave History Modal */}
+      {leaveHistoryModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800">Leave History</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedStudent.name} - {selectedStudent.rollNumber}
+                </p>
+              </div>
+              <button
+                onClick={() => setLeaveHistoryModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg touch-manipulation"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              {loadingPreviousLeaves ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                  <p className="text-sm text-gray-500 mt-3">Loading leave history...</p>
+                </div>
+              ) : previousLeaves.length === 0 ? (
+                <div className="text-center py-8">
+                  <DocumentTextIcon className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                  <p className="text-lg font-medium text-gray-600 mb-2">No Leave Records Found</p>
+                  <p className="text-sm text-gray-500">This student has no previous leave applications.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-semibold text-gray-800">
+                      Total Leave Records: {previousLeaves.length}
+                    </h4>
+                    <div className="text-sm text-gray-500">
+                      Showing all records
+                    </div>
+                  </div>
+                  
+                  {previousLeaves.map((leave, index) => {
+                    const displayInfo = formatDisplayDate(leave);
+                    return (
+                      <div key={leave._id || index} className="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:bg-gray-100 transition-colors">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-3">
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(leave.status)}`}>
+                                {getStatusIcon(leave.status)}
+                                <span className="ml-1">{leave.status}</span>
+                              </span>
+                              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                                {leave.applicationType}
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                Applied: {new Date(leave.createdAt).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            <div className="text-sm text-gray-600 mb-3">
+                              {leave.applicationType === 'Leave' ? (
+                                <>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CalendarIcon className="w-4 h-4" />
+                                    <span><strong>From:</strong> {displayInfo.start}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CalendarIcon className="w-4 h-4" />
+                                    <span><strong>To:</strong> {displayInfo.end}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <ClockIcon className="w-4 h-4" />
+                                    <span><strong>Duration:</strong> {displayInfo.duration}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ArrowRightIcon className="w-4 h-4" />
+                                    <span><strong>Gate Pass:</strong> {displayInfo.gatePass}</span>
+                                  </div>
+                                </>
+                              ) : leave.applicationType === 'Permission' ? (
+                                <>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <CalendarIcon className="w-4 h-4" />
+                                    <span><strong>Date:</strong> {displayInfo.date}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ClockIcon className="w-4 h-4" />
+                                    <span><strong>Time:</strong> {displayInfo.time}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <HomeIcon className="w-4 h-4" />
+                                    <span><strong>Date:</strong> {displayInfo.date}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <ClockIcon className="w-4 h-4" />
+                                    <span><strong>Duration:</strong> {displayInfo.duration}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            
+                            <div className="bg-white rounded-lg p-3 border border-gray-200">
+                              <p className="text-sm text-gray-700 break-words">
+                                <strong>Reason:</strong> {leave.reason}
+                              </p>
+                            </div>
+                            
+                            {leave.rejectionReason && (
+                              <div className="mt-3 bg-red-50 rounded-lg p-3 border border-red-200">
+                                <p className="text-sm text-red-700">
+                                  <strong>Rejection Reason:</strong> {leave.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={() => setLeaveHistoryModal(false)}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center text-sm font-medium touch-manipulation"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
                 Close
