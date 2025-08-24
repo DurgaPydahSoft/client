@@ -249,10 +249,21 @@ const SecurityDashboard = () => {
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   };
 
-  // Helper: is today
+  // Helper: is today (IST)
   const isToday = (date) => {
-    const now = new Date();
-    return date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    // Convert both date and now to IST
+    const toIST = (d) => {
+      // IST is UTC+5:30
+      const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+      return new Date(utc + (5.5 * 60 * 60 * 1000));
+    };
+    const nowIST = toIST(new Date());
+    const dateIST = toIST(date);
+    return (
+      nowIST.getFullYear() === dateIST.getFullYear() &&
+      nowIST.getMonth() === dateIST.getMonth() &&
+      nowIST.getDate() === dateIST.getDate()
+    );
   };
 
   // Helper: sort and auto-expire
