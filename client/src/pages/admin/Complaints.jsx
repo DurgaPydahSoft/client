@@ -32,7 +32,39 @@ const STATUS_COLORS = {
   'Received': 'bg-blue-100 text-blue-800',
   'Pending': 'bg-yellow-100 text-yellow-800',
   'In Progress': 'bg-purple-100 text-purple-800',
-  'Resolved': 'bg-green-300 text-green-800'
+  'Resolved': 'bg-green-100 text-green-800',
+  'Closed': 'bg-gray-100 text-gray-800'
+};
+
+// Column configuration for the Kanban board
+const COLUMN_CONFIG = {
+  'Received': {
+    title: 'Received',
+    color: 'blue',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    textColor: 'text-blue-700',
+    iconColor: 'text-blue-600',
+    statuses: ['Received']
+  },
+  'In Progress': {
+    title: 'In Progress',
+    color: 'yellow',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-200',
+    textColor: 'text-yellow-700',
+    iconColor: 'text-yellow-600',
+    statuses: ['In Progress']
+  },
+  'Resolved': {
+    title: 'Resolved & Closed',
+    color: 'green',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    textColor: 'text-green-700',
+    iconColor: 'text-green-600',
+    statuses: ['Resolved', 'Closed']
+  }
 };
 
 const CATEGORY_OPTIONS = [
@@ -127,6 +159,9 @@ const Complaints = () => {
   
   // Mobile filters state
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Desktop filters state
+  const [showDesktopFilters, setShowDesktopFilters] = useState(false);
 
   useEffect(() => {
     // Apply filters from navigation state if available
@@ -440,122 +475,24 @@ const Complaints = () => {
     fetchComplaints();
   };
 
-  // Filter form JSX
-  const renderFilterForm = () => (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Status Filter */}
-      <div>
-        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Status</label>
-        <select
-          value={filterStatus}
-          onChange={(e) => {
-            setFilterStatus(e.target.value);
-            handleFilterChange();
-          }}
-          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-        >
-          {STATUS_OPTIONS.map(status => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-      </div>
 
-      {/* Category Filter */}
-      <div>
-        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Category</label>
-        <select
-          value={filterCategory}
-          onChange={(e) => {
-            setFilterCategory(e.target.value);
-            setFilterSubCategory('All');
-            handleFilterChange();
-          }}
-          className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-        >
-          {CATEGORY_OPTIONS.map(category => (
-            <option key={category} value={category}>{category}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Subcategory Filter (only for Maintenance) */}
-      {filterCategory === 'Maintenance' && (
-        <div>
-          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Subcategory</label>
-          <select
-            value={filterSubCategory}
-            onChange={(e) => {
-              setFilterSubCategory(e.target.value);
-              handleFilterChange();
-            }}
-            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-          >
-            <option value="All">All</option>
-            {MAINTENANCE_SUBCATEGORIES.map(subCategory => (
-              <option key={subCategory} value={subCategory}>{subCategory}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Date Range Filter */}
-      <div>
-        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Date Range</label>
-        <div className="space-y-1.5 sm:space-y-2">
-          <input
-            type="date"
-            value={filterDateRange.from}
-            onChange={(e) => {
-              setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
-              handleFilterChange();
-            }}
-            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-          />
-          <input
-            type="date"
-            value={filterDateRange.to}
-            onChange={(e) => {
-              setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
-              handleFilterChange();
-            }}
-            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-          />
-        </div>
-      </div>
-
-      {/* Search */}
-      <div>
-        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Search</label>
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              handleFilterChange();
-            }}
-            placeholder="Search by description or student..."
-            className="w-full pl-8 sm:pl-10 pr-3 sm:pr-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-          />
-          <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2" />
-        </div>
-      </div>
-
-      {/* Clear Filters Button */}
-      <button
-        onClick={clearFilters}
-        className="w-full px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-600 hover:text-red-600 flex items-center justify-center gap-1.5 sm:gap-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
-      >
-        <XMarkIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-        Clear Filters
-      </button>
-    </div>
-  );
 
   // Update useEffect to fetch complaints when filters or page changes
   useEffect(() => {
     fetchComplaints();
   }, [currentPage, filterStatus, filterCategory, filterSubCategory, filterDateRange, searchQuery]);
+
+  // Helper function to get complaints by status for each column
+  const getComplaintsByStatus = (statuses) => {
+    return complaints.filter(complaint => 
+      statuses.includes(complaint.currentStatus)
+    );
+  };
+
+  // Get complaints count for each column
+  const getColumnCount = (statuses) => {
+    return getComplaintsByStatus(statuses).length;
+  };
 
   // Update pagination handlers
   const handlePageChange = (pageNumber) => {
@@ -726,6 +663,124 @@ const Complaints = () => {
     </div>
   );
 
+  // Render individual complaint card for Kanban columns
+  const renderComplaintCard = (complaint) => {
+    const isLocked = complaint.isLockedForUpdates === true;
+    return (
+      <div 
+        key={complaint._id || complaint.id} 
+        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer mb-2 group ${isLocked ? 'opacity-70' : ''}`}
+        onClick={() => openDetails(complaint)}
+      >
+        <div className="p-3">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors duration-200">
+                <UserIcon className="w-4 h-4 text-gray-600 group-hover:text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors duration-200">
+                  {complaint.raisedBy === 'warden' ? 'Warden' : (complaint.student?.name || 'Unknown')}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {complaint.raisedBy === 'student' ? `Room: ${complaint.student?.roomNumber || 'N/A'}` : 'Warden Raised'}
+                </p>
+              </div>
+            </div>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[complaint.currentStatus] || STATUS_COLORS['Received']} shadow-sm`}>
+              {complaint.currentStatus}
+            </span>
+          </div>
+
+          {/* Category and Type */}
+          <div className="flex flex-wrap gap-1.5 mb-2">
+            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
+              {complaint.category || 'Uncategorized'}
+            </span>
+            {complaint.subCategory && (
+              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
+                {complaint.subCategory}
+              </span>
+            )}
+            {complaint.raisedBy === 'warden' && (
+              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium border border-purple-200">
+                Warden
+              </span>
+            )}
+          </div>
+
+          {/* Description */}
+          <p className="text-xs text-gray-600 mb-2 overflow-hidden leading-relaxed" style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical'
+          }}>
+            {complaint.description}
+          </p>
+
+          {/* Assigned Member */}
+          {complaint.assignedTo && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-600 mb-2 p-1.5 bg-blue-50 rounded-lg border border-blue-100">
+              <UserIcon className="w-3 h-3" />
+              <span className="truncate font-medium">{complaint.assignedTo.name} ({complaint.assignedTo.category})</span>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="flex items-center justify-between text-xs text-gray-500 pt-1.5 border-t border-gray-100">
+            <span className="font-medium">{new Date(complaint.createdAt).toLocaleDateString()}</span>
+            {isLocked && (
+              <span className="text-red-500 font-medium flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                Locked
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render Kanban column
+  const renderKanbanColumn = (columnKey, config) => {
+    const columnComplaints = getComplaintsByStatus(config.statuses);
+    const count = columnComplaints.length;
+
+    return (
+      <div key={columnKey} className={`${config.bgColor} ${config.borderColor} border-2 rounded-lg p-3 min-h-[500px] shadow-sm hover:shadow-md transition-all duration-200`}>
+        {/* Column Header */}
+        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <div className={`w-2.5 h-2.5 rounded-full ${config.color === 'blue' ? 'bg-blue-500' : config.color === 'yellow' ? 'bg-yellow-500' : config.color === 'purple' ? 'bg-purple-500' : 'bg-green-500'}`}></div>
+            <h3 className={`text-base font-semibold ${config.textColor}`}>{config.title}</h3>
+          </div>
+          <span className={`px-2 py-1 rounded-full text-xs font-bold ${config.bgColor} ${config.textColor} border ${config.borderColor} shadow-sm`}>
+            {count}
+          </span>
+        </div>
+
+        {/* Complaints List */}
+        <div className="space-y-2">
+          {count === 0 ? (
+            <div className="text-center py-6">
+              <div className={`w-10 h-10 mx-auto mb-2 rounded-full ${config.bgColor} flex items-center justify-center`}>
+                <svg className={`w-5 h-5 ${config.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <p className={`text-xs ${config.textColor} font-medium`}>No complaints</p>
+            </div>
+          ) : (
+            columnComplaints.map(complaint => renderComplaintCard(complaint))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -803,6 +858,15 @@ const Complaints = () => {
 
                 </div>
               </div>
+
+              {/* Show Filters Button */}
+              <button
+                onClick={() => setShowDesktopFilters(prev => !prev)}
+                className="hidden lg:flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:text-blue-600 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
+              >
+                <FunnelIcon className="w-4 h-4" />
+                <span>{showDesktopFilters ? 'Hide' : 'Show'} Filters</span>
+              </button>
             </div>
           </div>
         </div>
@@ -849,10 +913,10 @@ const Complaints = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8 py-3 sm:py-6">
+      <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
         
         {/* Mobile Filter Toggle */}
-        <div className="lg:hidden mb-4">
+        <div className="lg:hidden mb-3">
           <button
             onClick={() => setShowMobileFilters(prev => !prev)}
             className="w-full bg-white rounded-lg shadow-sm border border-gray-100 p-3 flex items-center justify-between"
@@ -873,135 +937,292 @@ const Complaints = () => {
           
           {/* Mobile Filters Panel */}
           {showMobileFilters && (
-            <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-              {renderFilterForm()}
+            <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-3">
+              <div className="grid grid-cols-1 gap-2">
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => {
+                      setFilterStatus(e.target.value);
+                      handleFilterChange();
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                  >
+                    {STATUS_OPTIONS.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value);
+                      setFilterSubCategory('All');
+                      handleFilterChange();
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                  >
+                    {CATEGORY_OPTIONS.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subcategory Filter (only for Maintenance) */}
+                {filterCategory === 'Maintenance' && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Subcategory</label>
+                    <select
+                      value={filterSubCategory}
+                      onChange={(e) => {
+                        setFilterSubCategory(e.target.value);
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    >
+                      <option value="All">All</option>
+                      {MAINTENANCE_SUBCATEGORIES.map(subCategory => (
+                        <option key={subCategory} value={subCategory}>{subCategory}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Date Range Filter */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">From Date</label>
+                    <input
+                      type="date"
+                      value={filterDateRange.from}
+                      onChange={(e) => {
+                        setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">To Date</label>
+                    <input
+                      type="date"
+                      value={filterDateRange.to}
+                      onChange={(e) => {
+                        setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Search */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Search</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        handleFilterChange();
+                      }}
+                      placeholder="Search by description or student..."
+                      className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    />
+                    <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                  </div>
+                </div>
+
+                {/* Clear Filters Button */}
+                <button
+                  onClick={clearFilters}
+                  className="w-full px-4 py-2 text-xs text-gray-600 hover:text-red-600 flex items-center justify-center gap-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200"
+                >
+                  <XMarkIcon className="w-3.5 h-3.5" />
+                  Clear Filters
+                </button>
+              </div>
             </div>
           )}
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
-          {/* Left Sidebar - Filters (Desktop Only) */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-6 sticky top-20 sm:top-24">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
-                    <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+
+        {/* Desktop Filters - Horizontal Row */}
+        {showDesktopFilters && (
+          <div className="hidden lg:block mb-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-100">
+              {/* Filter Header with Toggle */}
+              <div className="p-4 pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-blue-50">
+                      <FunnelIcon className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
                   </div>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Filters</h2>
+                  <button
+                    onClick={() => setShowDesktopFilters(prev => !prev)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-gray-600 hover:text-blue-600 rounded-lg hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <span>{showDesktopFilters ? 'Hide' : 'Show'} Filters</span>
+                    <svg 
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${showDesktopFilters ? 'rotate-180' : ''}`}
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
                 </div>
               </div>
+              
+              {/* Filter Content */}
+              <div className="px-4 pb-4">
+                <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+                  {/* Status Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Status</label>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => {
+                        setFilterStatus(e.target.value);
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    >
+                      {STATUS_OPTIONS.map(status => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                {renderFilterForm()}
+                  {/* Category Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Category</label>
+                    <select
+                      value={filterCategory}
+                      onChange={(e) => {
+                        setFilterCategory(e.target.value);
+                        setFilterSubCategory('All');
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    >
+                      {CATEGORY_OPTIONS.map(category => (
+                        <option key={category} value={category}>{category}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Subcategory Filter (only for Maintenance) */}
+                  {filterCategory === 'Maintenance' ? (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1.5">Subcategory</label>
+                      <select
+                        value={filterSubCategory}
+                        onChange={(e) => {
+                          setFilterSubCategory(e.target.value);
+                          handleFilterChange();
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                      >
+                        <option value="All">All</option>
+                        {MAINTENANCE_SUBCATEGORIES.map(subCategory => (
+                          <option key={subCategory} value={subCategory}>{subCategory}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div></div>
+                  )}
+
+                  {/* Date Range Filter */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">From Date</label>
+                    <input
+                      type="date"
+                      value={filterDateRange.from}
+                      onChange={(e) => {
+                        setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">To Date</label>
+                    <input
+                      type="date"
+                      value={filterDateRange.to}
+                      onChange={(e) => {
+                        setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
+                        handleFilterChange();
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Search and Clear Filters Row */}
+                <div className="flex items-end gap-4 mt-4 pt-4 border-t border-gray-200">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">Search</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => {
+                          setSearchQuery(e.target.value);
+                          handleFilterChange();
+                        }}
+                        placeholder="Search by description or student..."
+                        className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
+                      />
+                      <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={clearFilters}
+                    className="px-4 py-2 text-xs text-gray-600 hover:text-red-600 flex items-center gap-2 rounded-lg hover:bg-gray-50 transition-all duration-200 border border-gray-200 font-medium"
+                  >
+                    <XMarkIcon className="w-3.5 h-3.5" />
+                    Clear Filters
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+        )}
+        
+        {/* Main Content - Full Width Kanban Board */}
+        <div className="w-full">
+          {/* Right Content - 4-Column Kanban Board */}
+          <div className="w-full">
+           
 
-          {/* Right Content - Complaints List */}
-          <div className="lg:col-span-2">
-            {/* Active Complaints Section */}
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6 mb-3 sm:mb-6">
-              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-                <div className="p-1.5 sm:p-2 rounded-lg bg-yellow-50">
-                  <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600" />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Active Complaints</h2>
-                  <p className="text-xs sm:text-sm text-gray-500">Requiring immediate attention</p>
-                </div>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                {complaints
-                  .filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received')
-                  .slice(0, 3)
-                  .map((c, index) => {
-                    const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
-                    return (
-                      <div key={complaintKey} className="flex flex-col p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4">
-                        <div className="flex items-start gap-3 sm:gap-4">
-                          <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
-                            <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                              <span className="text-sm font-medium text-gray-900 truncate">
-                                {c.raisedBy === 'warden' ? 'Warden' : (c.student?.name || 'Unknown')}
-                              </span>
-                              <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                                {c.category || 'Uncategorized'}
-                              </span>
-                              {c.raisedBy === 'warden' && (
-                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                                  Warden Raised
-                                </span>
-                              )}
-                              {c.raisedBy === 'student' && (
-                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                                  Student Complaint
-                                </span>
-                              )}
-                            </div>
-                            {c.raisedBy === 'student' ? (
-                              <>
-                                <div className="text-xs sm:text-sm text-gray-500 mb-1">Roll No: {c.student?.rollNumber || 'N/A'}</div>
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                  <span className="text-xs text-gray-500">Room: {c.student?.roomNumber || 'N/A'}</span>
-                                  <span className="text-xs text-gray-500">Category: {c.student?.category || 'N/A'}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-xs sm:text-sm text-gray-500 text-purple-600 mb-2">
-                                Raised by: {c.raisedBy === 'warden' ? 'Warden' : 'Student'}
-                              </div>
-                            )}
-                            {c.assignedTo && (
-                              <div className="flex items-center gap-1 text-xs text-blue-600 mb-2">
-                                <UserIcon className="w-3 h-3" />
-                                <span className="truncate">Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between">
-                              <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
-                                {c.currentStatus || 'Received'}
-                              </span>
-                              <button 
-                                className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
-                                onClick={() => openDetails(c)}
-                              >
-                                View Details
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length === 0 && (
-                  <div className="text-center py-6 sm:py-8">
-                    <p className="text-xs sm:text-sm text-gray-500">No active complaints</p>
-                  </div>
-                )}
-              </div>
+            {/* Kanban Board */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+              {Object.entries(COLUMN_CONFIG).map(([key, config]) => 
+                renderKanbanColumn(key, config)
+              )}
             </div>
 
-            {/* All Complaints Section */}
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 lg:p-6">
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <div className="p-1.5 sm:p-2 rounded-lg bg-blue-50">
-                    <FunnelIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-semibold text-gray-900">All Complaints</h2>
-                    <p className="text-xs sm:text-sm text-gray-500">
-                        Showing {((currentPage - 1) * pagination.limit) + 1}-{Math.min(currentPage * pagination.limit, pagination.total)} of {pagination.total}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
+            {/* Mobile View - Compact List */}
+            <div className="xl:hidden mt-6">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">All Complaints</h3>
                 {renderComplaintsList()}
-                      </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
