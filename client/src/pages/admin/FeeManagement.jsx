@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
+import ReceiptGenerator from '../../components/ReceiptGenerator';
 import { 
   CurrencyDollarIcon, 
   ExclamationTriangleIcon, 
@@ -74,18 +75,28 @@ const FeeManagement = () => {
   // Payment Tracking State
   const [payments, setPayments] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [selectedStudentForPayment, setSelectedStudentForPayment] = useState(null);
   const [paymentForm, setPaymentForm] = useState({
+    paymentType: 'hostel_fee', // 'hostel_fee' or 'electricity'
     amount: '',
     paymentMethod: 'Cash',
     term: '',
-    notes: ''
+    billId: '', // For electricity bills
+    month: '', // For electricity bills
+    notes: '',
+    utrNumber: '' // UTR number for online payments
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [selectedStudentBalance, setSelectedStudentBalance] = useState(null);
   const [studentPayments, setStudentPayments] = useState([]);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [studentElectricityBills, setStudentElectricityBills] = useState([]);
+  const [electricityBillsLoading, setElectricityBillsLoading] = useState(false);
+  const [availableMonths, setAvailableMonths] = useState([]);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedElectricityBill, setSelectedElectricityBill] = useState(null);
 
 
   // Generate academic years dynamically (3 years before and after current year)
@@ -310,7 +321,6 @@ const FeeManagement = () => {
         });
         
         const averageFeeAmount = studentsWithFees > 0 ? Math.round(totalFeeAmount / studentsWithFees) : 0;
-        const averageCalculatedFeeAmount = studentsWithFees > 0 ? Math.round(totalCalculatedFeeAmount / studentsWithFees) : 0;
         
         setStats({
           totalStudents,
@@ -320,8 +330,7 @@ const FeeManagement = () => {
           averageFeeAmount,
           totalCalculatedFeeAmount,
           totalConcessionAmount,
-          studentsWithConcession,
-          averageCalculatedFeeAmount
+          studentsWithConcession
         });
         
         console.log('🔍 Frontend: Stats updated:', {
@@ -634,25 +643,210 @@ const FeeManagement = () => {
       return;
     }
 
-    // Initialize payment form with student's fee structure
+    // Initialize payment form
     setPaymentForm({
+      paymentType: 'hostel_fee',
       amount: '',
       paymentMethod: 'Cash',
       term: '',
+      billId: '',
+      month: '',
       notes: ''
     });
+    
+    // Show modal immediately
     setShowPaymentModal(true);
+    
+    // Fetch available months in background (non-blocking)
+    fetchAvailableMonths(student);
   };
 
   const handleClosePaymentModal = () => {
     setShowPaymentModal(false);
     setSelectedStudentForPayment(null);
     setPaymentForm({
+      paymentType: 'hostel_fee',
       amount: '',
       paymentMethod: 'Cash',
       term: '',
+      billId: '',
+      month: '',
       notes: ''
     });
+    setStudentElectricityBills([]);
+    setAvailableMonths([]);
+    setSelectedMonth('');
+    setSelectedElectricityBill(null);
+  };
+
+  // Fetch available months for student's electricity bills
+  const fetchAvailableMonths = async (student) => {
+    try {
+      setElectricityBillsLoading(true);
+      
+      // Find student's room
+      const roomsResponse = await api.get('/api/rooms');
+      if (!roomsResponse.data.success) {
+        throw new Error('Failed to fetch rooms');
+      }
+      
+      const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
+      const studentRoom = rooms.find(room => 
+        room.roomNumber === student.roomNumber && 
+        room.gender === student.gender && 
+        room.category === student.category
+      );
+      
+      if (!studentRoom) {
+        console.log('No room found for student:', student);
+        setAvailableMonths([]);
+        return;
+      }
+      
+      // Get room's electricity bills
+      const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
+      if (!billsResponse.data.success) {
+        throw new Error('Failed to fetch electricity bills');
+      }
+      
+      const allBills = billsResponse.data.data || [];
+      
+      // Get unique months with unpaid bills for this student
+      const monthsWithUnpaidBills = allBills
+        .filter(bill => {
+          // Check if bill has studentBills array (new format)
+          if (bill.studentBills && bill.studentBills.length > 0) {
+            const studentBill = bill.studentBills.find(sb => sb.studentId === student._id);
+            return studentBill && studentBill.paymentStatus === 'unpaid';
+          } else {
+            // Old format - check if room bill is unpaid and student is in room
+            return bill.paymentStatus === 'unpaid';
+          }
+        })
+        .map(bill => bill.month)
+        .filter((month, index, array) => array.indexOf(month) === index) // Remove duplicates
+        .sort((a, b) => new Date(a) - new Date(b)); // Sort by date
+      
+      setAvailableMonths(monthsWithUnpaidBills);
+      console.log('🔍 Available months for student:', monthsWithUnpaidBills);
+      
+    } catch (error) {
+      console.error('Error fetching available months:', error);
+      toast.error('Failed to fetch available months');
+      setAvailableMonths([]);
+    } finally {
+      setElectricityBillsLoading(false);
+    }
+  };
+
+  // Fetch electricity bill for specific month
+  const fetchElectricityBillForMonth = async (student, month) => {
+    try {
+      setElectricityBillsLoading(true);
+      
+      // Find student's room
+      const roomsResponse = await api.get('/api/rooms');
+      if (!roomsResponse.data.success) {
+        throw new Error('Failed to fetch rooms');
+      }
+      
+      const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
+      const studentRoom = rooms.find(room => 
+        room.roomNumber === student.roomNumber && 
+        room.gender === student.gender && 
+        room.category === student.category
+      );
+      
+      if (!studentRoom) {
+        console.log('No room found for student:', student);
+        setSelectedElectricityBill(null);
+        return;
+      }
+      
+      // Get room's electricity bills
+      const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
+      if (!billsResponse.data.success) {
+        throw new Error('Failed to fetch electricity bills');
+      }
+      
+      const allBills = billsResponse.data.data || [];
+      
+      // Find bill for specific month
+      const billForMonth = allBills.find(bill => bill.month === month);
+      
+      if (!billForMonth) {
+        console.log('No bill found for month:', month);
+        setSelectedElectricityBill(null);
+        return;
+      }
+      
+      // Find student's share in the bill
+      let studentBill = null;
+      let studentAmount = 0;
+      
+      if (billForMonth.studentBills && billForMonth.studentBills.length > 0) {
+        // New format - has studentBills array
+        studentBill = billForMonth.studentBills.find(sb => sb.studentId === student._id);
+        if (!studentBill || studentBill.paymentStatus === 'paid') {
+          console.log('Student bill not found or already paid for month:', month);
+          setSelectedElectricityBill(null);
+          return;
+        }
+        studentAmount = studentBill.amount;
+      } else {
+        // Old format - calculate equal share
+        if (billForMonth.paymentStatus === 'paid') {
+          console.log('Room bill already paid for month:', month);
+          setSelectedElectricityBill(null);
+          return;
+        }
+        
+        // Get current student count in room via API
+        try {
+          const studentsResponse = await api.get(`/api/admin/rooms/${studentRoom._id}/students`);
+          if (studentsResponse.data.success) {
+            const studentsInRoom = studentsResponse.data.data.students.length;
+            if (studentsInRoom === 0) {
+              console.log('No students found in room for month:', month);
+              setSelectedElectricityBill(null);
+              return;
+            }
+            studentAmount = Math.round(billForMonth.total / studentsInRoom);
+          } else {
+            console.log('Failed to get student count for room');
+            setSelectedElectricityBill(null);
+            return;
+          }
+        } catch (error) {
+          console.error('Error getting student count:', error);
+          setSelectedElectricityBill(null);
+          return;
+        }
+      }
+      
+      const billDetails = {
+        _id: billForMonth._id,
+        month: billForMonth.month,
+        amount: studentAmount,
+        totalBill: billForMonth.total,
+        consumption: billForMonth.consumption,
+        rate: billForMonth.rate,
+        roomId: studentRoom._id,
+        startUnits: billForMonth.startUnits,
+        endUnits: billForMonth.endUnits,
+        isOldFormat: !billForMonth.studentBills || billForMonth.studentBills.length === 0
+      };
+      
+      setSelectedElectricityBill(billDetails);
+      console.log('🔍 Electricity bill for month:', billDetails);
+      
+    } catch (error) {
+      console.error('Error fetching electricity bill for month:', error);
+      toast.error('Failed to fetch electricity bill');
+      setSelectedElectricityBill(null);
+    } finally {
+      setElectricityBillsLoading(false);
+    }
   };
 
   // Comprehensive payment validation function
@@ -668,12 +862,17 @@ const FeeManagement = () => {
       errors.push('Payment amount must be greater than 0');
     }
     
-    if (!paymentForm.term) {
-      errors.push('Please select a term');
-    }
-    
     if (!paymentForm.paymentMethod) {
       errors.push('Please select a payment method');
+    }
+    
+    if (!paymentForm.paymentType) {
+      errors.push('Please select a payment type');
+    }
+    
+    // UTR validation for online payments
+    if (paymentForm.paymentMethod === 'Online' && !paymentForm.utrNumber) {
+      errors.push('UTR number is required for online payments');
     }
     
     // 2. Student status validation
@@ -690,10 +889,6 @@ const FeeManagement = () => {
         errors.push('Payment amount must be a valid number');
       }
       
-      // Check minimum payment
-      if (amount < 100) {
-        errors.push('Minimum payment amount is ₹100');
-      }
       
       // Check decimal precision
       if (amount % 1 !== 0 && amount.toString().split('.')[1]?.length > 2) {
@@ -701,32 +896,26 @@ const FeeManagement = () => {
       }
     }
     
-    // 4. Term balance validation
-    if (student && paymentForm.term && paymentForm.amount) {
-      const balance = calculateStudentBalance(student);
-      if (balance) {
-        const termBalance = balance.termBalances[paymentForm.term];
-        
-        if (!termBalance) {
-          errors.push(`Invalid term: ${paymentForm.term}`);
-        } else if (termBalance.balance <= 0) {
-          errors.push(`Term ${paymentForm.term.replace('term', 'Term ')} is already fully paid`);
-        } else if (parseFloat(paymentForm.amount) > termBalance.balance) {
-          errors.push(`Payment amount (₹${paymentForm.amount}) exceeds term balance (₹${termBalance.balance})`);
-        }
+    // 4. Payment type specific validation
+    if (paymentForm.paymentType === 'electricity') {
+      if (!paymentForm.month) {
+        errors.push('Please select a month');
+      }
+      if (!selectedElectricityBill) {
+        errors.push('Please select a valid electricity bill');
       }
     }
     
     // 5. Duplicate payment prevention (check recent payments)
-    if (student && paymentForm.term && paymentForm.amount) {
+    if (student && paymentForm.amount) {
       const recentPayments = payments.filter(p => 
         p.studentId === student._id && 
-        p.term === paymentForm.term &&
+        p.paymentType === paymentForm.paymentType &&
         new Date(p.createdAt) > new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
       );
       
       if (recentPayments.length > 0) {
-        errors.push('Duplicate payment detected. Please wait before making another payment for the same term.');
+        errors.push('Duplicate payment detected. Please wait before making another payment.');
       }
     }
     
@@ -746,37 +935,85 @@ const FeeManagement = () => {
     try {
       setPaymentLoading(true);
       
-      const paymentData = {
-        studentId: selectedStudentForPayment._id,
-        amount: parseFloat(paymentForm.amount),
-        paymentMethod: paymentForm.paymentMethod,
-        term: paymentForm.term,
-        notes: paymentForm.notes,
-        academicYear: selectedStudentForPayment.academicYear
-      };
+      let paymentData;
+      let endpoint;
+      
+      if (paymentForm.paymentType === 'hostel_fee') {
+        // Hostel fee payment
+        paymentData = {
+          studentId: selectedStudentForPayment._id,
+          amount: parseFloat(paymentForm.amount),
+          paymentMethod: paymentForm.paymentMethod,
+          notes: paymentForm.notes,
+          academicYear: selectedStudentForPayment.academicYear,
+          utrNumber: paymentForm.utrNumber
+        };
+        endpoint = '/api/payments/hostel-fee';
+      } else {
+        // Electricity bill payment
+        if (!selectedElectricityBill) {
+          toast.error('Selected electricity bill not found');
+          return;
+        }
+        
+        paymentData = {
+          studentId: selectedStudentForPayment._id,
+          billId: selectedElectricityBill._id,
+          roomId: selectedElectricityBill.roomId,
+          amount: parseFloat(paymentForm.amount),
+          paymentMethod: paymentForm.paymentMethod,
+          notes: paymentForm.notes,
+          utrNumber: paymentForm.utrNumber
+        };
+        endpoint = '/api/payments/electricity';
+      }
 
-            // Send payment to backend
+      // Send payment to backend
       console.log('🔍 Sending payment data to backend:', paymentData);
-      const response = await api.post('/api/payments/hostel-fee', paymentData);
+      const response = await api.post(endpoint, paymentData);
       
       console.log('🔍 Backend response:', response.data);
       
       if (response.data.success) {
-        const newPayment = response.data.data;
+        const responseData = response.data.data;
         
-        // Add to local payments array
-        setPayments(prev => {
-          const updatedPayments = [newPayment, ...prev];
-          // Debug logging
-          console.log('🔍 New payment recorded:', newPayment);
-          console.log('🔍 Updated payments array:', updatedPayments);
-          return updatedPayments;
-        });
-      
-      // Generate receipt
-      generateReceipt(newPayment);
-      
-      toast.success('Payment recorded successfully!');
+        // Handle different response formats
+        if (paymentForm.paymentType === 'hostel_fee' && responseData.paymentRecords) {
+          // Multiple payment records for hostel fee
+          const newPayments = responseData.paymentRecords;
+          
+          // Add all payment records to local payments array
+          setPayments(prev => {
+            const updatedPayments = [...newPayments, ...prev];
+            console.log('🔍 New hostel fee payments recorded:', newPayments);
+            console.log('🔍 Updated payments array:', updatedPayments);
+            return updatedPayments;
+          });
+          
+          // Don't auto-download receipt - let user download from payment history
+          
+          // Show success message with details
+          if (responseData.remainingAmount > 0) {
+            toast.success(`Payment recorded successfully! ₹${responseData.remainingAmount} excess amount applied. You can download the receipt from Payment History.`);
+          } else {
+            toast.success('Payment recorded successfully! You can download the receipt from Payment History.');
+          }
+        } else {
+          // Single payment record (electricity or old hostel fee format)
+          const newPayment = responseData;
+          
+          // Add to local payments array
+          setPayments(prev => {
+            const updatedPayments = [newPayment, ...prev];
+            console.log('🔍 New payment recorded:', newPayment);
+            console.log('🔍 Updated payments array:', updatedPayments);
+            return updatedPayments;
+          });
+        
+          // Don't auto-download receipt - let user download from payment history
+          
+          toast.success('Payment recorded successfully! You can download the receipt from Payment History.');
+        }
       } else {
         toast.error('Failed to record payment');
         return;
@@ -795,54 +1032,37 @@ const FeeManagement = () => {
   };
 
   const generateReceipt = (payment) => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.text('HOSTEL FEE RECEIPT', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text('PYDAH SOFT HOSTEL MANAGEMENT SYSTEM', 105, 30, { align: 'center' });
-    
-    // Receipt details
-    doc.setFontSize(14);
-    doc.text('Receipt Details', 20, 50);
-    
-    doc.setFontSize(10);
-    doc.text(`Receipt No: ${payment.receiptNumber}`, 20, 65);
-    doc.text(`Transaction ID: ${payment.transactionId}`, 20, 75);
-    doc.text(`Date: ${new Date(payment.paymentDate).toLocaleDateString()}`, 20, 85);
-    
-    // Student details
-    doc.setFontSize(14);
-    doc.text('Student Details', 20, 105);
-    
-    doc.setFontSize(10);
-    doc.text(`Name: ${payment.studentName || selectedStudentForPayment?.name}`, 20, 120);
-    doc.text(`Roll Number: ${payment.studentRollNumber || selectedStudentForPayment?.rollNumber}`, 20, 130);
-    doc.text(`Academic Year: ${payment.academicYear || selectedStudentForPayment?.academicYear}`, 20, 140);
-    doc.text(`Category: ${payment.category || selectedStudentForPayment?.category}`, 20, 150);
-    
-    // Payment details
-    doc.setFontSize(14);
-    doc.text('Payment Details', 20, 170);
-    
-    doc.setFontSize(10);
-    doc.text(`Amount: ₹${payment.amount.toLocaleString()}`, 20, 185);
-    doc.text(`Term: ${payment.term}`, 20, 195);
-    doc.text(`Payment Method: ${payment.paymentMethod}`, 20, 205);
-    doc.text(`Collected By: ${payment.collectedByName}`, 20, 215);
-    
-    if (payment.notes) {
-      doc.text(`Notes: ${payment.notes}`, 20, 225);
+    console.log('🔍 Generating receipt for payment:', payment);
+    try {
+      const success = ReceiptGenerator.generateReceipt(payment, selectedStudentForPayment);
+      if (success) {
+        toast.success('Receipt downloaded successfully!');
+      } else {
+        toast.error('Failed to generate receipt');
+      }
+    } catch (error) {
+      console.error('❌ Error generating receipt:', error);
+      toast.error('Failed to generate receipt');
     }
-    
-    // Footer
-    doc.setFontSize(8);
-    doc.text('This is a computer generated receipt', 105, 270, { align: 'center' });
-    
-    // Save the PDF
-    doc.save(`receipt_${payment.receiptNumber}.pdf`);
+  };
+
+  // Fetch all payments (both hostel fee and electricity)
+  const fetchAllPayments = async () => {
+    setPaymentHistoryLoading(true);
+    try {
+      const response = await api.get('/api/payments/all');
+      if (response.data.success) {
+        setPayments(response.data.data.payments);
+        console.log('📋 Fetched all payments:', response.data.data.payments.length);
+      } else {
+        toast.error('Failed to fetch payment history');
+      }
+    } catch (error) {
+      console.error('Error fetching payment history:', error);
+      toast.error('Failed to fetch payment history');
+    } finally {
+      setPaymentHistoryLoading(false);
+    }
   };
 
   const openBalanceModal = async (student) => {
@@ -1077,6 +1297,13 @@ const FeeManagement = () => {
     }
   }, []);
 
+  // Fetch payments when payments tab is active
+  useEffect(() => {
+    if (activeTab === 'payments') {
+      fetchAllPayments();
+    }
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -1251,20 +1478,6 @@ const FeeManagement = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-indigo-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Average After Concession</p>
-              <p className="text-lg font-semibold text-indigo-600">₹{(stats.averageCalculatedFeeAmount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-500">
-                Per student average
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
 
               {/* Fee Structure Summary */}
@@ -1958,6 +2171,10 @@ const FeeManagement = () => {
                     <span className="font-semibold">{selectedStudentForPayment.category}</span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Room No:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.roomNumber}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
                     <span className="font-medium min-w-[100px]">Academic Year:</span>
                     <span className="font-semibold">{selectedStudentForPayment.academicYear}</span>
                   </div>
@@ -2037,6 +2254,28 @@ const FeeManagement = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Payment Type
+                  </label>
+                  <select
+                    value={paymentForm.paymentType}
+                    onChange={(e) => setPaymentForm(prev => ({ 
+                      ...prev, 
+                      paymentType: e.target.value,
+                      term: '',
+                      billId: '',
+                      month: '',
+                      amount: ''
+                    }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    required
+                  >
+                    <option value="hostel_fee">Hostel Fee</option>
+                    <option value="electricity">Electricity Bill</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Payment Method
                   </label>
                   <select
@@ -2049,31 +2288,102 @@ const FeeManagement = () => {
                     <option value="Online">Online</option>
                   </select>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Term to Pay
-                  </label>
-                  <select
-                    value={paymentForm.term}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, term: e.target.value }))}
+
+                {paymentForm.paymentMethod === 'Online' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      UTR Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentForm.utrNumber}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, utrNumber: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    required
-                  >
-                    <option value="">Select Term</option>
-                    {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).map(term => (
-                      <option key={term.value} value={term.value}>
-                        {term.label}
-                      </option>
-                    ))}
-                    {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
-                      <option value="" disabled>No terms available for payment</option>
+                      placeholder="Enter UTR/Transaction ID"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Unique Transaction Reference number from your bank
+                    </p>
+                  </div>
+                )}
+                
+                {paymentForm.paymentType === 'electricity' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Select Month
+                    </label>
+                    <select
+                      value={paymentForm.month}
+                      onChange={async (e) => {
+                        const selectedMonth = e.target.value;
+                        setPaymentForm(prev => ({ 
+                          ...prev, 
+                          month: selectedMonth,
+                          billId: '',
+                          amount: ''
+                        }));
+                        setSelectedElectricityBill(null);
+                        
+                        if (selectedMonth && selectedStudentForPayment) {
+                          await fetchElectricityBillForMonth(selectedStudentForPayment, selectedMonth);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                    >
+                      <option value="">Select Month</option>
+                      {availableMonths.map(month => (
+                        <option key={month} value={month}>
+                          {new Date(month).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long' 
+                          })}
+                        </option>
+                      ))}
+                      {availableMonths.length === 0 && !electricityBillsLoading && (
+                        <option value="" disabled>No unpaid bills found</option>
+                      )}
+                    </select>
+                    {electricityBillsLoading && (
+                      <p className="text-xs text-gray-500 mt-1">Loading...</p>
                     )}
-                  </select>
-                  {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
-                    <p className="text-sm text-green-600 mt-1">✅ All terms are fully paid</p>
-                  )}
-                </div>
+                    {!electricityBillsLoading && availableMonths.length === 0 && (
+                      <p className="text-sm text-green-600 mt-1">✅ All electricity bills are paid</p>
+                    )}
+                  </div>
+                )}
+                
+                {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
+                  <div className="col-span-full">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">Bill Details</h4>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Month:</span>
+                          <span className="ml-2 font-medium">
+                            {new Date(selectedElectricityBill.month).toLocaleDateString('en-US', { 
+                              year: 'numeric', 
+                              month: 'long' 
+                            })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Your Share:</span>
+                          <span className="ml-2 font-medium text-green-600">₹{selectedElectricityBill.amount}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Total Bill:</span>
+                          <span className="ml-2 font-medium">₹{selectedElectricityBill.totalBill}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">Consumption:</span>
+                          <span className="ml-2 font-medium">{selectedElectricityBill.consumption} units</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2085,30 +2395,44 @@ const FeeManagement = () => {
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       required
-                      min="100"
+                      min="1"
                       step="0.01"
-                      placeholder="Enter payment amount"
+                      placeholder={paymentForm.paymentType === 'electricity' && selectedElectricityBill ? 
+                        `Enter amount (Bill: ₹${selectedElectricityBill.amount})` : 
+                        "Enter payment amount"
+                      }
                     />
-                  {paymentForm.term && selectedStudentForPayment && (() => {
+                    {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentForm(prev => ({ ...prev, amount: selectedElectricityBill.amount.toString() }))}
+                          className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                        >
+                          Pay Full Bill (₹{selectedElectricityBill.amount})
+                        </button>
+                      </div>
+                    )}
+                  {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
                     const balance = calculateStudentBalance(selectedStudentForPayment);
-                    const termBalance = balance?.termBalances[paymentForm.term];
-                    return termBalance && termBalance.balance > 0 ? (
+                    const totalBalance = balance?.totalBalance || 0;
+                    return totalBalance > 0 ? (
                       <div className="mt-2 space-y-1">
-                        <p className="text-xs text-gray-600">Term Balance: ₹{termBalance.balance}</p>
+                        <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: termBalance.balance.toString() }))}
+                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: totalBalance.toString() }))}
                             className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
                           >
-                            Pay Full (₹{termBalance.balance})
+                            Pay Full (₹{totalBalance})
                           </button>
                           <button
                             type="button"
-                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(termBalance.balance / 2).toString() }))}
+                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(totalBalance / 2).toString() }))}
                             className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
                           >
-                            Pay Half (₹{Math.round(termBalance.balance / 2)})
+                            Pay Half (₹{Math.round(totalBalance / 2)})
                           </button>
                         </div>
                       </div>
@@ -2142,7 +2466,7 @@ const FeeManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={paymentLoading || getAvailableTermsForPayment(selectedStudentForPayment).length === 0}
+                  disabled={paymentLoading || (paymentForm.paymentType === 'electricity' && (!selectedElectricityBill || availableMonths.length === 0))}
                   className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
                 >
                   {paymentLoading ? 'Recording...' : 'Record Payment'}
@@ -2622,7 +2946,12 @@ const FeeManagement = () => {
             </div>
             
             <div className="overflow-x-auto">
-              {payments.length === 0 ? (
+              {paymentHistoryLoading ? (
+                <div className="p-8 text-center text-gray-500">
+                  <LoadingSpinner />
+                  <p className="mt-2">Loading payment history...</p>
+                </div>
+              ) : payments.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <ReceiptRefundIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p>No payments recorded yet</p>
@@ -2638,7 +2967,7 @@ const FeeManagement = () => {
                         Student
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Payment Details
+                        Payment Type & Details
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Amount
@@ -2668,16 +2997,38 @@ const FeeManagement = () => {
                             <div className="text-xs text-blue-600">
                               {payment.category} - {payment.academicYear}
                             </div>
+                            {payment.roomNumber && (
+                              <div className="text-xs text-gray-500">
+                                Room: {payment.roomNumber}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {payment.term}
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                payment.paymentType === 'electricity' 
+                                  ? 'bg-yellow-100 text-yellow-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {payment.paymentType === 'electricity' ? '⚡ Electricity' : '🏠 Hostel Fee'}
+                              </span>
+                            </div>
+                            <div className="text-sm font-medium text-gray-900 mt-1">
+                              {payment.paymentType === 'electricity' 
+                                ? `Bill Month: ${payment.billMonth || 'N/A'}`
+                                : `Term: ${payment.term || 'N/A'}`
+                              }
                             </div>
                             <div className="text-xs text-gray-500">
                               {payment.notes || 'No notes'}
                             </div>
+                            {payment.paymentMethod === 'Online' && payment.utrNumber && (
+                              <div className="text-xs text-blue-600 font-medium">
+                                UTR: {payment.utrNumber}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
@@ -2698,10 +3049,11 @@ const FeeManagement = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => generateReceipt(payment)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
                             title="Download Receipt"
                           >
                             <DocumentTextIcon className="w-4 h-4" />
+                            <span>Download</span>
                           </button>
                         </td>
                       </tr>

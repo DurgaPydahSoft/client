@@ -5,8 +5,7 @@ import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import ReceiptGenerator from '../../components/ReceiptGenerator';
 import {
   CreditCardIcon,
   CheckCircleIcon,
@@ -111,145 +110,11 @@ const PaymentHistory = () => {
   };
 
   const downloadReceipt = (payment) => {
-    try {
-      // Create PDF document
-      const doc = new jsPDF();
-      
-      // Set page margins and dimensions
-      const pageWidth = doc.internal.pageSize.width;
-      const pageHeight = doc.internal.pageSize.height;
-      const margin = 20;
-      const contentWidth = pageWidth - (2 * margin);
-      
-      // Add header with better styling
-      doc.setFontSize(24);
-      doc.setTextColor(30, 64, 175); // Blue-900
-      doc.setFont(undefined, 'bold');
-      doc.text('ELECTRICITY BILL PAYMENT RECEIPT', pageWidth / 2, 35, { align: 'center' });
-      
-      // Add decorative line
-      doc.setDrawColor(30, 64, 175);
-      doc.setLineWidth(0.5);
-      doc.line(margin, 45, pageWidth - margin, 45);
-      
-      // Create single column layout
-      const leftColumn = margin;
-      const lineHeight = 7;
-      let currentY = 60;
-      
-      // Student Details Section
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined, 'bold');
-      doc.text('STUDENT DETAILS', leftColumn, currentY);
-      currentY += 10;
-      
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(75, 85, 99);
-      
-      const studentName = String(user?.name || user?.fullName || 'N/A');
-      const studentRollNo = String(user?.rollNo || user?.studentId || user?.rollNumber || 'N/A');
-      const roomNumber = String(payment.roomId?.roomNumber || user?.roomNumber || 'N/A');
-      
-      doc.text(`Name: ${studentName}`, leftColumn, currentY);
-      currentY += lineHeight;
-      doc.text(`Roll Number: ${studentRollNo}`, leftColumn, currentY);
-      currentY += lineHeight;
-      doc.text(`Room Number: ${roomNumber}`, leftColumn, currentY);
-      currentY += lineHeight + 5;
-      
-      // Payment Details Section
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined, 'bold');
-      doc.text('PAYMENT DETAILS', leftColumn, currentY);
-      currentY += 10;
-      
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(75, 85, 99);
-      
-      const paymentDate = payment.paymentDate ? formatDate(payment.paymentDate) : formatDate(payment.createdAt);
-      
-      doc.text(`Transaction ID: ${String(payment.cashfreeOrderId || 'N/A')}`, leftColumn, currentY);
-      currentY += lineHeight;
-      doc.text(`Payment Date: ${String(paymentDate)}`, leftColumn, currentY);
-      currentY += lineHeight;
-      doc.text(`Status: ${String(payment.status.toUpperCase())}`, leftColumn, currentY);
-      currentY += lineHeight + 10;
-      
-      // Bill Details Section
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined, 'bold');
-      doc.text('BILL DETAILS', leftColumn, currentY);
-      currentY += 10;
-      
-      // Create a table-like structure for bill details
-      const billData = [
-        ['Bill Month', String(payment.billMonth || 'N/A')],
-        ['Start Units', String(payment.billDetails?.startUnits || 'N/A')],
-        ['End Units', String(payment.billDetails?.endUnits || 'N/A')],
-        ['Consumption', `${String(payment.consumption || payment.billDetails?.consumption || 0)} units`],
-        ['Rate per Unit', `₹${String(payment.billDetails?.rate || 'N/A')}`]
-      ];
-      
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(75, 85, 99);
-      
-      billData.forEach(([label, value], index) => {
-        const yPos = currentY + (index * lineHeight);
-        doc.text(`${label}:`, leftColumn, yPos);
-        doc.text(String(value), leftColumn + 60, yPos);
-      });
-      
-      // Total Amount Section (Highlighted)
-      currentY += (billData.length * lineHeight) + 10;
-      doc.setDrawColor(30, 64, 175);
-      doc.setLineWidth(0.3);
-      doc.line(leftColumn, currentY - 5, pageWidth - margin, currentY - 5);
-      
-      doc.setFontSize(14);
-      doc.setTextColor(0, 0, 0);
-      doc.setFont(undefined, 'bold');
-      doc.text('TOTAL AMOUNT:', leftColumn, currentY);
-      doc.text(String(formatCurrency(payment.amount)), leftColumn + 60, currentY);
-      
-      // Payment Method
-      currentY += 15;
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'normal');
-      doc.setTextColor(75, 85, 99);
-      doc.text('Payment Method: Cashfree Payment Gateway', leftColumn, currentY);
-      
-      // Footer
-      currentY = pageHeight - 30;
-      doc.setDrawColor(209, 213, 219);
-      doc.setLineWidth(0.2);
-      doc.line(margin, currentY, pageWidth - margin, currentY);
-      
-      currentY += 10;
-      doc.setFontSize(8);
-      doc.setTextColor(107, 114, 128);
-      doc.text('This is a computer generated receipt and does not require a signature.', pageWidth / 2, currentY, { align: 'center' });
-      currentY += 5;
-      doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, currentY, { align: 'center' });
-      
-      // Add border around the entire receipt
-      doc.setDrawColor(209, 213, 219);
-      doc.setLineWidth(0.5);
-      doc.rect(margin - 5, margin - 5, pageWidth - (2 * margin) + 10, pageHeight - (2 * margin) + 10);
-      
-      // Save the PDF with descriptive name
-      const fileName = `electricity_bill_receipt_${payment.billMonth}.pdf`;
-      doc.save(fileName);
-      
+    const success = ReceiptGenerator.generateReceipt(payment, user);
+    if (success) {
       toast.success('Receipt downloaded successfully!');
-    } catch (error) {
-      console.error('Error downloading receipt:', error);
-      toast.error('Failed to download receipt');
+    } else {
+      toast.error('Failed to generate receipt');
     }
   };
 
@@ -279,7 +144,7 @@ const PaymentHistory = () => {
             </h1>
           </div>
           <p className="text-gray-600">
-            View your electricity bill payment history and transaction details
+            View your payment history for both hostel fees and electricity bills
           </p>
         </div>
 
@@ -396,7 +261,10 @@ const PaymentHistory = () => {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Bill Month
+                        Payment Type
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Details
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Amount
@@ -424,8 +292,35 @@ const PaymentHistory = () => {
 
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
-                            <CalendarIcon className="w-4 h-4 text-gray-400 mr-2" />
-                            <span className="text-sm text-gray-900">{payment.billMonth}</span>
+                            {payment.paymentType === 'electricity' ? (
+                              <CurrencyDollarIcon className="w-4 h-4 text-blue-400 mr-2" />
+                            ) : (
+                              <DocumentTextIcon className="w-4 h-4 text-green-400 mr-2" />
+                            )}
+                            <span className="text-sm font-medium text-gray-900">
+                              {payment.paymentType === 'electricity' ? 'Electricity Bill' : 'Hostel Fee'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {payment.paymentType === 'electricity' ? (
+                              <>
+                                <div className="font-medium">{payment.billMonth}</div>
+                                <div className="text-gray-500">
+                                  {payment.consumption || (payment.billDetails?.consumption || 0)} units
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-medium">
+                                  Term {payment.term || 'N/A'}
+                                </div>
+                                <div className="text-gray-500">
+                                  Academic Year: {payment.academicYear || 'N/A'}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -433,7 +328,7 @@ const PaymentHistory = () => {
                             {formatCurrency(payment.amount)}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {payment.consumption || (payment.billDetails?.consumption || 0)} units
+                            {payment.paymentMethod || 'N/A'}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">

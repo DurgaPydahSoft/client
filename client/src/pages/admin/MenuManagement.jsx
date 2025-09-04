@@ -111,6 +111,10 @@ const MenuManagement = () => {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
+  
+  // Selected date menu state
+  const [selectedDateMenu, setSelectedDateMenu] = useState(null);
+  const [loadingSelectedDateMenu, setLoadingSelectedDateMenu] = useState(false);
 
   // Menu notification state
   const [notificationLoading, setNotificationLoading] = useState(false);
@@ -154,25 +158,58 @@ const MenuManagement = () => {
     fetchTodaysMenu();
   }, []);
 
-  // Fetch rating statistics for selected date
+  // Fetch rating statistics and menu for selected date
   useEffect(() => {
-    const fetchRatingStats = async () => {
+    const fetchRatingStatsAndMenu = async () => {
       setLoadingStats(true);
+      setLoadingSelectedDateMenu(true);
       try {
         const formattedDate = formatDateForAPI(statsDate);
-        const res = await api.get(`/api/cafeteria/menu/ratings/stats?date=${formattedDate}`);
-        setRatingStats(res.data.data);
-      } catch (err) {
-        // 404 is expected when no menu or ratings exist for the date
-        if (err.response?.status !== 404) {
-          console.error('Error fetching rating stats:', err);
+        
+        // Fetch both rating stats and menu in parallel
+        const [ratingRes, menuRes] = await Promise.allSettled([
+          api.get(`/api/cafeteria/menu/ratings/stats?date=${formattedDate}`),
+          api.get(`/api/cafeteria/menu/date?date=${formattedDate}`)
+        ]);
+        
+        // Handle rating stats
+        if (ratingRes.status === 'fulfilled') {
+          setRatingStats(ratingRes.value.data.data);
+        } else {
+          // 404 is expected when no menu or ratings exist for the date
+          if (ratingRes.reason.response?.status !== 404) {
+            console.error('Error fetching rating stats:', ratingRes.reason);
+          }
+          setRatingStats(null);
         }
+        
+        // Handle menu data
+        if (menuRes.status === 'fulfilled') {
+          const menuData = menuRes.value.data.data;
+          // Convert legacy items to new format and ensure all meal types exist
+          if (menuData && menuData.meals) {
+            menuData.meals = ensureAllMealTypes(menuData.meals);
+          } else {
+            menuData.meals = ensureAllMealTypes(null);
+          }
+          setSelectedDateMenu(menuData);
+        } else {
+          // 404 is expected when no menu exists for the date
+          if (menuRes.reason.response?.status !== 404) {
+            console.error('Error fetching menu:', menuRes.reason);
+          }
+          setSelectedDateMenu(null);
+        }
+      } catch (err) {
+        console.error('Error in fetchRatingStatsAndMenu:', err);
         setRatingStats(null);
+        setSelectedDateMenu(null);
       } finally {
         setLoadingStats(false);
+        setLoadingSelectedDateMenu(false);
       }
     };
-    fetchRatingStats();
+    fetchRatingStatsAndMenu();
   }, [statsDate]);
 
   // Fetch today's rating statistics
@@ -802,17 +839,126 @@ const MenuManagement = () => {
       {/* Detailed Rating Statistics Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
         <div className="flex flex-col gap-3 mb-4">
-          <h2 className="text-base sm:text-lg font-semibold text-blue-900">Rating Statistics</h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-            <label className="text-xs text-gray-600 font-medium">Select Date:</label>
-            <input
-              type="date"
-              value={statsDate}
-              onChange={e => setStatsDate(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
-            />
+          <h2 className="text-base sm:text-lg font-semibold text-blue-900">Menu & Rating History</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-600 font-medium">Select Date:</label>
+              <input
+                type="date"
+                value={statsDate}
+                onChange={e => setStatsDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
+              />
+            </div>
+            
+            {/* Navigation Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const currentDate = new Date(statsDate);
+                  currentDate.setDate(currentDate.getDate() - 1);
+                  setStatsDate(currentDate.toISOString().slice(0, 10));
+                }}
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                title="Previous Day"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  setStatsDate(today);
+                }}
+                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                title="Today"
+              >
+                Today
+              </button>
+              <button
+                onClick={() => {
+                  const currentDate = new Date(statsDate);
+                  currentDate.setDate(currentDate.getDate() + 1);
+                  setStatsDate(currentDate.toISOString().slice(0, 10));
+                }}
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                title="Next Day"
+              >
+                →
+              </button>
+            </div>
           </div>
         </div>
+        
+        {/* Menu Items for Selected Date */}
+        {loadingSelectedDateMenu ? (
+          <div className="text-center py-4">
+            <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Loading menu items...
+            </div>
+          </div>
+        ) : selectedDateMenu ? (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Menu Items for {new Date(statsDate).toLocaleDateString()}</h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
+                const mealItems = selectedDateMenu.meals?.[meal] || [];
+                const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
+                return (
+                  <div 
+                    key={meal} 
+                    className="bg-gray-50 rounded-lg p-3 border border-gray-200"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-900 flex items-center gap-1 capitalize text-sm">
+                        {meal === 'breakfast' && '🥞'}
+                        {meal === 'lunch' && '🍛'}
+                        {meal === 'snacks' && '🍿'}
+                        {meal === 'dinner' && '🍽️'}
+                        {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                      </h4>
+                      {stats && stats.totalRatings > 0 && (
+                        <div className="text-right">
+                          <span className="text-xs font-bold text-yellow-600">{stats.average}/5</span>
+                          <div className="text-xs text-gray-500">({stats.totalRatings})</div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Menu Items */}
+                    <div className="text-xs text-gray-700">
+                      {mealItems.length ? (
+                        <div className="space-y-1">
+                          {mealItems.slice(0, 4).map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
+                              <span className="truncate">{item.name || item}</span>
+                            </div>
+                          ))}
+                          {mealItems.length > 4 && (
+                            <div className="text-gray-500 text-xs italic">
+                              +{mealItems.length - 4} more items
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">No items</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <div className="text-center py-4">
+              <div className="text-gray-400 text-sm mb-2">No menu found for {new Date(statsDate).toLocaleDateString()}</div>
+            </div>
+          </div>
+        )}
         
         {loadingStats ? (
           <div className="text-center py-8">

@@ -478,10 +478,14 @@ const DashboardHome = () => {
   const [modalLoading, setModalLoading] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
   const [expandedItems, setExpandedItems] = useState(new Set());
+  const [refreshingBills, setRefreshingBills] = useState(false);
 
   // Function to refresh electricity bills data
-  const refreshElectricityBills = async () => {
+  const refreshElectricityBills = async (showLoading = false) => {
     try {
+      if (showLoading) {
+        setRefreshingBills(true);
+      }
       console.log('🔄 Refreshing electricity bills data...');
       const billsRes = await api.get('/api/rooms/student/electricity-bills');
       if (billsRes.data.success) {
@@ -490,8 +494,33 @@ const DashboardHome = () => {
       }
     } catch (err) {
       console.error('❌ Error refreshing electricity bills:', err);
+    } finally {
+      if (showLoading) {
+        setRefreshingBills(false);
+      }
     }
   };
+
+  // Function to open bill modal and refresh data
+  const handleOpenBillModal = async () => {
+    setShowBillModal(true);
+    // Always refresh data when opening the modal
+    await refreshElectricityBills();
+  };
+
+  // Add interval to refresh bills data when modal is open
+  useEffect(() => {
+    let interval;
+    if (showBillModal) {
+      // Refresh every 10 seconds when modal is open
+      interval = setInterval(refreshElectricityBills, 10000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [showBillModal]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -518,6 +547,7 @@ const DashboardHome = () => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         // User returned to the tab, refresh bills data
+        console.log('👁️ Tab became visible, refreshing bills data...');
         refreshElectricityBills();
       }
     };
@@ -689,7 +719,7 @@ const DashboardHome = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setShowBillModal(true)}
+              onClick={handleOpenBillModal}
               className="p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-amber-50 to-amber-100 text-amber-700 hover:from-amber-100 hover:to-amber-200 transition-all duration-300 touch-manipulation border border-amber-200"
             >
               <BoltIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mb-1.5 sm:mb-2 mx-auto" />
@@ -909,11 +939,17 @@ const DashboardHome = () => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={refreshElectricityBills}
-                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600 touch-manipulation"
+                    onClick={() => refreshElectricityBills(true)}
+                    disabled={refreshingBills}
+                    className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Refresh bills"
                   >
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg 
+                      className={`w-4 h-4 sm:w-5 sm:h-5 ${refreshingBills ? 'animate-spin' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </motion.button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
+import ReceiptGenerator from '../../components/ReceiptGenerator';
 import { 
   CurrencyDollarIcon, 
   ExclamationTriangleIcon, 
@@ -12,7 +13,8 @@ import {
   BellIcon,
   ChartBarIcon,
   InformationCircleIcon,
-  CogIcon
+  CogIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -23,6 +25,7 @@ const HostelFee = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [paymentHistory, setPaymentHistory] = useState([]);
 
   useEffect(() => {
     fetchFeeData();
@@ -33,10 +36,11 @@ const HostelFee = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch fee reminder data and fee structure in parallel
-      const [feeResponse, structureResponse] = await Promise.all([
+      // Fetch fee reminder data, fee structure, and payment history in parallel
+      const [feeResponse, structureResponse, paymentResponse] = await Promise.all([
         api.get(`/api/fee-reminders/student/${user._id}`),
-        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}`)
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}`),
+        api.get(`/api/payments/hostel-fee/history/${user._id}`)
       ]);
       
       if (feeResponse.data.success) {
@@ -55,6 +59,11 @@ const HostelFee = () => {
         }
       } else {
         setError('Failed to fetch fee data');
+      }
+      
+      // Set payment history
+      if (paymentResponse.data.success) {
+        setPaymentHistory(paymentResponse.data.data || []);
       }
     } catch (err) {
       console.error('Error fetching fee data:', err);
@@ -87,17 +96,61 @@ const HostelFee = () => {
     const totalOriginalFee = totalFee;
     const totalCalculatedFee = calculatedTerm1Fee + calculatedTerm2Fee + calculatedTerm3Fee;
     
-    const paidAmount = [
-      feeStatus.term1 === 'Paid' ? calculatedTerm1Fee : 0,
-      feeStatus.term2 === 'Paid' ? calculatedTerm2Fee : 0,
-      feeStatus.term3 === 'Paid' ? calculatedTerm3Fee : 0
-    ].reduce((sum, amount) => sum + amount, 0);
+    // Calculate actual paid amounts from payment history with auto-deduction logic
+    const termPayments = {
+      term1: 0,
+      term2: 0,
+      term3: 0
+    };
     
-    const pendingAmount = [
-      feeStatus.term1 === 'Unpaid' ? calculatedTerm1Fee : 0,
-      feeStatus.term2 === 'Unpaid' ? calculatedTerm2Fee : 0,
-      feeStatus.term3 === 'Unpaid' ? calculatedTerm3Fee : 0
-    ].reduce((sum, amount) => sum + amount, 0);
+    // Sum up actual payments for each term from payment history
+    paymentHistory.forEach(payment => {
+      if (payment.paymentType === 'hostel_fee' && payment.status === 'success') {
+        // Handle both string and number term formats
+        const term = payment.term;
+        if (term === 1 || term === 'term1') termPayments.term1 += payment.amount;
+        else if (term === 2 || term === 'term2') termPayments.term2 += payment.amount;
+        else if (term === 3 || term === 'term3') termPayments.term3 += payment.amount;
+      }
+    });
+    
+    // Apply auto-deduction logic (same as admin dashboard)
+    let remainingExcess = 0;
+    
+    // Process term1 first
+    if (termPayments.term1 > calculatedTerm1Fee) {
+      remainingExcess = termPayments.term1 - calculatedTerm1Fee;
+      termPayments.term1 = calculatedTerm1Fee; // Cap at required amount
+    }
+    
+    // Process term2 with any excess from term1
+    if (remainingExcess > 0) {
+      const effectivePayment = termPayments.term2 + remainingExcess;
+      if (effectivePayment > calculatedTerm2Fee) {
+        remainingExcess = effectivePayment - calculatedTerm2Fee;
+        termPayments.term2 = calculatedTerm2Fee;
+      } else {
+        termPayments.term2 = effectivePayment;
+        remainingExcess = 0;
+      }
+    }
+    
+    // Process term3 with any remaining excess
+    if (remainingExcess > 0) {
+      const effectivePayment = termPayments.term3 + remainingExcess;
+      if (effectivePayment > calculatedTerm3Fee) {
+        remainingExcess = effectivePayment - calculatedTerm3Fee;
+        termPayments.term3 = calculatedTerm3Fee;
+      } else {
+        termPayments.term3 = effectivePayment;
+        remainingExcess = 0;
+      }
+    }
+    
+    const paidAmount = termPayments.term1 + termPayments.term2 + termPayments.term3;
+    
+    // Calculate pending amounts based on actual payments vs required fees
+    const pendingAmount = Math.max(0, totalCalculatedFee - paidAmount);
     
     return { 
       totalFee, 
@@ -105,7 +158,11 @@ const HostelFee = () => {
       totalCalculatedFee,
       concession,
       paidAmount, 
-      pendingAmount 
+      pendingAmount,
+      termPayments,
+      calculatedTerm1Fee,
+      calculatedTerm2Fee,
+      calculatedTerm3Fee
     };
   };
 
@@ -132,14 +189,35 @@ const HostelFee = () => {
     }
   };
 
-  // Get term status with amount
+  // Get term status with amount based on actual payments
   const getTermStatus = (term) => {
     if (!feeData?.feeReminder) return { status: 'Unknown', amount: 0 };
     
-    const status = feeData.feeReminder.feeStatus[term];
-    const amount = getTermFee(term);
+    const feeAmounts = calculateFeeAmounts();
+    const termNumber = term === 'term1' ? 1 : term === 'term2' ? 2 : 3;
+    const requiredAmount = term === 'term1' ? feeAmounts.calculatedTerm1Fee : 
+                          term === 'term2' ? feeAmounts.calculatedTerm2Fee : 
+                          feeAmounts.calculatedTerm3Fee;
     
-    return { status, amount };
+    const paidAmount = term === 'term1' ? feeAmounts.termPayments.term1 :
+                      term === 'term2' ? feeAmounts.termPayments.term2 :
+                      feeAmounts.termPayments.term3;
+    
+    let status;
+    if (paidAmount >= requiredAmount) {
+      status = 'Paid';
+    } else if (paidAmount > 0) {
+      status = 'Partially Paid';
+    } else {
+      status = 'Unpaid';
+    }
+    
+    return { 
+      status, 
+      amount: requiredAmount,
+      paidAmount: paidAmount,
+      remainingAmount: Math.max(0, requiredAmount - paidAmount)
+    };
   };
 
   // Calculate payment progress percentage
@@ -157,6 +235,8 @@ const HostelFee = () => {
     switch (status) {
       case 'Paid':
         return 'text-green-600 bg-green-50 border-green-200';
+      case 'Partially Paid':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
       case 'Unpaid':
         return 'text-red-600 bg-red-50 border-red-200';
       default:
@@ -168,6 +248,8 @@ const HostelFee = () => {
     switch (status) {
       case 'Paid':
         return <CheckCircleIcon className="w-5 h-5 text-green-600" />;
+      case 'Partially Paid':
+        return <ClockIcon className="w-5 h-5 text-yellow-600" />;
       case 'Unpaid':
         return <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />;
       default:
@@ -201,6 +283,15 @@ const HostelFee = () => {
     toast.success('Refreshing fee data...');
   };
 
+  const downloadReceipt = (payment) => {
+    const success = ReceiptGenerator.generateReceipt(payment, user);
+    if (success) {
+      toast.success('Receipt downloaded successfully!');
+    } else {
+      toast.error('Failed to generate receipt');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -211,7 +302,7 @@ const HostelFee = () => {
 
   if (error) {
     return (
-      <div className="p-4 sm:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
+      <div className="p-2 sm:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center">
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mr-2" />
@@ -294,7 +385,7 @@ const HostelFee = () => {
   const paymentProgress = calculatePaymentProgress();
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 max-w-4xl mx-auto mt-16 sm:mt-0">
+    <div className="p-3 sm:p-4 lg:p-2  mx-auto mt-16 sm:mt-0">
       {/* Header */}
       <div className="mb-4 sm:mb-6">
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-2">
@@ -317,7 +408,7 @@ const HostelFee = () => {
       </div>
 
       {/* Fee Structure Information */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-4 sm:p-6 mb-4 sm:mb-6">
+      {/* <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl shadow-sm border border-indigo-200 p-4 sm:p-6 mb-4 sm:mb-6">
         <div className="flex items-center mb-3 sm:mb-4">
           <InformationCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 mr-2" />
           <h2 className="text-base sm:text-lg font-semibold text-gray-900">Fee Structure Details</h2>
@@ -336,7 +427,7 @@ const HostelFee = () => {
             <div className="text-base sm:text-lg font-bold text-indigo-600">₹{feeStructure.totalFee.toLocaleString()}</div>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Concession Information */}
       {concession > 0 && (
@@ -418,7 +509,7 @@ const HostelFee = () => {
           <h3 className="font-medium text-gray-900 mb-3">Payment Breakdown by Term</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {['term1', 'term2', 'term3'].map((term, index) => {
-              const { status, amount } = getTermStatus(term);
+              const { status, amount, paidAmount, remainingAmount } = getTermStatus(term);
               const termNumber = index + 1;
               const percentage = termNumber === 1 ? 40 : 30;
               
@@ -432,23 +523,35 @@ const HostelFee = () => {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">Term {termNumber}</p>
                     <p className="text-xs text-gray-500">
-                      ₹{amount.toLocaleString()} ({percentage}%)
-                                      {concession > 0 && amount !== originalTermFee && (
-                  <span className="block text-green-600 mt-1">
-                    Original: ₹{originalTermFee.toLocaleString()}
-                    {termNumber === 1 && ' (Concession Applied)'}
-                    {termNumber === 2 && concession > feeStructure.term1Fee && ' (Excess Concession)'}
-                    {termNumber === 3 && concession > (feeStructure.term1Fee + feeStructure.term2Fee) && ' (Excess Concession)'}
-                  </span>
-                )}
+                      Required: ₹{amount.toLocaleString()} ({percentage}%)
                     </p>
+                    {paidAmount > 0 && (
+                      <p className="text-xs text-green-600">
+                        Paid: ₹{paidAmount.toLocaleString()}
+                      </p>
+                    )}
+                    {remainingAmount > 0 && (
+                      <p className="text-xs text-orange-600">
+                        Remaining: ₹{remainingAmount.toLocaleString()}
+                      </p>
+                    )}
+                    {concession > 0 && amount !== originalTermFee && (
+                      <span className="block text-green-600 mt-1 text-xs">
+                        Original: ₹{originalTermFee.toLocaleString()}
+                        {termNumber === 1 && ' (Concession Applied)'}
+                        {termNumber === 2 && concession > feeStructure.term1Fee && ' (Excess Concession)'}
+                        {termNumber === 3 && concession > (feeStructure.term1Fee + feeStructure.term2Fee) && ' (Excess Concession)'}
+                      </span>
+                    )}
                   </div>
                   <div className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
                     status === 'Paid' 
                       ? 'text-green-600 bg-green-100' 
+                      : status === 'Partially Paid'
+                      ? 'text-yellow-600 bg-yellow-100'
                       : 'text-red-600 bg-red-100'
                   }`}>
-                    {status === 'Paid' ? 'Paid' : 'Unpaid'}
+                    {status}
                   </div>
                 </div>
               );
@@ -472,7 +575,7 @@ const HostelFee = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {['term1', 'term2', 'term3'].map((term, index) => {
-            const { status, amount } = getTermStatus(term);
+            const { status, amount, paidAmount, remainingAmount } = getTermStatus(term);
             const termNumber = index + 1;
             
             // Get original term fee for comparison
@@ -488,6 +591,16 @@ const HostelFee = () => {
                 </div>
                 <p className="text-xs sm:text-sm capitalize mb-1">{status}</p>
                 <p className="text-base sm:text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
+                {paidAmount > 0 && (
+                  <p className="text-xs text-green-600 mt-1">
+                    Paid: ₹{paidAmount.toLocaleString()}
+                  </p>
+                )}
+                {remainingAmount > 0 && (
+                  <p className="text-xs text-orange-600 mt-1">
+                    Remaining: ₹{remainingAmount.toLocaleString()}
+                  </p>
+                )}
                 {concession > 0 && amount !== originalTermFee && (
                   <p className="text-xs text-gray-500 mt-1">
                     <span className="line-through">₹{originalTermFee.toLocaleString()}</span>
@@ -626,6 +739,69 @@ const HostelFee = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment History Section */}
+      {/* {paymentHistory.length > 0 && (
+        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-600" />
+              Payment History
+            </h3>
+          </div>
+          <div className="p-4">
+            <div className="space-y-3">
+              {paymentHistory.slice(0, 5).map((payment) => (
+                <div key={payment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {payment.paymentType === 'electricity' ? 'Electricity Bill' : 'Hostel Fee'}
+                          {payment.term && ` - Term ${payment.term}`}
+                          {payment.billMonth && ` - ${payment.billMonth}`}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-green-600">
+                          ₹{payment.amount.toLocaleString()}
+                        </p>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          payment.status === 'success' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {payment.status === 'success' ? 'Paid' : 'Pending'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => downloadReceipt(payment)}
+                    className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                    title="Download Receipt"
+                  >
+                    <ArrowDownTrayIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {paymentHistory.length > 5 && (
+              <div className="mt-3 text-center">
+                <button
+                  onClick={() => window.location.href = '/student/payment-history'}
+                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View All Payments ({paymentHistory.length})
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )} */}
     </div>
   );
 };
