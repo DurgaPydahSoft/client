@@ -52,6 +52,10 @@ const initialForm = {
   lockerNumber: '',
   studentPhone: '',
   parentPhone: '',
+  motherName: '',
+  motherPhone: '',
+  localGuardianName: '',
+  localGuardianPhone: '',
   batch: '',
   academicYear: '',
   email: '',
@@ -510,7 +514,11 @@ const Students = () => {
     try {
       const response = await api.get(`/api/admin/rooms/${roomNumber}/bed-locker-availability`);
       if (response.data.success) {
-        setBedLockerAvailability(response.data.data);
+        const data = response.data.data;
+        setBedLockerAvailability(data);
+        
+        // Auto-select first available bed and corresponding locker
+        autoSelectBedAndLocker(data);
       } else {
         throw new Error('Failed to fetch bed/locker availability');
       }
@@ -521,6 +529,60 @@ const Students = () => {
     } finally {
       setLoadingBedLocker(false);
     }
+  };
+
+  // Auto-select first available bed and corresponding locker
+  const autoSelectBedAndLocker = (availabilityData) => {
+    console.log('🔄 Auto-selecting bed and locker...', availabilityData);
+    
+    if (!availabilityData || !availabilityData.availableBeds || !availabilityData.availableLockers) {
+      console.log('❌ No availability data or missing beds/lockers');
+      return;
+    }
+
+    console.log('📊 Available beds:', availabilityData.availableBeds);
+    console.log('📊 Available lockers:', availabilityData.availableLockers);
+
+    // Find first available bed
+    const firstAvailableBed = availabilityData.availableBeds[0];
+    if (!firstAvailableBed) {
+      console.log('❌ No available beds found');
+      return;
+    }
+
+    console.log('🛏️ First available bed:', firstAvailableBed);
+
+    // Extract bed number from bed value (e.g., "320 Bed 1" -> "1")
+    const bedNumber = firstAvailableBed.value.match(/Bed (\d+)$/)?.[1];
+    if (!bedNumber) {
+      console.log('❌ Could not extract bed number from:', firstAvailableBed.value);
+      return;
+    }
+
+    console.log('🔢 Extracted bed number:', bedNumber);
+
+    // Find corresponding locker (same number)
+    const correspondingLocker = availabilityData.availableLockers.find(locker => 
+      locker.value.includes(`Locker ${bedNumber}`)
+    );
+
+    console.log('🔒 Corresponding locker:', correspondingLocker);
+
+    // Update form with auto-selected values
+    setForm(prev => {
+      const updatedForm = {
+        ...prev,
+        bedNumber: firstAvailableBed.value,
+        lockerNumber: correspondingLocker ? correspondingLocker.value : ''
+      };
+      console.log('✅ Updated form with auto-selected values:', updatedForm);
+      return updatedForm;
+    });
+
+    console.log('🎉 Auto-selected:', {
+      bed: firstAvailableBed.value,
+      locker: correspondingLocker ? correspondingLocker.value : 'No corresponding locker available'
+    });
   };
 
   // Fetch fee structure when category and academic year are selected
@@ -564,22 +626,24 @@ const Students = () => {
     }
   };
 
-  // Calculate fees when concession changes
+  // Calculate fees when concession changes (applied to Term 1 only, excess to Term 2)
   const calculateFeesWithConcession = (concessionAmount) => {
     if (!feeStructure) return;
     
     const concession = Number(concessionAmount) || 0;
     const totalOriginalFee = feeStructure.totalFee;
     
-    // Apply concession to total fee
-    const totalAfterConcession = Math.max(0, totalOriginalFee - concession);
+    // Apply concession to Term 1 first
+    let term1 = Math.max(0, feeStructure.term1Fee - concession);
     
-    // Calculate proportional concession for each term
-    const concessionRatio = totalAfterConcession / totalOriginalFee;
+    // If concession exceeds Term 1 fee, apply excess to Term 2
+    let remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
+    let term2 = Math.max(0, feeStructure.term2Fee - remainingConcession);
     
-    const term1 = Math.round(feeStructure.term1Fee * concessionRatio);
-    const term2 = Math.round(feeStructure.term2Fee * concessionRatio);
-    const term3 = Math.round(feeStructure.term3Fee * concessionRatio);
+    // If concession still exceeds Term 1 + Term 2, apply to Term 3
+    remainingConcession = Math.max(0, remainingConcession - feeStructure.term2Fee);
+    let term3 = Math.max(0, feeStructure.term3Fee - remainingConcession);
+    
     const total = term1 + term2 + term3;
     
     setCalculatedFees({ term1, term2, term3, total });
@@ -711,9 +775,24 @@ const Students = () => {
       if (name === 'gender') {
         newForm.category = '';
         newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
       }
       if (name === 'category') {
         newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
+      }
+      if (name === 'roomNumber') {
+        // Reset bed and locker when room changes
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
+        // Fetch bed/locker availability and auto-select
+        if (value) {
+          fetchBedLockerAvailability(value);
+        } else {
+          setBedLockerAvailability(null);
+        }
       }
       
       return newForm;
@@ -909,6 +988,12 @@ const Students = () => {
     // Check permission before proceeding
     if (!canAddStudent) {
       toast.error('You do not have permission to add students');
+      return;
+    }
+    
+    // Check if student photo is required
+    if (!studentPhoto) {
+      toast.error('Student photo is required. Please upload a photo before submitting.');
       return;
     }
     
@@ -2271,13 +2356,27 @@ const Students = () => {
                <h4 className="text-sm font-medium text-gray-700 mb-3">Bed & Locker Assignment (Optional)</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bed Number</label>
-                                     <select
-                     name="bedNumber"
-                     value={form.bedNumber}
-                     onChange={handleFormChange}
-                     disabled={loadingBedLocker}
-                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bed Number
+                    {form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber) && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Auto-selected
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    name="bedNumber"
+                    value={form.bedNumber}
+                    onChange={handleFormChange}
+                    disabled={loadingBedLocker}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber)
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Select Bed (Optional)</option>
                     {loadingBedLocker ? (
@@ -2295,13 +2394,27 @@ const Students = () => {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Locker Number</label>
-                                     <select
-                     name="lockerNumber"
-                     value={form.lockerNumber}
-                     onChange={handleFormChange}
-                     disabled={loadingBedLocker}
-                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Locker Number
+                    {form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber) && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                        Auto-selected
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    name="lockerNumber"
+                    value={form.lockerNumber}
+                    onChange={handleFormChange}
+                    disabled={loadingBedLocker}
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber)
+                        ? 'border-green-300 bg-green-50'
+                        : 'border-gray-300'
+                    }`}
                   >
                     <option value="">Select Locker (Optional)</option>
                     {loadingBedLocker ? (
@@ -2378,16 +2491,37 @@ const Students = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">Term 1 (After Concession)</div>
+                    <div className="text-sm font-medium text-gray-700">
+                      Term 1 {form.concession > 0 ? '(Concession Applied)' : ''}
+                    </div>
                     <div className="text-lg font-bold text-green-600">₹{calculatedFees.term1.toLocaleString()}</div>
+                    {form.concession > 0 && (
+                      <div className="text-xs text-gray-500">
+                        Original: ₹{feeStructure.term1Fee.toLocaleString()}
+                      </div>
+                    )}
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">Term 2 (After Concession)</div>
+                    <div className="text-sm font-medium text-gray-700">
+                      Term 2 {form.concession > feeStructure.term1Fee ? '(Excess Concession)' : ''}
+                    </div>
                     <div className="text-lg font-bold text-green-600">₹{calculatedFees.term2.toLocaleString()}</div>
+                    {form.concession > feeStructure.term1Fee && (
+                      <div className="text-xs text-gray-500">
+                        Original: ₹{feeStructure.term2Fee.toLocaleString()}
+                      </div>
+                    )}
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">Term 3 (After Concession)</div>
+                    <div className="text-sm font-medium text-gray-700">
+                      Term 3 {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) ? '(Excess Concession)' : ''}
+                    </div>
                     <div className="text-lg font-bold text-green-600">₹{calculatedFees.term3.toLocaleString()}</div>
+                    {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) && (
+                      <div className="text-xs text-gray-500">
+                        Original: ₹{feeStructure.term3Fee.toLocaleString()}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2422,12 +2556,12 @@ const Students = () => {
                 onChange={handleFormChange}
                 pattern="[0-9]{10}"
                 title="10 digit phone number"
-                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter phone number (optional)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter phone number (optional)"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Father's Phone *</label>
               <input
                 type="tel"
                 name="parentPhone"
@@ -2436,8 +2570,8 @@ const Students = () => {
                 required
                 pattern="[0-9]{10}"
                 title="10 digit phone number"
-                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter parent's phone number"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter father's phone number"
               />
             </div>
             <div>
@@ -2447,10 +2581,58 @@ const Students = () => {
                 name="email"
                 value={form.email}
                 onChange={handleFormChange}
-                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                 placeholder="Enter email address (optional)"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter email address (optional)"
               />
               <p className="text-xs text-gray-500 mt-1">Credentials will be sent to this email if provided</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mother's Name</label>
+              <input
+                type="text"
+                name="motherName"
+                value={form.motherName}
+                onChange={handleFormChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter mother's full name (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mother's Phone</label>
+              <input
+                type="tel"
+                name="motherPhone"
+                value={form.motherPhone}
+                onChange={handleFormChange}
+                pattern="[0-9]{10}"
+                title="10 digit phone number"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter mother's phone number (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
+              <input
+                type="text"
+                name="localGuardianName"
+                value={form.localGuardianName}
+                onChange={handleFormChange}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter local guardian name (optional)"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
+              <input
+                type="tel"
+                name="localGuardianPhone"
+                value={form.localGuardianPhone}
+                onChange={handleFormChange}
+                pattern="[0-9]{10}"
+                title="10 digit phone number"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter local guardian phone (optional)"
+              />
             </div>
           </div>
         </div>
@@ -2463,12 +2645,12 @@ const Students = () => {
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                </svg>
              </div>
-             <h3 className="text-lg font-semibold text-gray-900">Profile Photos (Optional)</h3>
+             <h3 className="text-lg font-semibold text-gray-900">Profile Photos</h3>
            </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {/* Student Photo */}
                          <div className="bg-white rounded-lg p-4 border border-blue-200">
-               <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo</label>
+               <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo *</label>
                <div className="space-y-3">
                  <div className="flex items-center justify-center w-full">
                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">

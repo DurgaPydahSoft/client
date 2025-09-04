@@ -109,22 +109,24 @@ const HostelFee = () => {
     };
   };
 
-  // Get term fee amount with concession
+  // Get term fee amount with concession (applied to Term 1 only, excess to Term 2)
   const getTermFee = (term) => {
     if (!feeStructure) return 0;
     
-    // Get calculated fees from user data, fallback to fee structure
-    const calculatedTerm1Fee = user.calculatedTerm1Fee || feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4);
-    const calculatedTerm2Fee = user.calculatedTerm2Fee || feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3);
-    const calculatedTerm3Fee = user.calculatedTerm3Fee || feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3);
+    // Get calculated fees from user data, fallback to calculated concession logic
+    const concession = user.concession || 0;
     
     switch (term) {
       case 'term1':
-        return calculatedTerm1Fee;
+        return user.calculatedTerm1Fee || Math.max(0, feeStructure.term1Fee - concession);
       case 'term2':
-        return calculatedTerm2Fee;
+        if (user.calculatedTerm2Fee) return user.calculatedTerm2Fee;
+        const remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
+        return Math.max(0, feeStructure.term2Fee - remainingConcession);
       case 'term3':
-        return calculatedTerm3Fee;
+        if (user.calculatedTerm3Fee) return user.calculatedTerm3Fee;
+        const remainingConcession2 = Math.max(0, concession - feeStructure.term1Fee - feeStructure.term2Fee);
+        return Math.max(0, feeStructure.term3Fee - remainingConcession2);
       default:
         return 0;
     }
@@ -431,11 +433,14 @@ const HostelFee = () => {
                     <p className="text-sm font-medium text-gray-900">Term {termNumber}</p>
                     <p className="text-xs text-gray-500">
                       ₹{amount.toLocaleString()} ({percentage}%)
-                      {concession > 0 && amount !== originalTermFee && (
-                        <span className="block text-green-600 mt-1">
-                          Original: ₹{originalTermFee.toLocaleString()}
-                        </span>
-                      )}
+                                      {concession > 0 && amount !== originalTermFee && (
+                  <span className="block text-green-600 mt-1">
+                    Original: ₹{originalTermFee.toLocaleString()}
+                    {termNumber === 1 && ' (Concession Applied)'}
+                    {termNumber === 2 && concession > feeStructure.term1Fee && ' (Excess Concession)'}
+                    {termNumber === 3 && concession > (feeStructure.term1Fee + feeStructure.term2Fee) && ' (Excess Concession)'}
+                  </span>
+                )}
                     </p>
                   </div>
                   <div className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
@@ -486,7 +491,11 @@ const HostelFee = () => {
                 {concession > 0 && amount !== originalTermFee && (
                   <p className="text-xs text-gray-500 mt-1">
                     <span className="line-through">₹{originalTermFee.toLocaleString()}</span>
-                    <span className="text-green-600 ml-1">After concession</span>
+                    <span className="text-green-600 ml-1">
+                      {termNumber === 1 && 'Concession Applied'}
+                      {termNumber === 2 && concession > feeStructure.term1Fee && 'Excess Concession'}
+                      {termNumber === 3 && concession > (feeStructure.term1Fee + feeStructure.term2Fee) && 'Excess Concession'}
+                    </span>
                   </p>
                 )}
               </div>

@@ -644,11 +644,102 @@ const FeeManagement = () => {
     setShowPaymentModal(true);
   };
 
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setSelectedStudentForPayment(null);
+    setPaymentForm({
+      amount: '',
+      paymentMethod: 'Cash',
+      term: '',
+      notes: ''
+    });
+  };
+
+  // Comprehensive payment validation function
+  const validatePayment = (student, paymentForm) => {
+    const errors = [];
+    
+    // 1. Basic field validation
+    if (!student) {
+      errors.push('Student not selected');
+    }
+    
+    if (!paymentForm.amount || paymentForm.amount <= 0) {
+      errors.push('Payment amount must be greater than 0');
+    }
+    
+    if (!paymentForm.term) {
+      errors.push('Please select a term');
+    }
+    
+    if (!paymentForm.paymentMethod) {
+      errors.push('Please select a payment method');
+    }
+    
+    // 2. Student status validation
+    if (student && student.hostelStatus !== 'Active') {
+      errors.push('Student is not active in hostel');
+    }
+    
+    // 3. Amount validation
+    if (paymentForm.amount) {
+      const amount = parseFloat(paymentForm.amount);
+      
+      // Check for valid number
+      if (isNaN(amount)) {
+        errors.push('Payment amount must be a valid number');
+      }
+      
+      // Check minimum payment
+      if (amount < 100) {
+        errors.push('Minimum payment amount is ₹100');
+      }
+      
+      // Check decimal precision
+      if (amount % 1 !== 0 && amount.toString().split('.')[1]?.length > 2) {
+        errors.push('Payment amount cannot have more than 2 decimal places');
+      }
+    }
+    
+    // 4. Term balance validation
+    if (student && paymentForm.term && paymentForm.amount) {
+      const balance = calculateStudentBalance(student);
+      if (balance) {
+        const termBalance = balance.termBalances[paymentForm.term];
+        
+        if (!termBalance) {
+          errors.push(`Invalid term: ${paymentForm.term}`);
+        } else if (termBalance.balance <= 0) {
+          errors.push(`Term ${paymentForm.term.replace('term', 'Term ')} is already fully paid`);
+        } else if (parseFloat(paymentForm.amount) > termBalance.balance) {
+          errors.push(`Payment amount (₹${paymentForm.amount}) exceeds term balance (₹${termBalance.balance})`);
+        }
+      }
+    }
+    
+    // 5. Duplicate payment prevention (check recent payments)
+    if (student && paymentForm.term && paymentForm.amount) {
+      const recentPayments = payments.filter(p => 
+        p.studentId === student._id && 
+        p.term === paymentForm.term &&
+        new Date(p.createdAt) > new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
+      );
+      
+      if (recentPayments.length > 0) {
+        errors.push('Duplicate payment detected. Please wait before making another payment for the same term.');
+      }
+    }
+    
+    return errors;
+  };
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     
-    if (!selectedStudentForPayment || !paymentForm.amount || !paymentForm.term) {
-      toast.error('Please fill all required fields');
+    // Comprehensive validation
+    const validationErrors = validatePayment(selectedStudentForPayment, paymentForm);
+    if (validationErrors.length > 0) {
+      validationErrors.forEach(error => toast.error(error));
       return;
     }
 
@@ -674,11 +765,13 @@ const FeeManagement = () => {
         const newPayment = response.data.data;
         
         // Add to local payments array
-      setPayments(prev => [newPayment, ...prev]);
-        
-        // Debug logging
-        console.log('🔍 New payment recorded:', newPayment);
-        console.log('🔍 Updated payments array:', [newPayment, ...prev]);
+        setPayments(prev => {
+          const updatedPayments = [newPayment, ...prev];
+          // Debug logging
+          console.log('🔍 New payment recorded:', newPayment);
+          console.log('🔍 Updated payments array:', updatedPayments);
+          return updatedPayments;
+        });
       
       // Generate receipt
       generateReceipt(newPayment);
@@ -688,14 +781,7 @@ const FeeManagement = () => {
         toast.error('Failed to record payment');
         return;
       }
-      setShowPaymentModal(false);
-      setSelectedStudentForPayment(null);
-      setPaymentForm({
-        amount: '',
-        paymentMethod: 'Cash',
-        term: '',
-        notes: ''
-      });
+      handleClosePaymentModal();
       
       // Refresh students to update balance display
       fetchStudents();
@@ -815,10 +901,11 @@ const FeeManagement = () => {
     const hasConcession = student.concession && student.concession > 0;
     
     // Calculate term-wise balance using concession amounts if available
+    // Note: Concession is applied to Term 1 only, excess to Term 2, then Term 3
     const termBalances = {
       term1: {
         required: hasConcession ? 
-          (student.calculatedTerm1Fee || Math.round(feeStructure.totalFee * 0.4)) :
+          (student.calculatedTerm1Fee || Math.max(0, feeStructure.term1Fee - (student.concession || 0))) :
           (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term1')
@@ -827,7 +914,11 @@ const FeeManagement = () => {
       },
       term2: {
         required: hasConcession ? 
-          (student.calculatedTerm2Fee || Math.round(feeStructure.totalFee * 0.3)) :
+          (student.calculatedTerm2Fee || (() => {
+            const concession = student.concession || 0;
+            const remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
+            return Math.max(0, feeStructure.term2Fee - remainingConcession);
+          })()) :
           (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3)),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term2')
@@ -836,7 +927,11 @@ const FeeManagement = () => {
       },
       term3: {
         required: hasConcession ? 
-          (student.calculatedTerm3Fee || Math.round(feeStructure.totalFee * 0.3)) :
+          (student.calculatedTerm3Fee || (() => {
+            const concession = student.concession || 0;
+            const remainingConcession = Math.max(0, concession - feeStructure.term1Fee - feeStructure.term2Fee);
+            return Math.max(0, feeStructure.term3Fee - remainingConcession);
+          })()) :
           (feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3)),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term3')
@@ -925,14 +1020,23 @@ const FeeManagement = () => {
     
     const availableTerms = [];
     Object.entries(balance.termBalances).forEach(([term, termData]) => {
+      // Only include terms that have a positive balance (not fully paid)
       if (termData.balance > 0) {
         availableTerms.push({
           value: term,
-          label: term.replace('term', 'Term '),
+          label: `${term.replace('term', 'Term ')} (Balance: ₹${termData.balance})`,
           balance: termData.balance,
-          required: termData.required
+          required: termData.required,
+          paid: termData.paid
         });
       }
+    });
+    
+    // Debug logging
+    console.log('🔍 Available terms for payment:', {
+      student: student.name,
+      availableTerms,
+      termBalances: balance.termBalances
     });
     
     return availableTerms;
@@ -1017,7 +1121,7 @@ const FeeManagement = () => {
             >
               Fee Structure
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveTab('payments')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'payments'
@@ -1026,7 +1130,7 @@ const FeeManagement = () => {
               }`}
             >
               Payments
-            </button>
+            </button> */}
           </nav>
         </div>
       </div>
@@ -1820,13 +1924,13 @@ const FeeManagement = () => {
       {/* Payment Modal */}
       {showPaymentModal && selectedStudentForPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
               Record Fee Payment
             </h3>
               <button
-                onClick={() => setShowPaymentModal(false)}
+                onClick={handleClosePaymentModal}
                 className="p-1 text-gray-400 hover:text-gray-600"
                 aria-label="Close modal"
               >
@@ -1957,10 +2061,18 @@ const FeeManagement = () => {
                     required
                   >
                     <option value="">Select Term</option>
-                      <option value="term1">Term 1 (40%)</option>
-                      <option value="term2">Term 2 (30%)</option>
-                      <option value="term3">Term 3 (30%)</option>
+                    {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).map(term => (
+                      <option key={term.value} value={term.value}>
+                        {term.label}
+                      </option>
+                    ))}
+                    {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
+                      <option value="" disabled>No terms available for payment</option>
+                    )}
                   </select>
+                  {selectedStudentForPayment && getAvailableTermsForPayment(selectedStudentForPayment).length === 0 && (
+                    <p className="text-sm text-green-600 mt-1">✅ All terms are fully paid</p>
+                  )}
                 </div>
                 
                 <div>
@@ -1973,28 +2085,38 @@ const FeeManagement = () => {
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       required
-                      min="0"
+                      min="100"
                       step="0.01"
                       placeholder="Enter payment amount"
                     />
+                  {paymentForm.term && selectedStudentForPayment && (() => {
+                    const balance = calculateStudentBalance(selectedStudentForPayment);
+                    const termBalance = balance?.termBalances[paymentForm.term];
+                    return termBalance && termBalance.balance > 0 ? (
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs text-gray-600">Term Balance: ₹{termBalance.balance}</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: termBalance.balance.toString() }))}
+                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                          >
+                            Pay Full (₹{termBalance.balance})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(termBalance.balance / 2).toString() }))}
+                            className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                          >
+                            Pay Half (₹{Math.round(termBalance.balance / 2)})
+                          </button>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                   </div>
                 </div>
                 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    required
-                    min="0"
-                    step="0.01"
-                    placeholder="Enter payment amount"
-                  />
-                </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2013,7 +2135,7 @@ const FeeManagement = () => {
               <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => setShowPaymentModal(false)}
+                  onClick={handleClosePaymentModal}
                   className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
                 >
                   Cancel
@@ -2034,7 +2156,7 @@ const FeeManagement = () => {
       {/* Student Balance Modal */}
       {showBalanceModal && selectedStudentBalance && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-blue-900">
               Student Balance Details
@@ -2146,7 +2268,7 @@ const FeeManagement = () => {
                   
                   return (
                     <div className="mb-6">
-                      <h4 className="font-medium text-gray-900 mb-3">Payment Status Overview</h4>
+                      {/* <h4 className="font-medium text-gray-900 mb-3">Payment Status Overview</h4>
                       <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="text-center">
@@ -2172,7 +2294,7 @@ const FeeManagement = () => {
                             }
                           </div>
                         </div>
-                      </div>
+                      </div> */}
                     </div>
                   );
                 })()}
@@ -2197,20 +2319,20 @@ const FeeManagement = () => {
                               {term.replace('term', 'Term ')}
                             </div>
                             <div className="space-y-2 text-sm">
-                                {balance.hasConcession && (
+                                {/* {balance.hasConcession && (
                                   <div className="flex justify-between">
                                     <span>Original:</span>
                                     <span className="font-medium text-gray-500 line-through">₹{originalTermFee.toLocaleString()}</span>
                                   </div>
-                                )}
+                                )} */}
                               <div className="flex justify-between">
                                 <span>Required:</span>
                                 <span className="font-medium">₹{termData.required.toLocaleString()}</span>
                               </div>
-                              <div className="flex justify-between">
+                              {/* <div className="flex justify-between">
                                 <span>Paid:</span>
                                 <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
-                              </div>
+                              </div> */}
                               <div className="flex justify-between">
                                 <span>Balance:</span>
                                 <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
