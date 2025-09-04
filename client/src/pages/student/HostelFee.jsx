@@ -385,16 +385,16 @@ const HostelFee = () => {
   const paymentProgress = calculatePaymentProgress();
 
   return (
-    <div className="p-3 sm:p-4 lg:p-2  mx-auto mt-16 sm:mt-0">
+    <div className="p-2 sm:p-4 lg:p-2 mx-auto mt-16 sm:mt-0">
       {/* Header */}
-      <div className="mb-4 sm:mb-6">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-2">
+      <div className="mb-3 sm:mb-6">
+        <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
           Hostel Fee Management
         </h1>
-        <p className="text-sm sm:text-base text-gray-600">
+        <p className="text-xs sm:text-base text-gray-600">
           Track your hostel fee payments and reminders for {feeReminder.academicYear}
         </p>
-        <div className="mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+        <div className="mt-1 sm:mt-2 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500">
           <span className="flex items-center">
             <span className="font-medium">Room:</span> {user.roomNumber || 'Not Assigned'}
           </span>
@@ -431,83 +431,73 @@ const HostelFee = () => {
 
       {/* Concession Information */}
       {concession > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-sm border border-green-200 p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 mr-2" />
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Concession Applied</h2>
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl shadow-sm border border-green-200 p-3 sm:p-6 mb-3 sm:mb-6">
+          <div className="flex items-center mb-2 sm:mb-4">
+            <CheckCircleIcon className="w-4 h-4 sm:w-6 sm:h-6 text-green-600 mr-2" />
+            <h2 className="text-sm sm:text-lg font-semibold text-gray-900">Concession Applied</h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Original Total Fee</div>
-              <div className="text-base sm:text-lg font-bold text-gray-900">₹{totalOriginalFee.toLocaleString()}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-white rounded-lg p-2 sm:p-4 border border-green-100">
+              <div className="text-xs font-medium text-gray-600 mb-1">Original Total Fee</div>
+              <div className="text-sm sm:text-lg font-bold text-gray-900">₹{totalOriginalFee.toLocaleString()}</div>
             </div>
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Concession Amount</div>
-              <div className="text-base sm:text-lg font-bold text-green-600">-₹{concession.toLocaleString()}</div>
+            <div className="bg-white rounded-lg p-2 sm:p-4 border border-green-100">
+              <div className="text-xs font-medium text-gray-600 mb-1">Concession Amount</div>
+              <div className="text-sm sm:text-lg font-bold text-green-600">-₹{concession.toLocaleString()}</div>
             </div>
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100 sm:col-span-2 lg:col-span-1">
-              <div className="text-xs sm:text-sm font-medium text-gray-600 mb-1">Final Total Fee</div>
-              <div className="text-base sm:text-lg font-bold text-green-700">₹{totalCalculatedFee.toLocaleString()}</div>
+            <div className="bg-white rounded-lg p-2 sm:p-4 border border-green-100 sm:col-span-2 lg:col-span-1">
+              <div className="text-xs font-medium text-gray-600 mb-1">Final Total Fee</div>
+              <div className="text-sm sm:text-lg font-bold text-green-700">₹{totalCalculatedFee.toLocaleString()}</div>
             </div>
           </div>
         </div>
       )}
 
       {/* Fee Total Statistics */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl shadow-sm border border-blue-200 p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex items-center mb-3 sm:mb-4">
-          <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 mr-2" />
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Your Hostel Fee Summary</h2>
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg sm:rounded-xl shadow-sm border border-blue-200 p-3 sm:p-6 mb-3 sm:mb-6">
+        <div className="flex items-center mb-2 sm:mb-4">
+          <CurrencyDollarIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600 mr-2" />
+          <h2 className="text-sm sm:text-lg font-semibold text-gray-900">Your Hostel Fee Summary</h2>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
           {/* Total Fee Amount */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs sm:text-sm font-medium text-gray-600">Total Fee</span>
-              <CurrencyDollarIcon className="w-4 h-4 text-blue-600" />
+          <div className="bg-white rounded-lg p-2 sm:p-4 border border-blue-100">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-xs font-medium text-gray-600">Total Fee</span>
+              <CurrencyDollarIcon className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">₹{totalCalculatedFee.toLocaleString()}</p>
+            <p className="text-sm sm:text-xl lg:text-2xl font-bold text-gray-900">₹{totalCalculatedFee.toLocaleString()}</p>
             <p className="text-xs text-gray-500">
               {concession > 0 ? `After ₹${concession.toLocaleString()} concession` : 'Per Academic Year'}
             </p>
           </div>
 
           {/* Paid Amount */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs sm:text-sm font-medium text-gray-600">Paid Amount</span>
-              <CheckCircleIcon className="w-4 h-4 text-green-600" />
+          <div className="bg-white rounded-lg p-2 sm:p-4 border border-green-100">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-xs font-medium text-gray-600">Paid Amount</span>
+              <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" />
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
+            <p className="text-sm sm:text-xl lg:text-2xl font-bold text-green-600">₹{paidAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Completed Payments</p>
           </div>
 
           {/* Pending Amount */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 border border-orange-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs sm:text-sm font-medium text-gray-600">Pending Amount</span>
-              <ExclamationTriangleIcon className="w-4 h-4 text-orange-600" />
+          <div className="bg-white rounded-lg p-2 sm:p-4 border border-orange-100">
+            <div className="flex items-center justify-between mb-1 sm:mb-2">
+              <span className="text-xs font-medium text-gray-600">Pending Amount</span>
+              <ExclamationTriangleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-orange-600" />
             </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
+            <p className="text-sm sm:text-xl lg:text-2xl font-bold text-orange-600">₹{pendingAmount.toLocaleString()}</p>
             <p className="text-xs text-gray-500">Outstanding Balance</p>
-          </div>
-
-          {/* Payment Progress */}
-          <div className="bg-white rounded-lg p-3 sm:p-4 border border-purple-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs sm:text-sm font-medium text-gray-600">Payment Progress</span>
-              <ChartBarIcon className="w-4 h-4 text-purple-600" />
-            </div>
-            <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">{paymentProgress}%</p>
-            <p className="text-xs text-gray-500">Completion Rate</p>
           </div>
         </div>
 
         {/* Payment Breakdown */}
-        <div className="mt-4 sm:mt-6 bg-white rounded-lg p-3 sm:p-4 border border-blue-100">
-          <h3 className="font-medium text-gray-900 mb-3">Payment Breakdown by Term</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="mt-3 sm:mt-6 bg-white rounded-lg p-2 sm:p-4 border border-blue-100">
+          <h3 className="text-sm sm:text-base font-medium text-gray-900 mb-2 sm:mb-3">Payment Breakdown by Term</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
             {['term1', 'term2', 'term3'].map((term, index) => {
               const { status, amount, paidAmount, remainingAmount } = getTermStatus(term);
               const termNumber = index + 1;
@@ -519,9 +509,9 @@ const HostelFee = () => {
                 : (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3));
               
               return (
-                <div key={term} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
+                <div key={term} className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-gray-50 rounded-lg gap-1 sm:gap-2">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">Term {termNumber}</p>
+                    <p className="text-xs sm:text-sm font-medium text-gray-900">Term {termNumber}</p>
                     <p className="text-xs text-gray-500">
                       Required: ₹{amount.toLocaleString()} ({percentage}%)
                     </p>
@@ -561,10 +551,10 @@ const HostelFee = () => {
       </div>
 
       {/* Overall Status Card - Mobile Optimized */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 sm:mb-4 gap-2">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900">Payment Status</h2>
-          <div className={`px-2 py-1 rounded-full text-xs sm:text-sm font-medium self-start sm:self-auto ${
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-3 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-4 gap-2">
+          <h2 className="text-sm sm:text-lg font-semibold text-gray-900">Payment Status</h2>
+          <div className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
             allTermsPaid 
               ? 'text-green-600 bg-green-50 border border-green-200' 
               : 'text-orange-600 bg-orange-50 border border-orange-200'
@@ -573,7 +563,7 @@ const HostelFee = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
           {['term1', 'term2', 'term3'].map((term, index) => {
             const { status, amount, paidAmount, remainingAmount } = getTermStatus(term);
             const termNumber = index + 1;
@@ -584,13 +574,13 @@ const HostelFee = () => {
               : (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3));
             
             return (
-              <div key={term} className={`p-3 sm:p-4 rounded-lg border ${getStatusColor(status)}`}>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm sm:text-base font-medium">Term {termNumber}</span>
+              <div key={term} className={`p-2 sm:p-4 rounded-lg border ${getStatusColor(status)}`}>
+                <div className="flex items-center justify-between mb-1 sm:mb-2">
+                  <span className="text-xs sm:text-base font-medium">Term {termNumber}</span>
                   {getStatusIcon(status)}
                 </div>
-                <p className="text-xs sm:text-sm capitalize mb-1">{status}</p>
-                <p className="text-base sm:text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
+                <p className="text-xs capitalize mb-1">{status}</p>
+                <p className="text-sm sm:text-lg font-semibold text-gray-900">₹{amount.toLocaleString()}</p>
                 {paidAmount > 0 && (
                   <p className="text-xs text-green-600 mt-1">
                     Paid: ₹{paidAmount.toLocaleString()}
@@ -619,17 +609,17 @@ const HostelFee = () => {
 
       {/* Active Reminders - Mobile Optimized */}
       {visibleReminders.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex items-center mb-3 sm:mb-4">
-            <BellIcon className="w-5 h-5 text-orange-600 mr-2" />
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Active Reminders</h2>
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-3 sm:mb-6">
+          <div className="flex items-center mb-2 sm:mb-4">
+            <BellIcon className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 mr-2" />
+            <h2 className="text-sm sm:text-lg font-semibold text-gray-900">Active Reminders</h2>
           </div>
           
-          <div className="space-y-3 sm:space-y-4">
+          <div className="space-y-2 sm:space-y-4">
             {visibleReminders.map((reminder) => (
               <div 
                 key={reminder.number}
-                className={`p-3 sm:p-4 rounded-lg border ${
+                className={`p-2 sm:p-4 rounded-lg border ${
                   getReminderStatus(reminder) === 'active' 
                     ? 'border-orange-200 bg-orange-50' 
                     : 'border-gray-200 bg-gray-50'
@@ -637,8 +627,8 @@ const HostelFee = () => {
               >
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                   <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center mb-2 gap-2">
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">
+                    <div className="flex flex-col sm:flex-row sm:items-center mb-1 sm:mb-2 gap-2">
+                      <span className="font-medium text-gray-900 text-xs sm:text-base">
                         Reminder #{reminder.number}
                       </span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium self-start sm:self-auto ${
@@ -650,13 +640,13 @@ const HostelFee = () => {
                       </span>
                     </div>
                     
-                    <div className="grid grid-cols-1 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                    <div className="grid grid-cols-1 gap-1 sm:gap-4 text-xs text-gray-600">
                       <div className="flex items-center">
-                        <CalendarIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
                         <span>Issued: {formatDate(reminder.issuedAt)}</span>
                       </div>
                       <div className="flex items-center">
-                        <ClockIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                        <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-2 flex-shrink-0" />
                         <span>Due: {formatDate(reminder.dueDate)}</span>
                       </div>
                     </div>
@@ -669,10 +659,10 @@ const HostelFee = () => {
       )}
 
       {/* Registration Information - Mobile Optimized */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Registration Information</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
+        <h2 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-4">Registration Information</h2>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs">
           <div className="flex flex-col">
             <span className="text-gray-500 mb-1">Registration Date:</span>
             <p className="font-medium">{formatDate(feeReminder.registrationDate)}</p>
@@ -703,36 +693,36 @@ const HostelFee = () => {
       </div>
 
       {/* Information Note - Mobile Optimized */}
-      <div className="mt-4 sm:mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+      <div className="mt-3 sm:mt-6 bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-4">
         <div className="flex items-start">
-          <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+          <DocumentTextIcon className="w-3 h-3 sm:w-5 sm:h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
           <div>
-            <h3 className="font-medium text-blue-900 mb-2 text-sm sm:text-base">Important Information</h3>
-            <ul className="text-xs sm:text-sm text-blue-800 space-y-1.5">
+            <h3 className="font-medium text-blue-900 mb-1 sm:mb-2 text-xs sm:text-base">Important Information</h3>
+            <ul className="text-xs text-blue-800 space-y-1">
               <li className="flex items-start">
-                <span className="mr-2 mt-0.5">•</span>
+                <span className="mr-1 mt-0.5">•</span>
                 <span>Your fees are calculated based on your room category ({user.category})</span>
               </li>
               {concession > 0 && (
                 <li className="flex items-start">
-                  <span className="mr-2 mt-0.5">•</span>
+                  <span className="mr-1 mt-0.5">•</span>
                   <span>A concession of ₹{concession.toLocaleString()} has been applied to your total fee</span>
                 </li>
               )}
               <li className="flex items-start">
-                <span className="mr-2 mt-0.5">•</span>
+                <span className="mr-1 mt-0.5">•</span>
                 <span>Reminders are automatically generated based on your registration date</span>
               </li>
               <li className="flex items-start">
-                <span className="mr-2 mt-0.5">•</span>
+                <span className="mr-1 mt-0.5">•</span>
                 <span>Each reminder is visible for 3 days from the date it's issued</span>
               </li>
               <li className="flex items-start">
-                <span className="mr-2 mt-0.5">•</span>
+                <span className="mr-1 mt-0.5">•</span>
                 <span>Once a term is marked as paid, its reminders will no longer appear</span>
               </li>
               <li className="flex items-start">
-                <span className="mr-2 mt-0.5">•</span>
+                <span className="mr-1 mt-0.5">•</span>
                 <span>Contact the hostel office for any payment-related queries</span>
               </li>
             </ul>

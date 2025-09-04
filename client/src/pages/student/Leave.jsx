@@ -932,11 +932,11 @@ const Leave = () => {
 
       {/* Request Modal - Mobile optimized */}
       {showRequestModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative"
+            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative"
           >
             {/* Close X Button */}
             <button
@@ -944,25 +944,25 @@ const Leave = () => {
                 setShowRequestModal(false);
                 resetFormData();
               }}
-              className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-1 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
+              className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 p-1 sm:p-1 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
             >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
             
-            <h2 className="text-lg sm:text-xl font-semibold mb-4 pr-8 sm:pr-10">New Request</h2>
+            <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4 pr-6 sm:pr-10">New Request</h2>
             
             {/* Application Type Selector - Dropdown for better mobile UX */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+            <div className="mb-4 sm:mb-6">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
                 Application Type
               </label>
               <div className="relative application-type-dropdown">
                 <button
                   type="button"
                   onClick={() => setShowApplicationTypeDropdown(!showApplicationTypeDropdown)}
-                  className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg bg-white text-left text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
+                  className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg bg-white text-left text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
                 >
                   <span className={`font-medium ${
                     applicationType === 'Leave' ? 'text-blue-600' :
@@ -971,7 +971,7 @@ const Leave = () => {
                   }`}>
                     {applicationType}
                   </span>
-                  <ChevronDownIcon className={`w-4 h-4 transition-transform ${
+                  <ChevronDownIcon className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${
                     showApplicationTypeDropdown ? 'rotate-180' : ''
                   }`} />
                 </button>
@@ -984,7 +984,7 @@ const Leave = () => {
                         setApplicationType('Leave');
                         setShowApplicationTypeDropdown(false);
                       }}
-                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-blue-50 focus:bg-blue-50 transition-colors"
+                      className="w-full px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm hover:bg-blue-50 focus:bg-blue-50 transition-colors"
                     >
                       <span className="text-blue-600 font-medium">Leave</span>
                     </button>
@@ -994,7 +994,7 @@ const Leave = () => {
                         setApplicationType('Permission');
                         setShowApplicationTypeDropdown(false);
                       }}
-                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-purple-50 focus:bg-purple-50 transition-colors"
+                      className="w-full px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm hover:bg-purple-50 focus:bg-purple-50 transition-colors"
                     >
                       <span className="text-purple-600 font-medium">Outing</span>
                     </button>
@@ -1004,7 +1004,7 @@ const Leave = () => {
                         setApplicationType('Stay in Hostel');
                         setShowApplicationTypeDropdown(false);
                       }}
-                      className="w-full px-3 py-2.5 text-left text-sm hover:bg-green-50 focus:bg-green-50 transition-colors"
+                      className="w-full px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm hover:bg-green-50 focus:bg-green-50 transition-colors"
                     >
                       <span className="text-green-600 font-medium">Stay in Hostel</span>
                     </button>
@@ -1013,13 +1013,13 @@ const Leave = () => {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" noValidate>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-5" noValidate>
               {applicationType === 'Leave' ? (
                 // Leave Application Form - Mobile optimized
                 <>
-                  <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Start Date
                       </label>
                       <input
@@ -1028,11 +1028,11 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
                         min={todayStr}
                         required
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         End Date
                       </label>
                       <input
@@ -1041,14 +1041,14 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
                         min={leaveFormData.startDate}
                         required
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Gate Pass Date and Time
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p className="text-xs text-gray-500 mb-1 sm:mb-2">
                         {leaveFormData.startDate === todayStr 
                           ? 'Select current or future time for today.' 
                           : 'Time must be after 4:30 PM for future dates.'
@@ -1060,11 +1060,11 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
                         min={leaveFormData.startDate === todayStr ? new Date().toISOString().slice(0, 16) : `${leaveFormData.startDate}T16:30`}
                         required
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Reason
                       </label>
                       <textarea
@@ -1072,11 +1072,11 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, reason: e.target.value })}
                         required
                         maxLength={100}
-                        rows="4"
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
+                        rows="3"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm resize-none"
                         placeholder="Enter your reason for leave (max 100 characters)"
                       />
-                      <div className="flex justify-between items-center mt-2">
+                      <div className="flex justify-between items-center mt-1 sm:mt-2">
                         <span className="text-xs text-gray-500">
                           Keep it brief and specific
                         </span>
@@ -1090,9 +1090,9 @@ const Leave = () => {
               ) : applicationType === 'Permission' ? (
                 // Permission Application Form - Mobile optimized
                 <>
-                  <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Permission Date
                       </label>
                       <input
@@ -1100,12 +1100,12 @@ const Leave = () => {
                         value={permissionFormData.permissionDate}
                         onChange={(e) => setPermissionFormData({ ...permissionFormData, permissionDate: e.target.value })}
                         required
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
                       />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                           Out Time
                         </label>
                         <input
@@ -1113,11 +1113,11 @@ const Leave = () => {
                           value={permissionFormData.outTime}
                           onChange={(e) => setPermissionFormData({ ...permissionFormData, outTime: e.target.value })}
                           required
-                          className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                           In Time
                         </label>
                         <input
@@ -1125,20 +1125,20 @@ const Leave = () => {
                           value={permissionFormData.inTime}
                           onChange={(e) => setPermissionFormData({ ...permissionFormData, inTime: e.target.value })}
                           required
-                          className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+                          className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Reason
                       </label>
                       <textarea
                         value={permissionFormData.reason}
                         onChange={(e) => setPermissionFormData({ ...permissionFormData, reason: e.target.value })}
                         required
-                        rows="4"
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none"
+                        rows="3"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm resize-none"
                         placeholder="Enter your reason for permission"
                       />
                     </div>
@@ -1147,9 +1147,9 @@ const Leave = () => {
               ) : (
                 // Stay in Hostel Application Form - Mobile optimized
                 <>
-                  <div className="space-y-3 sm:space-y-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Stay Date
                       </label>
                       <input
@@ -1159,19 +1159,19 @@ const Leave = () => {
                         required
                         min={todayStr}
                         max={tomorrowStr}
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Reason
                       </label>
                       <textarea
                         value={stayInHostelFormData.reason}
                         onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, reason: e.target.value })}
                         required
-                        rows="4"
-                        className="w-full px-3 py-3 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm resize-none"
+                        rows="3"
+                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm resize-none"
                         placeholder="Enter your reason for staying in hostel"
                       />
                     </div>
@@ -1180,11 +1180,11 @@ const Leave = () => {
               )}
               
               {/* Action Buttons - Mobile optimized */}
-              <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 sm:pt-6">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-6">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`w-full sm:w-auto px-4 py-3 sm:py-2.5 text-white rounded-lg transition-colors text-sm touch-manipulation font-medium ${
+                  className={`w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-white rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
                     isSubmitting
                       ? 'bg-gray-400 cursor-not-allowed'
                       : applicationType === 'Leave' 
@@ -1197,7 +1197,7 @@ const Leave = () => {
                   {isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
-                      <span className="text-sm">Submitting...</span>
+                      <span className="text-xs sm:text-sm">Submitting...</span>
                     </div>
                   ) : (
                     'Submit Request'
@@ -1209,7 +1209,7 @@ const Leave = () => {
                     setShowRequestModal(false);
                     resetFormData();
                   }}
-                  className="w-full sm:w-auto px-4 py-3 sm:py-2.5 text-gray-700 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-sm touch-manipulation font-medium"
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-gray-700 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium"
                 >
                   Cancel
                 </button>

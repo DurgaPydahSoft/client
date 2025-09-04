@@ -193,7 +193,7 @@ const StudentDashboardLayout = () => {
           const resolved = new Date(c.statusHistory.find(s => s.status === "Resolved")?.timestamp || c.updatedAt);
           return acc + (resolved - created) / (1000 * 60 * 60);
         }, 0);
-        
+
         const avgResponseTime = resolvedComplaints.length ? totalTime / resolvedComplaints.length : 0;
 
         setMetrics({
@@ -241,8 +241,8 @@ const StudentDashboardLayout = () => {
   // If there are unvoted polls, show the current one in the popup
   if (unvotedPolls.length > 0) {
     return (
-      <PollPopup 
-        poll={unvotedPolls[currentPollIndex]} 
+      <PollPopup
+        poll={unvotedPolls[currentPollIndex]}
         onVote={handlePollVote}
         remainingPolls={unvotedPolls.length - 1 - currentPollIndex}
       />
@@ -327,62 +327,61 @@ const StudentDashboardLayout = () => {
           {navItems
             .filter(item => !item.feature || isFeatureEnabled(item.feature))
             .map((item, index) => (
-            <motion.div
-              key={item.path}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <NavLink
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 sm:py-3 rounded-lg text-sm sm:text-sm font-medium transition-all duration-300 touch-manipulation ${
-                    isActive
+              <motion.div
+                key={item.path}
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <NavLink
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 sm:py-3 rounded-lg text-sm sm:text-sm font-medium transition-all duration-300 touch-manipulation ${isActive
                       ? "bg-white/10 text-white shadow-lg font-semibold"
                       : "text-white/90 hover:bg-white/10 hover:text-white hover:shadow-md"
-                  }`
-                }
-                end
-              >
-                <div className="relative">
-                  <svg
-                    className="w-4 h-4 sm:w-5 sm:h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d={item.icon}
-                    />
-                  </svg>
-                  {item.notificationType && notificationStates[item.notificationType] && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                    }`
+                  }
+                  end
+                >
+                  <div className="relative">
+                    <svg
+                      className="w-4 h-4 sm:w-5 sm:h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.2, 1],
-                          opacity: [1, 0.5, 1]
-                        }}
-                        transition={{
-                          duration: 1.5,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                        className="w-full h-full bg-red-500 rounded-full"
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d={item.icon}
                       />
-                    </motion.div>
-                  )}
-                </div>
-                <span className="truncate">{item.name}</span>
-              </NavLink>
-            </motion.div>
-          ))}
+                    </svg>
+                    {item.notificationType && notificationStates[item.notificationType] && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"
+                      >
+                        <motion.div
+                          animate={{
+                            scale: [1, 1.2, 1],
+                            opacity: [1, 0.5, 1]
+                          }}
+                          transition={{
+                            duration: 1.5,
+                            repeat: Infinity,
+                            ease: "easeInOut"
+                          }}
+                          className="w-full h-full bg-red-500 rounded-full"
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                  <span className="truncate">{item.name}</span>
+                </NavLink>
+              </motion.div>
+            ))}
         </nav>
 
         <motion.div
@@ -440,7 +439,7 @@ const StudentDashboardLayout = () => {
           <Outlet context={metrics} />
         </div>
       </main>
-      
+
       {/* Floating Call Button */}
       <FloatingCallButton />
     </div>
@@ -622,15 +621,33 @@ const DashboardHome = () => {
     >
       <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 lg:p-8 flex flex-col lg:block">
         <div className="flex items-center justify-between mb-4 order-1 lg:order-none">
+
+          {/* Profile Photo - Mobile Only */}
+          <div className="lg:hidden ml-4">
+            {user?.studentPhoto ? (
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-blue-200 shadow-lg">
+                <img
+                  src={user.studentPhoto}
+                  alt={user?.name}
+                  className="w-full h-full object-cover"
+                  onClick={() => navigate("profile")}
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-lg font-bold shadow-lg">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+
           <div className="text-center flex-1">
             <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-2 sm:mb-3 lg:mb-4 bg-clip-text">
               Welcome back, {user?.name}
             </h2>
-            <p className="text-xs sm:text-sm lg:text-base text-gray-600 mb-3 sm:mb-4 lg:mb-6">
-              View your complaint statistics and manage your requests below.
-            </p>
             <div className="w-20 sm:w-24 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 mx-auto rounded-full"></div>
           </div>
+
+
         </div>
         {/* Quick Actions - order-2 on mobile, order-none on lg+ */}
         <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-6 mt-4 sm:mt-6 lg:mt-0 order-2 lg:order-none">
@@ -754,7 +771,7 @@ const DashboardHome = () => {
               <span className="text-xs sm:text-sm">Today's Menu</span>
             </motion.button>
           </div>
-          
+
           {/* FAQ Button - Only visible on mobile and tablet, spans full width */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -948,21 +965,21 @@ const DashboardHome = () => {
                     className="p-2 hover:bg-blue-100 rounded-lg transition-colors text-blue-600 touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Refresh bills"
                   >
-                    <svg 
-                      className={`w-4 h-4 sm:w-5 sm:h-5 ${refreshingBills ? 'animate-spin' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
+                    <svg
+                      className={`w-4 h-4 sm:w-5 sm:h-5 ${refreshingBills ? 'animate-spin' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
                       viewBox="0 0 24 24"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                   </motion.button>
-                <button
-                  onClick={() => setShowBillModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-                >
+                  <button
+                    onClick={() => setShowBillModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
+                  >
                     <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-                </button>
+                  </button>
                 </div>
               </div>
 
@@ -976,7 +993,7 @@ const DashboardHome = () => {
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                      {electricityBills.map((bill, idx) => (
+                  {electricityBills.map((bill, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, y: 20 }}
@@ -995,15 +1012,14 @@ const DashboardHome = () => {
                             <p className="text-xs sm:text-sm text-gray-600">Room {user?.roomNumber} • {bill.month}</p>
                           </div>
                         </div>
-                        
+
                         {/* Status Badge */}
-                        <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                          bill.paymentStatus === 'paid' 
-                            ? 'text-green-700 bg-green-100 border border-green-200' 
+                        <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${bill.paymentStatus === 'paid'
+                            ? 'text-green-700 bg-green-100 border border-green-200'
                             : bill.paymentStatus === 'pending'
-                            ? 'text-yellow-700 bg-yellow-100 border border-yellow-200'
-                            : 'text-red-700 bg-red-100 border border-red-200'
-                        }`}>
+                              ? 'text-yellow-700 bg-yellow-100 border border-yellow-200'
+                              : 'text-red-700 bg-red-100 border border-red-200'
+                          }`}>
                           {bill.paymentStatus === 'paid' ? (
                             <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                           ) : bill.paymentStatus === 'pending' ? (
@@ -1055,7 +1071,7 @@ const DashboardHome = () => {
                           <p className="text-xs sm:text-sm text-gray-600 mb-1">Your Payment</p>
                           <p className="text-lg sm:text-xl lg:text-2xl font-bold text-yellow-700">₹{bill.studentShare}</p>
                         </div>
-                        
+
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                           {bill.paymentStatus === 'paid' && bill.paidAt && (
                             <div className="text-center sm:text-right">
@@ -1065,7 +1081,7 @@ const DashboardHome = () => {
                               </p>
                             </div>
                           )}
-                          
+
                           {bill.paymentStatus !== 'paid' && (
                             <motion.button
                               whileHover={{ scale: 1.05 }}
@@ -1101,18 +1117,17 @@ const DashboardHome = () => {
                 <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
-            
+
             {/* Meal Type Tabs */}
             <div className="flex border-b border-gray-200 bg-gray-50">
               {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => (
                 <button
                   key={meal}
                   onClick={() => setSelectedMealType(meal)}
-                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
-                    selectedMealType === meal
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${selectedMealType === meal
                       ? 'bg-white text-blue-600 border-b-2 border-blue-600'
                       : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                    }`}
                 >
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-sm">
@@ -1126,7 +1141,7 @@ const DashboardHome = () => {
                 </button>
               ))}
             </div>
-            
+
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 scrollbar-visible">
               {modalLoading ? (
@@ -1142,7 +1157,7 @@ const DashboardHome = () => {
                       {modalMenu.meals[selectedMealType]?.map((item, idx) => {
                         const itemKey = `${selectedMealType}-${idx}`;
                         const isExpanded = expandedItems.has(itemKey);
-                        
+
                         return (
                           <div key={idx} className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden">
                             {/* Clickable Header */}
@@ -1172,9 +1187,8 @@ const DashboardHome = () => {
                                   </span>
                                 )}
                                 <svg
-                                  className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
-                                    isExpanded ? 'rotate-180' : ''
-                                  }`}
+                                  className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
+                                    }`}
                                   fill="none"
                                   stroke="currentColor"
                                   viewBox="0 0 24 24"
@@ -1188,7 +1202,7 @@ const DashboardHome = () => {
                                 </svg>
                               </div>
                             </button>
-                            
+
                             {/* Expandable Image Section */}
                             {isExpanded && item.imageUrl && (
                               <motion.div
@@ -1199,8 +1213,8 @@ const DashboardHome = () => {
                                 className="border-t border-gray-200 bg-white"
                               >
                                 <div className="p-4 flex justify-center">
-                                  <img 
-                                    src={item.imageUrl} 
+                                  <img
+                                    src={item.imageUrl}
                                     alt={item.name || item}
                                     className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-lg border border-gray-200 shadow-md"
                                     onError={(e) => {
@@ -1222,20 +1236,20 @@ const DashboardHome = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Rating Section - Only show if meal has items */}
-                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) && 
-                   modalMenu?.meals[selectedMealType]?.length > 0 && (
-                    <div className="bg-white rounded-lg border border-gray-200 p-3">
-                      <h5 className="text-xs font-medium text-gray-700 mb-3">Rate This Meal</h5>
-                      <MealRating
-                        mealType={selectedMealType}
-                        date={new Date().toISOString().slice(0, 10)}
-                        onRatingSubmit={handleRatingSubmit}
-                        hasItems={modalMenu?.meals[selectedMealType]?.length > 0}
-                      />
-                    </div>
-                  )}
+                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) &&
+                    modalMenu?.meals[selectedMealType]?.length > 0 && (
+                      <div className="bg-white rounded-lg border border-gray-200 p-3">
+                        <h5 className="text-xs font-medium text-gray-700 mb-3">Rate This Meal</h5>
+                        <MealRating
+                          mealType={selectedMealType}
+                          date={new Date().toISOString().slice(0, 10)}
+                          onRatingSubmit={handleRatingSubmit}
+                          hasItems={modalMenu?.meals[selectedMealType]?.length > 0}
+                        />
+                      </div>
+                    )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-400 text-sm flex items-center justify-center gap-2">
@@ -1252,67 +1266,67 @@ const DashboardHome = () => {
 
 const StudentDashboard = () => (
   <>
-    <SEO 
+    <SEO
       title="Student Dashboard"
       description="Access your hostel complaints, track their status, and submit new complaints. Manage your hostel-related grievances efficiently."
       keywords="Student Dashboard, Hostel Complaints, Complaint Status, Submit Complaint, Track Complaints, Student Portal"
     />
-  <Routes>
-    <Route element={<StudentDashboardLayout />}>
-      <Route index element={<DashboardHome />} />
-      <Route path="raise" element={
-        <FeatureProtectedRoute feature="raiseComplaint">
-          <RaiseComplaint />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="my-complaints" element={
-        <FeatureProtectedRoute feature="myComplaints">
-          <MyComplaints />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="leave" element={
-        <FeatureProtectedRoute feature="leave">
-          <Leave />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="foundlost" element={
-        <FeatureProtectedRoute feature="foundLost">
-          <FoundLost />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="hostel-fee" element={
-        <FeatureProtectedRoute feature="hostelFee">
-          <HostelFee />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="payment-history" element={
-        <FeatureProtectedRoute feature="paymentHistory">
-          <PaymentHistory />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="announcements" element={
-        <FeatureProtectedRoute feature="announcements">
-          <Announcements />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="polls" element={
-        <FeatureProtectedRoute feature="polls">
-          <Polls />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="profile" element={
-        <FeatureProtectedRoute feature="profile">
-          <Profile />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="attendance" element={
-        <FeatureProtectedRoute feature="attendance">
-          <MyAttendance />
-        </FeatureProtectedRoute>
-      } />
-      <Route path="faq" element={<FAQ />} />
-    </Route>
-  </Routes>
+    <Routes>
+      <Route element={<StudentDashboardLayout />}>
+        <Route index element={<DashboardHome />} />
+        <Route path="raise" element={
+          <FeatureProtectedRoute feature="raiseComplaint">
+            <RaiseComplaint />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="my-complaints" element={
+          <FeatureProtectedRoute feature="myComplaints">
+            <MyComplaints />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="leave" element={
+          <FeatureProtectedRoute feature="leave">
+            <Leave />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="foundlost" element={
+          <FeatureProtectedRoute feature="foundLost">
+            <FoundLost />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="hostel-fee" element={
+          <FeatureProtectedRoute feature="hostelFee">
+            <HostelFee />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="payment-history" element={
+          <FeatureProtectedRoute feature="paymentHistory">
+            <PaymentHistory />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="announcements" element={
+          <FeatureProtectedRoute feature="announcements">
+            <Announcements />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="polls" element={
+          <FeatureProtectedRoute feature="polls">
+            <Polls />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="profile" element={
+          <FeatureProtectedRoute feature="profile">
+            <Profile />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="attendance" element={
+          <FeatureProtectedRoute feature="attendance">
+            <MyAttendance />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="faq" element={<FAQ />} />
+      </Route>
+    </Routes>
   </>
 );
 
