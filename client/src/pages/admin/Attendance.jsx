@@ -82,7 +82,7 @@ const Attendance = () => {
                   }`} />
                   <span className="hidden sm:inline">{tab.name}</span>
                   <span className="sm:hidden">
-                    {tab.id === 'take' ? 'Take' : 'View'}
+                    {tab.id === 'take' ? 'Mark' : 'View'}
                   </span>
                 </button>
               );

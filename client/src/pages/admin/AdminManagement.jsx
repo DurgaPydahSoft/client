@@ -126,8 +126,13 @@ const AdminManagement = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState(null);
   const [selectedRole, setSelectedRole] = useState(null);
+  const [passwordResetData, setPasswordResetData] = useState({
+    newPassword: '',
+    confirmPassword: ''
+  });
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -546,10 +551,49 @@ const AdminManagement = () => {
     setShowEditModal(true);
   };
 
+  const openPasswordResetModal = (admin) => {
+    setSelectedAdmin(admin);
+    setPasswordResetData({
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setShowPasswordResetModal(true);
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    
+    // Validate password matching only
+    if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    
+    try {
+      const response = await api.put(`/api/admin-management/sub-admins/${selectedAdmin._id}`, {
+        password: passwordResetData.newPassword
+      });
+      
+      if (response.data.success) {
+        toast.success('Password reset successfully');
+        setShowPasswordResetModal(false);
+        setPasswordResetData({
+          newPassword: '',
+          confirmPassword: ''
+        });
+        setSelectedAdmin(null);
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      toast.error(error.response?.data?.message || 'Failed to reset password');
+    }
+  };
+
   const resetForm = () => {
     setShowAddModal(false);
     setShowEditModal(false);
     setShowRoleModal(false);
+    setShowPasswordResetModal(false);
     setSelectedAdmin(null);
     setSelectedRole(null);
     setRoleType('sub_admin');
@@ -565,6 +609,10 @@ const AdminManagement = () => {
       email: '',
       phoneNumber: '',
       customRoleId: ''
+    });
+    setPasswordResetData({
+      newPassword: '',
+      confirmPassword: ''
     });
     setRoleFormData({
       name: '',
@@ -960,12 +1008,23 @@ const AdminManagement = () => {
                         <button
                           onClick={() => openEditModal(admin)}
                           className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit Admin"
                         >
                           <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
+                        {!isWardenTab && !isPrincipalTab && (
+                          <button
+                            onClick={() => openPasswordResetModal(admin)}
+                            className="p-1.5 sm:p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Reset Password"
+                          >
+                            <KeyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteAdmin(admin._id)}
                           className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Admin"
                         >
                           <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
@@ -1520,6 +1579,90 @@ const AdminManagement = () => {
                   >
                     <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                     {selectedRole ? 'Update Custom Role' : 'Create Custom Role'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Password Reset Modal */}
+      <AnimatePresence>
+        {showPasswordResetModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4"
+            >
+              <div className="flex justify-between items-center mb-3 sm:mb-4">
+                <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">
+                  Reset Password
+                </h2>
+                <button
+                  onClick={resetForm}
+                  className="p-1 sm:p-1.5 lg:p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600">
+                  Reset password for: <span className="font-semibold text-gray-900">{selectedAdmin?.username}</span>
+                </p>
+              </div>
+              
+              <form onSubmit={handlePasswordReset} className="space-y-3 sm:space-y-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    New Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordResetData.newPassword}
+                    onChange={(e) => setPasswordResetData(prev => ({ ...prev, newPassword: e.target.value }))}
+                    required
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter new password"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Confirm New Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={passwordResetData.confirmPassword}
+                    onChange={(e) => setPasswordResetData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    required
+                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                  >
+                    <KeyIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                    Reset Password
                   </button>
                 </div>
               </form>
