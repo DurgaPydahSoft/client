@@ -930,18 +930,13 @@ const MenuManagement = () => {
                     {/* Menu Items */}
                     <div className="text-xs text-gray-700">
                       {mealItems.length ? (
-                        <div className="space-y-1">
-                          {mealItems.slice(0, 4).map((item, idx) => (
+                        <div className="space-y-1 max-h-32 overflow-y-auto">
+                          {mealItems.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-1">
                               <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
                               <span className="truncate">{item.name || item}</span>
                             </div>
                           ))}
-                          {mealItems.length > 4 && (
-                            <div className="text-gray-500 text-xs italic">
-                              +{mealItems.length - 4} more items
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <span className="text-gray-400 italic text-xs">No items</span>
