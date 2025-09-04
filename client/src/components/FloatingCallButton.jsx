@@ -86,15 +86,15 @@ const FloatingCallButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[9999]">
+    <div className="fixed bottom-6 left-6 z-[9999]">
       {/* Debug indicator
-      <div className="absolute -top-8 right-0 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold">
+      <div className="absolute -top-8 left-0 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold">
         {isOpen ? 'OPEN' : 'CLOSED'}
       </div> */}
       
       {/* Call Options Popup */}
       {isOpen && (
-        <div className="absolute bottom-16 right-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 min-w-[280px] z-[10000]">
+        <div className="absolute bottom-16 left-0 mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 min-w-[280px] z-[10000]">
           <div className="text-center border-b border-gray-200 pb-3 mb-4">
             <h3 className="font-bold text-gray-800 text-lg">Quick Call</h3>
           </div>
