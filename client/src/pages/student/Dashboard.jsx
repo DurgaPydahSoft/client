@@ -37,6 +37,7 @@ import PaymentHistory from './PaymentHistory';
 import FAQ from './FAQ';
 import useFeatureToggles from '../../hooks/useFeatureToggles';
 import FeatureProtectedRoute from '../../components/FeatureProtectedRoute';
+import FloatingCallButton from '../../components/FloatingCallButton';
 
 const navItems = [
   {
@@ -439,6 +440,9 @@ const StudentDashboardLayout = () => {
           <Outlet context={metrics} />
         </div>
       </main>
+      
+      {/* Floating Call Button */}
+      <FloatingCallButton />
     </div>
   );
 };
