@@ -1314,16 +1314,6 @@ const AdmitCards = () => {
                     </div>
                   </div>
 
-                  {/* QR Code Placeholder */}
-                  <div className="mt-4 sm:mt-6 flex justify-end">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 border-2 border-gray-300 bg-white flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-xs font-bold text-gray-500">QR CODE</div>
-                        <div className="text-xs font-bold text-gray-500">PLACEHOLDER</div>
-                        <div className="text-xs text-gray-400 mt-1">Visit our website</div>
-                      </div>
-                    </div>
-                  </div>
 
                   <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-600">
                     <p><strong>Important Note:</strong></p>
