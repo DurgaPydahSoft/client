@@ -21,7 +21,8 @@ import {
   XCircleIcon,
   ClockIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  QrCodeIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -35,6 +36,7 @@ const PreRegistrationRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -229,7 +231,7 @@ const PreRegistrationRequests = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="text-xl font-bold text-blue-900 flex items-center gap-2">
               <div className="p-1.5 bg-blue-100 rounded-md">
                 <UserPlusIcon className="h-5 w-5 text-blue-600" />
               </div>
@@ -238,6 +240,13 @@ const PreRegistrationRequests = () => {
             <p className="text-sm text-gray-600 mt-1">Manage student preregistration requests and approvals</p>
           </div>
           <div className="mt-3 sm:mt-0 flex items-center gap-3">
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors duration-200"
+            >
+              <QrCodeIcon className="h-4 w-4" />
+              <span className="text-sm font-medium">Show QR</span>
+            </button>
             <div className="text-center">
               <div className="text-lg font-bold text-blue-600">{totalCount}</div>
               <div className="text-xs text-gray-500">Total</div>
@@ -451,161 +460,167 @@ const PreRegistrationRequests = () => {
       {/* Details Modal */}
       <AnimatePresence>
         {showModal && selectedRequest && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Pre-Registration Details</h2>
+              <div className="p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base sm:text-lg font-bold text-blue-900">Pre-Registration Details</h2>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 p-1"
                   >
-                    <XMarkIcon className="w-6 h-6" />
+                    <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Personal Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Left Column */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <UserPlusIcon className="w-5 h-5" />
-                      Personal Information
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Name</label>
-                        <p className="text-gray-900">{selectedRequest.name}</p>
+                    {/* Personal Information */}
+                    <div className="bg-blue-50 rounded-lg p-3 space-y-2">
+                      <h3 className="text-sm font-semibold text-blue-800 flex items-center gap-1.5">
+                        <UserPlusIcon className="w-3 h-3" />
+                        Personal Information
+                      </h3>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-blue-600">Name:</span>
+                          <span className="text-xs text-blue-900">{selectedRequest.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-blue-600">Roll Number:</span>
+                          <span className="text-xs text-blue-900 font-mono">{selectedRequest.rollNumber}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-blue-600">Gender:</span>
+                          <span className="text-xs text-blue-900">{selectedRequest.gender}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-blue-600">Email:</span>
+                          <span className="text-xs text-blue-900">{selectedRequest.email || 'Not provided'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Roll Number</label>
-                        <p className="text-gray-900">{selectedRequest.rollNumber}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Gender</label>
-                        <p className="text-gray-900">{selectedRequest.gender}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Email</label>
-                        <p className="text-gray-900">{selectedRequest.email || 'Not provided'}</p>
+                    </div>
+
+                    {/* Academic Information */}
+                    <div className="bg-green-50 rounded-lg p-3 space-y-2">
+                      <h3 className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                        <AcademicCapIcon className="w-3 h-3" />
+                        Academic Information
+                      </h3>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-green-600">Course:</span>
+                          <span className="text-xs text-green-900">{selectedRequest.course?.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-green-600">Branch:</span>
+                          <span className="text-xs text-green-900">{selectedRequest.branch?.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-green-600">Year:</span>
+                          <span className="text-xs text-green-900">{selectedRequest.year}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-green-600">Batch:</span>
+                          <span className="text-xs text-green-900">{selectedRequest.batch}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-green-600">Academic Year:</span>
+                          <span className="text-xs text-green-900">{selectedRequest.academicYear}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Academic Information */}
+                  {/* Right Column */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <AcademicCapIcon className="w-5 h-5" />
-                      Academic Information
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Course</label>
-                        <p className="text-gray-900">{selectedRequest.course?.name}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Branch</label>
-                        <p className="text-gray-900">{selectedRequest.branch?.name}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Year</label>
-                        <p className="text-gray-900">{selectedRequest.year}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Batch</label>
-                        <p className="text-gray-900">{selectedRequest.batch}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Academic Year</label>
-                        <p className="text-gray-900">{selectedRequest.academicYear}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact Information */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <PhoneIcon className="w-5 h-5" />
-                      Contact Information
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Student Phone</label>
-                        <p className="text-gray-900">{selectedRequest.studentPhone}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Parent Phone</label>
-                        <p className="text-gray-900">{selectedRequest.parentPhone}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Mother Name</label>
-                        <p className="text-gray-900">{selectedRequest.motherName || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Mother Phone</label>
-                        <p className="text-gray-900">{selectedRequest.motherPhone || 'Not provided'}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Local Guardian</label>
-                        <p className="text-gray-900">
-                          {selectedRequest.localGuardianName || 'Not provided'}
-                          {selectedRequest.localGuardianPhone && ` (${selectedRequest.localGuardianPhone})`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Preferences & Photos */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      <HomeIcon className="w-5 h-5" />
-                      Preferences & Photos
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-gray-500">Meal Type</label>
-                        <p className="text-gray-900 capitalize">{selectedRequest.mealType}</p>
+                    {/* Contact Information */}
+                    <div className="bg-purple-50 rounded-lg p-3 space-y-2">
+                      <h3 className="text-sm font-semibold text-purple-800 flex items-center gap-1.5">
+                        <PhoneIcon className="w-3 h-3" />
+                        Contact Information
+                      </h3>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-purple-600">Student Phone:</span>
+                          <span className="text-xs text-purple-900">{selectedRequest.studentPhone}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-purple-600">Parent Phone:</span>
+                          <span className="text-xs text-purple-900">{selectedRequest.parentPhone}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-purple-600">Mother Name:</span>
+                          <span className="text-xs text-purple-900">{selectedRequest.motherName || 'Not provided'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-purple-600">Mother Phone:</span>
+                          <span className="text-xs text-purple-900">{selectedRequest.motherPhone || 'Not provided'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-purple-600">Local Guardian:</span>
+                          <span className="text-xs text-purple-900">
+                            {selectedRequest.localGuardianName || 'Not provided'}
+                            {selectedRequest.localGuardianPhone && ` (${selectedRequest.localGuardianPhone})`}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Photos */}
-                    <div className="space-y-3">
-                      <h4 className="text-sm font-medium text-gray-700">Photos</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        {selectedRequest.studentPhoto && (
-                          <div className="text-center">
-                            <img
-                              src={selectedRequest.studentPhoto}
-                              alt="Student"
-                              className="w-20 h-20 rounded-lg object-cover mx-auto"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Student</p>
+                    {/* Preferences & Photos */}
+                    <div className="bg-orange-50 rounded-lg p-3 space-y-2">
+                      <h3 className="text-sm font-semibold text-orange-800 flex items-center gap-1.5">
+                        <HomeIcon className="w-3 h-3" />
+                        Preferences & Photos
+                      </h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-orange-600">Meal Type:</span>
+                          <span className="text-xs text-orange-900 capitalize">{selectedRequest.mealType}</span>
+                        </div>
+                        
+                        {/* Photos */}
+                        <div className="space-y-2">
+                          <h4 className="text-xs font-medium text-orange-700">Photos</h4>
+                          <div className="grid grid-cols-3 gap-2">
+                            {selectedRequest.studentPhoto && (
+                              <div className="text-center">
+                                <img
+                                  src={selectedRequest.studentPhoto}
+                                  alt="Student"
+                                  className="w-12 h-12 rounded-lg object-cover mx-auto"
+                                />
+                                <p className="text-xs text-orange-600 mt-1">Student</p>
+                              </div>
+                            )}
+                            {selectedRequest.guardianPhoto1 && (
+                              <div className="text-center">
+                                <img
+                                  src={selectedRequest.guardianPhoto1}
+                                  alt="Guardian 1"
+                                  className="w-12 h-12 rounded-lg object-cover mx-auto"
+                                />
+                                <p className="text-xs text-orange-600 mt-1">Guardian 1</p>
+                              </div>
+                            )}
+                            {selectedRequest.guardianPhoto2 && (
+                              <div className="text-center">
+                                <img
+                                  src={selectedRequest.guardianPhoto2}
+                                  alt="Guardian 2"
+                                  className="w-12 h-12 rounded-lg object-cover mx-auto"
+                                />
+                                <p className="text-xs text-orange-600 mt-1">Guardian 2</p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {selectedRequest.guardianPhoto1 && (
-                          <div className="text-center">
-                            <img
-                              src={selectedRequest.guardianPhoto1}
-                              alt="Guardian 1"
-                              className="w-20 h-20 rounded-lg object-cover mx-auto"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Guardian 1</p>
-                          </div>
-                        )}
-                        {selectedRequest.guardianPhoto2 && (
-                          <div className="text-center">
-                            <img
-                              src={selectedRequest.guardianPhoto2}
-                              alt="Guardian 2"
-                              className="w-20 h-20 rounded-lg object-cover mx-auto"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Guardian 2</p>
-                          </div>
-                        )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -613,16 +628,16 @@ const PreRegistrationRequests = () => {
 
                 {/* Action Buttons */}
                 {selectedRequest.status === 'pending' && (
-                  <div className="mt-6 flex justify-end gap-3">
+                  <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                     <button
                       onClick={() => handleReject(selectedRequest)}
-                      className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200"
+                      className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-red-700 bg-red-100 border border-red-300 rounded-md hover:bg-red-200 transition-colors"
                     >
                       Reject
                     </button>
                     <button
                       onClick={() => handleApprove(selectedRequest)}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700"
+                      className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 transition-colors"
                     >
                       Approve & Add Student
                     </button>
@@ -638,33 +653,33 @@ const PreRegistrationRequests = () => {
       {/* Rejection Modal */}
       <AnimatePresence>
         {showRejectionModal && selectedRequest && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-lg shadow-xl max-w-md w-full"
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Reject Registration</h3>
+              <div className="p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Reject Registration</h3>
                   <button
                     onClick={() => setShowRejectionModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 p-1"
                   >
-                    <XMarkIcon className="w-5 h-5" />
+                    <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       Reason for Rejection *
                     </label>
                     <textarea
                       value={rejectionData.reason}
                       onChange={(e) => setRejectionData(prev => ({ ...prev, reason: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       rows="4"
                       placeholder="Please provide a reason for rejection..."
                       required
@@ -672,10 +687,10 @@ const PreRegistrationRequests = () => {
                   </div>
                 </div>
 
-                <div className="mt-6 flex justify-end gap-3">
+                <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                   <button
                     onClick={() => setShowRejectionModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200"
+                    className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 transition-colors"
                     disabled={actionLoading}
                   >
                     Cancel
@@ -683,9 +698,65 @@ const PreRegistrationRequests = () => {
                   <button
                     onClick={submitRejection}
                     disabled={actionLoading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+                    className="px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50 transition-colors"
                   >
                     {actionLoading ? 'Rejecting...' : 'Reject Registration'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* QR Code Modal */}
+      <AnimatePresence>
+        {showQRModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">Student Pre-Registration QR Code</h2>
+                <button
+                  onClick={() => setShowQRModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="text-center">
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <img
+                    src="/Pre-Registration-QR.png"
+                    alt="Student Pre-Registration QR Code"
+                    className="mx-auto max-w-full h-auto"
+                  />
+                </div>
+                <p className="text-sm text-gray-600 mb-4">
+                  Students can scan this QR code to access the pre-registration form
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={() => setShowQRModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = '/Pre-Registration-QR.png';
+                      link.download = 'Pre-Registration-QR.png';
+                      link.click();
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Download QR
                   </button>
                 </div>
               </div>

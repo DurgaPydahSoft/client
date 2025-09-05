@@ -420,33 +420,33 @@ const StudentPreRegistration = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 lg:py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="text-center mb-4 sm:mb-6 lg:mb-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
             Student Pre-Registration
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm sm:text-base text-gray-600 px-2">
             Fill in your details to pre-register for hostel accommodation
           </p>
         </div>
 
         {/* Form */}
-        <div className="bg-white rounded-xl shadow-md p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
             
             {/* Personal Information Section */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+            <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
                   <UserIcon />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Personal Information</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Full Name *</label>
                   <input
                     type="text"
                     name="name"
@@ -454,11 +454,11 @@ const StudentPreRegistration = () => {
                     onChange={handleFormChange}
                     placeholder="Enter your full name"
                     required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Roll Number *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Roll Number *</label>
                   <input
                     type="text"
                     name="rollNumber"
@@ -468,17 +468,17 @@ const StudentPreRegistration = () => {
                     required
                     pattern="[A-Z0-9]+"
                     title="Uppercase letters and numbers only"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Gender *</label>
                   <select
                     name="gender"
                     value={form.gender}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Gender</option>
                     <option value="Male">Male</option>
@@ -486,37 +486,37 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input
                     type="email"
                     name="email"
                     value={form.email}
                     onChange={handleFormChange}
                     placeholder="Enter your email (optional)"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* Academic Information Section */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+            <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
                   <AcademicIcon />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Academic Information</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Academic Information</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Course *</label>
                   <select
                     name="course"
                     value={form.course}
                     onChange={handleFormChange}
                     required
                     disabled={loadingCourses}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
                     {courses.map(course => (
@@ -527,14 +527,14 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Year *</label>
                   <select
                     name="year"
                     value={form.year}
                     onChange={handleFormChange}
                     required
                     disabled={!form.course}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Year</option>
                     {form.course && Array.from(
@@ -546,14 +546,14 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch *</label>
                   <select
                     name="branch"
                     value={form.branch}
                     onChange={handleFormChange}
                     required
                     disabled={!form.course || loadingBranches}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
                     {(() => {
@@ -567,14 +567,14 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Batch *</label>
                   <select
                     name="batch"
                     value={form.batch}
                     onChange={handleFormChange}
                     required
                     disabled={!form.course}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Batch</option>
                     {form.course && generateBatches(form.course, courses).map(batch => (
@@ -583,13 +583,13 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
                   <select
                     name="academicYear"
                     value={form.academicYear}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Select Academic Year</option>
                     {generateAcademicYears().map(year => (
@@ -598,12 +598,12 @@ const StudentPreRegistration = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Meal Type</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Meal Type</label>
                   <select
                     name="mealType"
                     value={form.mealType}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="non-veg">Non-Veg</option>
                     <option value="veg">Veg</option>
@@ -613,16 +613,16 @@ const StudentPreRegistration = () => {
             </div>
 
             {/* Contact Information Section */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+            <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
+              <div className="flex items-center mb-3 sm:mb-4">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 rounded-full flex items-center justify-center mr-2 sm:mr-3">
                   <ContactIcon />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Contact Information</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Student Phone *</label>
                   <input
                     type="tel"
                     name="studentPhone"
@@ -632,11 +632,11 @@ const StudentPreRegistration = () => {
                     required
                     pattern="[0-9]{10}"
                     title="10-digit phone number"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
                   <input
                     type="tel"
                     name="parentPhone"
@@ -646,22 +646,22 @@ const StudentPreRegistration = () => {
                     required
                     pattern="[0-9]{10}"
                     title="10-digit phone number"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mother Name</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mother Name</label>
                   <input
                     type="text"
                     name="motherName"
                     value={form.motherName}
                     onChange={handleFormChange}
                     placeholder="Enter mother's name (optional)"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mother Phone</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Mother Phone</label>
                   <input
                     type="tel"
                     name="motherPhone"
@@ -670,22 +670,22 @@ const StudentPreRegistration = () => {
                     placeholder="Enter mother's phone (optional)"
                     pattern="[0-9]{10}"
                     title="10-digit phone number"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
                   <input
                     type="text"
                     name="localGuardianName"
                     value={form.localGuardianName}
                     onChange={handleFormChange}
                     placeholder="Enter local guardian's name (optional)"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
                   <input
                     type="tel"
                     name="localGuardianPhone"
@@ -694,44 +694,44 @@ const StudentPreRegistration = () => {
                     placeholder="Enter local guardian's phone (optional)"
                     pattern="[0-9]{10}"
                     title="10-digit phone number"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
               </div>
             </div>
 
             {/* Photo Upload Section */}
-            <div className="bg-blue-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Photo Upload</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Photo Upload</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 
                 {/* Student Photo */}
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Your Photo *</label>
-                  <div className="space-y-3">
+                <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Your Photo *</label>
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
                           {studentPhotoPreview ? (
                             <div className="relative">
-                              <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                              <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-16 sm:h-20 w-auto object-cover rounded-lg" />
                               <button
                                 type="button"
                                 onClick={() => {
                                   setStudentPhoto(null);
                                   setStudentPhotoPreview(null);
                                 }}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                                className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-600"
                               >
                                 ×
                               </button>
                             </div>
                           ) : (
                             <>
-                              <svg className="w-8 h-8 mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-6 h-6 sm:w-8 sm:h-8 mb-2 sm:mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <p className="mb-2 text-sm text-gray-500">Click to upload photo</p>
+                              <p className="mb-1 sm:mb-2 text-xs sm:text-sm text-gray-500">Click to upload photo</p>
                             </>
                           )}
                         </div>
@@ -746,7 +746,7 @@ const StudentPreRegistration = () => {
                     <button
                       type="button"
                       onClick={() => startCamera('student')}
-                      className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                      className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-1 sm:space-x-2 transition-colors"
                     >
                       <CameraIcon />
                       <span>Take Photo</span>
@@ -755,32 +755,32 @@ const StudentPreRegistration = () => {
                 </div>
 
                 {/* Guardian Photo 1 */}
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Parents Photo</label>
-                  <div className="space-y-3">
+                <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Parents Photo</label>
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
                           {guardianPhoto1Preview ? (
                             <div className="relative">
-                              <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                              <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-16 sm:h-20 w-auto object-cover rounded-lg" />
                               <button
                                 type="button"
                                 onClick={() => {
                                   setGuardianPhoto1(null);
                                   setGuardianPhoto1Preview(null);
                                 }}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                                className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-600"
                               >
                                 ×
                               </button>
                             </div>
                           ) : (
                             <>
-                              <svg className="w-8 h-8 mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-6 h-6 sm:w-8 sm:h-8 mb-2 sm:mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <p className="mb-2 text-sm text-gray-500">Click to upload photo</p>
+                              <p className="mb-1 sm:mb-2 text-xs sm:text-sm text-gray-500">Click to upload photo</p>
                             </>
                           )}
                         </div>
@@ -795,7 +795,7 @@ const StudentPreRegistration = () => {
                     <button
                       type="button"
                       onClick={() => startCamera('guardian1')}
-                      className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                      className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-1 sm:space-x-2 transition-colors"
                     >
                       <CameraIcon />
                       <span>Take Photo</span>
@@ -804,32 +804,32 @@ const StudentPreRegistration = () => {
                 </div>
 
                 {/* Guardian Photo 2 */}
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Local Guardian Photo</label>
-                  <div className="space-y-3">
+                <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Local Guardian Photo</label>
+                  <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-center w-full">
-                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <label className="flex flex-col items-center justify-center w-full h-24 sm:h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+                        <div className="flex flex-col items-center justify-center pt-3 pb-4 sm:pt-5 sm:pb-6">
                           {guardianPhoto2Preview ? (
                             <div className="relative">
-                              <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
+                              <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-16 sm:h-20 w-auto object-cover rounded-lg" />
                               <button
                                 type="button"
                                 onClick={() => {
                                   setGuardianPhoto2(null);
                                   setGuardianPhoto2Preview(null);
                                 }}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                                className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center text-xs hover:bg-red-600"
                               >
                                 ×
                               </button>
                             </div>
                           ) : (
                             <>
-                              <svg className="w-8 h-8 mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-6 h-6 sm:w-8 sm:h-8 mb-2 sm:mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                               </svg>
-                              <p className="mb-2 text-sm text-gray-500">Click to upload photo</p>
+                              <p className="mb-1 sm:mb-2 text-xs sm:text-sm text-gray-500">Click to upload photo</p>
                             </>
                           )}
                         </div>
@@ -844,7 +844,7 @@ const StudentPreRegistration = () => {
                     <button
                       type="button"
                       onClick={() => startCamera('guardian2')}
-                      className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                      className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-1 sm:space-x-2 transition-colors"
                     >
                       <CameraIcon />
                       <span>Take Photo</span>
@@ -856,11 +856,11 @@ const StudentPreRegistration = () => {
             </div>
 
             {/* Submit Button */}
-            <div className="flex justify-center pt-4">
+            <div className="flex justify-center pt-3 sm:pt-4">
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-8 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${
+                className={`px-6 sm:px-8 py-3 sm:py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm sm:text-sm w-full sm:w-auto ${
                   loading 
                   ? 'bg-gray-400 cursor-not-allowed' 
                   : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
@@ -875,15 +875,15 @@ const StudentPreRegistration = () => {
 
       {/* Camera Modal */}
       {showCamera && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Take Photo</h3>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full">
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-semibold">Take Photo</h3>
               <button
                 onClick={stopCamera}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 p-1"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -893,13 +893,13 @@ const StudentPreRegistration = () => {
                 ref={videoRef}
                 autoPlay
                 playsInline
-                className="w-full h-64 bg-gray-900 rounded-lg"
+                className="w-full h-48 sm:h-64 bg-gray-900 rounded-lg"
               />
               {cameraReady && (
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                <div className="absolute bottom-3 sm:bottom-4 left-1/2 transform -translate-x-1/2">
                   <button
                     onClick={capturePhoto}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
                   >
                     Capture Photo
                   </button>
