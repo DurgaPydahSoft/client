@@ -12,7 +12,6 @@ import {
   FunnelIcon,
   ArrowPathIcon,
   EyeIcon,
-  PencilIcon,
   Cog6ToothIcon,
   PlusIcon,
   TrashIcon,
@@ -48,14 +47,6 @@ const FeeManagement = () => {
     category: '',
     gender: ''
   });
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [showUpdateModal, setShowUpdateModal] = useState(false);
-  const [updateForm, setUpdateForm] = useState({
-    term1: '',
-    term2: '',
-    term3: ''
-  });
-  const [updating, setUpdating] = useState(false);
 
   // Fee Structure Management
   const [feeStructures, setFeeStructures] = useState([]);
@@ -346,37 +337,7 @@ const FeeManagement = () => {
     }
   };
 
-  const handleUpdateStatus = async (e) => {
-    e.preventDefault();
-    if (!selectedStudent) return;
 
-    try {
-      setUpdating(true);
-      // Here you would update the student's fee status
-      // For now, we'll just show a success message
-      toast.success('Fee payment status updated successfully');
-      setShowUpdateModal(false);
-      setSelectedStudent(null);
-      setUpdateForm({ term1: '', term2: '', term3: '' });
-      fetchStudents();
-      fetchStats();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update fee status');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const openUpdateModal = (student) => {
-    setSelectedStudent(student);
-    // Initialize form with current fee status if available
-    setUpdateForm({
-      term1: 'Unpaid',
-      term2: 'Unpaid',
-      term3: 'Unpaid'
-    });
-    setShowUpdateModal(true);
-  };
 
 
 
@@ -1379,33 +1340,6 @@ const FeeManagement = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <AcademicCapIcon className="w-6 h-6 text-green-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Students with Fees</p>
-                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithFees}</p>
-                  <p className="text-xs text-gray-500">
-                    {stats.totalStudents > 0 ? Math.round((stats.studentsWithFees / stats.totalStudents) * 100) : 0}% linked
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-red-100 rounded-lg">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Students without Fees</p>
-                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithoutFees}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
                 </div>
@@ -1418,27 +1352,12 @@ const FeeManagement = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <div className="flex items-center">
-                <div className="p-2 bg-orange-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Average Fee Amount</p>
-                  <p className="text-lg font-semibold text-gray-900">₹{stats.averageFeeAmount.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Concession Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <ReceiptRefundIcon className="w-6 h-6 text-blue-600" />
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <ReceiptRefundIcon className="w-6 h-6 text-green-600" />
                 </div>
                 <div className="ml-3">
                   <p className="text-sm font-medium text-gray-600">Students with Concession</p>
-                  <p className="text-lg font-semibold text-blue-600">{stats.studentsWithConcession || 0}</p>
+                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithConcession || 0}</p>
                   <p className="text-xs text-gray-500">
                     {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
                   </p>
@@ -1448,35 +1367,20 @@ const FeeManagement = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
               <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Concession Amount</p>
-                  <p className="text-lg font-semibold text-green-600">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
+                  <p className="text-sm font-medium text-gray-600">Total Concession</p>
+                  <p className="text-lg font-semibold text-gray-900">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
                   <p className="text-xs text-gray-500">
                     {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
                   </p>
                 </div>
               </div>
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total After Concession</p>
-                  <p className="text-lg font-semibold text-purple-600">₹{(stats.totalCalculatedFeeAmount || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">
-                    Final amount to be collected
-                  </p>
-                </div>
-              </div>
-            </div>
-
           </div>
+
 
           {/* Fee Structure Summary */}
           {activeTab === 'students' && feeStructures.length > 0 && (
@@ -1785,15 +1689,6 @@ const FeeManagement = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              openUpdateModal(student);
-                            }}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
                               openPaymentModal(student);
                             }}
                             className="text-green-600 hover:text-green-900 mr-3"
@@ -1888,38 +1783,43 @@ const FeeManagement = () => {
               </div>
             </div>
 
-            {/* Academic Year Filter */}
+            {/* Filters - Side by Side */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Academic Year
-              </label>
-              <select
-                value={feeStructureFilter.academicYear}
-                onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Academic Years</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Academic Year Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Academic Year
+                  </label>
+                  <select
+                    value={feeStructureFilter.academicYear}
+                    onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">All Academic Years</option>
+                    {generateAcademicYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Category Filter */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Category
-              </label>
-              <select
-                value={feeStructureFilter.category || ''}
-                onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Categories</option>
-                {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Filter by Category
+                  </label>
+                  <select
+                    value={feeStructureFilter.category || ''}
+                    onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">All Categories</option>
+                    {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Filter Summary and Clear Button */}
@@ -2021,7 +1921,7 @@ const FeeManagement = () => {
                                 onClick={() => openFeeStructureModal(structure)}
                                 className="text-blue-600 hover:text-blue-900"
                               >
-                                <PencilIcon className="w-4 h-4" />
+                                <EyeIcon className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => deleteFeeStructure(structure.academicYear, structure.category)}
@@ -2044,93 +1944,6 @@ const FeeManagement = () => {
 
 
 
-      {/* Update Modal */}
-      {showUpdateModal && selectedStudent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Update Fee Payment Status
-              </h3>
-              <button
-                onClick={() => setShowUpdateModal(false)}
-                className="p-1 text-gray-400 hover:text-gray-600"
-                aria-label="Close modal"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Student: {selectedStudent.name} ({selectedStudent.rollNumber})
-            </p>
-
-            <form onSubmit={handleUpdateStatus}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Term 1 Status
-                  </label>
-                  <select
-                    value={updateForm.term1}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, term1: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Term 2 Status
-                  </label>
-                  <select
-                    value={updateForm.term2}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, term2: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Term 3 Status
-                  </label>
-                  <select
-                    value={updateForm.term3}
-                    onChange={(e) => setUpdateForm(prev => ({ ...prev, term3: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Paid">Paid</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowUpdateModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updating}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {updating ? 'Updating...' : 'Update Status'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Payment Modal */}
       {showPaymentModal && selectedStudentForPayment && (
