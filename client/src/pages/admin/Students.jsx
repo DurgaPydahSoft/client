@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon } from '@heroicons/react/24/outline';
@@ -79,9 +79,9 @@ const BATCHES = [
 // Helper to normalize course names for frontend matching (same as backend)
 const normalizeCourseName = (courseName) => {
   if (!courseName) return courseName;
-  
+
   const courseUpper = courseName.toUpperCase();
-  
+
   // Map common variations to database names
   if (courseUpper === 'BTECH' || courseUpper === 'B.TECH' || courseUpper === 'B TECH') {
     return 'B.Tech';
@@ -95,7 +95,7 @@ const normalizeCourseName = (courseName) => {
   if (courseUpper === 'DEGREE') {
     return 'Degree';
   }
-  
+
   return courseName; // Return original if no mapping found
 };
 
@@ -103,7 +103,7 @@ const normalizeCourseName = (courseName) => {
 const generateBatches = (courseId, courses) => {
   const startFromYear = 2022; // Fixed start year
   const batches = [];
-  
+
   // Determine course duration from dynamic course data
   const course = courses.find(c => c._id === courseId);
   const duration = course ? course.duration : 4; // Default to 4 years
@@ -121,25 +121,26 @@ const generateBatches = (courseId, courses) => {
 const generateAcademicYears = () => {
   const currentYear = new Date().getFullYear();
   const years = [];
-  
+
   for (let i = -3; i <= 3; i++) {
     const year = currentYear + i;
     years.push(`${year}-${year + 1}`);
   }
-  
+
   return years;
 };
 
 const Students = () => {
   console.log('👥 Students component loaded');
-  
+
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isSuperAdmin = user?.role === 'super_admin';
   const canEditStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'edit');
   const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
   const canAddStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'create');
-  
+
   console.log('🔐 Student Management Permissions:', {
     user: user?.username,
     role: user?.role,
@@ -150,10 +151,10 @@ const Students = () => {
     permissions: user?.permissions,
     accessLevels: user?.permissionAccessLevels
   });
-  
+
   const [tab, setTab] = useState('list');
   const [form, setForm] = useState(initialForm);
-  
+
   // Debug log to verify initial state
   console.log('🔍 Initial form state:', initialForm);
   console.log('🔍 Current form state:', form);
@@ -202,7 +203,7 @@ const Students = () => {
   // Email service status
   const [emailServiceStatus, setEmailServiceStatus] = useState(null);
   const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
-  
+
   // Temp students gender filter
   const [tempStudentsGenderFilter, setTempStudentsGenderFilter] = useState('all');
 
@@ -311,7 +312,7 @@ const Students = () => {
         videoRef.play();
         setCameraReady(true);
       };
-      
+
       // Fallback: if video doesn't load within 3 seconds, try to set ready anyway
       const timeout = setTimeout(() => {
         if (!cameraReady && videoRef) {
@@ -319,7 +320,7 @@ const Students = () => {
           setCameraReady(true);
         }
       }, 3000);
-      
+
       return () => clearTimeout(timeout);
     }
   }, [showCamera, stream, videoRef, cameraReady]);
@@ -345,7 +346,7 @@ const Students = () => {
   const fetchCourseCounts = async () => {
     try {
       const params = new URLSearchParams();
-      
+
       // Add filters only if they have values (excluding search and pagination)
       if (filters.course) params.append('course', filters.course);
       if (filters.branch) params.append('branch', filters.branch);
@@ -411,10 +412,10 @@ const Students = () => {
       setBranches([]);
       return;
     }
-    
+
     console.log('🔍 Fetching branches for course ID:', courseId);
     console.log('🔍 Available courses:', courses.map(c => ({ id: c._id, name: c.name })));
-    
+
     setLoadingBranches(true);
     try {
       const res = await api.get(`/api/course-management/branches/${courseId}`);
@@ -467,7 +468,7 @@ const Students = () => {
         gender: gender,
         category: category
       });
-      
+
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
       if (res.data.success) {
         setRoomsWithAvailability(res.data.data.rooms || []);
@@ -516,7 +517,7 @@ const Students = () => {
       if (response.data.success) {
         const data = response.data.data;
         setBedLockerAvailability(data);
-        
+
         // Auto-select first available bed and corresponding locker
         autoSelectBedAndLocker(data);
       } else {
@@ -534,7 +535,7 @@ const Students = () => {
   // Auto-select first available bed and corresponding locker
   const autoSelectBedAndLocker = (availabilityData) => {
     console.log('🔄 Auto-selecting bed and locker...', availabilityData);
-    
+
     if (!availabilityData || !availabilityData.availableBeds || !availabilityData.availableLockers) {
       console.log('❌ No availability data or missing beds/lockers');
       return;
@@ -562,7 +563,7 @@ const Students = () => {
     console.log('🔢 Extracted bed number:', bedNumber);
 
     // Find corresponding locker (same number)
-    const correspondingLocker = availabilityData.availableLockers.find(locker => 
+    const correspondingLocker = availabilityData.availableLockers.find(locker =>
       locker.value.includes(`Locker ${bedNumber}`)
     );
 
@@ -592,21 +593,21 @@ const Students = () => {
       setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
       return;
     }
-    
+
     try {
       setLoadingFeeStructure(true);
       const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${category}`);
-      
+
       if (response.data.success) {
         const feeData = response.data.data;
         setFeeStructure(feeData);
-        
+
         // Calculate initial fees without concession
         const term1 = feeData.term1Fee || 0;
         const term2 = feeData.term2Fee || 0;
         const term3 = feeData.term3Fee || 0;
         const total = term1 + term2 + term3;
-        
+
         setCalculatedFees({
           term1,
           term2,
@@ -629,23 +630,23 @@ const Students = () => {
   // Calculate fees when concession changes (applied to Term 1 only, excess to Term 2)
   const calculateFeesWithConcession = (concessionAmount) => {
     if (!feeStructure) return;
-    
+
     const concession = Number(concessionAmount) || 0;
     const totalOriginalFee = feeStructure.totalFee;
-    
+
     // Apply concession to Term 1 first
     let term1 = Math.max(0, feeStructure.term1Fee - concession);
-    
+
     // If concession exceeds Term 1 fee, apply excess to Term 2
     let remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
     let term2 = Math.max(0, feeStructure.term2Fee - remainingConcession);
-    
+
     // If concession still exceeds Term 1 + Term 2, apply to Term 3
     remainingConcession = Math.max(0, remainingConcession - feeStructure.term2Fee);
     let term3 = Math.max(0, feeStructure.term3Fee - remainingConcession);
-    
+
     const total = term1 + term2 + term3;
-    
+
     setCalculatedFees({ term1, term2, term3, total });
   };
 
@@ -714,6 +715,62 @@ const Students = () => {
     fetchCourses();
   }, []);
 
+  // Check for prefilled data from preregistration and URL parameters
+  useEffect(() => {
+    // Check URL parameter for tab
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['list', 'add', 'bulkUpload'].includes(tabParam)) {
+      setTab(tabParam);
+    }
+
+    // Check for prefilled data from preregistration
+    const prefilledData = sessionStorage.getItem('preregistrationData');
+    if (prefilledData) {
+      try {
+        const data = JSON.parse(prefilledData);
+        
+        // Set form data (excluding photos and branch initially)
+        const { studentPhoto, guardianPhoto1, guardianPhoto2, branch, ...formDataWithoutBranch } = data;
+        console.log('🔍 Prefilled form data:', formDataWithoutBranch);
+        console.log('🔍 Course ID:', formDataWithoutBranch.course);
+        console.log('🔍 Branch ID:', branch);
+        
+        // Set form without branch first
+        setForm({ ...formDataWithoutBranch, branch: '' });
+        
+        // Set photo previews (URLs from preregistration)
+        if (studentPhoto) {
+          setStudentPhotoPreview(studentPhoto);
+        }
+        if (guardianPhoto1) {
+          setGuardianPhoto1Preview(guardianPhoto1);
+        }
+        if (guardianPhoto2) {
+          setGuardianPhoto2Preview(guardianPhoto2);
+        }
+        
+        // Fetch branches for the selected course if course is set
+        if (formDataWithoutBranch.course) {
+          console.log('🔍 Fetching branches for prefilled course:', formDataWithoutBranch.course);
+          fetchBranches(formDataWithoutBranch.course).then(() => {
+            console.log('🔍 Branches fetched, now setting branch');
+            // Set the branch after branches are loaded
+            if (branch) {
+              setForm(prev => ({ ...prev, branch }));
+            }
+          });
+        }
+        
+        setTab('add'); // Switch to add tab
+        sessionStorage.removeItem('preregistrationData'); // Clear after use
+        toast.success('Form prefilled with preregistration data');
+      } catch (error) {
+        console.error('Error parsing preregistration data:', error);
+        sessionStorage.removeItem('preregistrationData');
+      }
+    }
+  }, [searchParams]);
+
   // Debug: Log when branches change
   useEffect(() => {
     console.log('🔄 Branches state updated:', branches.length, 'branches');
@@ -721,6 +778,24 @@ const Students = () => {
       console.log('📋 Available branches:', branches.map(b => `${b.name} (${b.code})`));
     }
   }, [branches]);
+
+  // Update form when branches are loaded (for preregistration prefilling)
+  useEffect(() => {
+    if (branches.length > 0 && form.branch && form.course) {
+      console.log('🔍 Checking branch mapping:');
+      console.log('  - Current branch ID:', form.branch);
+      console.log('  - Available branches:', branches.map(b => ({ id: b._id, name: b.name })));
+      
+      // Check if the current branch is in the loaded branches
+      const branchExists = branches.find(b => b._id === form.branch);
+      if (!branchExists) {
+        console.log('⚠️ Branch not found in loaded branches, clearing branch selection');
+        setForm(prev => ({ ...prev, branch: '' }));
+      } else {
+        console.log('✅ Branch found in loaded branches:', branchExists.name);
+      }
+    }
+  }, [branches, form.branch, form.course]);
 
   // Fetch rooms with availability when gender or category changes
   useEffect(() => {
@@ -760,10 +835,10 @@ const Students = () => {
     const { name, value, type, checked } = e.target;
     const fieldValue = type === 'checkbox' ? checked : value;
     console.log('🔄 Form field changed:', name, '=', fieldValue, 'type:', type);
-    
+
     setForm(prev => {
       const newForm = { ...prev, [name]: fieldValue };
-      
+
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         console.log('📚 Course changed to:', value);
@@ -794,7 +869,7 @@ const Students = () => {
           setBedLockerAvailability(null);
         }
       }
-      
+
       return newForm;
     });
   };
@@ -807,7 +882,7 @@ const Students = () => {
         toast.error('Image size should be less than 5MB');
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         switch (type) {
@@ -845,18 +920,18 @@ const Students = () => {
     try {
       console.log('📸 Starting camera for type:', type);
       setCameraReady(false);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'user',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        }
       });
       console.log('📸 Camera stream obtained:', mediaStream);
       setStream(mediaStream);
       setCameraType(type);
       setShowCamera(true);
-      
+
       // Set video source after component mounts
       setTimeout(() => {
         if (videoRef) {
@@ -890,7 +965,7 @@ const Students = () => {
 
   const capturePhoto = () => {
     console.log('📸 Capturing photo...', { videoRef: !!videoRef, cameraType, videoWidth: videoRef?.videoWidth, videoHeight: videoRef?.videoHeight });
-    
+
     if (!videoRef || !cameraType) {
       console.error('❌ Missing videoRef or cameraType');
       toast.error('Camera not ready. Please try again.');
@@ -911,26 +986,26 @@ const Students = () => {
 
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    
+
     // Set canvas dimensions to match video
     canvas.width = videoRef.videoWidth;
     canvas.height = videoRef.videoHeight;
-    
+
     console.log('📸 Canvas dimensions:', canvas.width, 'x', canvas.height);
-    
+
     try {
       // Draw video frame to canvas
       context.drawImage(videoRef, 0, 0, canvas.width, canvas.height);
-      
+
       // Convert canvas to blob
       canvas.toBlob((blob) => {
         if (blob) {
           console.log('📸 Photo captured successfully, blob size:', blob.size);
           const file = new File([blob], `camera_${cameraType}_${Date.now()}.jpg`, { type: 'image/jpeg' });
-          
+
           // Create preview URL
           const previewUrl = URL.createObjectURL(blob);
-          
+
           // Set photo based on camera type
           switch (cameraType) {
             case 'student':
@@ -967,7 +1042,7 @@ const Students = () => {
               console.log('📸 Unknown camera type:', cameraType);
               break;
           }
-          
+
           // Stop camera
           stopCamera();
           toast.success('Photo captured successfully!');
@@ -984,37 +1059,43 @@ const Students = () => {
 
   const handleAddStudent = async e => {
     e.preventDefault();
-    
+
     // Check permission before proceeding
     if (!canAddStudent) {
       toast.error('You do not have permission to add students');
       return;
     }
-    
+
     // Check if student photo is required
-    if (!studentPhoto) {
+    if (!studentPhoto && !studentPhotoPreview) {
       toast.error('Student photo is required. Please upload a photo before submitting.');
       return;
     }
-    
+
     setAdding(true);
     try {
       const formData = new FormData();
-      
+
       // Add form fields
       Object.keys(form).forEach(key => {
         formData.append(key, form[key]);
       });
-      
-      // Add photos if selected
+
+      // Add photos if selected (file objects take priority over previews)
       if (studentPhoto) {
         formData.append('studentPhoto', studentPhoto);
+      } else if (studentPhotoPreview) {
+        formData.append('studentPhotoUrl', studentPhotoPreview);
       }
       if (guardianPhoto1) {
         formData.append('guardianPhoto1', guardianPhoto1);
+      } else if (guardianPhoto1Preview) {
+        formData.append('guardianPhoto1Url', guardianPhoto1Preview);
       }
       if (guardianPhoto2) {
         formData.append('guardianPhoto2', guardianPhoto2);
+      } else if (guardianPhoto2Preview) {
+        formData.append('guardianPhoto2Url', guardianPhoto2Preview);
       }
 
       const res = await api.post('/api/admin/students', formData, {
@@ -1022,13 +1103,13 @@ const Students = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       // Handle success message based on delivery results
       let successMessage = 'Student added successfully';
-      
+
       // Check for email and SMS delivery results
       const { emailSent, emailError, smsSent, smsError } = res.data.data;
-      
+
       if (emailSent && smsSent) {
         successMessage += '. Email and SMS credentials sent successfully';
       } else if (emailSent && !smsSent) {
@@ -1053,7 +1134,7 @@ const Students = () => {
           successMessage += '. Both email and SMS failed';
         }
       }
-      
+
       toast.success(successMessage);
       setForm(initialForm);
       resetPhotoForm();
@@ -1074,7 +1155,7 @@ const Students = () => {
       toast.error('You do not have permission to delete students');
       return;
     }
-    
+
     if (!window.confirm('Are you sure you want to delete this student?')) return;
     setDeletingId(id);
     try {
@@ -1094,11 +1175,11 @@ const Students = () => {
       toast.error('You do not have permission to edit students');
       return;
     }
-    
+
     console.log('Opening edit modal for student:', student);
     console.log('Available courses:', courses);
     console.log('Student course data:', student.course);
-    
+
     // Ensure courses are loaded before opening modal
     if (courses.length === 0) {
       console.log('Courses not loaded yet, fetching courses first...');
@@ -1108,7 +1189,7 @@ const Students = () => {
       });
       return;
     }
-    
+
     setEditId(student._id);
     setEditForm({
       name: student.name,
@@ -1117,10 +1198,10 @@ const Students = () => {
       year: student.year,
       branch: student.branch?._id || student.branch, // Handle both populated and unpopulated data
       gender: student.gender,
-          category: student.category,
-    mealType: student.mealType || 'non-veg',
-    parentPermissionForOuting: student.parentPermissionForOuting !== undefined ? student.parentPermissionForOuting : true,
-    roomNumber: student.roomNumber,
+      category: student.category,
+      mealType: student.mealType || 'non-veg',
+      parentPermissionForOuting: student.parentPermissionForOuting !== undefined ? student.parentPermissionForOuting : true,
+      roomNumber: student.roomNumber,
       bedNumber: student.bedNumber || '',
       lockerNumber: student.lockerNumber || '',
       studentPhone: student.studentPhone,
@@ -1130,14 +1211,14 @@ const Students = () => {
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
     });
-    
+
     // Fetch branches for the selected course
     const courseId = student.course?._id || student.course;
     if (courseId) {
       console.log('Fetching branches for course ID:', courseId);
       fetchBranches(courseId);
     }
-    
+
     setEditModal(true);
   };
 
@@ -1146,7 +1227,7 @@ const Students = () => {
     const fieldValue = type === 'checkbox' ? checked : value;
     setEditForm(prev => {
       const newForm = { ...prev, [name]: fieldValue };
-      
+
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         newForm.branch = '';
@@ -1161,7 +1242,7 @@ const Students = () => {
       if (name === 'category') {
         newForm.roomNumber = '';
       }
-      
+
       return newForm;
     });
   };
@@ -1174,7 +1255,7 @@ const Students = () => {
         toast.error('Image size should be less than 5MB');
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         switch (type) {
@@ -1211,10 +1292,10 @@ const Students = () => {
   const suggestBatchFormat = (courseId, currentBatch) => {
     const course = courses.find(c => c._id === courseId);
     if (!course || !currentBatch) return null;
-    
+
     const [startYear, endYear] = currentBatch.split('-').map(Number);
     const actualDuration = endYear - startYear;
-    
+
     if (actualDuration !== course.duration) {
       const correctEndYear = startYear + course.duration;
       return `${startYear}-${correctEndYear}`;
@@ -1268,43 +1349,43 @@ const Students = () => {
       errors.push('Invalid room number for the selected gender and category');
     }
 
-          // Enhanced batch validation with better error handling
-      if (formData.batch) {
-        // Check if batch format is valid
-        if (!/^\d{4}-\d{4}$/.test(formData.batch)) {
-          errors.push('Invalid batch format. Must be YYYY-YYYY (e.g., 2020-2024)');
-        } else {
-          const [startYear, endYear] = formData.batch.split('-').map(Number);
-          
-          // Basic validation
-          if (startYear >= endYear) {
-            errors.push('Batch start year must be before end year');
-          }
-          
-          if (startYear < 2020 || startYear > 2030) {
-            errors.push('Batch start year must be between 2020 and 2030');
-          }
+    // Enhanced batch validation with better error handling
+    if (formData.batch) {
+      // Check if batch format is valid
+      if (!/^\d{4}-\d{4}$/.test(formData.batch)) {
+        errors.push('Invalid batch format. Must be YYYY-YYYY (e.g., 2020-2024)');
+      } else {
+        const [startYear, endYear] = formData.batch.split('-').map(Number);
 
-          const duration = endYear - startYear;
-          const course = courses.find(c => c._id === formData.course);
-          
-          // Only validate duration if we have course data
-          // For existing students, be more lenient with batch validation to avoid breaking existing data
-          if (course && course.duration) {
-            const expectedDuration = course.duration;
-            if (duration !== expectedDuration) {
-              // Show warning but don't block the update for existing students
-              console.warn(`Batch duration mismatch for ${course.name}. Expected ${expectedDuration} years but got ${duration} years.`);
-              // Don't add to errors array - just warn and continue
-            }
-          } else {
-            // If course not found or duration not available, allow common durations (3-4 years)
-            if (duration < 3 || duration > 4) {
-              errors.push(`Invalid batch duration. Must be between 3-4 years, but got ${duration} years.`);
-            }
+        // Basic validation
+        if (startYear >= endYear) {
+          errors.push('Batch start year must be before end year');
+        }
+
+        if (startYear < 2020 || startYear > 2030) {
+          errors.push('Batch start year must be between 2020 and 2030');
+        }
+
+        const duration = endYear - startYear;
+        const course = courses.find(c => c._id === formData.course);
+
+        // Only validate duration if we have course data
+        // For existing students, be more lenient with batch validation to avoid breaking existing data
+        if (course && course.duration) {
+          const expectedDuration = course.duration;
+          if (duration !== expectedDuration) {
+            // Show warning but don't block the update for existing students
+            console.warn(`Batch duration mismatch for ${course.name}. Expected ${expectedDuration} years but got ${duration} years.`);
+            // Don't add to errors array - just warn and continue
+          }
+        } else {
+          // If course not found or duration not available, allow common durations (3-4 years)
+          if (duration < 3 || duration > 4) {
+            errors.push(`Invalid batch duration. Must be between 3-4 years, but got ${duration} years.`);
           }
         }
       }
+    }
 
     return errors;
   };
@@ -1312,28 +1393,28 @@ const Students = () => {
   const handleEditSubmit = async e => {
     e.preventDefault();
     setEditing(true);
-    
+
     try {
       console.log('Submitting edit form:', editForm);
       console.log('Available courses:', courses);
-      
+
       // Find the current course to understand the expected duration
       const currentCourse = courses.find(c => c._id === editForm.course);
       console.log('Current course:', currentCourse);
       console.log('Current batch:', editForm.batch);
-      
+
       if (currentCourse && editForm.batch) {
         const [startYear, endYear] = editForm.batch.split('-').map(Number);
         const actualDuration = endYear - startYear;
         console.log(`Course: ${currentCourse.name}, Expected duration: ${currentCourse.duration}, Actual duration: ${actualDuration}`);
-        
+
         // If there's a duration mismatch, show a warning but don't block
         if (actualDuration !== currentCourse.duration) {
           console.warn(`Duration mismatch: Expected ${currentCourse.duration} years, got ${actualDuration} years`);
           toast.warning(`Batch duration (${actualDuration} years) doesn't match course duration (${currentCourse.duration} years). Proceeding anyway.`);
         }
       }
-      
+
       // Validate form data
       const validationErrors = validateEditForm(editForm);
       if (validationErrors.length > 0) {
@@ -1365,7 +1446,7 @@ const Students = () => {
       if (currentCourse && editForm.batch) {
         const [startYear, endYear] = editForm.batch.split('-').map(Number);
         const actualDuration = endYear - startYear;
-        
+
         if (actualDuration === 4 && currentCourse.duration === 4) {
           console.log('✅ Batch format matches course duration (4 years)');
         } else if (actualDuration === 3 && currentCourse.duration === 3) {
@@ -1388,17 +1469,17 @@ const Students = () => {
       console.error('Edit student error:', err);
       console.error('Edit form data:', editForm);
       console.error('Available courses:', courses);
-      
+
       // Enhanced error handling
       if (err.response?.status === 400) {
         const errorMessage = err.response?.data?.message || err.message;
         console.error('Backend error message:', errorMessage);
-        
+
         if (errorMessage.includes('batch') || errorMessage.includes('duration')) {
           // Show more specific error message with suggestion
           const currentCourse = courses.find(c => c._id === editForm.course);
           const suggestedBatch = suggestBatchFormat(editForm.course, editForm.batch);
-          
+
           if (currentCourse) {
             let errorMsg = `Batch validation failed. Course "${currentCourse.name}" requires ${currentCourse.duration} years.`;
             if (suggestedBatch) {
@@ -1423,7 +1504,7 @@ const Students = () => {
     const { name, value } = e.target;
     setFilters(prev => {
       const newFilters = { ...prev, [name]: value };
-      
+
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         newFilters.branch = '';
@@ -1437,7 +1518,7 @@ const Students = () => {
       if (name === 'category') {
         newFilters.roomNumber = '';
       }
-      
+
       return newFilters;
     });
     setCurrentPage(1); // Reset to first page on filter change
@@ -1455,13 +1536,13 @@ const Students = () => {
 
   const handleBulkUpload = async (e) => {
     e.preventDefault();
-    
+
     // Check permission before proceeding
     if (!canAddStudent) {
       toast.error('You do not have permission to add students');
       return;
     }
-    
+
     if (!bulkFile) {
       toast.error('Please select an Excel file to upload.');
       return;
@@ -1503,19 +1584,19 @@ const Students = () => {
       toast.error('You do not have permission to add students');
       return;
     }
-    
+
     if (!editablePreviewData || editablePreviewData.length === 0) {
       toast.error('No students to upload.');
       return;
     }
 
     // Filter out rows with errors
-    const validStudents = editablePreviewData.filter((_, index) => 
+    const validStudents = editablePreviewData.filter((_, index) =>
       !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
     );
-    
+
     const invalidCount = editablePreviewData.length - validStudents.length;
-    
+
     if (validStudents.length === 0) {
       toast.error('No valid students to upload. Please fix the errors or remove invalid rows.');
       return;
@@ -1528,7 +1609,7 @@ const Students = () => {
         `Only ${validStudents.length} valid student(s) will be uploaded.\n\n` +
         `Do you want to proceed with the upload?`
       );
-      
+
       if (!shouldProceed) {
         return;
       }
@@ -1540,10 +1621,10 @@ const Students = () => {
       const res = await api.post('/api/admin/students/bulk-upload-commit', { students: validStudents });
       if (res.data.success) {
         const { successCount, failureCount, emailResults } = res.data.data;
-        
+
         // Enhanced success message with email status
         let successMessage = `Bulk upload completed successfully! ${successCount} students added.`;
-        
+
         if (emailResults) {
           const { sent, failed, errors } = emailResults;
           if (sent > 0 && failed === 0) {
@@ -1554,11 +1635,11 @@ const Students = () => {
             successMessage += ` All ${failed} email notifications failed, but students were added successfully.`;
           }
         }
-        
+
         if (failureCount > 0) {
           successMessage += ` ${failureCount} students failed to add.`;
         }
-        
+
         toast.success(successMessage);
         setBulkUploadResults(res.data.data);
         setShowBulkPreview(false);
@@ -1570,7 +1651,7 @@ const Students = () => {
         if (tab === 'list') {
           fetchStudents(true);
         }
-        
+
         // Show warning if email failures occurred
         if (emailResults && emailResults.failed > 0) {
           toast.error(
@@ -1578,13 +1659,13 @@ const Students = () => {
             { duration: 6000 }
           );
         }
-        
+
       } else {
         toast.error(res.data.message || 'Commit failed.');
       }
     } catch (err) {
       console.error('Bulk upload error:', err);
-      
+
       // Enhanced error handling
       if (err.response?.status === 500) {
         toast.error('Server error occurred. Please try again or contact support.');
@@ -1619,10 +1700,10 @@ const Students = () => {
   const handleUpdateStudentYears = async () => {
     try {
       console.log('🔄 Frontend: Starting student year update...');
-      
+
       const response = await api.post('/api/admin/students/update-years');
       console.log('📡 Frontend: API response:', response.data);
-      
+
       if (response.data.success) {
         toast.success(response.data.message);
         console.log('✅ Frontend: Update successful, refreshing student list...');
@@ -1642,11 +1723,11 @@ const Students = () => {
   const getCategoryOptions = (gender) => {
     // Case-insensitive gender handling
     if (!gender) return ['A+', 'A', 'B+', 'B', 'C'];
-    
+
     const genderUpper = gender.toUpperCase();
     const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
     const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
-    
+
     if (isMale) {
       return ['A+', 'A', 'B+', 'B'];
     } else if (isFemale) {
@@ -1660,10 +1741,10 @@ const Students = () => {
   const validateStudentRow = (student) => {
     const errors = {};
     const { Name, RollNumber, Gender, Course, Branch, Year, Category, RoomNumber, StudentPhone, ParentPhone, Email, Batch, AcademicYear } = student;
-  
+
     if (!Name) errors.Name = 'Name is required.';
     if (!RollNumber) errors.RollNumber = 'PIN number is required.';
-  
+
     if (!Gender) errors.Gender = 'Gender is required.';
     else {
       // Case-insensitive gender validation
@@ -1672,7 +1753,7 @@ const Students = () => {
         errors.Gender = 'Invalid gender. Must be Male/Female/M/F/Boy/Girl.';
       }
     }
-  
+
     if (!Course) errors.Course = 'Course is required.';
     else {
       // Normalize course name for validation (same as backend)
@@ -1680,7 +1761,7 @@ const Students = () => {
       const course = courses.find(c => c.name === normalizedCourse);
       if (!course) errors.Course = `Course "${Course}" (normalized to "${normalizedCourse}") not found.`;
     }
-  
+
     if (!Branch) errors.Branch = 'Branch is required.';
     else if (Course) {
       // For bulk upload, we need to validate branch against the course
@@ -1691,7 +1772,7 @@ const Students = () => {
         // For now, we'll just check if branch is not empty
       }
     }
-  
+
     // Year is optional for bulk upload, but if provided must be valid
     if (Year) {
       const yearNum = parseInt(Year, 10);
@@ -1699,23 +1780,23 @@ const Students = () => {
         errors.Year = 'Year must be a number between 1 and 10.';
       }
     }
-  
+
     if (!Category) errors.Category = 'Category is required.';
     else {
       // Case-insensitive category validation
       const categoryUpper = Category.toUpperCase();
       const validCategories = ['A+', 'A', 'B+', 'B', 'C'];
       const validCategoryUpper = ['A+', 'A', 'B+', 'B', 'C'];
-      
-      if (!validCategoryUpper.includes(categoryUpper) && 
-          !['A PLUS', 'A_PLUS', 'B PLUS', 'B_PLUS'].includes(categoryUpper)) {
+
+      if (!validCategoryUpper.includes(categoryUpper) &&
+        !['A PLUS', 'A_PLUS', 'B PLUS', 'B_PLUS'].includes(categoryUpper)) {
         errors.Category = 'Invalid category. Must be A+, A, B+, B, or C.';
       } else if (Gender) {
         // Check gender-specific categories
         const genderUpper = Gender.toUpperCase();
         const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
         const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
-        
+
         if (isMale && categoryUpper === 'C') {
           errors.Category = 'Category C is not valid for Male students.';
         } else if (isFemale && categoryUpper === 'B+') {
@@ -1723,19 +1804,19 @@ const Students = () => {
         }
       }
     }
-  
+
     if (!RoomNumber) errors.RoomNumber = 'Room number is required.';
     else if (Gender && Category) {
       // Case-insensitive gender and category handling for room validation
       const genderUpper = Gender.toUpperCase();
       const categoryUpper = Category.toUpperCase();
-      
+
       // Normalize gender for room mapping
       let normalizedGender = 'Male'; // default
       if (['FEMALE', 'F', 'GIRL'].includes(genderUpper)) {
         normalizedGender = 'Female';
       }
-      
+
       // Normalize category for room mapping
       let normalizedCategory = 'A'; // default
       if (categoryUpper === 'A+') normalizedCategory = 'A+';
@@ -1743,23 +1824,23 @@ const Students = () => {
       else if (categoryUpper === 'B+') normalizedCategory = 'B+';
       else if (categoryUpper === 'B') normalizedCategory = 'B';
       else if (categoryUpper === 'C') normalizedCategory = 'C';
-      
+
       const validRooms = ROOM_MAPPINGS[normalizedGender]?.[normalizedCategory];
       if (validRooms && !validRooms.includes(String(RoomNumber))) {
-      errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+        errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+      }
     }
-    }
-  
+
     // Student phone is optional for bulk upload, but if provided must be valid
     if (StudentPhone && !/^[0-9]{10}$/.test(StudentPhone)) {
       errors.StudentPhone = 'Must be 10 digits.';
     }
-  
+
     if (!ParentPhone) errors.ParentPhone = 'Parent phone is required.';
     else if (!/^[0-9]{10}$/.test(ParentPhone)) errors.ParentPhone = 'Must be 10 digits.';
-  
+
     if (Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(Email)) errors.Email = 'Invalid email format.';
-  
+
     if (!Batch) errors.Batch = 'Batch is required.';
     else {
       // Handle both YYYY-YYYY and YYYY formats
@@ -1771,23 +1852,23 @@ const Students = () => {
         }
       } else if (!/^\d{4}-\d{4}$/.test(Batch)) {
         errors.Batch = 'Format must be YYYY-YYYY or just YYYY.';
-    } else {
+      } else {
         // Full batch format provided - validate duration
-      const [start, end] = Batch.split('-').map(Number);
-      const duration = end - start;
+        const [start, end] = Batch.split('-').map(Number);
+        const duration = end - start;
         // Use case-insensitive course matching
-        const course = courses.find(c => 
-          c.name.toLowerCase() === Course.toLowerCase() || 
+        const course = courses.find(c =>
+          c.name.toLowerCase() === Course.toLowerCase() ||
           c._id === Course ||
           c.name.toUpperCase() === Course.toUpperCase()
         );
-      const expectedDuration = course ? course.duration : 4;
-      if (duration !== expectedDuration) {
-        errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
+        const expectedDuration = course ? course.duration : 4;
+        if (duration !== expectedDuration) {
+          errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
         }
       }
     }
-  
+
     if (!AcademicYear) errors.AcademicYear = 'Academic year is required.';
     else if (!/^\d{4}-\d{4}$/.test(AcademicYear)) {
       errors.AcademicYear = 'Format must be YYYY-YYYY.';
@@ -1797,7 +1878,7 @@ const Students = () => {
         errors.AcademicYear = 'Years must be consecutive.';
       }
     }
-  
+
     return errors;
   };
 
@@ -1805,7 +1886,7 @@ const Students = () => {
     if (!window.confirm('Are you sure you want to clear all temporary student records? This will remove all pending password reset students.')) {
       return;
     }
-    
+
     try {
       const res = await api.delete('/api/admin/students/temp-clear');
       if (res.data.success) {
@@ -1856,11 +1937,11 @@ const Students = () => {
     if (!bulkUploadResults) return;
 
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(16);
     doc.text('Bulk Upload Results', 14, 15);
-    
+
     // Add summary
     doc.setFontSize(12);
     doc.text(`Successfully Added: ${bulkUploadResults.successCount}`, 14, 25);
@@ -1935,23 +2016,23 @@ const Students = () => {
     if (!tempStudentsSummary || tempStudentsSummary.length === 0) return;
 
     const doc = new jsPDF();
-    
+
     // Filter students based on gender filter
-    const filteredStudents = tempStudentsSummary.filter(student => 
+    const filteredStudents = tempStudentsSummary.filter(student =>
       tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
     );
-    
+
     // Add title
     doc.setFontSize(16);
     doc.text('Students Pending Password Reset', 14, 15);
-    
+
     // Add filter info
     doc.setFontSize(10);
-    const filterText = tempStudentsGenderFilter === 'all' 
-      ? 'All Students' 
+    const filterText = tempStudentsGenderFilter === 'all'
+      ? 'All Students'
       : `${tempStudentsGenderFilter} Students Only`;
     doc.text(`Filter: ${filterText}`, 14, 22);
-    
+
     // Add summary
     doc.setFontSize(12);
     doc.text(`Total Students Pending: ${filteredStudents.length}`, 14, 30);
@@ -1960,25 +2041,25 @@ const Students = () => {
     if (tempStudentsGenderFilter === 'all') {
       const maleStudents = filteredStudents.filter(student => student.gender === 'Male');
       const femaleStudents = filteredStudents.filter(student => student.gender === 'Female');
-      
+
       let currentY = 40;
-      
+
       // Male Students Section
       if (maleStudents.length > 0) {
         doc.setFontSize(14);
         doc.text('Male Students', 14, currentY);
         currentY += 8;
-        
-        const maleTableData = maleStudents.map(student => [
-      student.name,
-          student.hostelId || 'N/A',
-      student.rollNumber,
-      student.generatedPassword,
-      student.studentPhone,
-      new Date(student.createdAt).toLocaleDateString()
-    ]);
 
-    autoTable(doc, {
+        const maleTableData = maleStudents.map(student => [
+          student.name,
+          student.hostelId || 'N/A',
+          student.rollNumber,
+          student.generatedPassword,
+          student.studentPhone,
+          new Date(student.createdAt).toLocaleDateString()
+        ]);
+
+        autoTable(doc, {
           startY: currentY,
           head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
           body: maleTableData,
@@ -1986,16 +2067,16 @@ const Students = () => {
           headStyles: { fillColor: [41, 128, 185] },
           styles: { fontSize: 9 }
         });
-        
+
         currentY = doc.lastAutoTable.finalY + 10;
       }
-      
+
       // Female Students Section
       if (femaleStudents.length > 0) {
         doc.setFontSize(14);
         doc.text('Female Students', 14, currentY);
         currentY += 8;
-        
+
         const femaleTableData = femaleStudents.map(student => [
           student.name,
           student.hostelId || 'N/A',
@@ -2028,11 +2109,11 @@ const Students = () => {
       autoTable(doc, {
         startY: 40,
         head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [41, 128, 185] },
-      styles: { fontSize: 10 }
-    });
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185] },
+        styles: { fontSize: 10 }
+      });
     }
 
     return doc;
@@ -2059,17 +2140,17 @@ const Students = () => {
     <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-6 text-blue-800">Add New Student</h2>
       <form onSubmit={handleAddStudent} className="space-y-8">
-        
-                 {/* Personal Information Section */}
-         <div className="bg-blue-50 rounded-lg p-6">
-           <div className="flex items-center mb-4">
-             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-               </svg>
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-           </div>
+
+        {/* Personal Information Section */}
+        <div className="bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -2229,16 +2310,16 @@ const Students = () => {
           </div>
         </div>
 
-                 {/* Hostel Information Section */}
-         <div className="bg-blue-50 rounded-lg p-6">
-           <div className="flex items-center mb-4">
-             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-               </svg>
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900">Hostel Information</h3>
-           </div>
+        {/* Hostel Information Section */}
+        <div className="bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Hostel Information</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
@@ -2247,21 +2328,21 @@ const Students = () => {
                 value={form.category}
                 onChange={handleFormChange}
                 required
-                                   disabled={!form.gender}
-                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                disabled={!form.gender}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Select Category</option>
-                {form.gender && (form.gender === 'Male' 
+                {form.gender && (form.gender === 'Male'
                   ? ['A+', 'A', 'B+', 'B'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                      </option>
-                    ))
+                    <option key={category} value={category}>
+                      {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
+                    </option>
+                  ))
                   : ['A+', 'A', 'B', 'C'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category}
-                      </option>
-                    ))
+                    <option key={category} value={category}>
+                      {category === 'A+' ? 'A+ (AC)' : category}
+                    </option>
+                  ))
                 )}
               </select>
             </div>
@@ -2294,32 +2375,32 @@ const Students = () => {
                 <option value="non-veg">Non-Veg</option>
                 <option value="veg">Veg</option>
               </select>
-                    <p className="text-xs text-gray-500 mt-1">Default: Non-Veg</p>
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          name="parentPermissionForOuting"
-          checked={form.parentPermissionForOuting}
-          onChange={handleFormChange}
-          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-        />
-        <span className="text-sm text-gray-700">Enable parent permission for outing requests</span>
-      </div>
-      <p className="text-xs text-gray-500 mt-1">When enabled, OTP will be sent to parent for permission requests. When disabled, requests go directly to principal.</p>
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">Room Number *</label>
+              <p className="text-xs text-gray-500 mt-1">Default: Non-Veg</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="parentPermissionForOuting"
+                  checked={form.parentPermissionForOuting}
+                  onChange={handleFormChange}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-sm text-gray-700">Enable parent permission for outing requests</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">When enabled, OTP will be sent to parent for permission requests. When disabled, requests go directly to principal.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Room Number *</label>
               <div className="flex gap-2">
                 <select
                   name="roomNumber"
                   value={form.roomNumber}
                   onChange={handleFormChange}
                   required
-                                     disabled={!form.gender || !form.category || loadingRooms}
-                   className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled={!form.gender || !form.category || loadingRooms}
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select Room</option>
                   {loadingRooms ? (
@@ -2340,20 +2421,20 @@ const Students = () => {
                       if (selectedRoom) {
                         handleRoomView(selectedRoom);
                       }
-                                         }}
-                     className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                   >
-                     View
-                   </button>
+                    }}
+                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    View
+                  </button>
                 )}
               </div>
             </div>
           </div>
-          
+
           {/* Bed and Locker Assignment - Only show when room is selected */}
           {form.roomNumber && (
-                         <div className="mt-4 pt-4 border-t border-blue-200">
-               <h4 className="text-sm font-medium text-gray-700 mb-3">Bed & Locker Assignment (Optional)</h4>
+            <div className="mt-4 pt-4 border-t border-blue-200">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Bed & Locker Assignment (Optional)</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2372,11 +2453,10 @@ const Students = () => {
                     value={form.bedNumber}
                     onChange={handleFormChange}
                     disabled={loadingBedLocker}
-                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber)
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber)
                         ? 'border-green-300 bg-green-50'
                         : 'border-gray-300'
-                    }`}
+                      }`}
                   >
                     <option value="">Select Bed (Optional)</option>
                     {loadingBedLocker ? (
@@ -2410,11 +2490,10 @@ const Students = () => {
                     value={form.lockerNumber}
                     onChange={handleFormChange}
                     disabled={loadingBedLocker}
-                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                      form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber)
+                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber)
                         ? 'border-green-300 bg-green-50'
                         : 'border-gray-300'
-                    }`}
+                      }`}
                   >
                     <option value="">Select Locker (Optional)</option>
                     {loadingBedLocker ? (
@@ -2447,7 +2526,7 @@ const Students = () => {
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Fee Structure & Calculation</h3>
             </div>
-            
+
             {loadingFeeStructure ? (
               <div className="text-center py-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
@@ -2473,7 +2552,7 @@ const Students = () => {
                     <div className="text-xs text-gray-600">Total</div>
                   </div>
                 </div>
-                
+
                 {form.concession > 0 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between">
@@ -2488,7 +2567,7 @@ const Students = () => {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="text-center">
                     <div className="text-sm font-medium text-gray-700">
@@ -2536,16 +2615,16 @@ const Students = () => {
           </div>
         )}
 
-                 {/* Contact Information Section */}
-         <div className="bg-blue-50 rounded-lg p-6">
-           <div className="flex items-center mb-4">
-             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-               </svg>
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-           </div>
+        {/* Contact Information Section */}
+        <div className="bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
@@ -2636,24 +2715,24 @@ const Students = () => {
             </div>
           </div>
         </div>
-        
-                 {/* Photo Upload Section */}
-         <div className="bg-blue-50 rounded-lg p-6">
-           <div className="flex items-center mb-4">
-             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-               </svg>
-             </div>
-             <h3 className="text-lg font-semibold text-gray-900">Profile Photos</h3>
-           </div>
+
+        {/* Photo Upload Section */}
+        <div className="bg-blue-50 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Profile Photos</h3>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {/* Student Photo */}
-                         <div className="bg-white rounded-lg p-4 border border-blue-200">
-               <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo *</label>
-               <div className="space-y-3">
-                 <div className="flex items-center justify-center w-full">
-                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo *</label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {studentPhotoPreview ? (
                         <div className="relative">
@@ -2685,23 +2764,23 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                                   <button
-                     type="button"
-                     onClick={() => startCamera('student')}
-                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                   >
-                     <CameraIcon className="w-4 h-4" />
-                     <span>Take Photo</span>
-                   </button>
+                <button
+                  type="button"
+                  onClick={() => startCamera('student')}
+                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
 
             {/* Guardian Photo 1 */}
-                         <div className="bg-white rounded-lg p-4 border border-blue-200">
-               <label className="block text-sm font-medium text-gray-700 mb-3">Parents Photo</label>
-               <div className="space-y-3">
-                 <div className="flex items-center justify-center w-full">
-                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <label className="block text-sm font-medium text-gray-700 mb-3">Parents Photo</label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {guardianPhoto1Preview ? (
                         <div className="relative">
@@ -2733,23 +2812,23 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                                   <button
-                     type="button"
-                     onClick={() => startCamera('guardian1')}
-                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                   >
-                     <CameraIcon className="w-4 h-4" />
-                     <span>Take Photo</span>
-                   </button>
+                <button
+                  type="button"
+                  onClick={() => startCamera('guardian1')}
+                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
 
             {/* Guardian Photo 2 */}
-                         <div className="bg-white rounded-lg p-4 border border-blue-200">
-               <label className="block text-sm font-medium text-gray-700 mb-3">Local Guardian Photo</label>
-               <div className="space-y-3">
-                 <div className="flex items-center justify-center w-full">
-                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+            <div className="bg-white rounded-lg p-4 border border-blue-200">
+              <label className="block text-sm font-medium text-gray-700 mb-3">Local Guardian Photo</label>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
                       {guardianPhoto2Preview ? (
                         <div className="relative">
@@ -2781,30 +2860,29 @@ const Students = () => {
                     />
                   </label>
                 </div>
-                                   <button
-                     type="button"
-                     onClick={() => startCamera('guardian2')}
-                     className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                   >
-                     <CameraIcon className="w-4 h-4" />
-                     <span>Take Photo</span>
-                   </button>
+                <button
+                  type="button"
+                  onClick={() => startCamera('guardian2')}
+                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <CameraIcon className="w-4 h-4" />
+                  <span>Take Photo</span>
+                </button>
               </div>
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-4 text-center">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
         </div>
-        
+
         {/* Submit Button */}
         <div className="flex justify-end pt-4">
           <button
             type="submit"
             disabled={adding}
-            className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${
-              adding 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
-            }`}
+            className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${adding
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+              }`}
           >
             {adding ? (
               <div className="flex items-center space-x-2">
@@ -2939,17 +3017,17 @@ const Students = () => {
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Categories</option>
-                {filters.gender && (filters.gender === 'Male' 
+                {filters.gender && (filters.gender === 'Male'
                   ? ['A+', 'A', 'B+', 'B'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                      </option>
-                    ))
+                    <option key={category} value={category}>
+                      {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
+                    </option>
+                  ))
                   : ['A+', 'A', 'B', 'C'].map(category => (
-                      <option key={category} value={category}>
-                        {category === 'A+' ? 'A+ (AC)' : category}
-                      </option>
-                    ))
+                    <option key={category} value={category}>
+                      {category === 'A+' ? 'A+ (AC)' : category}
+                    </option>
+                  ))
                 )}
               </select>
             </div>
@@ -3142,21 +3220,19 @@ const Students = () => {
                             </td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex flex-col gap-1">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                  student.hostelStatus === 'Active' 
-                                    ? 'bg-green-100 text-green-800' 
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.hostelStatus === 'Active'
+                                    ? 'bg-green-100 text-green-800'
                                     : 'bg-red-100 text-red-800'
-                                }`}>
+                                  }`}>
                                   {student.hostelStatus}
                                 </span>
                                 {student.graduationStatus && (
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                    student.graduationStatus === 'Graduated' 
-                                      ? 'bg-blue-100 text-blue-800' 
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.graduationStatus === 'Graduated'
+                                      ? 'bg-blue-100 text-blue-800'
                                       : student.graduationStatus === 'Dropped'
-                                      ? 'bg-gray-100 text-gray-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                  }`}>
+                                        ? 'bg-gray-100 text-gray-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
                                     {student.graduationStatus}
                                   </span>
                                 )}
@@ -3214,7 +3290,7 @@ const Students = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Pagination - Made responsive */}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center space-x-2 mt-6">
@@ -3409,23 +3485,21 @@ const Students = () => {
                         </div>
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.hostelStatus === 'Active' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {selectedStudent.hostelStatus}
                           </span>
                         </div>
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.graduationStatus === 'Graduated' 
-                              ? 'bg-blue-100 text-blue-800' 
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                              ? 'bg-blue-100 text-blue-800'
                               : selectedStudent.graduationStatus === 'Dropped'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {selectedStudent.graduationStatus}
                           </span>
                         </div>
@@ -3486,7 +3560,7 @@ const Students = () => {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
         <h3 className="text-xl font-bold text-gray-800 mb-4">Student Added Successfully</h3>
-        
+
         {/* Email Status
         {generatedPassword && (
           <div className={`mb-4 p-3 rounded-lg ${
@@ -3522,7 +3596,7 @@ const Students = () => {
             </p>
           </div>
         )} */}
-        
+
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-yellow-800 font-medium">Generated Password:</p>
@@ -3724,25 +3798,25 @@ const Students = () => {
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="non-veg">Non-Veg</option>
-                        <option value="veg">Veg</option>
-      </select>
-    </div>
-    <div className="space-y-1">
-      <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Permission for Outing</label>
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          name="parentPermissionForOuting"
-          checked={editForm.parentPermissionForOuting}
-          onChange={handleEditFormChange}
-          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-        />
-        <span className="text-xs sm:text-sm text-gray-700">Enable parent permission</span>
-      </div>
-      <p className="text-xs text-gray-500 mt-1">When disabled, permission requests go directly to principal</p>
-    </div>
-    <div className="space-y-1">
-      <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
+                <option value="veg">Veg</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Permission for Outing</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  name="parentPermissionForOuting"
+                  checked={editForm.parentPermissionForOuting}
+                  onChange={handleEditFormChange}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                />
+                <span className="text-xs sm:text-sm text-gray-700">Enable parent permission</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">When disabled, permission requests go directly to principal</p>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
               <select
                 name="roomNumber"
                 value={editForm.roomNumber}
@@ -3881,11 +3955,10 @@ const Students = () => {
             <button
               type="submit"
               disabled={editing}
-              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${
-                editing 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${editing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                }`}
             >
               {editing ? 'Saving...' : 'Save Changes'}
             </button>
@@ -3948,11 +4021,10 @@ const Students = () => {
             <button
               onClick={handleBulkUpload}
               disabled={!bulkFile || bulkProcessing}
-              className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 ${
-                !bulkFile || bulkProcessing
+              className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 ${!bulkFile || bulkProcessing
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+                }`}
             >
               {bulkProcessing ? (
                 <div className="flex items-center justify-center gap-2">
@@ -4027,7 +4099,7 @@ const Students = () => {
       {showBulkPreview && bulkPreview && (
         <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Preview - Editable</h3>
-          
+
           {/* Debug Information */}
           {bulkPreview.debug && (
             <div className="mb-6 p-4 bg-blue-50 rounded-lg">
@@ -4045,19 +4117,19 @@ const Students = () => {
 
           {/* Validation Summary */}
           {(() => {
-            const validCount = editablePreviewData.filter((_, index) => 
+            const validCount = editablePreviewData.filter((_, index) =>
               !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
             ).length;
             const invalidCount = editablePreviewData.length - validCount;
-            
+
             return (
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-md font-medium text-gray-800">Validation Summary</h4>
                   <div className="text-sm text-gray-600">
-                Click on any cell to edit • Changes are saved automatically
-              </div>
-            </div>
+                    Click on any cell to edit • Changes are saved automatically
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-green-50 p-3 rounded-lg">
                     <div className="text-sm font-medium text-green-800">Valid Students</div>
@@ -4077,7 +4149,7 @@ const Students = () => {
                     <div className="flex items-center">
                       <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mr-2" />
                       <div className="text-sm text-yellow-800">
-                        <strong>Note:</strong> {invalidCount} row(s) have validation errors and will be skipped during upload. 
+                        <strong>Note:</strong> {invalidCount} row(s) have validation errors and will be skipped during upload.
                         Only valid students will be added to the system.
                       </div>
                     </div>
@@ -4343,11 +4415,10 @@ const Students = () => {
             <button
               onClick={handleConfirmBulkUpload}
               disabled={bulkProcessing || editablePreviewData.length === 0}
-              className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                (bulkProcessing || editablePreviewData.length === 0)
+              className={`px-4 py-2 text-white rounded-lg transition-colors ${(bulkProcessing || editablePreviewData.length === 0)
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700'
-              }`}
+                }`}
             >
               {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.filter((_, index) => !previewErrors[index] || Object.keys(previewErrors[index]).length === 0).length} Valid Students`}
             </button>
@@ -4455,9 +4526,9 @@ const Students = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold text-blue-800">Students Pending First Password Reset</h2>
           <p className="text-sm text-gray-600 mt-1">
-            {tempStudentsSummary.length > 0 
-             ? `${tempStudentsSummary.length} student(s) yet to reset their initial password.`
-             : "All bulk-uploaded students have reset their passwords or no students are pending."}
+            {tempStudentsSummary.length > 0
+              ? `${tempStudentsSummary.length} student(s) yet to reset their initial password.`
+              : "All bulk-uploaded students have reset their passwords or no students are pending."}
           </p>
         </div>
         {tempStudentsSummary.length > 0 && (
@@ -4486,7 +4557,7 @@ const Students = () => {
           </div>
         )}
       </div>
-      
+
       {/* Gender Filter */}
       {tempStudentsSummary.length > 0 && (
         <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -4503,13 +4574,13 @@ const Students = () => {
             </select>
           </div>
           <div className="text-sm text-gray-600">
-            Showing {tempStudentsSummary.filter(student => 
+            Showing {tempStudentsSummary.filter(student =>
               tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
             ).length} of {tempStudentsSummary.length} students
           </div>
         </div>
       )}
-      
+
       {loadingTempSummary ? (
         <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>
       ) : tempStudentsSummary.length === 0 ? (
@@ -4532,34 +4603,34 @@ const Students = () => {
               {tempStudentsSummary
                 .filter(student => tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter)
                 .map(student => (
-                <tr key={student._id}>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center justify-between">
-                      <code className="px-2 py-1 bg-gray-100 rounded text-gray-800">{student.generatedPassword}</code>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(student.generatedPassword);
-                          toast.success('Password copied!');
-                        }}
-                        className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Copy password"
-                      >
-                        <DocumentDuplicateIcon className="w-5 h-5"/>
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(student.createdAt).toLocaleDateString()}</td>
-                  <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      Pending Reset
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                  <tr key={student._id}>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center justify-between">
+                        <code className="px-2 py-1 bg-gray-100 rounded text-gray-800">{student.generatedPassword}</code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(student.generatedPassword);
+                            toast.success('Password copied!');
+                          }}
+                          className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Copy password"
+                        >
+                          <DocumentDuplicateIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(student.createdAt).toLocaleDateString()}</td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
+                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                        Pending Reset
+                      </span>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -4678,7 +4749,7 @@ const Students = () => {
                 <div className="flex justify-center items-center h-full"><LoadingSpinner /></div>
               ) : studentsToRenew.length > 0 ? (
                 <div className="space-y-2">
-                   <div className="flex items-center p-2 border-b">
+                  <div className="flex items-center p-2 border-b">
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
@@ -4716,11 +4787,10 @@ const Students = () => {
               <button
                 onClick={handleRenew}
                 disabled={isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear}
-                className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                  (isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear)
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${(isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear)
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-green-600 hover:bg-green-700'
-                }`}
+                  }`}
               >
                 {isRenewing ? 'Renewing...' : 'Renew Batches'}
               </button>
@@ -4737,15 +4807,15 @@ const Students = () => {
       const res = await api.post('/api/admin/students/renew-batch', { fromAcademicYear, toAcademicYear, studentIds });
       if (res.data.success) {
         const { renewedCount, graduatedCount, deactivatedCount, graduationDetails } = res.data.data;
-        
+
         let message = `Batch renewal completed: ${renewedCount} renewed, ${graduatedCount} graduated, ${deactivatedCount} deactivated.`;
         if (graduationDetails && graduationDetails.length > 0) {
           message += ` Graduated students: ${graduationDetails.map(g => g.name).join(', ')}`;
         }
-        
+
         toast.success(message);
         console.log('Renewal Results:', res.data.data);
-        
+
         // Optionally refresh data
         if (tab === 'list') {
           fetchStudents(true);
@@ -4780,7 +4850,7 @@ const Students = () => {
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
-          
+
           <form onSubmit={handlePhotoEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Student Photo */}
@@ -4942,11 +5012,10 @@ const Students = () => {
               <button
                 type="submit"
                 disabled={photoEditLoading}
-                className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${
-                  photoEditLoading
+                className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${photoEditLoading
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700'
-                }`}
+                  }`}
               >
                 {photoEditLoading ? 'Updating...' : 'Update Photos'}
               </button>
@@ -4961,17 +5030,17 @@ const Students = () => {
   const openPhotoEditModal = (student) => {
     setPhotoEditId(student._id);
     setPhotoEditStudent(student);
-    
+
     // Set existing photo previews
     setPhotoEditStudentPhotoPreview(student.studentPhoto || null);
     setPhotoEditGuardianPhoto1Preview(student.guardianPhoto1 || null);
     setPhotoEditGuardianPhoto2Preview(student.guardianPhoto2 || null);
-    
+
     // Reset new photo uploads
     setPhotoEditStudentPhoto(null);
     setPhotoEditGuardianPhoto1(null);
     setPhotoEditGuardianPhoto2(null);
-    
+
     setPhotoEditModal(true);
   };
 
@@ -4982,7 +5051,7 @@ const Students = () => {
         toast.error('Image size should be less than 5MB');
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         switch (type) {
@@ -5021,7 +5090,7 @@ const Students = () => {
     try {
       // Create FormData for multipart upload
       const formData = new FormData();
-      
+
       // Add photos if selected
       if (photoEditStudentPhoto) {
         formData.append('studentPhoto', photoEditStudentPhoto);
@@ -5044,7 +5113,7 @@ const Students = () => {
           'Content-Type': 'multipart/form-data',
         },
       };
-      
+
       await api.put(`/api/admin/students/${photoEditId}`, formData, config);
       toast.success('Photos updated successfully');
       setPhotoEditModal(false);
@@ -5075,13 +5144,13 @@ const Students = () => {
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    
+
     // Validation
     if (newPassword !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-    
+
     if (newPassword.length < 6) {
       toast.error('Password must be at least 6 characters long');
       return;
@@ -5089,13 +5158,13 @@ const Students = () => {
 
     setPasswordResetLoading(true);
     try {
-      const res = await api.post(`/api/admin/students/${passwordResetId}/reset-password`, { 
-        newPassword 
+      const res = await api.post(`/api/admin/students/${passwordResetId}/reset-password`, {
+        newPassword
       });
 
       if (res.data.success) {
         const { emailSent, emailError } = res.data.data;
-        
+
         if (emailSent) {
           toast.success('Password reset successfully and email notification sent!');
         } else {
@@ -5104,7 +5173,7 @@ const Students = () => {
             toast.error(`Email error: ${emailError}`);
           }
         }
-        
+
         setPasswordResetModal(false);
         setPasswordResetId(null);
         setPasswordResetStudent(null);
@@ -5145,7 +5214,7 @@ const Students = () => {
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
-          
+
           <form onSubmit={handlePasswordReset} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -5200,11 +5269,10 @@ const Students = () => {
               <button
                 type="submit"
                 disabled={passwordResetLoading}
-                className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${
-                  passwordResetLoading
+                className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${passwordResetLoading
                     ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-orange-600 hover:bg-orange-700'
-                }`}
+                  }`}
               >
                 {passwordResetLoading ? 'Resetting...' : 'Reset Password'}
               </button>
@@ -5223,12 +5291,12 @@ const Students = () => {
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-gray-800">
               Take Photo - {
-                cameraType === 'student' ? 'Student' : 
-                cameraType === 'guardian1' ? 'Guardian 1' : 
-                cameraType === 'guardian2' ? 'Guardian 2' :
-                cameraType === 'edit_student' ? 'Student (Edit)' :
-                cameraType === 'edit_guardian1' ? 'Guardian 1 (Edit)' :
-                cameraType === 'edit_guardian2' ? 'Guardian 2 (Edit)' : 'Photo'
+                cameraType === 'student' ? 'Student' :
+                  cameraType === 'guardian1' ? 'Guardian 1' :
+                    cameraType === 'guardian2' ? 'Guardian 2' :
+                      cameraType === 'edit_student' ? 'Student (Edit)' :
+                        cameraType === 'edit_guardian1' ? 'Guardian 1 (Edit)' :
+                          cameraType === 'edit_guardian2' ? 'Guardian 2 (Edit)' : 'Photo'
               }
             </h3>
             <button
@@ -5238,7 +5306,7 @@ const Students = () => {
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
-          
+
           <div className="relative">
             {!cameraReady && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900 rounded-lg z-10">
@@ -5248,7 +5316,7 @@ const Students = () => {
                 </div>
               </div>
             )}
-            
+
             <video
               ref={(el) => setVideoRef(el)}
               autoPlay
@@ -5263,23 +5331,22 @@ const Students = () => {
                 }
               }}
             />
-            
+
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="border-2 border-white border-dashed rounded-lg p-4 opacity-50">
                 <div className="w-32 h-40 border-2 border-white rounded-lg"></div>
               </div>
             </div>
           </div>
-          
+
           <div className="flex justify-center space-x-4 mt-4">
             <button
               onClick={capturePhoto}
               disabled={!cameraReady}
-              className={`px-6 py-3 rounded-lg flex items-center space-x-2 ${
-                cameraReady 
-                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+              className={`px-6 py-3 rounded-lg flex items-center space-x-2 ${cameraReady
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              }`}
+                }`}
             >
               <CameraIcon className="w-5 h-5" />
               <span>{cameraReady ? 'Capture Photo' : 'Loading...'}</span>
@@ -5296,7 +5363,7 @@ const Students = () => {
     )
   );
 
-  if (loading && tab === 'list' && !tableLoading) { 
+  if (loading && tab === 'list' && !tableLoading) {
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
 
@@ -5314,42 +5381,39 @@ const Students = () => {
               if (t.value === 'bulkUpload' && !canAddStudent) {
                 return null; // Hide Bulk Upload tab if no permission
               }
-              
+
               return (
                 <button
                   key={t.value}
-                  className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${
-                    tab === t.value 
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105' 
+                  className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${tab === t.value
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
                       : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  }`}
+                    }`}
                   onClick={() => setTab(t.value)}
                 >
-                {/* Active indicator */}
-                {tab === t.value && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg"></div>
-                )}
-                
-                {/* Content */}
-                <div className={`relative z-10 flex items-center space-x-2 ${
-                  tab === t.value ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
-                }`}>
-                  <div className={`transition-all duration-300 ${
-                    tab === t.value 
-                      ? 'text-white transform scale-110' 
-                      : 'text-gray-500 group-hover:text-blue-500 group-hover:scale-110'
-                  }`}>
-                    {t.icon}
+                  {/* Active indicator */}
+                  {tab === t.value && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-lg"></div>
+                  )}
+
+                  {/* Content */}
+                  <div className={`relative z-10 flex items-center space-x-2 ${tab === t.value ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
+                    }`}>
+                    <div className={`transition-all duration-300 ${tab === t.value
+                        ? 'text-white transform scale-110'
+                        : 'text-gray-500 group-hover:text-blue-500 group-hover:scale-110'
+                      }`}>
+                      {t.icon}
+                    </div>
+                    <span className="font-medium">{t.label}</span>
                   </div>
-                  <span className="font-medium">{t.label}</span>
-                </div>
-                
-                {/* Hover effect */}
-                {tab !== t.value && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                )}
-              </button>
-            );
+
+                  {/* Hover effect */}
+                  {tab !== t.value && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  )}
+                </button>
+              );
             })}
           </div>
         </div>
@@ -5374,7 +5438,7 @@ const Students = () => {
       />
       {passwordResetModal && renderPasswordResetModal()}
       {renderCameraModal()}
-      
+
       {/* Room View Modal */}
       {showRoomViewModal && selectedRoom && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -5441,14 +5505,14 @@ const Students = () => {
                       // Calculate course-wise counts (only by course, not branch)
                       const courseCounts = roomStudents.reduce((acc, student) => {
                         const courseName = student.course?.name || getCourseName(student.course) || 'Unknown Course';
-                        
+
                         if (!acc[courseName]) {
                           acc[courseName] = {
                             count: 0,
                             courseName
                           };
                         }
-                        
+
                         acc[courseName].count++;
                         return acc;
                       }, {});
@@ -5456,7 +5520,7 @@ const Students = () => {
                       // Color palette for different courses
                       const colors = [
                         'bg-blue-500 text-white',
-                        'bg-green-500 text-white', 
+                        'bg-green-500 text-white',
                         'bg-purple-500 text-white',
                         'bg-orange-500 text-white',
                         'bg-red-500 text-white',
@@ -5466,8 +5530,8 @@ const Students = () => {
                       ];
 
                       return Object.entries(courseCounts).map(([courseName, data], index) => (
-                        <div 
-                          key={courseName} 
+                        <div
+                          key={courseName}
                           className={`${colors[index % colors.length]} px-3 sm:px-4 py-3 rounded-lg flex items-center gap-2 sm:gap-3`}
                         >
                           <div className="flex-1 min-w-0">

@@ -65,7 +65,7 @@ const ensureAllMealTypes = (meals) => {
       dinner: []
     };
   }
-  
+
   return {
     breakfast: convertLegacyItems(meals.breakfast || []),
     lunch: convertLegacyItems(meals.lunch || []),
@@ -82,11 +82,11 @@ const MenuManagement = () => {
   });
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [editMenu, setEditMenu] = useState({ 
-    breakfast: [], 
-    lunch: [], 
-    snacks: [], 
-    dinner: [] 
+  const [editMenu, setEditMenu] = useState({
+    breakfast: [],
+    lunch: [],
+    snacks: [],
+    dinner: []
   });
   const [addInputs, setAddInputs] = useState({}); // { meal: value }
   const [addImages, setAddImages] = useState({}); // { meal: file }
@@ -111,7 +111,7 @@ const MenuManagement = () => {
     const d = new Date();
     return d.toISOString().slice(0, 10);
   });
-  
+
   // Selected date menu state
   const [selectedDateMenu, setSelectedDateMenu] = useState(null);
   const [loadingSelectedDateMenu, setLoadingSelectedDateMenu] = useState(false);
@@ -165,13 +165,13 @@ const MenuManagement = () => {
       setLoadingSelectedDateMenu(true);
       try {
         const formattedDate = formatDateForAPI(statsDate);
-        
+
         // Fetch both rating stats and menu in parallel
         const [ratingRes, menuRes] = await Promise.allSettled([
           api.get(`/api/cafeteria/menu/ratings/stats?date=${formattedDate}`),
           api.get(`/api/cafeteria/menu/date?date=${formattedDate}`)
         ]);
-        
+
         // Handle rating stats
         if (ratingRes.status === 'fulfilled') {
           setRatingStats(ratingRes.value.data.data);
@@ -182,7 +182,7 @@ const MenuManagement = () => {
           }
           setRatingStats(null);
         }
-        
+
         // Handle menu data
         if (menuRes.status === 'fulfilled') {
           const menuData = menuRes.value.data.data;
@@ -262,11 +262,11 @@ const MenuManagement = () => {
       if (err.response?.status === 404) {
         if (isMounted.current) {
           setMenu(null);
-          setEditMenu({ 
-            breakfast: [], 
-            lunch: [], 
-            snacks: [], 
-            dinner: [] 
+          setEditMenu({
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
           });
           setAddInputs({});
           setAddImages({});
@@ -276,11 +276,11 @@ const MenuManagement = () => {
         console.error(err);
         if (isMounted.current) {
           setMenu(null);
-          setEditMenu({ 
-            breakfast: [], 
-            lunch: [], 
-            snacks: [], 
-            dinner: [] 
+          setEditMenu({
+            breakfast: [],
+            lunch: [],
+            snacks: [],
+            dinner: []
           });
           setAddInputs({});
           setAddImages({});
@@ -300,15 +300,15 @@ const MenuManagement = () => {
       toast.error('Image size must be less than 5MB');
       return;
     }
-    
+
     // Validate file type
     if (file && !file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-    
+
     setAddImages(prev => ({ ...prev, [meal]: file }));
-    
+
     if (file) {
       toast.success(`Image selected for ${meal}: ${file.name}`);
     }
@@ -317,25 +317,25 @@ const MenuManagement = () => {
   const handleAddItem = (meal) => {
     const value = (addInputs[meal] || '').trim();
     if (!value) return;
-    
+
     // Check for duplicates in current state
     const currentItems = editMenu[meal] || [];
     const normalizedValue = value.toLowerCase();
     const normalizedItems = currentItems.map(item => (item.name || item).toLowerCase());
-    
+
     if (normalizedItems.includes(normalizedValue)) {
       toast.error('Item already exists');
       return;
     }
-    
+
     const newItem = { name: value, imageUrl: null };
     const imageFile = addImages[meal];
-    
+
     if (imageFile) {
       // Store the file directly, not in FormData
       newItem.imageFile = imageFile;
     }
-    
+
     setEditMenu(prev => {
       const updated = { ...prev };
       if (!updated[meal]) {
@@ -360,7 +360,7 @@ const MenuManagement = () => {
     setLoading(true);
     try {
       const formattedDate = formatDateForAPI(selectedDate);
-      
+
       // Prepare meals data for API
       const mealsData = {};
       for (const mealType of MEALS) {
@@ -375,18 +375,18 @@ const MenuManagement = () => {
           };
         });
       }
-      
+
       // Create FormData for the entire request if there are images
-      const hasImages = Object.values(mealsData).some(meal => 
+      const hasImages = Object.values(mealsData).some(meal =>
         meal.some(item => item.imageFile)
       );
-      
+
       if (hasImages) {
         const formData = new FormData();
         // Convert ISO string to simple date format
         const simpleDate = new Date(formattedDate).toISOString().split('T')[0];
         formData.append('date', simpleDate);
-        
+
         // Add meals data without images first
         const mealsWithoutImages = {};
         for (const mealType of MEALS) {
@@ -396,7 +396,7 @@ const MenuManagement = () => {
           }));
         }
         formData.append('meals', JSON.stringify(mealsWithoutImages));
-        
+
         // Add image files to FormData
         for (const mealType of MEALS) {
           mealsData[mealType].forEach((item, index) => {
@@ -406,7 +406,7 @@ const MenuManagement = () => {
             }
           });
         }
-        
+
         try {
           const response = await api.post('/api/cafeteria/menu/date', formData, {
             headers: {
@@ -417,12 +417,12 @@ const MenuManagement = () => {
           throw error;
         }
       } else {
-      await api.post('/api/cafeteria/menu/date', {
-        date: formattedDate,
+        await api.post('/api/cafeteria/menu/date', {
+          date: formattedDate,
           meals: mealsData
-      });
+        });
       }
-      
+
       toast.success('Menu saved!');
       fetchMenu();
     } catch (err) {
@@ -459,15 +459,15 @@ const MenuManagement = () => {
       toast.error('Image size must be less than 5MB');
       return;
     }
-    
+
     // Validate file type
     if (file && !file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
-    
+
     setModalAddImages(prev => ({ ...prev, [meal]: file }));
-    
+
     if (file) {
       toast.success(`Image selected for ${meal}: ${file.name}`);
     }
@@ -476,25 +476,25 @@ const MenuManagement = () => {
   const handleModalAddItem = (meal) => {
     const value = (modalAddInputs[meal] || '').trim();
     if (!value) return;
-    
+
     // Check for duplicates in current state
     const currentItems = modalEditMenu[meal] || [];
     const normalizedValue = value.toLowerCase();
     const normalizedItems = currentItems.map(item => (item.name || item).toLowerCase());
-    
+
     if (normalizedItems.includes(normalizedValue)) {
       toast.error('Item already exists');
       return;
     }
-    
+
     const newItem = { name: value, imageUrl: null };
     const imageFile = modalAddImages[meal];
-    
+
     if (imageFile) {
       // Store the file directly, not in FormData
       newItem.imageFile = imageFile;
     }
-    
+
     setModalEditMenu(prev => {
       const updated = { ...prev };
       if (!updated[meal]) {
@@ -510,7 +510,7 @@ const MenuManagement = () => {
     setModalEditMenu(prev => {
       const updated = { ...prev };
       const removedItem = updated[meal][idx];
-      
+
       // If the item has an image URL, we need to track it for deletion
       if (removedItem && removedItem.imageUrl) {
         // Store the image URL for deletion when the modal is saved
@@ -523,7 +523,7 @@ const MenuManagement = () => {
           return prev;
         });
       }
-      
+
       updated[meal] = updated[meal].filter((_, i) => i !== idx);
       return updated;
     });
@@ -532,7 +532,7 @@ const MenuManagement = () => {
     setSavingToday(true);
     try {
       const todayFormatted = formatDateForAPI(new Date().toISOString().slice(0, 10));
-      
+
       // Prepare meals data for API
       const mealsData = {};
       for (const mealType of MEALS) {
@@ -551,19 +551,19 @@ const MenuManagement = () => {
           };
         });
       }
-      
+
       // Create FormData for the entire request if there are images
-      const hasImages = Object.values(mealsData).some(meal => 
+      const hasImages = Object.values(mealsData).some(meal =>
         meal.some(item => item.imageFile)
       );
-      
+
       let savePromise;
       if (hasImages) {
         const formData = new FormData();
         // Convert ISO string to simple date format
         const simpleDate = new Date(todayFormatted).toISOString().split('T')[0];
         formData.append('date', simpleDate);
-        
+
         // Add meals data without images first
         const mealsWithoutImages = {};
         for (const mealType of MEALS) {
@@ -573,7 +573,7 @@ const MenuManagement = () => {
           }));
         }
         formData.append('meals', JSON.stringify(mealsWithoutImages));
-        
+
         // Add image files to FormData
         for (const mealType of MEALS) {
           mealsData[mealType].forEach((item, index) => {
@@ -583,7 +583,7 @@ const MenuManagement = () => {
             }
           });
         }
-        
+
         savePromise = api.post('/api/cafeteria/menu/date', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
@@ -595,17 +595,17 @@ const MenuManagement = () => {
           meals: mealsData
         });
       }
-      
+
       // Show immediate success feedback
       toast.success("Today's menu updated successfully!");
       setShowTodayModal(false);
       setModalDeletedImages([]); // Clear the deleted images array
       setSavingToday(false);
-      
+
       // Continue processing in background
       try {
         await savePromise;
-        
+
         // Delete images from S3 for removed items (background task)
         if (modalDeletedImages.length > 0) {
           api.post('/api/cafeteria/menu/delete-images', {
@@ -614,7 +614,7 @@ const MenuManagement = () => {
             console.error('Error deleting images from S3:', err);
           });
         }
-        
+
         // Refetch today's menu to update card (background task)
         api.get('/api/cafeteria/menu/today').then(res => {
           const menuData = res.data.data;
@@ -628,7 +628,7 @@ const MenuManagement = () => {
         }).catch(err => {
           console.error('Error refetching today\'s menu:', err);
         });
-        
+
         // Refresh today's rating stats (background task)
         const todayFormattedForRefresh = getTodayISOString();
         api.get(`/api/cafeteria/menu/ratings/stats?date=${todayFormattedForRefresh}`).then(statsRes => {
@@ -636,12 +636,12 @@ const MenuManagement = () => {
         }).catch(err => {
           console.error('Error refreshing rating stats:', err);
         });
-        
+
       } catch (error) {
         console.error('Background processing error:', error);
         toast.error('Menu saved but some background tasks failed');
       }
-      
+
     } catch (err) {
       toast.error("Failed to update today's menu");
       setSavingToday(false);
@@ -657,7 +657,7 @@ const MenuManagement = () => {
         lunch: '🍛',
         dinner: '🍽️'
       };
-      
+
       const mealNames = {
         breakfast: 'Breakfast',
         lunch: 'Lunch',
@@ -690,20 +690,20 @@ const MenuManagement = () => {
   const getNextMealTime = () => {
     const now = new Date();
     const hour = now.getHours();
-    
+
     const mealTimes = [
       { meal: 'breakfast', hour: 7, emoji: '🥞', name: 'Breakfast' },
       { meal: 'lunch', hour: 12, emoji: '🍛', name: 'Lunch' },
       { meal: 'dinner', hour: 19, emoji: '🍽️', name: 'Dinner' }
     ];
-    
+
     // Find next meal
     for (const meal of mealTimes) {
       if (hour < meal.hour) {
         return meal;
       }
     }
-    
+
     // If all meals passed today, return breakfast tomorrow
     return mealTimes[0];
   };
@@ -714,9 +714,9 @@ const MenuManagement = () => {
     <div className="max-w-7xl mx-auto p-4 space-y-6  mt-8">
       {/* Hero Banner Section */}
       <div className="relative overflow-hidden rounded-xl shadow-lg">
-        <img 
-          src="/menu.png" 
-          alt="Traditional Indian Thali Meal" 
+        <img
+          src="/menu.png"
+          alt="Traditional Indian Thali Meal"
           className="w-full h-32 sm:h-40 md:h-48 object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/30 flex items-center justify-center">
@@ -746,20 +746,20 @@ const MenuManagement = () => {
           <h2 className="text-base sm:text-lg font-semibold text-blue-900">Today's Menu</h2>
           <div className="flex gap-1">
             {todaysMenu && ['breakfast', 'lunch', 'snacks', 'dinner'].map(mealType => (
-                  <button
-                    key={mealType}
-                    onClick={() => handleSendMenuNotification(mealType)}
-                    disabled={notificationLoading}
+              <button
+                key={mealType}
+                onClick={() => handleSendMenuNotification(mealType)}
+                disabled={notificationLoading}
                 className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50"
                 title={`Send ${mealType} notification`}
-                  >
+              >
                 {mealType.charAt(0).toUpperCase()}
-                  </button>
-                ))}
+              </button>
+            ))}
           </div>
         </div>
-        
-                {loadingToday ? (
+
+        {loadingToday ? (
           <div className="text-center py-4 text-gray-500 text-sm">Loading today's menu...</div>
         ) : todaysMenu ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
@@ -767,20 +767,20 @@ const MenuManagement = () => {
               const mealItems = todaysMenu.meals?.[meal] || [];
               const stats = todaysRatingStats && todaysRatingStats[meal] ? todaysRatingStats[meal] : null;
               return (
-                <div 
-                  key={meal} 
+                <div
+                  key={meal}
                   className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
                   onClick={() => {
                     // Reset popup state first to ensure clean state
                     setShowMenuPopup(false);
                     setSelectedPopupMeal(null);
-                    
+
                     // Use setTimeout to ensure state is reset before setting new state
                     setTimeout(() => {
                       setSelectedPopupMeal({ type: meal, items: mealItems, stats });
                       setShowMenuPopup(true);
-                      
-                      
+
+
                     }, 0);
                   }}
                 >
@@ -798,7 +798,7 @@ const MenuManagement = () => {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Menu Items */}
                   <div className="text-xs text-gray-700">
                     {mealItems.length ? (
@@ -850,7 +850,7 @@ const MenuManagement = () => {
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
               />
             </div>
-            
+
             {/* Navigation Buttons */}
             <div className="flex items-center gap-1">
               <button
@@ -888,7 +888,7 @@ const MenuManagement = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Menu Items for Selected Date */}
         {loadingSelectedDateMenu ? (
           <div className="text-center py-4">
@@ -907,8 +907,8 @@ const MenuManagement = () => {
                 const mealItems = selectedDateMenu.meals?.[meal] || [];
                 const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
                 return (
-                  <div 
-                    key={meal} 
+                  <div
+                    key={meal}
                     className="bg-gray-50 rounded-lg p-3 border border-gray-200"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -926,7 +926,7 @@ const MenuManagement = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     {/* Menu Items */}
                     <div className="text-xs text-gray-700">
                       {mealItems.length ? (
@@ -954,7 +954,7 @@ const MenuManagement = () => {
             </div>
           </div>
         )}
-        
+
         {loadingStats ? (
           <div className="text-center py-8">
             <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
@@ -969,7 +969,7 @@ const MenuManagement = () => {
             {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
               const stats = ratingStats[meal];
               if (!stats || stats.totalRatings === 0) return null;
-              
+
               return (
                 <div key={meal} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 shadow-sm">
                   {/* Header */}
@@ -988,7 +988,7 @@ const MenuManagement = () => {
                       <div className="text-xs text-gray-600">{stats.totalRatings} ratings</div>
                     </div>
                   </div>
-                  
+
                   {/* Rating Distribution */}
                   <div className="mb-4">
                     <h4 className="text-sm font-semibold text-gray-700 mb-3">Rating Breakdown</h4>
@@ -1002,8 +1002,8 @@ const MenuManagement = () => {
                               <span className="text-sm font-medium text-gray-700">{star}★</span>
                             </div>
                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-yellow-500 h-2 rounded-full transition-all duration-300" 
+                              <div
+                                className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
                                 style={{ width: `${percentage}%` }}
                               ></div>
                             </div>
@@ -1013,7 +1013,7 @@ const MenuManagement = () => {
                       })}
                     </div>
                   </div>
-                  
+
                   {/* Recent Comments */}
                   {stats.comments && stats.comments.length > 0 && (
                     <div>
@@ -1069,36 +1069,35 @@ const MenuManagement = () => {
                 ×
               </button>
             </div>
-            
+
             {/* Meal Type Tabs */}
             <div className="flex border-b border-gray-200 bg-gray-50">
               {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => (
                 <button
                   key={meal}
                   onClick={() => setSelectedMealType(meal)}
-                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
-                    selectedMealType === meal
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${selectedMealType === meal
                       ? 'bg-white text-blue-600 border-b-2 border-blue-600'
                       : 'text-gray-600 hover:text-gray-800'
-                  }`}
+                    }`}
                   disabled={savingToday}
                 >
                   <div className="flex flex-col items-center gap-1">
                     <span className="text-sm">
-                    {meal === 'breakfast' && '🥞'}
-                    {meal === 'lunch' && '🍛'}
+                      {meal === 'breakfast' && '🥞'}
+                      {meal === 'lunch' && '🍛'}
                       {meal === 'snacks' && '🍿'}
-                    {meal === 'dinner' && '🍽️'}
+                      {meal === 'dinner' && '🍽️'}
                     </span>
                     <span className="capitalize">{meal}</span>
                   </div>
                 </button>
               ))}
             </div>
-            
+
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-                  {/* Items List */}
+              {/* Items List */}
               <div className="mb-4">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Items</h4>
                 <div className="space-y-2 max-h-32 overflow-y-auto">
@@ -1106,8 +1105,8 @@ const MenuManagement = () => {
                     <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg p-2 border border-gray-200">
                       <div className="flex items-center gap-2 flex-1">
                         {item.imageUrl && (
-                          <img 
-                            src={item.imageUrl} 
+                          <img
+                            src={item.imageUrl}
                             alt={item.name || item}
                             className="w-8 h-8 object-cover rounded border border-gray-200"
                             onError={(e) => {
@@ -1138,18 +1137,18 @@ const MenuManagement = () => {
                     </div>
                   )}
                 </div>
-                  </div>
-                  
-                  {/* Add Item Form */}
+              </div>
+
+              {/* Add Item Form */}
               <div className="bg-white rounded-lg border border-gray-200 p-3">
                 <h5 className="text-xs font-medium text-gray-700 mb-3">Add New Item</h5>
-                  <form
-                    onSubmit={e => {
-                      e.preventDefault();
+                <form
+                  onSubmit={e => {
+                    e.preventDefault();
                     handleModalAddItem(selectedMealType);
-                    }}
+                  }}
                   className="space-y-3"
-                  >
+                >
                   {/* Item Name Input */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -1164,7 +1163,7 @@ const MenuManagement = () => {
                       disabled={savingToday}
                     />
                   </div>
-                  
+
                   {/* Image Upload */}
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -1202,12 +1201,12 @@ const MenuManagement = () => {
                         </div>
                       </label>
                       {modalAddImages[selectedMealType] && (
-                    <button
+                        <button
                           type="button"
                           onClick={() => setModalAddImages(prev => ({ ...prev, [selectedMealType]: null }))}
                           className="absolute top-1 right-1 text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50"
-                      disabled={savingToday}
-                    >
+                          disabled={savingToday}
+                        >
                           <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                           </svg>
@@ -1218,7 +1217,7 @@ const MenuManagement = () => {
                       Max 5MB, JPG, PNG, GIF supported
                     </p>
                   </div>
-                  
+
                   {/* Add Button */}
                   <button
                     type="submit"
@@ -1229,31 +1228,31 @@ const MenuManagement = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Add Item
-                    </button>
-                  </form>
-                </div>
+                  </button>
+                </form>
+              </div>
             </div>
-            
+
             {/* Footer */}
             <div className="border-t border-gray-200 p-3 sm:p-4 bg-gray-50">
               <div className="flex gap-2">
-              <button
-                onClick={handleModalSave}
-                disabled={savingToday}
+                <button
+                  onClick={handleModalSave}
+                  disabled={savingToday}
                   className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium text-sm"
-              >
+                >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                Save Changes
-              </button>
-              <button
-                onClick={closeTodayModal}
-                disabled={savingToday}
+                  Save Changes
+                </button>
+                <button
+                  onClick={closeTodayModal}
+                  disabled={savingToday}
                   className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
@@ -1304,8 +1303,8 @@ const MenuManagement = () => {
                       <div className="flex flex-col items-center text-center">
                         {item.imageUrl && (
                           <div className="mb-3">
-                            <img 
-                              src={item.imageUrl} 
+                            <img
+                              src={item.imageUrl}
                               alt={item.name || item}
                               className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 object-cover rounded-lg border border-gray-200 shadow-md"
                               onError={(e) => {

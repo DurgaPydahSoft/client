@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import ReceiptGenerator from '../../components/ReceiptGenerator';
-import { 
-  CurrencyDollarIcon, 
-  ExclamationTriangleIcon, 
-  CheckCircleIcon, 
+import {
+  CurrencyDollarIcon,
+  ExclamationTriangleIcon,
+  CheckCircleIcon,
   ClockIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -103,12 +103,12 @@ const FeeManagement = () => {
   const generateAcademicYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    
+
     for (let i = -3; i <= 3; i++) {
       const year = currentYear + i;
       years.push(`${year}-${year + 1}`);
     }
-    
+
     return years;
   };
 
@@ -116,7 +116,7 @@ const FeeManagement = () => {
   const getAvailableCategories = (gender = null) => {
     // Base categories available
     const baseCategories = ['A+', 'A', 'B+', 'B', 'C'];
-    
+
     // If gender is specified, filter based on available room categories
     if (gender) {
       if (gender === 'Male') {
@@ -125,17 +125,17 @@ const FeeManagement = () => {
         return ['A+', 'A', 'B', 'C']; // Female categories
       }
     }
-    
+
     return baseCategories;
   };
 
   // Fetch fee structure for a specific student category and academic year
   const getFeeStructureForStudent = (category, academicYear) => {
-    const structure = feeStructures.find(structure => 
-      structure.category === category && 
+    const structure = feeStructures.find(structure =>
+      structure.category === category &&
       structure.academicYear === academicYear
     );
-    
+
     return structure;
   };
 
@@ -153,7 +153,7 @@ const FeeManagement = () => {
     console.log('🔍 FeeManagement: Current user:', user);
     console.log('🔍 FeeManagement: Token in localStorage:', localStorage.getItem('token') ? 'exists' : 'missing');
     console.log('🔍 FeeManagement: User role:', user?.role);
-    
+
     // Test admin validation endpoint
     const testAdminAuth = async () => {
       try {
@@ -164,7 +164,7 @@ const FeeManagement = () => {
         console.error('🔍 FeeManagement: Admin validation failed:', err.response?.data || err.message);
       }
     };
-    
+
     if (user?.role && (user.role === 'admin' || user.role === 'super_admin' || user.role === 'sub_admin' || user.role === 'warden' || user.role === 'principal')) {
       testAdminAuth();
     }
@@ -195,7 +195,7 @@ const FeeManagement = () => {
   const fetchStats = async () => {
     try {
       console.log('🔍 FeeManagement: Calculating stats from students data...');
-      
+
       // Use the new function to get accurate stats
       await fetchAllStudentsForStats();
     } catch (err) {
@@ -219,22 +219,22 @@ const FeeManagement = () => {
 
       console.log('🔍 Frontend: Fetching students with params:', params.toString());
       console.log('🔍 Frontend: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
-      
+
       const response = await api.get(`/api/admin/students?${params}`);
-      
+
       console.log('🔍 Frontend: Response received:', response.data);
-      
+
       if (response.data.success) {
         const studentsData = response.data.data.students || response.data.data || [];
         const totalCount = response.data.data.totalCount || response.data.data.total || studentsData.length;
-        
+
         console.log('🔍 Frontend: Students received:', studentsData.length);
         console.log('🔍 Frontend: Total count from backend:', totalCount);
         console.log('🔍 Frontend: Sample student:', studentsData[0]);
-        
+
         setStudents(studentsData);
         setTotalPages(response.data.data.totalPages || 1);
-        
+
         // If we have total count from backend, use it for stats
         if (totalCount && totalCount !== studentsData.length) {
           console.log('🔍 Frontend: Backend reports different total count, fetching all students for stats...');
@@ -258,7 +258,7 @@ const FeeManagement = () => {
     try {
       console.log('🔍 Fetching hostel fee payments from backend...');
       const response = await api.get('/api/payments/hostel-fee/stats');
-      
+
       if (response.data.success) {
         // For now, we'll get all payments by fetching from each student
         // In a production system, you might want a bulk endpoint
@@ -274,7 +274,7 @@ const FeeManagement = () => {
   const fetchAllStudentsForStats = async () => {
     try {
       console.log('🔍 Frontend: Fetching all students for statistics...');
-      
+
       const params = new URLSearchParams({
         limit: 1000 // Fetch a large number to get all students
       });
@@ -284,11 +284,11 @@ const FeeManagement = () => {
       if (filters.gender) params.append('gender', filters.gender);
 
       const response = await api.get(`/api/admin/students?${params}`);
-      
+
       if (response.data.success) {
         const allStudentsData = response.data.data.students || response.data.data || [];
         console.log('🔍 Frontend: All students for stats:', allStudentsData.length);
-        
+
         // Update stats with all students data
         const totalStudents = allStudentsData.length;
         const studentsWithFees = allStudentsData.filter(student => {
@@ -296,32 +296,32 @@ const FeeManagement = () => {
           return feeStructure !== undefined;
         }).length;
         const studentsWithoutFees = totalStudents - studentsWithFees;
-        
+
         // Calculate total fee amount (including concession)
         let totalFeeAmount = 0;
         let totalCalculatedFeeAmount = 0;
         let totalConcessionAmount = 0;
         let studentsWithConcession = 0;
-        
+
         allStudentsData.forEach(student => {
           const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
           if (feeStructure) {
             const originalFee = feeStructure.totalFee;
             const calculatedFee = student.totalCalculatedFee || originalFee;
             const concession = student.concession || 0;
-            
+
             totalFeeAmount += originalFee;
             totalCalculatedFeeAmount += calculatedFee;
             totalConcessionAmount += concession;
-            
+
             if (concession > 0) {
               studentsWithConcession++;
             }
           }
         });
-        
+
         const averageFeeAmount = studentsWithFees > 0 ? Math.round(totalFeeAmount / studentsWithFees) : 0;
-        
+
         setStats({
           totalStudents,
           studentsWithFees,
@@ -332,7 +332,7 @@ const FeeManagement = () => {
           totalConcessionAmount,
           studentsWithConcession
         });
-        
+
         console.log('🔍 Frontend: Stats updated:', {
           totalStudents,
           studentsWithFees,
@@ -354,12 +354,12 @@ const FeeManagement = () => {
       setUpdating(true);
       // Here you would update the student's fee status
       // For now, we'll just show a success message
-        toast.success('Fee payment status updated successfully');
-        setShowUpdateModal(false);
+      toast.success('Fee payment status updated successfully');
+      setShowUpdateModal(false);
       setSelectedStudent(null);
-        setUpdateForm({ term1: '', term2: '', term3: '' });
+      setUpdateForm({ term1: '', term2: '', term3: '' });
       fetchStudents();
-        fetchStats();
+      fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update fee status');
     } finally {
@@ -426,20 +426,20 @@ const FeeManagement = () => {
     try {
       console.log('🔍 Fetching ALL fee structures for proper student linking...');
       setFeeStructureLoading(true);
-      
+
       // Since the backend requires academic year, we'll fetch for all available academic years
       // and combine them to get ALL fee structures
       const academicYears = generateAcademicYears();
       console.log('🔍 Fetching fee structures for academic years:', academicYears);
-      
+
       const allStructures = [];
-      
+
       // Fetch fee structures for each academic year
       for (const year of academicYears) {
         try {
           console.log(`🔍 Fetching fee structures for year: ${year}`);
           const response = await api.get(`/api/fee-structures?academicYear=${year}`);
-          
+
           if (response.data.success && Array.isArray(response.data.data)) {
             allStructures.push(...response.data.data);
             console.log(`🔍 Found ${response.data.data.length} structures for ${year}`);
@@ -452,24 +452,24 @@ const FeeManagement = () => {
           // Continue with other years even if one fails
         }
       }
-      
+
       console.log('🔍 Total fee structures collected:', allStructures.length);
       console.log('🔍 Academic years available:', [...new Set(allStructures.map(s => s.academicYear))]);
-      
+
       if (allStructures.length > 0) {
         setFeeStructures(allStructures);
         setError(null); // Clear any previous errors
-        } else {
-          setFeeStructures([]);
+      } else {
+        setFeeStructures([]);
         setError('No fee structures found for any academic year');
-        }
-      
+      }
+
     } catch (err) {
       console.error('Error fetching fee structures:', err);
       console.error('🔍 Fee structures error response:', err.response?.data);
       console.error('🔍 Error status:', err.response?.status);
       console.error('🔍 Error message:', err.message);
-      
+
       // Handle specific error cases
       if (err.response?.status === 400) {
         console.error('🔍 400 Bad Request - checking if this is a parameter issue...');
@@ -481,7 +481,7 @@ const FeeManagement = () => {
         console.error('🔍 404 Not Found - endpoint might not exist...');
         setError('API endpoint not found: Please check backend configuration');
       } else {
-      setError(err.response?.data?.message || 'Failed to fetch fee structures');
+        setError(err.response?.data?.message || 'Failed to fetch fee structures');
       }
     } finally {
       setFeeStructureLoading(false);
@@ -490,24 +490,24 @@ const FeeManagement = () => {
 
   const handleFeeStructureSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Validate form data
     if (!feeStructureForm.academicYear || !feeStructureForm.category || !feeStructureForm.totalFee) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
+
     if (feeStructureForm.totalFee <= 0) {
       toast.error('Total fee must be greater than 0');
       return;
     }
-    
+
     try {
       setFeeStructureLoading(true);
-      
+
       // Calculate term fees on frontend for validation
       const termFees = calculateTermFees(feeStructureForm.totalFee);
-      
+
       // Send complete fee data to backend
       const feeData = {
         academicYear: feeStructureForm.academicYear,
@@ -517,14 +517,14 @@ const FeeManagement = () => {
         term2Fee: termFees.term2Fee,
         term3Fee: termFees.term3Fee
       };
-      
+
       console.log('🔍 Frontend: Sending fee data to backend:', feeData);
       console.log('🔍 Frontend: Term fees calculated:', termFees);
-      
+
       const response = await api.post('/api/fee-structures', feeData);
-      
+
       console.log('🔍 Frontend: Response from backend:', response.data);
-      
+
       if (response.data.success) {
         toast.success(`Fee structure for ${feeData.category} category (${feeData.academicYear}) saved successfully!`);
         setShowFeeStructureModal(false);
@@ -533,13 +533,13 @@ const FeeManagement = () => {
           category: '',
           totalFee: 0
         });
-        
+
         // Refresh both fee structures and students to update linking
         await Promise.all([
           fetchFeeStructures(),
           fetchStudents()
         ]);
-        
+
         // Recalculate stats
         setTimeout(() => {
           fetchStats();
@@ -560,27 +560,27 @@ const FeeManagement = () => {
   const getAvailableCategoriesForCreation = () => {
     const allCategories = getAvailableCategories();
     const academicYear = feeStructureFilter.academicYear || '2024-2025';
-    
+
     // Get existing categories for the current academic year
     const existingCategories = feeStructures
       .filter(structure => structure.academicYear === academicYear)
       .map(structure => structure.category);
-    
+
     // If editing, include the current category
     if (selectedFeeStructure) {
       return allCategories;
     }
-    
+
     // If creating new, exclude existing categories for the same academic year
     const availableCategories = allCategories.filter(category => !existingCategories.includes(category));
-    
+
     console.log('🔍 Available categories for creation:', {
       academicYear,
       allCategories,
       existingCategories,
       availableCategories
     });
-    
+
     return availableCategories;
   };
 
@@ -600,7 +600,7 @@ const FeeManagement = () => {
         totalFee: 0
       });
     }
-    
+
     setShowFeeStructureModal(true);
   };
 
@@ -612,7 +612,7 @@ const FeeManagement = () => {
     try {
       setFeeStructureLoading(true);
       const response = await api.delete(`/api/fee-structures/${academicYear}/${category}`);
-      
+
       if (response.data.success) {
         toast.success('Fee structure deleted successfully');
         fetchFeeStructures();
@@ -637,7 +637,7 @@ const FeeManagement = () => {
   const openPaymentModal = (student) => {
     setSelectedStudentForPayment(student);
     const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-    
+
     if (!feeStructure) {
       toast.error('No fee structure found for this student');
       return;
@@ -653,10 +653,10 @@ const FeeManagement = () => {
       month: '',
       notes: ''
     });
-    
+
     // Show modal immediately
     setShowPaymentModal(true);
-    
+
     // Fetch available months in background (non-blocking)
     fetchAvailableMonths(student);
   };
@@ -683,34 +683,34 @@ const FeeManagement = () => {
   const fetchAvailableMonths = async (student) => {
     try {
       setElectricityBillsLoading(true);
-      
+
       // Find student's room
       const roomsResponse = await api.get('/api/rooms');
       if (!roomsResponse.data.success) {
         throw new Error('Failed to fetch rooms');
       }
-      
+
       const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
-      const studentRoom = rooms.find(room => 
-        room.roomNumber === student.roomNumber && 
-        room.gender === student.gender && 
+      const studentRoom = rooms.find(room =>
+        room.roomNumber === student.roomNumber &&
+        room.gender === student.gender &&
         room.category === student.category
       );
-      
+
       if (!studentRoom) {
         console.log('No room found for student:', student);
         setAvailableMonths([]);
         return;
       }
-      
+
       // Get room's electricity bills
       const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
       if (!billsResponse.data.success) {
         throw new Error('Failed to fetch electricity bills');
       }
-      
+
       const allBills = billsResponse.data.data || [];
-      
+
       // Get unique months with unpaid bills for this student
       const monthsWithUnpaidBills = allBills
         .filter(bill => {
@@ -726,10 +726,10 @@ const FeeManagement = () => {
         .map(bill => bill.month)
         .filter((month, index, array) => array.indexOf(month) === index) // Remove duplicates
         .sort((a, b) => new Date(a) - new Date(b)); // Sort by date
-      
+
       setAvailableMonths(monthsWithUnpaidBills);
       console.log('🔍 Available months for student:', monthsWithUnpaidBills);
-      
+
     } catch (error) {
       console.error('Error fetching available months:', error);
       toast.error('Failed to fetch available months');
@@ -743,47 +743,47 @@ const FeeManagement = () => {
   const fetchElectricityBillForMonth = async (student, month) => {
     try {
       setElectricityBillsLoading(true);
-      
+
       // Find student's room
       const roomsResponse = await api.get('/api/rooms');
       if (!roomsResponse.data.success) {
         throw new Error('Failed to fetch rooms');
       }
-      
+
       const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
-      const studentRoom = rooms.find(room => 
-        room.roomNumber === student.roomNumber && 
-        room.gender === student.gender && 
+      const studentRoom = rooms.find(room =>
+        room.roomNumber === student.roomNumber &&
+        room.gender === student.gender &&
         room.category === student.category
       );
-      
+
       if (!studentRoom) {
         console.log('No room found for student:', student);
         setSelectedElectricityBill(null);
         return;
       }
-      
+
       // Get room's electricity bills
       const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
       if (!billsResponse.data.success) {
         throw new Error('Failed to fetch electricity bills');
       }
-      
+
       const allBills = billsResponse.data.data || [];
-      
+
       // Find bill for specific month
       const billForMonth = allBills.find(bill => bill.month === month);
-      
+
       if (!billForMonth) {
         console.log('No bill found for month:', month);
         setSelectedElectricityBill(null);
         return;
       }
-      
+
       // Find student's share in the bill
       let studentBill = null;
       let studentAmount = 0;
-      
+
       if (billForMonth.studentBills && billForMonth.studentBills.length > 0) {
         // New format - has studentBills array
         studentBill = billForMonth.studentBills.find(sb => sb.studentId === student._id);
@@ -800,7 +800,7 @@ const FeeManagement = () => {
           setSelectedElectricityBill(null);
           return;
         }
-        
+
         // Get current student count in room via API
         try {
           const studentsResponse = await api.get(`/api/admin/rooms/${studentRoom._id}/students`);
@@ -823,7 +823,7 @@ const FeeManagement = () => {
           return;
         }
       }
-      
+
       const billDetails = {
         _id: billForMonth._id,
         month: billForMonth.month,
@@ -836,10 +836,10 @@ const FeeManagement = () => {
         endUnits: billForMonth.endUnits,
         isOldFormat: !billForMonth.studentBills || billForMonth.studentBills.length === 0
       };
-      
+
       setSelectedElectricityBill(billDetails);
       console.log('🔍 Electricity bill for month:', billDetails);
-      
+
     } catch (error) {
       console.error('Error fetching electricity bill for month:', error);
       toast.error('Failed to fetch electricity bill');
@@ -852,50 +852,50 @@ const FeeManagement = () => {
   // Comprehensive payment validation function
   const validatePayment = (student, paymentForm) => {
     const errors = [];
-    
+
     // 1. Basic field validation
     if (!student) {
       errors.push('Student not selected');
     }
-    
+
     if (!paymentForm.amount || paymentForm.amount <= 0) {
       errors.push('Payment amount must be greater than 0');
     }
-    
+
     if (!paymentForm.paymentMethod) {
       errors.push('Please select a payment method');
     }
-    
+
     if (!paymentForm.paymentType) {
       errors.push('Please select a payment type');
     }
-    
+
     // UTR validation for online payments
     if (paymentForm.paymentMethod === 'Online' && !paymentForm.utrNumber) {
       errors.push('UTR number is required for online payments');
     }
-    
+
     // 2. Student status validation
     if (student && student.hostelStatus !== 'Active') {
       errors.push('Student is not active in hostel');
     }
-    
+
     // 3. Amount validation
     if (paymentForm.amount) {
       const amount = parseFloat(paymentForm.amount);
-      
+
       // Check for valid number
       if (isNaN(amount)) {
         errors.push('Payment amount must be a valid number');
       }
-      
-      
+
+
       // Check decimal precision
       if (amount % 1 !== 0 && amount.toString().split('.')[1]?.length > 2) {
         errors.push('Payment amount cannot have more than 2 decimal places');
       }
     }
-    
+
     // 4. Payment type specific validation
     if (paymentForm.paymentType === 'electricity') {
       if (!paymentForm.month) {
@@ -905,26 +905,26 @@ const FeeManagement = () => {
         errors.push('Please select a valid electricity bill');
       }
     }
-    
+
     // 5. Duplicate payment prevention (check recent payments)
     if (student && paymentForm.amount) {
-      const recentPayments = payments.filter(p => 
-        p.studentId === student._id && 
+      const recentPayments = payments.filter(p =>
+        p.studentId === student._id &&
         p.paymentType === paymentForm.paymentType &&
         new Date(p.createdAt) > new Date(Date.now() - 5 * 60 * 1000) // Last 5 minutes
       );
-      
+
       if (recentPayments.length > 0) {
         errors.push('Duplicate payment detected. Please wait before making another payment.');
       }
     }
-    
+
     return errors;
   };
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Comprehensive validation
     const validationErrors = validatePayment(selectedStudentForPayment, paymentForm);
     if (validationErrors.length > 0) {
@@ -934,10 +934,10 @@ const FeeManagement = () => {
 
     try {
       setPaymentLoading(true);
-      
+
       let paymentData;
       let endpoint;
-      
+
       if (paymentForm.paymentType === 'hostel_fee') {
         // Hostel fee payment
         paymentData = {
@@ -955,7 +955,7 @@ const FeeManagement = () => {
           toast.error('Selected electricity bill not found');
           return;
         }
-        
+
         paymentData = {
           studentId: selectedStudentForPayment._id,
           billId: selectedElectricityBill._id,
@@ -971,17 +971,17 @@ const FeeManagement = () => {
       // Send payment to backend
       console.log('🔍 Sending payment data to backend:', paymentData);
       const response = await api.post(endpoint, paymentData);
-      
+
       console.log('🔍 Backend response:', response.data);
-      
+
       if (response.data.success) {
         const responseData = response.data.data;
-        
+
         // Handle different response formats
         if (paymentForm.paymentType === 'hostel_fee' && responseData.paymentRecords) {
           // Multiple payment records for hostel fee
           const newPayments = responseData.paymentRecords;
-          
+
           // Add all payment records to local payments array
           setPayments(prev => {
             const updatedPayments = [...newPayments, ...prev];
@@ -989,9 +989,9 @@ const FeeManagement = () => {
             console.log('🔍 Updated payments array:', updatedPayments);
             return updatedPayments;
           });
-          
+
           // Don't auto-download receipt - let user download from payment history
-          
+
           // Show success message with details
           if (responseData.remainingAmount > 0) {
             toast.success(`Payment recorded successfully! ₹${responseData.remainingAmount} excess amount applied. You can download the receipt from Payment History.`);
@@ -1001,7 +1001,7 @@ const FeeManagement = () => {
         } else {
           // Single payment record (electricity or old hostel fee format)
           const newPayment = responseData;
-          
+
           // Add to local payments array
           setPayments(prev => {
             const updatedPayments = [newPayment, ...prev];
@@ -1009,9 +1009,9 @@ const FeeManagement = () => {
             console.log('🔍 Updated payments array:', updatedPayments);
             return updatedPayments;
           });
-        
+
           // Don't auto-download receipt - let user download from payment history
-          
+
           toast.success('Payment recorded successfully! You can download the receipt from Payment History.');
         }
       } else {
@@ -1019,10 +1019,10 @@ const FeeManagement = () => {
         return;
       }
       handleClosePaymentModal();
-      
+
       // Refresh students to update balance display
       fetchStudents();
-      
+
     } catch (error) {
       console.error('Error recording payment:', error);
       toast.error('Failed to record payment');
@@ -1069,23 +1069,23 @@ const FeeManagement = () => {
     setSelectedStudentBalance(student);
     setShowBalanceModal(true);
     setBalanceLoading(true);
-    
+
     try {
       // Get student's fee structure
       const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-      
+
       if (!feeStructure) {
         toast.error('No fee structure found for this student');
         return;
       }
-      
+
       // Fetch student's payments from backend
       const response = await api.get(`/api/payments/hostel-fee/${student._id}?academicYear=${student.academicYear}`);
-      
+
       if (response.data.success) {
         const studentPaymentHistory = response.data.data.payments;
-      setStudentPayments(studentPaymentHistory);
-        
+        setStudentPayments(studentPaymentHistory);
+
         // Update local payments array with fetched payments
         setPayments(prev => {
           const existingPayments = prev.filter(p => p.studentId !== student._id);
@@ -1094,7 +1094,7 @@ const FeeManagement = () => {
       } else {
         setStudentPayments([]);
       }
-      
+
     } catch (error) {
       console.error('Error fetching student balance:', error);
       toast.error('Failed to fetch student balance');
@@ -1108,23 +1108,23 @@ const FeeManagement = () => {
   const calculateStudentBalance = (student) => {
     const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
     if (!feeStructure) return null;
-    
+
     const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
     const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
-    
+
     // Debug logging
     console.log('🔍 Balance calculation for student:', student.name);
     console.log('🔍 Student payment history:', studentPaymentHistory);
     console.log('🔍 All payments:', payments);
-    
+
     // Check if student has concession applied
     const hasConcession = student.concession && student.concession > 0;
-    
+
     // Calculate term-wise balance using concession amounts if available
     // Note: Concession is applied to Term 1 only, excess to Term 2, then Term 3
     const termBalances = {
       term1: {
-        required: hasConcession ? 
+        required: hasConcession ?
           (student.calculatedTerm1Fee || Math.max(0, feeStructure.term1Fee - (student.concession || 0))) :
           (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)),
         paid: studentPaymentHistory
@@ -1133,7 +1133,7 @@ const FeeManagement = () => {
         balance: 0
       },
       term2: {
-        required: hasConcession ? 
+        required: hasConcession ?
           (student.calculatedTerm2Fee || (() => {
             const concession = student.concession || 0;
             const remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
@@ -1146,7 +1146,7 @@ const FeeManagement = () => {
         balance: 0
       },
       term3: {
-        required: hasConcession ? 
+        required: hasConcession ?
           (student.calculatedTerm3Fee || (() => {
             const concession = student.concession || 0;
             const remainingConcession = Math.max(0, concession - feeStructure.term1Fee - feeStructure.term2Fee);
@@ -1159,13 +1159,13 @@ const FeeManagement = () => {
         balance: 0
       }
     };
-    
+
     // Debug logging for term balances
     console.log('🔍 Term balances calculated:', termBalances);
-    
+
     // Handle partial payments and excess amounts
     let remainingExcess = 0;
-    
+
     // Process term1 first
     if (termBalances.term1.paid > termBalances.term1.required) {
       // Excess payment in term1
@@ -1175,7 +1175,7 @@ const FeeManagement = () => {
     } else {
       termBalances.term1.balance = Math.max(0, termBalances.term1.required - termBalances.term1.paid);
     }
-    
+
     // Process term2 with any excess from term1
     if (remainingExcess > 0) {
       const effectivePayment = termBalances.term2.paid + remainingExcess;
@@ -1192,7 +1192,7 @@ const FeeManagement = () => {
     } else {
       termBalances.term2.balance = Math.max(0, termBalances.term2.required - termBalances.term2.paid);
     }
-    
+
     // Process term3 with any remaining excess
     if (remainingExcess > 0) {
       const effectivePayment = termBalances.term3.paid + remainingExcess;
@@ -1209,15 +1209,15 @@ const FeeManagement = () => {
     } else {
       termBalances.term3.balance = Math.max(0, termBalances.term3.required - termBalances.term3.paid);
     }
-    
+
     const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
     const isFullyPaid = totalBalance === 0;
-    
+
     // Calculate original vs calculated totals
     const originalTotalFee = feeStructure.totalFee;
     const calculatedTotalFee = student.totalCalculatedFee || originalTotalFee;
     const concessionAmount = student.concession || 0;
-    
+
     return {
       feeStructure,
       totalPaid,
@@ -1237,7 +1237,7 @@ const FeeManagement = () => {
   const getAvailableTermsForPayment = (student) => {
     const balance = calculateStudentBalance(student);
     if (!balance) return [];
-    
+
     const availableTerms = [];
     Object.entries(balance.termBalances).forEach(([term, termData]) => {
       // Only include terms that have a positive balance (not fully paid)
@@ -1251,14 +1251,14 @@ const FeeManagement = () => {
         });
       }
     });
-    
+
     // Debug logging
     console.log('🔍 Available terms for payment:', {
       student: student.name,
       availableTerms,
       termBalances: balance.termBalances
     });
-    
+
     return availableTerms;
   };
 
@@ -1274,12 +1274,12 @@ const FeeManagement = () => {
   useEffect(() => {
     fetchFeeStructures();
   }, []);
-  
+
   // Fetch hostel fee payments when component mounts
   useEffect(() => {
     fetchHostelFeePayments();
   }, []);
-  
+
   // Refresh fee structures when filters change
   useEffect(() => {
     if (feeStructureFilter.academicYear || feeStructureFilter.category) {
@@ -1330,21 +1330,19 @@ const FeeManagement = () => {
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('students')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'students'
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'students'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Students
             </button>
             <button
               onClick={() => setActiveTab('structure')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'structure'
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'structure'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+                }`}
             >
               Fee Structure
             </button>
@@ -1366,125 +1364,125 @@ const FeeManagement = () => {
         <>
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-                <UserGroupIcon className="w-6 h-6 text-blue-600" />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <UserGroupIcon className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total Students</p>
+                  <p className="text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
+                  <p className="text-xs text-gray-500">Displayed: {students.length} (Page {currentPage})</p>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total Students</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
-                <p className="text-xs text-gray-500">Displayed: {students.length} (Page {currentPage})</p>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <AcademicCapIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Students with Fees</p>
+                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithFees}</p>
+                  <p className="text-xs text-gray-500">
+                    {stats.totalStudents > 0 ? Math.round((stats.studentsWithFees / stats.totalStudents) * 100) : 0}% linked
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Students without Fees</p>
+                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithoutFees}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total Fee Amount</p>
+                  <p className="text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Average Fee Amount</p>
+                  <p className="text-lg font-semibold text-gray-900">₹{stats.averageFeeAmount.toLocaleString()}</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-               <AcademicCapIcon className="w-6 h-6 text-green-600" />
+          {/* Concession Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <ReceiptRefundIcon className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Students with Concession</p>
+                  <p className="text-lg font-semibold text-blue-600">{stats.studentsWithConcession || 0}</p>
+                  <p className="text-xs text-gray-500">
+                    {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-               <p className="text-sm font-medium text-gray-600">Students with Fees</p>
-               <p className="text-lg font-semibold text-gray-900">{stats.studentsWithFees}</p>
-               <p className="text-xs text-gray-500">
-                 {stats.totalStudents > 0 ? Math.round((stats.studentsWithFees / stats.totalStudents) * 100) : 0}% linked
-               </p>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total Concession Amount</p>
+                  <p className="text-lg font-semibold text-green-600">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">
+                    {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
+                  </p>
+                </div>
+              </div>
             </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-gray-600">Total After Concession</p>
+                  <p className="text-lg font-semibold text-purple-600">₹{(stats.totalCalculatedFeeAmount || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">
+                    Final amount to be collected
+                  </p>
+                </div>
+              </div>
+            </div>
+
           </div>
-        </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Students without Fees</p>
-              <p className="text-lg font-semibold text-gray-900">{stats.studentsWithoutFees}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total Fee Amount</p>
-              <p className="text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Average Fee Amount</p>
-              <p className="text-lg font-semibold text-gray-900">₹{stats.averageFeeAmount.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Concession Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <ReceiptRefundIcon className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Students with Concession</p>
-              <p className="text-lg font-semibold text-blue-600">{stats.studentsWithConcession || 0}</p>
-              <p className="text-xs text-gray-500">
-                {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total Concession Amount</p>
-              <p className="text-lg font-semibold text-green-600">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-500">
-                {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-600">Total After Concession</p>
-              <p className="text-lg font-semibold text-purple-600">₹{(stats.totalCalculatedFeeAmount || 0).toLocaleString()}</p>
-              <p className="text-xs text-gray-500">
-                Final amount to be collected
-              </p>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-              {/* Fee Structure Summary */}
-        {activeTab === 'students' && feeStructures.length > 0 && (
-                      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          {/* Fee Structure Summary */}
+          {activeTab === 'students' && feeStructures.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Fee Structure Summary</h3>
-              
+
               {/* Filter Controls */}
               <div className="mb-4 flex gap-2">
                 <select
@@ -1497,7 +1495,7 @@ const FeeManagement = () => {
                     <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
-                
+
                 <select
                   value={feeStructureFilter.category || ''}
                   onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
@@ -1508,7 +1506,7 @@ const FeeManagement = () => {
                     <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
-                
+
                 <button
                   onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
                   className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -1516,26 +1514,26 @@ const FeeManagement = () => {
                   Clear Filters
                 </button>
               </div>
-              
+
               {/* Filtered Fee Structures */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {(() => {
                   let filteredStructures = feeStructures;
-                  
+
                   // Apply academic year filter
                   if (feeStructureFilter.academicYear) {
-                    filteredStructures = filteredStructures.filter(s => 
+                    filteredStructures = filteredStructures.filter(s =>
                       s.academicYear === feeStructureFilter.academicYear
                     );
                   }
-                  
+
                   // Apply category filter
                   if (feeStructureFilter.category) {
-                    filteredStructures = filteredStructures.filter(s => 
+                    filteredStructures = filteredStructures.filter(s =>
                       s.category === feeStructureFilter.category
                     );
                   }
-                  
+
                   return filteredStructures.map((structure) => (
                     <div key={`${structure.academicYear}-${structure.category}`} className="bg-gray-50 rounded-lg p-3">
                       <div className="text-sm font-medium text-gray-900">{structure.category}</div>
@@ -1545,7 +1543,7 @@ const FeeManagement = () => {
                   ));
                 })()}
               </div>
-              
+
               <div className="mt-3 text-sm text-gray-600">
                 Showing {(() => {
                   let filteredCount = feeStructures.length;
@@ -1556,319 +1554,319 @@ const FeeManagement = () => {
                     filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
                   }
                   return filteredCount;
-                })()} of {feeStructures.length} Fee Structures | 
+                })()} of {feeStructures.length} Fee Structures |
                 Academic Years: {[...new Set(feeStructures.map(s => s.academicYear))].sort().join(', ')}
               </div>
 
 
             </div>
-        )}
-
-      
+          )}
 
 
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by student name or roll number..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <select
-              value={filters.academicYear}
-              onChange={(e) => handleFilterChange('academicYear', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Academic Years</option>
-              <option value="2023-2024">2023-2024</option>
-              <option value="2024-2025">2024-2025</option>
-              <option value="2025-2026">2025-2026</option>
-            </select>
-            
-            <select
-              value={filters.category}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Categories</option>
-              <option value="A+">A+</option>
-              <option value="A">A</option>
-              <option value="B+">B+</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
 
-            <select
-              value={filters.gender}
-              onChange={(e) => handleFilterChange('gender', e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-            
-            <button
-              onClick={clearFilters}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              <FunnelIcon className="w-4 h-4" />
-            </button>
-            
-            <button
-              onClick={fetchStudents}
-              className="px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50"
-            >
-              <ArrowPathIcon className="w-4 h-4" />
-            </button>
-            
-            {/* Removed "Create Fee Reminders" button as it's no longer relevant */}
-          </div>
-        </div>
-      </div>
 
-      {/* Students Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Student Fee Management</h3>
-            <div className="text-sm text-gray-600">
-              Showing {students.length} of {stats.totalStudents} students
-              {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
-            </div>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Student
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total Fee
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tableLoading ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-4 text-center">
-                    <LoadingSpinner />
-                  </td>
-                </tr>
-              ) : students.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
-                    <div className="space-y-2">
-                      <p>No students found</p>
-                      <p className="text-sm">Please adjust your filters or check back later.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                students.map((student) => (
-                  <tr 
-                    key={student._id} 
-                    className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
-                    onClick={() => openBalanceModal(student)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {student.name || 'No Name'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {student.rollNumber || 'No Roll Number'}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          {student.roomNumber && `Room: ${student.roomNumber}`}
-                          {student.gender && ` • ${student.gender}`}
-                           </div>
-                      </div>
-                    </td>
-                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                       {(() => {
-                         if (student.category) {
-                           const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
-                           if (feeStructure) {
-                             const hasConcession = student.concession && student.concession > 0;
-                             return (
-                               <div>
-                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                   {student.category} ✓
-                      </span>
-                                 <div className="text-xs text-gray-500 mt-1">
-                                   {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
-                                   {hasConcession && (
-                                     <div className="text-xs text-blue-600 font-medium">
-                                       Concession: ₹{student.concession.toLocaleString()}
-                                     </div>
-                                   )}
-                                 </div>
-                               </div>
-                             );
-                           } else {
-                             return (
-                               <div>
-                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                   {student.category} ✗
-                                 </span>
-                                 <div className="text-xs text-gray-500 mt-1">
-                                   Year: {student.academicYear || 'Unknown'}
-                                 </div>
-                               </div>
-                             );
-                           }
-                         }
-                         return (
-                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                             Unknown
-                           </span>
-                         );
-                       })()}
-                     </td>
-                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                       {(() => {
-                         const feeStructure = getFeeStructureForStudent(
-                           student.category, 
-                           student.academicYear
-                         );
-                         if (feeStructure) {
-                           const hasConcession = student.concession && student.concession > 0;
-                           const originalTotal = feeStructure.totalFee;
-                           const calculatedTotal = student.totalCalculatedFee || originalTotal;
-                           
-                           return (
-                             <div>
-                               {hasConcession ? (
-                                 <>
-                                   <div className="font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
-                                   <div className="font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
-                                   <div className="text-xs text-blue-600 font-medium">
-                                     After Concession
-                                 </div>
-                                 </>
-                               ) : (
-                                 <div className="font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
-                               )}
-
-                             </div>
-                           );
-                         }
-                         return (
-                           <div className="text-red-500 text-xs">
-                             <div className="font-medium">No fee structure</div>
-                             <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
-                             <div className="text-gray-400">Year: {student.academicYear || 'Unknown'}</div>
-                           </div>
-                         );
-                       })()}
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openUpdateModal(student);
-                        }}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        <PencilIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openPaymentModal(student);
-                        }}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                        title="Record Payment"
-                      >
-                        <ReceiptRefundIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openBalanceModal(student);
-                        }}
-                        className="text-purple-600 hover:text-purple-900"
-                        title="View Balance"
-                      >
-                        <EyeIcon className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Page <span className="font-medium">{currentPage}</span> of{' '}
-                  <span className="font-medium">{totalPages}</span>
-                </p>
+          {/* Filters */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search by student name or roll number..."
+                    value={filters.search}
+                    onChange={(e) => handleFilterChange('search', e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+
+              <div className="flex gap-2">
+                <select
+                  value={filters.academicYear}
+                  onChange={(e) => handleFilterChange('academicYear', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Academic Years</option>
+                  <option value="2023-2024">2023-2024</option>
+                  <option value="2024-2025">2024-2025</option>
+                  <option value="2025-2026">2025-2026</option>
+                </select>
+
+                <select
+                  value={filters.category}
+                  onChange={(e) => handleFilterChange('category', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Categories</option>
+                  <option value="A+">A+</option>
+                  <option value="A">A</option>
+                  <option value="B+">B+</option>
+                  <option value="B">B</option>
+                  <option value="C">C</option>
+                </select>
+
+                <select
+                  value={filters.gender}
+                  onChange={(e) => handleFilterChange('gender', e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All Genders</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+
+                <button
+                  onClick={clearFilters}
+                  className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <FunnelIcon className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={fetchStudents}
+                  className="px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50"
+                >
+                  <ArrowPathIcon className="w-4 h-4" />
+                </button>
+
+                {/* Removed "Create Fee Reminders" button as it's no longer relevant */}
+              </div>
+            </div>
+          </div>
+
+          {/* Students Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900">Student Fee Management</h3>
+                <div className="text-sm text-gray-600">
+                  Showing {students.length} of {stats.totalStudents} students
+                  {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
+                </div>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Student
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total Fee
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {tableLoading ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-4 text-center">
+                        <LoadingSpinner />
+                      </td>
+                    </tr>
+                  ) : students.length === 0 ? (
+                    <tr>
+                      <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                        <div className="space-y-2">
+                          <p>No students found</p>
+                          <p className="text-sm">Please adjust your filters or check back later.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    students.map((student) => (
+                      <tr
+                        key={student._id}
+                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                        onClick={() => openBalanceModal(student)}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {student.name || 'No Name'}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {student.rollNumber || 'No Roll Number'}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {student.roomNumber && `Room: ${student.roomNumber}`}
+                              {student.gender && ` • ${student.gender}`}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {(() => {
+                            if (student.category) {
+                              const feeStructure = getFeeStructureForStudent(student.category, student.academicYear);
+                              if (feeStructure) {
+                                const hasConcession = student.concession && student.concession > 0;
+                                return (
+                                  <div>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      {student.category} ✓
+                                    </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
+                                      {hasConcession && (
+                                        <div className="text-xs text-blue-600 font-medium">
+                                          Concession: ₹{student.concession.toLocaleString()}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                      {student.category} ✗
+                                    </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Year: {student.academicYear || 'Unknown'}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            }
+                            return (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Unknown
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {(() => {
+                            const feeStructure = getFeeStructureForStudent(
+                              student.category,
+                              student.academicYear
+                            );
+                            if (feeStructure) {
+                              const hasConcession = student.concession && student.concession > 0;
+                              const originalTotal = feeStructure.totalFee;
+                              const calculatedTotal = student.totalCalculatedFee || originalTotal;
+
+                              return (
+                                <div>
+                                  {hasConcession ? (
+                                    <>
+                                      <div className="font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
+                                      <div className="font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
+                                      <div className="text-xs text-blue-600 font-medium">
+                                        After Concession
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
+                                  )}
+
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="text-red-500 text-xs">
+                                <div className="font-medium">No fee structure</div>
+                                <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
+                                <div className="text-gray-400">Year: {student.academicYear || 'Unknown'}</div>
+                              </div>
+                            );
+                          })()}
+                        </td>
+
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openUpdateModal(student);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-3"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPaymentModal(student);
+                            }}
+                            className="text-green-600 hover:text-green-900 mr-3"
+                            title="Record Payment"
+                          >
+                            <ReceiptRefundIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBalanceModal(student);
+                            }}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="View Balance"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next
                   </button>
-                </nav>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Page <span className="font-medium">{currentPage}</span> of{' '}
+                      <span className="font-medium">{totalPages}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-        )}
-      </div>
         </>
       )}
 
@@ -1889,7 +1887,7 @@ const FeeManagement = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Academic Year Filter */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1906,7 +1904,7 @@ const FeeManagement = () => {
                 ))}
               </select>
             </div>
-            
+
             {/* Category Filter */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1923,7 +1921,7 @@ const FeeManagement = () => {
                 ))}
               </select>
             </div>
-            
+
             {/* Filter Summary and Clear Button */}
             <div className="mb-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">
@@ -1945,7 +1943,7 @@ const FeeManagement = () => {
                 Clear Filters
               </button>
             </div>
-            
+
             <div className="overflow-x-auto">
               {(() => {
                 // Check if any structures match the current filters
@@ -1956,7 +1954,7 @@ const FeeManagement = () => {
                 if (feeStructureFilter.category) {
                   filteredStructures = filteredStructures.filter(s => s.category === feeStructureFilter.category);
                 }
-                
+
                 if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.category)) {
                   return (
                     <div className="text-center py-8">
@@ -1968,7 +1966,7 @@ const FeeManagement = () => {
                     </div>
                   );
                 }
-                
+
                 return (
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
@@ -2052,8 +2050,8 @@ const FeeManagement = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-              Update Fee Payment Status
-            </h3>
+                Update Fee Payment Status
+              </h3>
               <button
                 onClick={() => setShowUpdateModal(false)}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -2067,7 +2065,7 @@ const FeeManagement = () => {
             <p className="text-sm text-gray-600 mb-4">
               Student: {selectedStudent.name} ({selectedStudent.rollNumber})
             </p>
-            
+
             <form onSubmit={handleUpdateStatus}>
               <div className="space-y-4">
                 <div>
@@ -2083,7 +2081,7 @@ const FeeManagement = () => {
                     <option value="Paid">Paid</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Term 2 Status
@@ -2097,7 +2095,7 @@ const FeeManagement = () => {
                     <option value="Paid">Paid</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Term 3 Status
@@ -2112,7 +2110,7 @@ const FeeManagement = () => {
                   </select>
                 </div>
               </div>
-              
+
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
@@ -2140,8 +2138,8 @@ const FeeManagement = () => {
           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-              Record Fee Payment
-            </h3>
+                Record Fee Payment
+              </h3>
               <button
                 onClick={handleClosePaymentModal}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -2152,7 +2150,7 @@ const FeeManagement = () => {
                 </svg>
               </button>
             </div>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
               {/* Student Details */}
               <div className="p-3 bg-blue-50 rounded-lg">
@@ -2161,7 +2159,7 @@ const FeeManagement = () => {
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
                     <span className="font-medium min-w-[100px]">Name:</span>
                     <span className="font-semibold">{selectedStudentForPayment.name}</span>
-              </div>
+                  </div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
                     <span className="font-medium min-w-[100px]">Roll Number:</span>
                     <span className="font-semibold">{selectedStudentForPayment.rollNumber}</span>
@@ -2188,7 +2186,7 @@ const FeeManagement = () => {
                   const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
                   const originalTotal = feeStructure.totalFee;
                   const calculatedTotal = selectedStudentForPayment.totalCalculatedFee || originalTotal;
-                  
+
                   return (
                     <div className="p-3 bg-green-50 rounded-lg">
                       <h4 className="font-medium text-green-900 mb-3">Fee Information</h4>
@@ -2215,7 +2213,7 @@ const FeeManagement = () => {
                             <div className="bg-white p-2 rounded border border-green-200">
                               <span className="font-medium block text-gray-700">Term 1:</span>
                               <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ? 
+                                ₹{hasConcession ?
                                   (selectedStudentForPayment.calculatedTerm1Fee || Math.round(originalTotal * 0.4)).toLocaleString() :
                                   (feeStructure.term1Fee || Math.round(originalTotal * 0.4)).toLocaleString()
                                 }
@@ -2224,7 +2222,7 @@ const FeeManagement = () => {
                             <div className="bg-white p-2 rounded border border-green-200">
                               <span className="font-medium block text-gray-700">Term 2:</span>
                               <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ? 
+                                ₹{hasConcession ?
                                   (selectedStudentForPayment.calculatedTerm2Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
                                   (feeStructure.term2Fee || Math.round(originalTotal * 0.3)).toLocaleString()
                                 }
@@ -2233,7 +2231,7 @@ const FeeManagement = () => {
                             <div className="bg-white p-2 rounded border border-green-200">
                               <span className="font-medium block text-gray-700">Term 3:</span>
                               <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ? 
+                                ₹{hasConcession ?
                                   (selectedStudentForPayment.calculatedTerm3Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
                                   (feeStructure.term3Fee || Math.round(originalTotal * 0.3)).toLocaleString()
                                 }
@@ -2252,153 +2250,153 @@ const FeeManagement = () => {
             <form onSubmit={handlePaymentSubmit}>
               <div className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Type
-                  </label>
-                  <select
-                    value={paymentForm.paymentType}
-                    onChange={(e) => setPaymentForm(prev => ({ 
-                      ...prev, 
-                      paymentType: e.target.value,
-                      term: '',
-                      billId: '',
-                      month: '',
-                      amount: ''
-                    }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    required
-                  >
-                    <option value="hostel_fee">Hostel Fee</option>
-                    <option value="electricity">Electricity Bill</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Method
-                  </label>
-                  <select
-                    value={paymentForm.paymentMethod}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    required
-                  >
-                    <option value="Cash">Cash</option>
-                    <option value="Online">Online</option>
-                  </select>
-                </div>
-
-                {paymentForm.paymentMethod === 'Online' && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      UTR Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentForm.utrNumber}
-                      onChange={(e) => setPaymentForm(prev => ({ ...prev, utrNumber: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      placeholder="Enter UTR/Transaction ID"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Unique Transaction Reference number from your bank
-                    </p>
-                  </div>
-                )}
-                
-                {paymentForm.paymentType === 'electricity' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Select Month
+                      Payment Type
                     </label>
                     <select
-                      value={paymentForm.month}
-                      onChange={async (e) => {
-                        const selectedMonth = e.target.value;
-                        setPaymentForm(prev => ({ 
-                          ...prev, 
-                          month: selectedMonth,
-                          billId: '',
-                          amount: ''
-                        }));
-                        setSelectedElectricityBill(null);
-                        
-                        if (selectedMonth && selectedStudentForPayment) {
-                          await fetchElectricityBillForMonth(selectedStudentForPayment, selectedMonth);
-                        }
-                      }}
+                      value={paymentForm.paymentType}
+                      onChange={(e) => setPaymentForm(prev => ({
+                        ...prev,
+                        paymentType: e.target.value,
+                        term: '',
+                        billId: '',
+                        month: '',
+                        amount: ''
+                      }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       required
                     >
-                      <option value="">Select Month</option>
-                      {availableMonths.map(month => (
-                        <option key={month} value={month}>
-                          {new Date(month).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long' 
-                          })}
-                        </option>
-                      ))}
-                      {availableMonths.length === 0 && !electricityBillsLoading && (
-                        <option value="" disabled>No unpaid bills found</option>
-                      )}
+                      <option value="hostel_fee">Hostel Fee</option>
+                      <option value="electricity">Electricity Bill</option>
                     </select>
-                    {electricityBillsLoading && (
-                      <p className="text-xs text-gray-500 mt-1">Loading...</p>
-                    )}
-                    {!electricityBillsLoading && availableMonths.length === 0 && (
-                      <p className="text-sm text-green-600 mt-1">✅ All electricity bills are paid</p>
-                    )}
                   </div>
-                )}
-                
-                {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
-                  <div className="col-span-full">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="text-sm font-medium text-blue-900 mb-2">Bill Details</h4>
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Month:</span>
-                          <span className="ml-2 font-medium">
-                            {new Date(selectedElectricityBill.month).toLocaleDateString('en-US', { 
-                              year: 'numeric', 
-                              month: 'long' 
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={paymentForm.paymentMethod}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Online">Online</option>
+                    </select>
+                  </div>
+
+                  {paymentForm.paymentMethod === 'Online' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        UTR Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm.utrNumber}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, utrNumber: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Enter UTR/Transaction ID"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Unique Transaction Reference number from your bank
+                      </p>
+                    </div>
+                  )}
+
+                  {paymentForm.paymentType === 'electricity' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Select Month
+                      </label>
+                      <select
+                        value={paymentForm.month}
+                        onChange={async (e) => {
+                          const selectedMonth = e.target.value;
+                          setPaymentForm(prev => ({
+                            ...prev,
+                            month: selectedMonth,
+                            billId: '',
+                            amount: ''
+                          }));
+                          setSelectedElectricityBill(null);
+
+                          if (selectedMonth && selectedStudentForPayment) {
+                            await fetchElectricityBillForMonth(selectedStudentForPayment, selectedMonth);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        required
+                      >
+                        <option value="">Select Month</option>
+                        {availableMonths.map(month => (
+                          <option key={month} value={month}>
+                            {new Date(month).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long'
                             })}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Your Share:</span>
-                          <span className="ml-2 font-medium text-green-600">₹{selectedElectricityBill.amount}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Total Bill:</span>
-                          <span className="ml-2 font-medium">₹{selectedElectricityBill.totalBill}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Consumption:</span>
-                          <span className="ml-2 font-medium">{selectedElectricityBill.consumption} units</span>
+                          </option>
+                        ))}
+                        {availableMonths.length === 0 && !electricityBillsLoading && (
+                          <option value="" disabled>No unpaid bills found</option>
+                        )}
+                      </select>
+                      {electricityBillsLoading && (
+                        <p className="text-xs text-gray-500 mt-1">Loading...</p>
+                      )}
+                      {!electricityBillsLoading && availableMonths.length === 0 && (
+                        <p className="text-sm text-green-600 mt-1">✅ All electricity bills are paid</p>
+                      )}
+                    </div>
+                  )}
+
+                  {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
+                    <div className="col-span-full">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">Bill Details</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Month:</span>
+                            <span className="ml-2 font-medium">
+                              {new Date(selectedElectricityBill.month).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long'
+                              })}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Your Share:</span>
+                            <span className="ml-2 font-medium text-green-600">₹{selectedElectricityBill.amount}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Total Bill:</span>
+                            <span className="ml-2 font-medium">₹{selectedElectricityBill.totalBill}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Consumption:</span>
+                            <span className="ml-2 font-medium">{selectedElectricityBill.consumption} units</span>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                       required
                       min="1"
                       step="0.01"
-                      placeholder={paymentForm.paymentType === 'electricity' && selectedElectricityBill ? 
-                        `Enter amount (Bill: ₹${selectedElectricityBill.amount})` : 
+                      placeholder={paymentForm.paymentType === 'electricity' && selectedElectricityBill ?
+                        `Enter amount (Bill: ₹${selectedElectricityBill.amount})` :
                         "Enter payment amount"
                       }
                     />
@@ -2413,35 +2411,35 @@ const FeeManagement = () => {
                         </button>
                       </div>
                     )}
-                  {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
-                    const balance = calculateStudentBalance(selectedStudentForPayment);
-                    const totalBalance = balance?.totalBalance || 0;
-                    return totalBalance > 0 ? (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: totalBalance.toString() }))}
-                            className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                          >
-                            Pay Full (₹{totalBalance})
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(totalBalance / 2).toString() }))}
-                            className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
-                          >
-                            Pay Half (₹{Math.round(totalBalance / 2)})
-                          </button>
+                    {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
+                      const balance = calculateStudentBalance(selectedStudentForPayment);
+                      const totalBalance = balance?.totalBalance || 0;
+                      return totalBalance > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: totalBalance.toString() }))}
+                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                            >
+                              Pay Full (₹{totalBalance})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(totalBalance / 2).toString() }))}
+                              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                            >
+                              Pay Half (₹{Math.round(totalBalance / 2)})
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : null;
-                  })()}
+                      ) : null;
+                    })()}
                   </div>
                 </div>
-                
-                
+
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Notes (Optional)
@@ -2455,7 +2453,7 @@ const FeeManagement = () => {
                   />
                 </div>
               </div>
-              
+
               <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
                 <button
                   type="button"
@@ -2483,8 +2481,8 @@ const FeeManagement = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-blue-900">
-              Student Balance Details
-            </h3>
+                Student Balance Details
+              </h3>
               <button
                 onClick={() => {
                   setShowBalanceModal(false);
@@ -2498,7 +2496,7 @@ const FeeManagement = () => {
                 </svg>
               </button>
             </div>
-            
+
             <div className="mb-4 p-3 bg-blue-50 rounded-lg">
               <h4 className="font-medium text-blue-900 mb-2">Student Information</h4>
               <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
@@ -2524,11 +2522,11 @@ const FeeManagement = () => {
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
                   if (!balance) return null;
-                  
+
                   return (
                     <div className="mb-6">
                       <h4 className="font-medium text-gray-900 mb-3">Balance Summary</h4>
-                      
+
                       {/* Concession Information */}
                       {balance.hasConcession && (
                         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -2549,7 +2547,7 @@ const FeeManagement = () => {
                           </div>
                         </div>
                       )}
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
                           <div className="text-sm font-medium text-gray-600">
@@ -2589,7 +2587,7 @@ const FeeManagement = () => {
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
                   if (!balance) return null;
-                  
+
                   return (
                     <div className="mb-6">
                       {/* <h4 className="font-medium text-gray-900 mb-3">Payment Status Overview</h4>
@@ -2627,44 +2625,44 @@ const FeeManagement = () => {
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
                   if (!balance) return null;
-                  
+
                   return (
                     <div className="mb-6">
                       <h4 className="font-medium text-gray-900 mb-3">Term-wise Breakdown</h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {Object.entries(balance.termBalances).map(([term, termData]) => {
                           // Get original term fee for comparison
-                          const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] || 
+                          const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] ||
                             Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
-                          
+
                           return (
-                          <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
-                            <div className="text-sm font-medium text-gray-600 mb-2">
-                              {term.replace('term', 'Term ')}
-                            </div>
-                            <div className="space-y-2 text-sm">
+                            <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
+                              <div className="text-sm font-medium text-gray-600 mb-2">
+                                {term.replace('term', 'Term ')}
+                              </div>
+                              <div className="space-y-2 text-sm">
                                 {/* {balance.hasConcession && (
                                   <div className="flex justify-between">
                                     <span>Original:</span>
                                     <span className="font-medium text-gray-500 line-through">₹{originalTermFee.toLocaleString()}</span>
                                   </div>
                                 )} */}
-                              <div className="flex justify-between">
-                                <span>Required:</span>
-                                <span className="font-medium">₹{termData.required.toLocaleString()}</span>
-                              </div>
-                              {/* <div className="flex justify-between">
+                                <div className="flex justify-between">
+                                  <span>Required:</span>
+                                  <span className="font-medium">₹{termData.required.toLocaleString()}</span>
+                                </div>
+                                {/* <div className="flex justify-between">
                                 <span>Paid:</span>
                                 <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
                               </div> */}
-                              <div className="flex justify-between">
-                                <span>Balance:</span>
-                                <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                  ₹{termData.balance.toLocaleString()}
-                                </span>
+                                <div className="flex justify-between">
+                                  <span>Balance:</span>
+                                  <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{termData.balance.toLocaleString()}
+                                  </span>
+                                </div>
                               </div>
                             </div>
-                          </div>
                           );
                         })}
                       </div>
@@ -2735,9 +2733,9 @@ const FeeManagement = () => {
       )}
 
 
-            
 
-            
+
+
 
 
       {/* Fee Structure Modal */}
@@ -2746,8 +2744,8 @@ const FeeManagement = () => {
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-              {selectedFeeStructure ? 'Edit Fee Structure' : 'Add Fee Structure'}
-            </h3>
+                {selectedFeeStructure ? 'Edit Fee Structure' : 'Add Fee Structure'}
+              </h3>
               <button
                 onClick={() => setShowFeeStructureModal(false)}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -2758,7 +2756,7 @@ const FeeManagement = () => {
                 </svg>
               </button>
             </div>
-            
+
             <form onSubmit={handleFeeStructureSubmit}>
               <div className="space-y-4">
                 <div>
@@ -2777,7 +2775,7 @@ const FeeManagement = () => {
                     ))}
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category
@@ -2790,8 +2788,8 @@ const FeeManagement = () => {
                     disabled={getAvailableCategoriesForCreation().length === 0}
                   >
                     <option value="">
-                      {getAvailableCategoriesForCreation().length === 0 
-                        ? 'All categories already created for this academic year' 
+                      {getAvailableCategoriesForCreation().length === 0
+                        ? 'All categories already created for this academic year'
                         : 'Select Category'
                       }
                     </option>
@@ -2805,7 +2803,7 @@ const FeeManagement = () => {
                     </p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Total Fee (₹)
@@ -2819,7 +2817,7 @@ const FeeManagement = () => {
                     min="0"
                   />
                 </div>
-                
+
                 {/* Term Fee Breakdown Preview */}
                 {feeStructureForm.totalFee > 0 && (
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
@@ -2852,7 +2850,7 @@ const FeeManagement = () => {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
@@ -2944,7 +2942,7 @@ const FeeManagement = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               {paymentHistoryLoading ? (
                 <div className="p-8 text-center text-gray-500">
@@ -3007,16 +3005,15 @@ const FeeManagement = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                payment.paymentType === 'electricity' 
-                                  ? 'bg-yellow-100 text-yellow-800' 
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${payment.paymentType === 'electricity'
+                                  ? 'bg-yellow-100 text-yellow-800'
                                   : 'bg-blue-100 text-blue-800'
-                              }`}>
+                                }`}>
                                 {payment.paymentType === 'electricity' ? '⚡ Electricity' : '🏠 Hostel Fee'}
                               </span>
                             </div>
                             <div className="text-sm font-medium text-gray-900 mt-1">
-                              {payment.paymentType === 'electricity' 
+                              {payment.paymentType === 'electricity'
                                 ? `Bill Month: ${payment.billMonth || 'N/A'}`
                                 : `Term: ${payment.term || 'N/A'}`
                               }
@@ -3035,11 +3032,10 @@ const FeeManagement = () => {
                           ₹{payment.amount.toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            payment.paymentMethod === 'Cash' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${payment.paymentMethod === 'Cash'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-blue-100 text-blue-800'
-                          }`}>
+                            }`}>
                             {payment.paymentMethod}
                           </span>
                         </td>

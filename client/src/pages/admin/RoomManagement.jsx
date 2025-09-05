@@ -26,14 +26,14 @@ import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const RoomManagement = () => {
   console.log('🏠 RoomManagement component loaded');
-  
+
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   const canAddRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'create');
   const canEditRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
   const canDeleteRoom = isSuperAdmin || canPerformAction(user, 'room_management', 'delete');
   const canManageBills = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
-  
+
   console.log('🔐 Room Management Permissions:', {
     user: user?.username,
     role: user?.role,
@@ -45,7 +45,7 @@ const RoomManagement = () => {
     permissions: user?.permissions,
     accessLevels: user?.permissionAccessLevels
   });
-  
+
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -163,12 +163,12 @@ const RoomManagement = () => {
 
   const handleAddRoom = async (e) => {
     e.preventDefault();
-    
+
     if (!canAddRoom) {
       toast.error('You do not have permission to add rooms');
       return;
     }
-    
+
     try {
       await api.post('/api/admin/rooms', formData);
       toast.success('Room added successfully');
@@ -182,12 +182,12 @@ const RoomManagement = () => {
 
   const handleEditRoom = async (e) => {
     e.preventDefault();
-    
+
     if (!canEditRoom) {
       toast.error('You do not have permission to edit rooms');
       return;
     }
-    
+
     try {
       await api.put(`/api/admin/rooms/${selectedRoom._id}`, formData);
       toast.success('Room updated successfully');
@@ -205,9 +205,9 @@ const RoomManagement = () => {
       toast.error('You do not have permission to delete rooms');
       return;
     }
-    
+
     if (!window.confirm('Are you sure you want to delete this room?')) return;
-    
+
     try {
       await api.delete(`/api/admin/rooms/${roomId}`);
       toast.success('Room deleted successfully');
@@ -229,7 +229,7 @@ const RoomManagement = () => {
   };
 
   const getCategoryOptions = (gender) => {
-    return gender === 'Male' 
+    return gender === 'Male'
       ? ['A+', 'A', 'B+', 'B']
       : ['A+', 'A', 'B', 'C'];
   };
@@ -317,7 +317,7 @@ const RoomManagement = () => {
 
     setBillForm(prev => {
       const updatedForm = { ...prev, [name]: value };
-      
+
       // If month is changed, try to auto-fill start units
       if (name === 'month' && value) {
         const lastMonthBill = billHistory
@@ -342,16 +342,16 @@ const RoomManagement = () => {
 
   const calculateRealTimePreview = () => {
     const { month, startUnits, endUnits, rate } = billForm;
-    
+
     if (month && startUnits && endUnits) {
       const start = Number(startUnits);
       const end = Number(endUnits);
       const billRate = rate ? Number(rate) : 5;
-      
+
       if (end >= start) {
         const consumption = end - start;
         const total = consumption * billRate;
-        
+
         setRealTimePreview({
           consumption,
           rate: billRate,
@@ -373,7 +373,7 @@ const RoomManagement = () => {
 
   const calculateBillPreview = () => {
     const { month, startUnits, endUnits, rate } = billForm;
-    
+
     if (!month || !startUnits || !endUnits) {
       return null;
     }
@@ -381,7 +381,7 @@ const RoomManagement = () => {
     const start = Number(startUnits);
     const end = Number(endUnits);
     const billRate = rate ? Number(rate) : 5; // Default rate if not provided
-    
+
     if (end < start) {
       return null;
     }
@@ -403,12 +403,12 @@ const RoomManagement = () => {
   const handleBillPreview = (e) => {
     e.preventDefault();
     const preview = calculateBillPreview();
-    
+
     if (!preview) {
       toast.error('Please fill all required fields correctly');
       return;
     }
-    
+
     setBillPreview(preview);
     setShowBillPreviewModal(true);
   };
@@ -418,7 +418,7 @@ const RoomManagement = () => {
       toast.error('You do not have permission to manage electricity bills');
       return;
     }
-    
+
     try {
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
@@ -447,7 +447,7 @@ const RoomManagement = () => {
           }
         );
         setBillHistory(billsResponse.data.data);
-        
+
         // Reset form
         setBillForm({
           month: '',
@@ -455,7 +455,7 @@ const RoomManagement = () => {
           endUnits: '',
           rate: ''
         });
-        
+
         setShowBillPreviewModal(false);
         setBillPreview(null);
         toast.success(`Bill ${billPreview.isUpdate ? 'updated' : 'added'} successfully`);
@@ -468,16 +468,16 @@ const RoomManagement = () => {
 
   const calculateEditRealTimePreview = () => {
     const { month, startUnits, endUnits, rate } = editBillForm;
-    
+
     if (month && startUnits && endUnits) {
       const start = Number(startUnits);
       const end = Number(endUnits);
       const billRate = rate ? Number(rate) : 5;
-      
+
       if (end >= start) {
         const consumption = end - start;
         const total = consumption * billRate;
-        
+
         setEditRealTimePreview({
           consumption,
           rate: billRate,
@@ -499,7 +499,7 @@ const RoomManagement = () => {
 
   const calculateEditBillPreview = () => {
     const { month, startUnits, endUnits, rate } = editBillForm;
-    
+
     if (!month || !startUnits || !endUnits) {
       return null;
     }
@@ -507,7 +507,7 @@ const RoomManagement = () => {
     const start = Number(startUnits);
     const end = Number(endUnits);
     const billRate = rate ? Number(rate) : 5; // Default rate if not provided
-    
+
     if (end < start) {
       return null;
     }
@@ -528,12 +528,12 @@ const RoomManagement = () => {
   const handleEditBillPreview = (e) => {
     e.preventDefault();
     const preview = calculateEditBillPreview();
-    
+
     if (!preview) {
       toast.error('Please fill all required fields correctly');
       return;
     }
-    
+
     setEditBillPreview(preview);
     setShowEditBillPreviewModal(true);
   };
@@ -543,7 +543,7 @@ const RoomManagement = () => {
       toast.error('You do not have permission to manage electricity bills');
       return;
     }
-    
+
     try {
       const payload = {
         month: editBillPreview.month,
@@ -551,7 +551,7 @@ const RoomManagement = () => {
         endUnits: editBillPreview.endUnits,
         rate: editBillPreview.rate
       };
-      
+
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
         payload,
@@ -562,7 +562,7 @@ const RoomManagement = () => {
           }
         }
       );
-      
+
       if (response.data.success) {
         // Refresh bill history
         const billsResponse = await axios.get(
@@ -624,7 +624,7 @@ const RoomManagement = () => {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
       <SEO title="Room Management" />
-      
+
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
@@ -634,11 +634,10 @@ const RoomManagement = () => {
         <button
           onClick={() => setShowAddModal(true)}
           disabled={!canAddRoom}
-          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${
-            canAddRoom 
-              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${canAddRoom
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-          }`}
+            }`}
           title={!canAddRoom ? 'You need full access to add rooms' : 'Add new room'}
         >
           {!canAddRoom ? <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -652,7 +651,7 @@ const RoomManagement = () => {
       {!statsLoading && roomStats && (
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Room Statistics</h2>
-          
+
           {/* Overall Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
             <div className="bg-blue-50 p-2 sm:p-4 rounded-lg">
@@ -682,18 +681,18 @@ const RoomManagement = () => {
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs sm:text-sm font-medium text-gray-700">Bed Occupancy Rate</span>
               <span className="text-xs sm:text-sm font-semibold text-gray-900">
-                {roomStats.overall.totalBeds > 0 
+                {roomStats.overall.totalBeds > 0
                   ? Math.round((roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100)
                   : 0}%
               </span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
+              <div
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ 
-                  width: `${roomStats.overall.totalBeds > 0 
-                    ? (roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100 
-                    : 0}%` 
+                style={{
+                  width: `${roomStats.overall.totalBeds > 0
+                    ? (roomStats.overall.filledBeds / roomStats.overall.totalBeds) * 100
+                    : 0}%`
                 }}
               ></div>
             </div>
@@ -704,7 +703,7 @@ const RoomManagement = () => {
             {roomStats.byGender.map((genderStat) => (
               <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-3 sm:p-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{genderStat.gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'}</h3>
-                
+
                 {/* Gender Summary */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
                   <div className="text-center">
@@ -797,14 +796,14 @@ const RoomManagement = () => {
       </div>
 
       {/* Room Management Table */}
-        <div className="space-y-6 sm:space-y-8">
-          {Object.entries(groupedRooms).map(([key, rooms]) => {
-            const [gender, category] = key.split('-');
-            return (
-              <div key={key} className="space-y-3 sm:space-y-4">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'} - Category {category}
-                </h2>
+      <div className="space-y-6 sm:space-y-8">
+        {Object.entries(groupedRooms).map(([key, rooms]) => {
+          const [gender, category] = key.split('-');
+          return (
+            <div key={key} className="space-y-3 sm:space-y-4">
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                {gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'} - Category {category}
+              </h2>
               <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -828,31 +827,30 @@ const RoomManagement = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                  {rooms.map((room) => (
+                      {rooms.map((room) => (
                         <motion.tr
-                      key={room._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
+                          key={room._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
                           className="hover:bg-gray-50 transition-colors"
-                    >
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
-                        <div
-                              className="cursor-pointer"
-                          onClick={() => handleRoomClick(room)}
                         >
+                          <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
+                            <div
+                              className="cursor-pointer"
+                              onClick={() => handleRoomClick(room)}
+                            >
                               <div className="text-xs sm:text-sm font-semibold text-gray-900">
-                            Room {room.roomNumber}
+                                Room {room.roomNumber}
                               </div>
                             </div>
                           </td>
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="flex items-center gap-1.5 sm:gap-2">
                               <BuildingOfficeIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
-                              <span className={`text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                                room.isActive 
-                                  ? 'bg-green-100 text-green-800' 
+                              <span className={`text-xs sm:text-sm px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${room.isActive
+                                  ? 'bg-green-100 text-green-800'
                                   : 'bg-red-100 text-red-800'
-                              }`}>
+                                }`}>
                                 {room.isActive ? 'Active' : 'Inactive'}
                               </span>
                             </div>
@@ -866,58 +864,58 @@ const RoomManagement = () => {
                             <div className="flex items-center gap-1.5 sm:gap-2">
                               <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
                               <span className="text-xs sm:text-sm text-gray-900">
-                            {room.studentCount || 0} Students
+                                {room.studentCount || 0} Students
                               </span>
-                        </div>
+                            </div>
                           </td>
                           <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                             <div className="flex items-center gap-1 sm:gap-2">
-                          {canEditRoom ? (
-                            <button
-                              className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
-                              title="Edit Room"
-                            >
-                              <PencilIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
-                              disabled
-                              title="You need full access to edit rooms"
-                            >
-                              <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          )}
-                          {canDeleteRoom ? (
-                            <button
-                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
-                              title="Delete Room"
-                            >
-                              <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
-                              disabled
-                              title="You need full access to delete rooms"
-                            >
-                              <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </button>
-                          )}
-                        </div>
+                              {canEditRoom ? (
+                                <button
+                                  className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); openEditModal(room); }}
+                                  title="Edit Room"
+                                >
+                                  <PencilIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
+                                  disabled
+                                  title="You need full access to edit rooms"
+                                >
+                                  <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </button>
+                              )}
+                              {canDeleteRoom ? (
+                                <button
+                                  className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteRoom(room._id); }}
+                                  title="Delete Room"
+                                >
+                                  <TrashIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  className="p-1.5 sm:p-2 text-gray-400 cursor-not-allowed"
+                                  disabled
+                                  title="You need full access to delete rooms"
+                                >
+                                  <LockClosedIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </motion.tr>
-                  ))}
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
-        </div>
-                    );
-                  })}
-          </div>
+            </div>
+          );
+        })}
+      </div>
 
       {/* Add Room Modal */}
       <AnimatePresence>
@@ -1234,7 +1232,7 @@ const RoomManagement = () => {
                         };
 
                         const colors = getCourseColors(course);
-                        
+
                         return (
                           <div key={course} className={`${colors.bg} ${colors.border} border rounded-lg p-2 sm:p-3 text-center transition-all duration-200 hover:shadow-sm`}>
                             <div className={`text-lg sm:text-xl font-bold ${colors.count}`}>{count}</div>
@@ -1326,7 +1324,7 @@ const RoomManagement = () => {
                     <input type="number" name="rate" value={billForm.rate} onChange={handleBillFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" />
                   </div>
                 </div>
-                
+
                 {/* Real-time Preview */}
                 {realTimePreview && (
                   <div className={`p-3 rounded-lg border ${realTimePreview.isValid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
@@ -1353,16 +1351,15 @@ const RoomManagement = () => {
                     )}
                   </div>
                 )}
-                
+
                 <div className="flex justify-end gap-3">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={!realTimePreview || !realTimePreview.isValid}
-                    className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                      realTimePreview && realTimePreview.isValid 
-                        ? 'bg-blue-600 hover:bg-blue-700' 
+                    className={`px-4 py-2 text-white rounded-lg transition-colors ${realTimePreview && realTimePreview.isValid
+                        ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-gray-400 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     Preview Bill
                   </button>
@@ -1466,7 +1463,7 @@ const RoomManagement = () => {
                     <input type="number" name="rate" value={editBillForm.rate} onChange={handleEditBillFormChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" step="0.01" />
                   </div>
                 </div>
-                
+
                 {/* Real-time Preview for Edit */}
                 {editRealTimePreview && (
                   <div className={`p-3 rounded-lg border ${editRealTimePreview.isValid ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
@@ -1493,17 +1490,16 @@ const RoomManagement = () => {
                     )}
                   </div>
                 )}
-                
+
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={() => setShowEditBillModal(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Cancel</button>
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={!editRealTimePreview || !editRealTimePreview.isValid}
-                    className={`px-4 py-2 text-white rounded-lg transition-colors ${
-                      editRealTimePreview && editRealTimePreview.isValid 
-                        ? 'bg-blue-600 hover:bg-blue-700' 
+                    className={`px-4 py-2 text-white rounded-lg transition-colors ${editRealTimePreview && editRealTimePreview.isValid
+                        ? 'bg-blue-600 hover:bg-blue-700'
                         : 'bg-gray-400 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     Preview Changes
                   </button>
@@ -1541,7 +1537,7 @@ const RoomManagement = () => {
                   <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <div className="text-center mb-3">
                   <h3 className="text-lg font-semibold text-blue-900">
@@ -1549,7 +1545,7 @@ const RoomManagement = () => {
                   </h3>
                   <p className="text-sm text-blue-700">Room {selectedRoom.roomNumber} - {billPreview.month}</p>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Start Units:</span>
@@ -1572,14 +1568,14 @@ const RoomManagement = () => {
                     <span className="text-lg font-bold text-green-600">₹{billPreview.total}</span>
                   </div>
                 </div>
-                
+
                 {billPreview.isUpdate && (
                   <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
                     ⚠️ This will update the existing bill for {billPreview.month}
                   </div>
                 )}
               </div>
-              
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
@@ -1631,7 +1627,7 @@ const RoomManagement = () => {
                   <XMarkIcon className="w-6 h-6" />
                 </button>
               </div>
-              
+
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                 <div className="text-center mb-3">
                   <h3 className="text-lg font-semibold text-yellow-900">
@@ -1639,7 +1635,7 @@ const RoomManagement = () => {
                   </h3>
                   <p className="text-sm text-yellow-700">Room {selectedRoom.roomNumber} - {editBillPreview.month}</p>
                 </div>
-                
+
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Start Units:</span>
@@ -1662,12 +1658,12 @@ const RoomManagement = () => {
                     <span className="text-lg font-bold text-green-600">₹{editBillPreview.total}</span>
                   </div>
                 </div>
-                
+
                 <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded text-sm text-orange-800">
                   ⚠️ This will update the existing bill for {editBillPreview.month}
                 </div>
               </div>
-              
+
               <div className="flex justify-end gap-3">
                 <button
                   type="button"

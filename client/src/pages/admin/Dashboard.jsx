@@ -39,7 +39,7 @@ const PermissionDenied = ({ sectionName }) => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
         <p className="text-gray-600 mb-6">
-          You don't have permission to access the <strong>{sectionName}</strong> section. 
+          You don't have permission to access the <strong>{sectionName}</strong> section.
           Please contact your super admin to request access.
         </p>
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -56,15 +56,15 @@ const PermissionDenied = ({ sectionName }) => {
 const ProtectedSection = ({ permission, sectionName, children, requiredAccess = 'view' }) => {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
-  
+
   // For super admin, always allow access
   if (isSuperAdmin) {
     return children;
   }
-  
+
   // Check if user has the required permission and access level
   const canAccess = canPerformAction(user, permission, requiredAccess);
-  
+
   if (!canAccess) {
     return <PermissionDenied sectionName={sectionName} />;
   }
@@ -85,13 +85,13 @@ const AdminDashboard = () => {
   });
   const [expandedMenus, setExpandedMenus] = useState({});
   const { pathname } = useLocation();
-  
+
   // iOS/Safari detection - memoized to prevent unnecessary re-renders
   const isIOS = useMemo(() => /iPad|iPhone|iPod/.test(navigator.userAgent), []);
   const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
   const isIOSSafari = useMemo(() => isSafari && isIOS, [isSafari, isIOS]);
   const isIOSChrome = useMemo(() => /CriOS/.test(navigator.userAgent), []);
-  
+
   // Define these variables before useEffect hooks that use them
   const isSuperAdmin = user?.role === 'super_admin';
   const checkPermission = (permission) => {
@@ -109,20 +109,20 @@ const AdminDashboard = () => {
   const getFirstAvailableSection = () => {
     console.log('🔍 getFirstAvailableSection called');
     console.log('🔍 All menu items:', menuItems);
-    
+
     const availableSections = menuItems.filter(item => {
       const isAvailable = item.show && !item.locked && item.path !== '/admin/dashboard';
       console.log(`🔍 Menu item "${item.name}": show=${item.show}, locked=${item.locked}, path=${item.path}, isAvailable=${isAvailable}`);
       return isAvailable;
     });
-    
+
     console.log('🔍 Available sections:', availableSections);
     const firstSection = availableSections.length > 0 ? availableSections[0] : null;
     console.log('🔍 First available section:', firstSection);
-    
+
     return firstSection;
   };
-  
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -138,7 +138,7 @@ const AdminDashboard = () => {
   // Close sidebar when route changes and auto-expand submenus
   useEffect(() => {
     setIsSidebarOpen(false);
-    
+
     // Auto-expand Rooms submenu if on rooms-related pages
     if (pathname.startsWith('/admin/dashboard/rooms')) {
       setExpandedMenus(prev => ({
@@ -146,7 +146,15 @@ const AdminDashboard = () => {
         'Rooms': true
       }));
     }
-    
+
+    // Auto-expand Students submenu if on students-related pages
+    if (pathname.startsWith('/admin/dashboard/students')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Students': true
+      }));
+    }
+
     // Auto-expand Maintenance Ticket Management submenu if on complaints or members pages
     if (pathname.startsWith('/admin/dashboard/complaints') || pathname.startsWith('/admin/dashboard/members')) {
       setExpandedMenus(prev => ({
@@ -154,7 +162,7 @@ const AdminDashboard = () => {
         'Maintenance Ticket Management': true
       }));
     }
-    
+
     // Auto-expand Cafeteria submenu if on cafeteria-related pages
     if (pathname.startsWith('/admin/dashboard/cafeteria')) {
       setExpandedMenus(prev => ({
@@ -162,7 +170,7 @@ const AdminDashboard = () => {
         'Cafeteria ': true
       }));
     }
-    
+
     // Auto-expand Security submenu if on security-related pages
     if (pathname.startsWith('/admin/dashboard/security')) {
       setExpandedMenus(prev => ({
@@ -205,22 +213,22 @@ const AdminDashboard = () => {
     console.log('🔄 Is super admin:', isSuperAdmin);
     console.log('🔄 User permissions:', user?.permissions);
     console.log('🔄 Has dashboard_home permission:', hasPermission(user, 'dashboard_home'));
-    
+
     if (!isSuperAdmin && pathname === '/admin/dashboard') {
       console.log('🔄 Processing auto-redirect logic for sub-admin on dashboard home');
-      
+
       // PRIORITY 1: If user has dashboard_home permission, stay on dashboard home
       // This prevents redirects for users who should see the dashboard home page
       if (hasPermission(user, 'dashboard_home')) {
         console.log('🔄 User has dashboard_home permission - staying on dashboard home');
         return;
       }
-      
+
       // PRIORITY 2: If no dashboard_home permission, redirect to first available section
       // This only happens for users who don't have access to dashboard home
       console.log('🔄 User lacks dashboard_home permission - redirecting to first available section');
       const firstSection = getFirstAvailableSection();
-      
+
       if (firstSection) {
         console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
         navigate(firstSection.path, { replace: true });
@@ -236,20 +244,20 @@ const AdminDashboard = () => {
     const fetchNotificationCount = async () => {
       try {
         console.log('🔔 Fetching admin notification count...');
-        
+
         // Safari-specific timeout handling
         const timeoutDuration = isSafari ? 45000 : 30000;
-        
+
         const [countRes, unreadRes] = await Promise.allSettled([
           Promise.race([
             api.get('/api/notifications/admin/count'),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
             )
           ]),
           Promise.race([
             api.get('/api/notifications/admin/unread'),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
             )
           ])
@@ -265,18 +273,18 @@ const AdminDashboard = () => {
 
         if (unreadRes.status === 'fulfilled' && unreadRes.value.data.success) {
           const unreadNotifications = unreadRes.value.data.data;
-          
+
           // Check for specific notification types
           const hasComplaints = unreadNotifications.some(n => n.type === 'complaint');
           const hasAnnouncements = unreadNotifications.some(n => n.type === 'announcement');
           const hasPolls = unreadNotifications.some(n => n.type === 'poll');
-          
+
           setNotificationStates({
             complaint: hasComplaints,
             announcement: hasAnnouncements,
             poll: hasPolls
           });
-          
+
           console.log('🔔 Notification states:', {
             complaint: hasComplaints,
             announcement: hasAnnouncements,
@@ -287,12 +295,12 @@ const AdminDashboard = () => {
         }
       } catch (err) {
         console.error('🔔 Failed to fetch notification count:', err);
-        
+
         // Safari-specific error handling
         if (isSafari) {
           console.log('🦁 Safari notification error - setting defaults');
         }
-        
+
         // Don't let notification errors cause logout - just set defaults
         setNotificationCount(0);
         setNotificationStates({
@@ -304,11 +312,11 @@ const AdminDashboard = () => {
     };
 
     fetchNotificationCount();
-    
+
     // Refresh count when new notification arrives
     const refreshHandler = () => fetchNotificationCount();
     window.addEventListener('refresh-notifications', refreshHandler);
-    
+
     // Poll for new notifications every 30 seconds
     const interval = setInterval(fetchNotificationCount, 30000);
 
@@ -322,7 +330,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const nav = document.querySelector('nav.overflow-y-auto');
     const bottomFade = document.getElementById('bottom-fade');
-    
+
     if (nav && bottomFade) {
       // Check if content is scrollable
       const isScrollable = nav.scrollHeight > nav.clientHeight;
@@ -370,6 +378,11 @@ const AdminDashboard = () => {
           name: 'Student Management',
           path: '/admin/dashboard/students',
           icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z'
+        },
+        {
+          name: 'Pre-Registration Requests',
+          path: '/admin/dashboard/students/preregistration-requests',
+          icon: 'M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01'
         },
         {
           name: 'Admit Cards',
@@ -489,7 +502,7 @@ const AdminDashboard = () => {
         }
       ]
     },
-   
+
     {
       name: 'Student Controls',
       icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
@@ -557,28 +570,28 @@ const AdminDashboard = () => {
         {/* Navigation */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Top fade indicator */}
-          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
-               id="top-fade"></div>
-          
-          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible" 
-               onScroll={(e) => {
-                 const target = e.target;
-                 const topFade = document.getElementById('top-fade');
-                 const bottomFade = document.getElementById('bottom-fade');
-                 
-                 if (topFade && bottomFade) {
-                   // Show top fade when scrolled down
-                   topFade.style.opacity = target.scrollTop > 10 ? '1' : '0';
-                   
-                   // Show bottom fade when not at bottom
-                   const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
-                   bottomFade.style.opacity = isAtBottom ? '0' : '1';
-                 }
-               }}>
+          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300"
+            id="top-fade"></div>
+
+          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible"
+            onScroll={(e) => {
+              const target = e.target;
+              const topFade = document.getElementById('top-fade');
+              const bottomFade = document.getElementById('bottom-fade');
+
+              if (topFade && bottomFade) {
+                // Show top fade when scrolled down
+                topFade.style.opacity = target.scrollTop > 10 ? '1' : '0';
+
+                // Show bottom fade when not at bottom
+                const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
+                bottomFade.style.opacity = isAtBottom ? '0' : '1';
+              }
+            }}>
             {menuItems.filter(item => {
               // For super admin, show all items
               if (isSuperAdmin) return item.show;
-              
+
               // For sub-admins, only show items they have access to (not locked)
               return item.show && !item.locked;
             }).map((item, index) => (
@@ -593,11 +606,10 @@ const AdminDashboard = () => {
                   <div>
                     <button
                       onClick={() => toggleSubmenu(item.name)}
-                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${
-                        pathname.startsWith(item.path)
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${pathname.startsWith(item.path)
                           ? "bg-blue-50 text-blue-700 shadow-sm"
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <svg
@@ -616,9 +628,8 @@ const AdminDashboard = () => {
                         <span>{item.name}</span>
                       </div>
                       <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          expandedMenus[item.name] ? 'rotate-180' : ''
-                        }`}
+                        className={`w-4 h-4 transition-transform duration-200 ${expandedMenus[item.name] ? 'rotate-180' : ''
+                          }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -631,7 +642,7 @@ const AdminDashboard = () => {
                         />
                       </svg>
                     </button>
-                    
+
                     {/* Submenu items */}
                     <AnimatePresence>
                       {expandedMenus[item.name] && (
@@ -647,10 +658,9 @@ const AdminDashboard = () => {
                               key={subItem.name}
                               to={subItem.path}
                               className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${
-                                  isActive
-                                    ? "bg-blue-50 text-blue-700 shadow-sm"
-                                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
+                                  ? "bg-blue-50 text-blue-700 shadow-sm"
+                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                                 }`
                               }
                             >
@@ -701,10 +711,9 @@ const AdminDashboard = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${
-                        isActive
-                          ? "bg-blue-50 text-blue-700 shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
+                        ? "bg-blue-50 text-blue-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`
                     }
                     end
@@ -750,10 +759,10 @@ const AdminDashboard = () => {
               </motion.div>
             ))}
           </nav>
-          
+
           {/* Bottom fade indicator */}
-          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
-               id="bottom-fade"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300"
+            id="bottom-fade"></div>
         </div>
 
         {/* User Profile and Logout */}
@@ -771,7 +780,7 @@ const AdminDashboard = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Password Reset Button - Only show for sub-admins and principals */}
           {(user?.role === 'sub_admin' || user?.role === 'principal') && (
             <motion.button
@@ -796,7 +805,7 @@ const AdminDashboard = () => {
               Reset Password
             </motion.button>
           )}
-          
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -830,11 +839,11 @@ const AdminDashboard = () => {
           <Outlet />
         </div>
       </main>
-      
+
       {/* Reset Password Modal */}
-      <ResetPasswordModal 
-        isOpen={showResetPasswordModal} 
-        onClose={() => setShowResetPasswordModal(false)} 
+      <ResetPasswordModal
+        isOpen={showResetPasswordModal}
+        onClose={() => setShowResetPasswordModal(false)}
       />
     </div>
   );

@@ -49,7 +49,7 @@ const CourseManagement = () => {
         api.get('/api/course-management/courses/all'),
         api.get('/api/course-management/branches')
       ]);
-      
+
       if (coursesRes.data.success) {
         setCourses(coursesRes.data.data);
       }
@@ -117,13 +117,13 @@ const CourseManagement = () => {
   const handleDeleteCourse = async (courseId) => {
     const course = courses.find(c => c._id === courseId);
     const branchCount = branches.filter(b => b.course._id === courseId && b.isActive).length;
-    
-    const confirmMessage = branchCount > 0 
+
+    const confirmMessage = branchCount > 0
       ? `This will deactivate "${course?.name}" and all ${branchCount} associated branches. Are you sure?`
       : `Are you sure you want to deactivate "${course?.name}"?`;
-    
+
     if (!window.confirm(confirmMessage)) return;
-    
+
     try {
       const response = await api.delete(`/api/course-management/courses/${courseId}`);
       if (response.data.success) {
@@ -137,9 +137,9 @@ const CourseManagement = () => {
 
   const handleDeleteBranch = async (branchId) => {
     const branch = branches.find(b => b._id === branchId);
-    
+
     if (!window.confirm(`Are you sure you want to deactivate "${branch?.name}" branch?`)) return;
-    
+
     try {
       const response = await api.delete(`/api/course-management/branches/${branchId}`);
       if (response.data.success) {
@@ -214,7 +214,7 @@ const CourseManagement = () => {
   return (
     <>
       <SEO title="Course Management" description="Manage courses and branches dynamically" />
-      
+
       <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -238,11 +238,10 @@ const CourseManagement = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
-                      activeTab === tab.id
+                    className={`py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
                     <tab.icon className="h-4 w-4 sm:h-5 sm:w-5" />
                     {tab.label}
@@ -282,9 +281,8 @@ const CourseManagement = () => {
                   {courses.map((course) => (
                     <div
                       key={course._id}
-                      className={`bg-white rounded-lg shadow-sm border p-3 sm:p-6 ${
-                        !course.isActive ? 'opacity-60' : ''
-                      }`}
+                      className={`bg-white rounded-lg shadow-sm border p-3 sm:p-6 ${!course.isActive ? 'opacity-60' : ''
+                        }`}
                     >
                       <div className="flex justify-between items-start mb-3 sm:mb-4">
                         <div>
@@ -306,18 +304,17 @@ const CourseManagement = () => {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-1.5 sm:space-y-2">
                         {course.description && (
                           <p className="text-xs sm:text-sm text-gray-600">{course.description}</p>
                         )}
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
                           <span>Duration: {course.duration} {course.durationUnit}</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            course.isActive 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-2 py-1 rounded-full text-xs ${course.isActive
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {course.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -367,9 +364,8 @@ const CourseManagement = () => {
                       {getBranchesForCourse(course._id).map((branch) => (
                         <div
                           key={branch._id}
-                          className={`border rounded-lg p-2 sm:p-4 ${
-                            !branch.isActive ? 'opacity-60' : ''
-                          }`}
+                          className={`border rounded-lg p-2 sm:p-4 ${!branch.isActive ? 'opacity-60' : ''
+                            }`}
                         >
                           <div className="flex justify-between items-start mb-1.5 sm:mb-2">
                             <div>
@@ -391,15 +387,14 @@ const CourseManagement = () => {
                               </button>
                             </div>
                           </div>
-                          
+
                           {branch.description && (
                             <p className="text-xs sm:text-sm text-gray-600 mb-1.5 sm:mb-2">{branch.description}</p>
                           )}
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs ${
-                            branch.isActive 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`inline-block px-2 py-1 rounded-full text-xs ${branch.isActive
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {branch.isActive ? 'Active' : 'Inactive'}
                           </span>
                         </div>

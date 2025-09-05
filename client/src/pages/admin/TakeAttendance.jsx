@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CalendarIcon, 
-  CheckIcon, 
+import {
+  CalendarIcon,
+  CheckIcon,
   XMarkIcon,
   UserGroupIcon,
   ClockIcon,
@@ -53,11 +53,11 @@ const TakeAttendance = () => {
       });
 
       const response = await api.get(`/api/attendance/students?${params}`);
-      
+
       if (response.data.success) {
         setStudents(response.data.data.students);
         setStats(response.data.data);
-        
+
         // Initialize attendance data
         const initialAttendance = {};
         response.data.data.students.forEach(student => {
@@ -162,10 +162,10 @@ const TakeAttendance = () => {
   const getAttendanceStatus = (student) => {
     // Check if student is on leave first
     if (student.isOnLeave) return 'On Leave';
-    
+
     const attendance = attendanceData[student._id];
     if (!attendance) return 'Absent';
-    
+
     if (attendance.morning && attendance.evening && attendance.night) return 'Present';
     if (attendance.morning || attendance.evening || attendance.night) return 'Partial';
     return 'Absent';
@@ -233,16 +233,16 @@ const TakeAttendance = () => {
             <FunnelIcon className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-gray-900">Filters</span>
           </div>
-          <svg 
+          <svg
             className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        
+
         {/* Mobile Filters Panel */}
         {showMobileFilters && (
           <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
@@ -516,7 +516,7 @@ const TakeAttendance = () => {
                         </div>
                       </div>
                     </td>
-                    
+
                     <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
@@ -525,7 +525,7 @@ const TakeAttendance = () => {
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
                     </td>
-                    
+
                     <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
@@ -534,7 +534,7 @@ const TakeAttendance = () => {
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
                     </td>
-                    
+
                     <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <input
                         type="checkbox"
@@ -543,7 +543,7 @@ const TakeAttendance = () => {
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                       />
                     </td>
-                    
+
                     <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                         {getStatusIcon(status)}
@@ -551,7 +551,7 @@ const TakeAttendance = () => {
                         <span className="ml-1 sm:hidden">{status.charAt(0)}</span>
                       </span>
                     </td>
-                    
+
                     <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                       <input
                         type="text"

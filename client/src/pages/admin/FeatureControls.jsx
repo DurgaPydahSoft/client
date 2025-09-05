@@ -95,7 +95,7 @@ const FeatureControls = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/feature-toggles/admin');
-      
+
       if (response.data.success) {
         setFeatureToggles(response.data.data);
       }
@@ -110,31 +110,31 @@ const FeatureControls = () => {
   const handleToggleChange = async (feature) => {
     try {
       setSaving(true);
-      
+
       // Optimistically update the UI
       const newToggles = {
         ...featureToggles,
         [feature]: !featureToggles[feature]
       };
       setFeatureToggles(newToggles);
-      
+
       // Prepare the update data
       const validFeatures = [
-        'overview', 'raiseComplaint', 'myComplaints', 'attendance', 
-        'leave', 'foundLost', 'hostelFee', 'paymentHistory', 
+        'overview', 'raiseComplaint', 'myComplaints', 'attendance',
+        'leave', 'foundLost', 'hostelFee', 'paymentHistory',
         'announcements', 'polls', 'profile'
       ];
-      
+
       const updates = {};
       validFeatures.forEach(f => {
         if (newToggles.hasOwnProperty(f)) {
           updates[f] = newToggles[f];
         }
       });
-      
+
       // Save to backend
       const response = await api.put('/api/feature-toggles/admin', updates);
-      
+
       if (response.data.success) {
         toast.success(`${featureDescriptions[feature].name} ${newToggles[feature] ? 'enabled' : 'disabled'} successfully!`);
       } else {
@@ -162,7 +162,7 @@ const FeatureControls = () => {
     try {
       setSaving(true);
       const response = await api.post('/api/feature-toggles/admin/reset');
-      
+
       if (response.data.success) {
         setFeatureToggles(response.data.data);
         toast.success('Feature settings reset to default!');
@@ -198,7 +198,7 @@ const FeatureControls = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Reset Button */}
         <div className="flex flex-wrap gap-2 sm:gap-3">
           <button
@@ -227,7 +227,7 @@ const FeatureControls = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 bg-red-100 rounded-lg">
@@ -241,7 +241,7 @@ const FeatureControls = () => {
             </div>
           </div>
         </div>
-        
+
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg">
@@ -262,11 +262,10 @@ const FeatureControls = () => {
         {Object.entries(featureDescriptions).map(([feature, info]) => (
           <div
             key={feature}
-            className={`bg-white rounded-lg border-2 transition-all duration-300 hover:shadow-md ${
-              featureToggles[feature]
+            className={`bg-white rounded-lg border-2 transition-all duration-300 hover:shadow-md ${featureToggles[feature]
                 ? 'border-green-200 shadow-sm'
                 : 'border-red-200 shadow-sm'
-            }`}
+              }`}
           >
             <div className="p-3 sm:p-4">
               {/* Header */}
@@ -282,22 +281,20 @@ const FeatureControls = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 {/* Toggle Switch */}
                 <div className="flex-shrink-0 ml-2 sm:ml-3">
                   <button
                     onClick={() => handleToggleChange(feature)}
                     disabled={saving}
-                    className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-10 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${
-                      featureToggles[feature]
+                    className={`relative inline-flex h-5 w-9 sm:h-6 sm:w-10 items-center rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${featureToggles[feature]
                         ? 'bg-green-600'
                         : 'bg-gray-300'
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white shadow-sm transition-all duration-200 ${
-                        featureToggles[feature] ? 'translate-x-4 sm:translate-x-5' : 'translate-x-1'
-                      }`}
+                      className={`inline-block h-3 w-3 sm:h-4 sm:w-4 transform rounded-full bg-white shadow-sm transition-all duration-200 ${featureToggles[feature] ? 'translate-x-4 sm:translate-x-5' : 'translate-x-1'
+                        }`}
                     />
                     {saving && (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -307,7 +304,7 @@ const FeatureControls = () => {
                   </button>
                 </div>
               </div>
-              
+
               {/* Status */}
               <div className="flex items-center gap-1.5 sm:gap-2">
                 {featureToggles[feature] ? (

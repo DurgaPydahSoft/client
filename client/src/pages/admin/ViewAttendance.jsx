@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CalendarIcon, 
-  CheckIcon, 
+import {
+  CalendarIcon,
+  CheckIcon,
   XMarkIcon,
   UserGroupIcon,
   ClockIcon,
@@ -18,7 +18,6 @@ import {
 import api from '../../utils/axios';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
-import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import * as XLSX from 'xlsx';
 
@@ -58,7 +57,7 @@ const ViewAttendance = () => {
   // Helper function to get the appropriate API endpoint based on user role
   const getAttendanceEndpoint = (type) => {
     const userRole = user?.role;
-    
+
     if (userRole === 'principal') {
       return `/api/attendance/principal/${type}`;
     } else if (userRole === 'warden') {
@@ -117,7 +116,7 @@ const ViewAttendance = () => {
 
       const endpoint = getAttendanceEndpoint('date');
       const response = await api.get(`${endpoint}?${params}`);
-      
+
       if (response.data.success) {
         setAttendance(response.data.data.attendance);
         setStatistics(response.data.data.statistics);
@@ -141,11 +140,11 @@ const ViewAttendance = () => {
 
       const endpoint = getAttendanceEndpoint('range');
       const response = await api.get(`${endpoint}?${params}`);
-      
+
       if (response.data.success) {
         const attendanceData = response.data.data.attendance;
         setAttendance(attendanceData);
-        
+
         // Use statistics from backend
         setStatistics(response.data.data.statistics || {
           totalStudents: response.data.data.totalRecords || attendanceData.length,
@@ -176,7 +175,7 @@ const ViewAttendance = () => {
   const getAttendanceStatus = (record) => {
     // Check if student is on leave first
     if (record.student?.isOnLeave) return 'On Leave';
-    
+
     if (record.morning && record.evening && record.night) return 'Present';
     if (record.morning || record.evening || record.night) return 'Partial';
     return 'Absent';
@@ -266,8 +265,8 @@ const ViewAttendance = () => {
     studentMap.forEach(studentData => {
       const { totalDays, presentDays, partialDays } = studentData.summary;
       const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 for 3 sessions
-      studentData.summary.attendancePercentage = totalDays > 0 
-        ? Math.round((effectivePresentDays / totalDays) * 100) 
+      studentData.summary.attendancePercentage = totalDays > 0
+        ? Math.round((effectivePresentDays / totalDays) * 100)
         : 0;
     });
 
@@ -330,31 +329,31 @@ const ViewAttendance = () => {
 
       const endpoint = getAttendanceEndpoint('report');
       const response = await api.get(`${endpoint}?${params}`);
-      
+
       if (!response.data.success) {
         throw new Error('Failed to fetch report data');
       }
 
       const { attendance: attendanceData, statistics, reportInfo } = response.data.data;
-      
+
       // Create workbook and worksheet
       const workbook = XLSX.utils.book_new();
-      
+
       // Get unique dates for column headers
       const uniqueDates = [...new Set(attendanceData.map(att => new Date(att.date).toISOString().split('T')[0]))].sort();
-      
+
       // Create table headers
       const tableHeaders = ['S.No', 'Name', 'Roll Number', 'Course', 'Branch'];
-      
+
       // Add date columns
       uniqueDates.forEach(date => {
         tableHeaders.push(date);
       });
-      
+
       // Create the worksheet with headers first
       const headerData = [tableHeaders];
       const worksheet = XLSX.utils.aoa_to_sheet(headerData);
-      
+
       // Apply bold styling to headers immediately
       tableHeaders.forEach((header, index) => {
         const cellRef = XLSX.utils.encode_cell({ r: 0, c: index });
@@ -372,13 +371,13 @@ const ViewAttendance = () => {
           };
         }
       });
-      
+
       // Group attendance by student
       const studentAttendanceMap = new Map();
-      
+
       attendanceData.forEach(att => {
         if (!att.student) return;
-        
+
         const studentId = att.student._id;
         if (!studentAttendanceMap.has(studentId)) {
           studentAttendanceMap.set(studentId, {
@@ -386,7 +385,7 @@ const ViewAttendance = () => {
             attendance: {}
           });
         }
-        
+
         const dateStr = new Date(att.date).toISOString().split('T')[0];
         studentAttendanceMap.get(studentId).attendance[dateStr] = {
           morning: att.morning || false,
@@ -395,14 +394,14 @@ const ViewAttendance = () => {
           isOnLeave: att.student.isOnLeave || false
         };
       });
-      
+
       // Create table data
       const tableData = [];
       let serialNumber = 1;
-      
+
       studentAttendanceMap.forEach((studentData, studentId) => {
         const { student, attendance } = studentData;
-        
+
         const row = [
           serialNumber++,
           student.name || 'Unknown',
@@ -410,14 +409,14 @@ const ViewAttendance = () => {
           getCourseName(student.course),
           getBranchName(student.branch)
         ];
-        
+
         // Add attendance for each date
         uniqueDates.forEach(date => {
           const dateAttendance = attendance[date];
           if (dateAttendance) {
             // Check if student is on leave for this date
             const isOnLeave = dateAttendance.isOnLeave;
-            
+
             const morning = isOnLeave ? '🏠' : (dateAttendance.morning ? '✅' : '❌');
             const evening = isOnLeave ? '🏠' : (dateAttendance.evening ? '✅' : '❌');
             const night = isOnLeave ? '🏠' : (dateAttendance.night ? '✅' : '❌');
@@ -426,16 +425,16 @@ const ViewAttendance = () => {
             row.push('-'); // No attendance record
           }
         });
-        
+
         tableData.push(row);
       });
-      
+
       // Add table data to worksheet
       XLSX.utils.sheet_add_aoa(worksheet, tableData, { origin: 'A2' });
-      
+
       // Apply styling to the worksheet
       const range = XLSX.utils.decode_range(worksheet['!ref']);
-      
+
       // Set column widths for better readability
       const columnWidths = [];
       tableHeaders.forEach((header, index) => {
@@ -447,7 +446,7 @@ const ViewAttendance = () => {
         else columnWidths.push(18); // Date columns
       });
       worksheet['!cols'] = columnWidths.map(width => ({ width }));
-      
+
       // Style the data rows with borders
       for (let row = 2; row < 2 + tableData.length; row++) {
         for (let col = 0; col <= range.e.c; col++) {
@@ -466,17 +465,17 @@ const ViewAttendance = () => {
           }
         }
       }
-      
+
       // Add worksheet to workbook
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Attendance Report');
-      
+
       // Generate filename
       const timestamp = new Date().toISOString().slice(0, 10);
       const filename = `attendance_report_${viewMode === 'date' ? selectedDate : `${dateRange.startDate}_to_${dateRange.endDate}`}_${timestamp}.xlsx`;
-      
+
       // Save the Excel file
       XLSX.writeFile(workbook, filename);
-      
+
       toast.success('Excel report generated successfully');
     } catch (error) {
       console.error('Error generating Excel:', error);
@@ -569,16 +568,16 @@ const ViewAttendance = () => {
             <FunnelIcon className="w-4 h-4 text-blue-600" />
             <span className="text-sm font-medium text-gray-900">Filters</span>
           </div>
-          <svg 
+          <svg
             className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        
+
         {/* Mobile Filters Panel */}
         {showMobileFilters && (
           <div className="mt-2 bg-white rounded-lg shadow-sm border border-gray-100 p-4">
@@ -714,11 +713,10 @@ const ViewAttendance = () => {
               <button
                 onClick={generateExcel}
                 disabled={generatingExcel || attendance.length === 0}
-                className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
-                  generatingExcel || attendance.length === 0
+                className={`w-full flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${generatingExcel || attendance.length === 0
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
+                  }`}
                 title={attendance.length === 0 ? 'No data to generate report' : 'Generate Excel Report'}
               >
                 {generatingExcel ? (
@@ -811,12 +809,12 @@ const ViewAttendance = () => {
         {/* Additional Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
             <select
               name="course"
               value={filters.course}
               onChange={handleFilterChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Courses</option>
               {courses.map(course => (
@@ -826,12 +824,12 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
             <select
               name="branch"
               value={filters.branch}
               onChange={handleFilterChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Branches</option>
               {filteredBranches.map(branch => (
@@ -841,12 +839,12 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
             <select
               name="gender"
               value={filters.gender}
               onChange={handleFilterChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             >
               <option value="">All</option>
               <option value="Male">Male</option>
@@ -855,14 +853,14 @@ const ViewAttendance = () => {
           </div>
 
           <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
             <input
               type="text"
               name="studentId"
               value={filters.studentId}
               onChange={handleFilterChange}
               placeholder="Search by student ID"
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
           </div>
         </div>
@@ -904,7 +902,7 @@ const ViewAttendance = () => {
                       <StarIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
                       <span className="hidden sm:inline">Night</span>
                       <span className="sm:hidden">N</span>
-                      </th>
+                    </th>
                     <th className="px-2 sm:px-6 py-2 sm:py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
@@ -978,7 +976,7 @@ const ViewAttendance = () => {
                           </div>
                         </div>
                       </td>
-                      
+
                       <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.morning ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -986,7 +984,7 @@ const ViewAttendance = () => {
                           <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
-                      
+
                       <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.evening ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -994,7 +992,7 @@ const ViewAttendance = () => {
                           <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
-                      
+
                       <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         {record.night ? (
                           <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -1002,7 +1000,7 @@ const ViewAttendance = () => {
                           <span className="text-gray-400 text-sm font-medium">-</span>
                         )}
                       </td>
-                      
+
                       <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                           {getStatusIcon(status)}
@@ -1010,11 +1008,11 @@ const ViewAttendance = () => {
                           <span className="ml-1 sm:hidden">{status.charAt(0)}</span>
                         </span>
                       </td>
-                      
+
                       <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                         {record.markedBy?.username ? `${record.markedBy.username} (${record.markedBy.role})` : 'System'}
                       </td>
-                      
+
                       <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
                         {record.notes || '-'}
                       </td>
@@ -1024,7 +1022,7 @@ const ViewAttendance = () => {
                   // Date range view - show student summaries
                   const { student, summary } = record;
                   const isExpanded = expandedStudents.has(student._id);
-                  
+
                   return (
                     <React.Fragment key={student._id}>
                       <motion.tr
@@ -1062,41 +1060,41 @@ const ViewAttendance = () => {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-900">
                           {summary.totalDays}
                         </td>
-                        
+
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
                             <CheckIcon className="w-3 h-3 mr-1" />
                             {summary.presentDays}
                           </span>
                         </td>
-                        
+
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
                             <ClockIcon className="w-3 h-3 mr-1" />
                             {summary.partialDays}
                           </span>
                         </td>
-                        
+
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
                             <XMarkIcon className="w-3 h-3 mr-1" />
                             {summary.absentDays}
                           </span>
                         </td>
-                        
+
                         <td className="px-2 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
                             {getPercentageIcon(summary.attendancePercentage)}
                             <span className="ml-1">{summary.attendancePercentage}%</span>
                           </span>
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-500">
-                          <button 
+                          <button
                             className="text-blue-600 hover:text-blue-800 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1107,7 +1105,7 @@ const ViewAttendance = () => {
                           </button>
                         </td>
                       </motion.tr>
-                      
+
                       {/* Expanded Details */}
                       {isExpanded && (
                         <motion.tr

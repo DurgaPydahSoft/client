@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   UserGroupIcon,
   EyeIcon,
   CheckIcon
@@ -30,7 +30,7 @@ const Attendance = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <SEO title="Attendance Management - Admin Dashboard" />
-      
+
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         {/* Header */}
         <motion.div
@@ -62,24 +62,22 @@ const Attendance = () => {
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
-              
+
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? tab.id === 'take' 
+                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${isActive
+                      ? tab.id === 'take'
                         ? 'bg-emerald-100 text-emerald-700 shadow-md border-2 border-emerald-300'
                         : 'bg-orange-100 text-orange-700 shadow-md border-2 border-orange-300'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
-                  }`}
+                    }`}
                 >
-                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                    isActive 
+                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isActive
                       ? tab.id === 'take' ? 'text-emerald-600' : 'text-orange-600'
                       : ''
-                  }`} />
+                    }`} />
                   <span className="hidden sm:inline">{tab.name}</span>
                   <span className="sm:hidden">
                     {tab.id === 'take' ? 'Mark' : 'View'}
@@ -102,14 +100,14 @@ const Attendance = () => {
           >
             {activeTab === 'take' ? (
               <div>
-                
+
                 <div className="p-0">
                   <TakeAttendance />
                 </div>
               </div>
             ) : (
               <div>
-                
+
                 <div className="p-0">
                   <ViewAttendance />
                 </div>

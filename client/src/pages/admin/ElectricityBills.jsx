@@ -25,11 +25,11 @@ import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const ElectricityBills = () => {
   console.log('⚡ ElectricityBills component loaded');
-  
+
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   const canManageBills = isSuperAdmin || canPerformAction(user, 'room_management', 'edit');
-  
+
   console.log('🔐 Electricity Bills Permissions:', {
     user: user?.username,
     role: user?.role,
@@ -38,7 +38,7 @@ const ElectricityBills = () => {
     permissions: user?.permissions,
     accessLevels: user?.permissionAccessLevels
   });
-  
+
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -117,7 +117,7 @@ const ElectricityBills = () => {
       toast.error('You do not have permission to manage electricity bills');
       return;
     }
-    
+
     if (!bulkMonth) {
       toast.error('Please select a billing month.');
       return;
@@ -149,7 +149,7 @@ const ElectricityBills = () => {
         }
       });
       toast.success(`${billsToSave.length} bills saved successfully!`);
-      
+
       // Refetch rooms to update last bill info
       fetchRooms();
 
@@ -166,7 +166,7 @@ const ElectricityBills = () => {
       toast.error('You do not have permission to manage electricity bills');
       return;
     }
-    
+
     if (!bulkMonth) {
       toast.error('Please select a billing month.');
       return;
@@ -187,9 +187,9 @@ const ElectricityBills = () => {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       toast.success(`Bill saved for Room ${rooms.find(r => r._id === roomId)?.roomNumber}!`);
-      
+
       // Refetch rooms to update last bill info
       fetchRooms();
 
@@ -206,7 +206,7 @@ const ElectricityBills = () => {
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
       <SEO title="Electricity Bills" />
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
         <div>
@@ -297,7 +297,7 @@ const ElectricityBills = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Quick Actions */}
         <div className="flex gap-2">
           <button
@@ -318,13 +318,13 @@ const ElectricityBills = () => {
       {/* Bulk Billing Controls */}
       <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
         <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Bulk Electricity Billing</h2>
-        
+
         {/* Global Controls */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Billing Month</label>
-            <input 
-              type="month" 
+            <input
+              type="month"
               value={bulkMonth}
               onChange={(e) => setBulkMonth(e.target.value)}
               className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg"
@@ -332,8 +332,8 @@ const ElectricityBills = () => {
           </div>
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Default Rate/Unit</label>
-            <input 
-              type="number" 
+            <input
+              type="number"
               placeholder="e.g., 5"
               value={bulkRate}
               onChange={(e) => setBulkRate(e.target.value)}
@@ -344,11 +344,10 @@ const ElectricityBills = () => {
             <button
               onClick={handleSaveBulkBills}
               disabled={isSavingBulk || !canManageBills}
-              className={`w-full px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${
-                canManageBills && !isSavingBulk
-                  ? 'bg-green-600 text-white hover:bg-green-700' 
-                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-              }`}
+              className={`w-full px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                }`}
               title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
             >
               {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
@@ -383,7 +382,7 @@ const ElectricityBills = () => {
               startUnits = Number(bill.startUnits) || 0;
               endUnits = Number(bill.endUnits) || 0;
               rate = Number(bill.rate) || Number(bulkRate) || 5;
-              
+
               isValid = endUnits >= startUnits;
 
               if (isValid) {
@@ -396,15 +395,14 @@ const ElectricityBills = () => {
             }
 
             return (
-              <div 
-                key={bill.roomId} 
-                className={`bg-white rounded-lg border-2 p-3 shadow-sm transition-all duration-200 ${
-                  isAlreadyBilled 
-                    ? 'border-green-300 bg-green-50 shadow-green-100' 
-                    : bill.isEdited 
-                      ? 'border-blue-300 bg-blue-50 shadow-blue-100' 
-                      : 'border-gray-200 hover:border-gray-300'
-                }`}
+              <div
+                key={bill.roomId}
+                className={`bg-white rounded-lg border-2 p-3 shadow-sm transition-all duration-200 ${isAlreadyBilled
+                  ? 'border-green-300 bg-green-50 shadow-green-100'
+                  : bill.isEdited
+                    ? 'border-blue-300 bg-blue-50 shadow-blue-100'
+                    : 'border-gray-200 hover:border-gray-300'
+                  }`}
               >
                 {/* Card Header */}
                 <div className="flex items-center justify-between mb-3">
@@ -451,9 +449,8 @@ const ElectricityBills = () => {
                       placeholder="Enter new reading"
                       value={isAlreadyBilled ? endUnits : bill.endUnits}
                       onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                        !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                      }`}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${!isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 'border-gray-300'
+                        }`}
                     />
                     {!isValid && !isAlreadyBilled && (
                       <p className="text-xs text-red-600 mt-1">End units must be greater than start units</p>
@@ -488,7 +485,7 @@ const ElectricityBills = () => {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Individual Save Button for Mobile */}
                     <button
                       onClick={() => handleSaveSingleBill(bill.roomId, {
@@ -498,11 +495,10 @@ const ElectricityBills = () => {
                         rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
                       })}
                       disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
-                      className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                        canManageBills && savingRoomId !== bill.roomId && isValid
-                          ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm' 
-                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                      }`}
+                      className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills && savingRoomId !== bill.roomId && isValid
+                        ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
                     >
                       {savingRoomId === bill.roomId ? (
                         <div className="flex items-center justify-center gap-2">
@@ -521,7 +517,7 @@ const ElectricityBills = () => {
       {/* Desktop Table View */}
       <div className="hidden sm:block bg-white rounded-lg shadow-sm p-4">
         <h2 className="text-xl font-bold mb-4">Bulk Electricity Billing</h2>
-        
+
         {/* Billing Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -561,7 +557,7 @@ const ElectricityBills = () => {
                     startUnits = Number(bill.startUnits) || 0;
                     endUnits = Number(bill.endUnits) || 0;
                     rate = Number(bill.rate) || Number(bulkRate) || 5;
-                    
+
                     isValid = endUnits >= startUnits;
 
                     if (isValid) {
@@ -625,11 +621,10 @@ const ElectricityBills = () => {
                             rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
                           })}
                           disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
-                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                            canManageBills && savingRoomId !== bill.roomId && isValid
-                              ? 'bg-green-600 text-white hover:bg-green-700' 
-                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          }`}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills && savingRoomId !== bill.roomId && isValid
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
                         >
                           {savingRoomId === bill.roomId ? 'Saving...' : 'Save'}
                         </button>

@@ -66,7 +66,7 @@ const ToggleSwitch = ({ label, checked, onChange }) => (
 
 const AccessLevelSelector = ({ permissionId, permissionLabel, accessLevel, onAccessLevelChange, disabled }) => {
   console.log('🔧 AccessLevelSelector props:', { permissionId, permissionLabel, accessLevel, disabled });
-  
+
   return (
     <div className="ml-4 sm:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
       <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
@@ -169,14 +169,14 @@ const AdminManagement = () => {
         api.get('/api/admin-management/principals'),
         api.get('/api/admin-management/custom-roles')
       ]);
-      
+
       console.log('🔍 Admin data responses:', {
         subAdmins: subAdminsRes.data,
         wardens: wardensRes.data,
         principals: principalsRes.data,
         customRoles: customRolesRes.data
       });
-      
+
       if (subAdminsRes.data.success) {
         setSubAdmins(subAdminsRes.data.data || []);
       }
@@ -201,13 +201,13 @@ const AdminManagement = () => {
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData(prev => {
-        const newPermissions = checked 
+        const newPermissions = checked
           ? [...prev.permissions, value]
           : prev.permissions.filter(p => p !== value);
-        
+
         // If leave_management is being unchecked, clear course selections
         if (value === 'leave_management' && !checked) {
           return {
@@ -216,7 +216,7 @@ const AdminManagement = () => {
             leaveManagementCourses: []
           };
         }
-        
+
         // Set default access level when permission is added
         let newAccessLevels = { ...prev.permissionAccessLevels };
         if (checked) {
@@ -226,7 +226,7 @@ const AdminManagement = () => {
           // Remove access level when permission is unchecked
           delete newAccessLevels[value];
         }
-        
+
         return {
           ...prev,
           permissions: newPermissions,
@@ -245,7 +245,7 @@ const AdminManagement = () => {
   const handleCourseSelection = (courseId, checked) => {
     setFormData(prev => ({
       ...prev,
-      leaveManagementCourses: checked 
+      leaveManagementCourses: checked
         ? [...prev.leaveManagementCourses, courseId]
         : prev.leaveManagementCourses.filter(id => id !== courseId)
     }));
@@ -254,13 +254,13 @@ const AdminManagement = () => {
   // Handle role form changes
   const handleRoleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (type === 'checkbox') {
       setRoleFormData(prev => {
-        const newPermissions = checked 
+        const newPermissions = checked
           ? [...prev.permissions, value]
           : prev.permissions.filter(p => p !== value);
-        
+
         // Set default access level when permission is added
         let newAccessLevels = { ...prev.permissionAccessLevels };
         if (checked) {
@@ -268,7 +268,7 @@ const AdminManagement = () => {
         } else {
           delete newAccessLevels[value];
         }
-        
+
         return {
           ...prev,
           permissions: newPermissions,
@@ -298,12 +298,12 @@ const AdminManagement = () => {
   const handleRoleCourseSelection = (courseId, checked) => {
     console.log('🔧 Role course selection:', { courseId, checked });
     setRoleFormData(prev => {
-      const newAssignedCourses = checked 
+      const newAssignedCourses = checked
         ? [...prev.assignedCourses, courseId]
         : prev.assignedCourses.filter(id => id !== courseId);
-      
+
       console.log('🔧 Updated assigned courses:', newAssignedCourses);
-      
+
       return {
         ...prev,
         assignedCourses: newAssignedCourses
@@ -329,7 +329,7 @@ const AdminManagement = () => {
 
   const handleAddAdmin = async (e) => {
     e.preventDefault();
-    
+
     // Validate password delivery for sub-admins (optional)
     if (activeTab === 'sub-admins') {
       // If password delivery method is selected, validate accordingly
@@ -337,17 +337,17 @@ const AdminManagement = () => {
         toast.error('Please enter an email address for password delivery');
         return;
       }
-      
+
       if (formData.passwordDeliveryMethod === 'mobile' && !formData.phoneNumber.trim()) {
         toast.error('Please enter a phone number for mobile delivery');
         return;
       }
     }
-    
+
     try {
       let endpoint;
       let requestData;
-      
+
       if (activeTab === 'sub-admins') {
         endpoint = '/api/admin-management/sub-admins';
         requestData = {
@@ -365,17 +365,17 @@ const AdminManagement = () => {
         endpoint = '/api/admin-management/principals';
         requestData = { ...formData, course: formData.course };
       }
-      
+
       const response = await api.post(endpoint, requestData);
       if (response.data.success) {
-        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
-                        activeTab === 'wardens' ? 'Warden' : 'Principal';
-        
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' :
+          activeTab === 'wardens' ? 'Warden' : 'Principal';
+
         // Handle delivery result for sub-admins
         if (activeTab === 'sub-admins' && response.data.deliveryResult) {
           if (response.data.deliveryResult.success) {
-            const deliveryMethod = formData.passwordDeliveryMethod === 'email' ? 'email' : 
-                                 formData.passwordDeliveryMethod === 'mobile' ? 'SMS' : 'manual';
+            const deliveryMethod = formData.passwordDeliveryMethod === 'email' ? 'email' :
+              formData.passwordDeliveryMethod === 'mobile' ? 'SMS' : 'manual';
             toast.success(`${userType} added successfully! Credentials sent via ${deliveryMethod}.`);
           } else if (response.data.deliveryResult.error) {
             toast.success(`${userType} added successfully!`, { duration: 3000 });
@@ -392,15 +392,15 @@ const AdminManagement = () => {
         } else {
           toast.success(`${userType} added successfully`);
         }
-        
+
         setShowAddModal(false);
-        setFormData({ 
-          username: '', 
-          password: '', 
-          permissions: [], 
+        setFormData({
+          username: '',
+          password: '',
+          permissions: [],
           permissionAccessLevels: {},
-          hostelType: '', 
-          course: '', 
+          hostelType: '',
+          course: '',
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
@@ -409,8 +409,8 @@ const AdminManagement = () => {
         fetchData();
       }
     } catch (error) {
-      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
-                      activeTab === 'wardens' ? 'warden' : 'principal';
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' :
+        activeTab === 'wardens' ? 'warden' : 'principal';
       toast.error(error.response?.data?.message || `Failed to add ${userType}`);
     }
   };
@@ -419,17 +419,17 @@ const AdminManagement = () => {
     e.preventDefault();
     try {
       console.log('🔧 Frontend: Sending update data:', formData);
-      
+
       let endpoint;
       let updateData = {
         username: formData.username,
         permissions: formData.permissions
       };
-      
+
       if (formData.password.trim()) {
         updateData.password = formData.password;
       }
-      
+
       if (activeTab === 'sub-admins') {
         endpoint = `/api/admin-management/sub-admins/${selectedAdmin._id}`;
         updateData.leaveManagementCourses = formData.leaveManagementCourses;
@@ -445,15 +445,15 @@ const AdminManagement = () => {
           updateData.course = formData.course;
         }
       }
-      
+
       console.log('🔧 Frontend: Final update data:', updateData);
-      
+
       const response = await api.put(endpoint, updateData);
       if (response.data.success) {
-        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
-                        activeTab === 'wardens' ? 'Warden' : 'Principal';
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' :
+          activeTab === 'wardens' ? 'Warden' : 'Principal';
         toast.success(`${userType} updated successfully`);
-        
+
         // If the current user is being edited, refresh their data
         if (selectedAdmin && selectedAdmin._id === user?._id) {
           console.log('🔄 Current user updated, refreshing user data...');
@@ -469,16 +469,16 @@ const AdminManagement = () => {
             console.error('🔄 Error refreshing user data:', error);
           }
         }
-        
+
         setShowEditModal(false);
         setSelectedAdmin(null);
-        setFormData({ 
-          username: '', 
-          password: '', 
-          permissions: [], 
-          permissionAccessLevels: {}, 
-          hostelType: '', 
-          course: '', 
+        setFormData({
+          username: '',
+          password: '',
+          permissions: [],
+          permissionAccessLevels: {},
+          hostelType: '',
+          course: '',
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
@@ -488,17 +488,17 @@ const AdminManagement = () => {
       }
     } catch (error) {
       console.error('🔧 Frontend: Error updating:', error);
-      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
-                      activeTab === 'wardens' ? 'warden' : 'principal';
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' :
+        activeTab === 'wardens' ? 'warden' : 'principal';
       toast.error(error.response?.data?.message || `Failed to update ${userType}`);
     }
   };
 
   const handleDeleteAdmin = async (adminId) => {
-    const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
-                    activeTab === 'wardens' ? 'warden' : 'principal';
+    const userType = activeTab === 'sub-admins' ? 'sub-admin' :
+      activeTab === 'wardens' ? 'warden' : 'principal';
     if (!window.confirm(`Are you sure you want to delete this ${userType}?`)) return;
-    
+
     try {
       let endpoint;
       if (activeTab === 'sub-admins') {
@@ -508,17 +508,17 @@ const AdminManagement = () => {
       } else if (activeTab === 'principals') {
         endpoint = `/api/admin-management/principals/${adminId}`;
       }
-      
+
       const response = await api.delete(endpoint);
       if (response.data.success) {
-        const userType = activeTab === 'sub-admins' ? 'Sub-admin' : 
-                        activeTab === 'wardens' ? 'Warden' : 'Principal';
+        const userType = activeTab === 'sub-admins' ? 'Sub-admin' :
+          activeTab === 'wardens' ? 'Warden' : 'Principal';
         toast.success(`${userType} deleted successfully`);
         fetchData();
       }
     } catch (error) {
-      const userType = activeTab === 'sub-admins' ? 'sub-admin' : 
-                      activeTab === 'wardens' ? 'warden' : 'principal';
+      const userType = activeTab === 'sub-admins' ? 'sub-admin' :
+        activeTab === 'wardens' ? 'warden' : 'principal';
       toast.error(error.response?.data?.message || `Failed to delete ${userType}`);
     }
   };
@@ -526,14 +526,14 @@ const AdminManagement = () => {
   const openEditModal = (admin) => {
     setSelectedAdmin(admin);
     setRoleType(admin.role === 'custom' ? 'custom' : 'sub_admin');
-    
+
     // Convert leaveManagementCourses to proper format for editing
-    const leaveManagementCourses = admin.leaveManagementCourses ? admin.leaveManagementCourses.map(course => 
+    const leaveManagementCourses = admin.leaveManagementCourses ? admin.leaveManagementCourses.map(course =>
       typeof course === 'object' ? course._id : course
     ) : [];
-    
+
     console.log('🔧 Editing admin with leave management courses:', leaveManagementCourses);
-    
+
     setFormData({
       username: admin.username,
       password: '',
@@ -562,18 +562,18 @@ const AdminManagement = () => {
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
-    
+
     // Validate password matching only
     if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
-    
+
     try {
       const response = await api.put(`/api/admin-management/sub-admins/${selectedAdmin._id}`, {
         password: passwordResetData.newPassword
       });
-      
+
       if (response.data.success) {
         toast.success('Password reset successfully');
         setShowPasswordResetModal(false);
@@ -597,13 +597,13 @@ const AdminManagement = () => {
     setSelectedAdmin(null);
     setSelectedRole(null);
     setRoleType('sub_admin');
-    setFormData({ 
-      username: '', 
-      password: '', 
-      permissions: [], 
-      permissionAccessLevels: {}, 
-      hostelType: '', 
-      course: '', 
+    setFormData({
+      username: '',
+      password: '',
+      permissions: [],
+      permissionAccessLevels: {},
+      hostelType: '',
+      course: '',
       leaveManagementCourses: [],
       passwordDeliveryMethod: '',
       email: '',
@@ -627,7 +627,7 @@ const AdminManagement = () => {
   // Custom Role Management Functions
   const handleCreateRole = async (e) => {
     e.preventDefault();
-    
+
     try {
       const response = await api.post('/api/admin-management/custom-roles', roleFormData);
       if (response.data.success) {
@@ -642,7 +642,7 @@ const AdminManagement = () => {
 
   const handleUpdateRole = async (e) => {
     e.preventDefault();
-    
+
     try {
       const response = await api.put(`/api/admin-management/custom-roles/${selectedRole._id}`, roleFormData);
       if (response.data.success) {
@@ -657,7 +657,7 @@ const AdminManagement = () => {
 
   const handleDeleteRole = async (roleId) => {
     if (!window.confirm('Are you sure you want to delete this custom role?')) return;
-    
+
     try {
       const response = await api.delete(`/api/admin-management/custom-roles/${roleId}`);
       if (response.data.success) {
@@ -673,12 +673,12 @@ const AdminManagement = () => {
     if (role) {
       setSelectedRole(role);
       // Convert assignedCourses to proper format for editing
-      const assignedCourses = role.assignedCourses ? role.assignedCourses.map(course => 
+      const assignedCourses = role.assignedCourses ? role.assignedCourses.map(course =>
         typeof course === 'object' ? course._id : course
       ) : [];
-      
+
       console.log('🔧 Editing role with assigned courses:', assignedCourses);
-      
+
       setRoleFormData({
         name: role.name,
         description: role.description,
@@ -699,7 +699,7 @@ const AdminManagement = () => {
       });
     }
     setShowRoleModal(true);
-    
+
     // Fetch courses when opening role modal
     console.log('🔍 Fetching courses for custom role modal...');
     api.get('/api/course-management/courses')
@@ -747,15 +747,15 @@ const AdminManagement = () => {
 
   if (loading) return <LoadingSpinner />;
 
-  const currentData = activeTab === 'sub-admins' ? subAdmins : 
-                     activeTab === 'wardens' ? wardens : principals;
+  const currentData = activeTab === 'sub-admins' ? subAdmins :
+    activeTab === 'wardens' ? wardens : principals;
   const isWardenTab = activeTab === 'wardens';
   const isPrincipalTab = activeTab === 'principals';
 
   return (
     <div className="max-w-7xl mx-auto mt-12 px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
       <SEO title="Admin Management" />
-      
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
@@ -767,9 +767,9 @@ const AdminManagement = () => {
           className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base"
         >
           <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-          {activeTab === 'custom-roles' ? 'Add Custom Role' : 
-           isWardenTab ? 'Add Warden' : 
-           isPrincipalTab ? 'Add Principal' : 'Add Sub-Admin'}
+          {activeTab === 'custom-roles' ? 'Add Custom Role' :
+            isWardenTab ? 'Add Warden' :
+              isPrincipalTab ? 'Add Principal' : 'Add Sub-Admin'}
         </button>
       </div>
 
@@ -777,55 +777,50 @@ const AdminManagement = () => {
       <div className="flex flex-wrap sm:flex-nowrap space-x-1 bg-gray-100 p-1 rounded-lg mb-4 sm:mb-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('sub-admins')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
-            activeTab === 'sub-admins'
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'sub-admins'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Sub-Admins
         </button>
         <button
           onClick={() => setActiveTab('wardens')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
-            activeTab === 'wardens'
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'wardens'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Wardens
         </button>
         <button
           onClick={() => setActiveTab('principals')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
-            activeTab === 'principals'
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'principals'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Principals
         </button>
         <button
           onClick={() => setActiveTab('custom-roles')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
-            activeTab === 'custom-roles'
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'custom-roles'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Custom Roles
         </button>
         <button
           onClick={() => setActiveTab('courses')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${
-            activeTab === 'courses'
+          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'courses'
               ? 'bg-white text-blue-600 shadow-sm'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Courses & Branches
@@ -868,11 +863,10 @@ const AdminManagement = () => {
                             return (
                               <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs flex items-center gap-1">
                                 <span className="truncate">{permissionLabel}</span>
-                                <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${
-                                  accessLevel === 'full' 
-                                    ? 'bg-green-100 text-green-700' 
+                                <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${accessLevel === 'full'
+                                    ? 'bg-green-100 text-green-700'
                                     : 'bg-gray-100 text-gray-600'
-                                }`}>
+                                  }`}>
                                   {accessLevel === 'full' ? 'Full' : 'View'}
                                 </span>
                               </span>
@@ -963,11 +957,10 @@ const AdminManagement = () => {
                               return (
                                 <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs flex items-center gap-1">
                                   <span className="truncate">{permissionLabel}</span>
-                                  <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${
-                                    accessLevel === 'full' 
-                                      ? 'bg-green-100 text-green-700' 
+                                  <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${accessLevel === 'full'
+                                      ? 'bg-green-100 text-green-700'
                                       : 'bg-gray-100 text-gray-600'
-                                  }`}>
+                                    }`}>
                                     {accessLevel === 'full' ? 'Full' : 'View'}
                                   </span>
                                 </span>
@@ -981,11 +974,10 @@ const AdminManagement = () => {
                               Warden Permissions
                             </span>
                             {admin.hostelType && (
-                              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${
-                                admin.hostelType === 'boys' 
-                                  ? 'bg-blue-50 text-blue-700' 
+                              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${admin.hostelType === 'boys'
+                                  ? 'bg-blue-50 text-blue-700'
                                   : 'bg-pink-50 text-pink-700'
-                              }`}>
+                                }`}>
                                 {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
                               </span>
                             )}
@@ -1064,7 +1056,7 @@ const AdminManagement = () => {
                   <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </button>
               </div>
-              
+
               <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -1112,8 +1104,8 @@ const AdminManagement = () => {
                             checked={roleType === 'sub_admin'}
                             onChange={() => {
                               setRoleType('sub_admin');
-                              setFormData(prev => ({ 
-                                ...prev, 
+                              setFormData(prev => ({
+                                ...prev,
                                 customRoleId: '',
                                 permissions: [],
                                 permissionAccessLevels: {},
@@ -1132,8 +1124,8 @@ const AdminManagement = () => {
                             checked={roleType === 'custom'}
                             onChange={() => {
                               setRoleType('custom');
-                              setFormData(prev => ({ 
-                                ...prev, 
+                              setFormData(prev => ({
+                                ...prev,
                                 customRoleId: '',
                                 permissions: [],
                                 permissionAccessLevels: {},
@@ -1166,7 +1158,7 @@ const AdminManagement = () => {
                                 />
                                 <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
                               </label>
-                              
+
                               {/* Access Level Selector for each permission */}
                               {formData.permissions.includes(permission.id) && (
                                 <AccessLevelSelector
@@ -1177,34 +1169,34 @@ const AdminManagement = () => {
                                   disabled={false}
                                 />
                               )}
-                              
+
                               {/* Course selection for Leave Management */}
                               {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
                                 <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
                                   <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
                                     Select Courses for Leave Management Access
                                   </label>
-                                                                     <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
-                                     {courses.length > 0 ? (
-                                       courses.map(course => {
-                                         const isChecked = formData.leaveManagementCourses.includes(course._id);
-                                         console.log(`🔧 Sub-admin course ${course.name} (${course._id}) checked:`, isChecked);
-                                         return (
-                                           <label key={course._id} className="flex items-center gap-1 sm:gap-2">
-                                             <input
-                                               type="checkbox"
-                                               checked={isChecked}
-                                               onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
-                                               className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                             />
-                                             <span className="text-xs text-blue-700 truncate">{course.name}</span>
-                                           </label>
-                                         );
-                                       })
-                                     ) : (
-                                       <p className="text-xs text-blue-600">Loading courses...</p>
-                                     )}
-                                   </div>
+                                  <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
+                                    {courses.length > 0 ? (
+                                      courses.map(course => {
+                                        const isChecked = formData.leaveManagementCourses.includes(course._id);
+                                        console.log(`🔧 Sub-admin course ${course.name} (${course._id}) checked:`, isChecked);
+                                        return (
+                                          <label key={course._id} className="flex items-center gap-1 sm:gap-2">
+                                            <input
+                                              type="checkbox"
+                                              checked={isChecked}
+                                              onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
+                                              className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                            <span className="text-xs text-blue-700 truncate">{course.name}</span>
+                                          </label>
+                                        );
+                                      })
+                                    ) : (
+                                      <p className="text-xs text-blue-600">Loading courses...</p>
+                                    )}
+                                  </div>
                                   {formData.leaveManagementCourses.length === 0 && (
                                     <p className="text-xs text-red-600 mt-1">Please select at least one course</p>
                                   )}
@@ -1290,9 +1282,9 @@ const AdminManagement = () => {
                     {/* Email Input */}
                     {formData.passwordDeliveryMethod === 'email' && (
                       <div className="mt-3">
-                                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                        Email Address <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via email)</span>
-                      </label>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                          Email Address <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via email)</span>
+                        </label>
                         <input
                           type="email"
                           name="email"
@@ -1331,8 +1323,8 @@ const AdminManagement = () => {
                 {isWardenTab && (
                   <div className="p-2 sm:p-3 bg-green-50 rounded-lg">
                     <p className="text-xs sm:text-sm text-green-700">
-                      <strong>Warden Permissions:</strong> Wardens have access to student oversight, 
-                      complaint management, leave approval, room monitoring, announcements, 
+                      <strong>Warden Permissions:</strong> Wardens have access to student oversight,
+                      complaint management, leave approval, room monitoring, announcements,
                       discipline management, and attendance tracking.
                     </p>
                   </div>
@@ -1341,7 +1333,7 @@ const AdminManagement = () => {
                 {isPrincipalTab && (
                   <div className="p-2 sm:p-3 bg-purple-50 rounded-lg">
                     <p className="text-xs sm:text-sm text-purple-700">
-                      <strong>Principal Permissions:</strong> Principals have access to attendance management, 
+                      <strong>Principal Permissions:</strong> Principals have access to attendance management,
                       student oversight, and course-specific analytics.
                     </p>
                   </div>
@@ -1440,7 +1432,7 @@ const AdminManagement = () => {
                   <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </button>
               </div>
-              
+
               <form onSubmit={selectedRole ? handleUpdateRole : handleCreateRole} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -1488,7 +1480,7 @@ const AdminManagement = () => {
                           />
                           <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
                         </label>
-                        
+
                         {/* Access Level Selector for each permission */}
                         {roleFormData.permissions.includes(permission.id) && (
                           <AccessLevelSelector
@@ -1499,7 +1491,7 @@ const AdminManagement = () => {
                             disabled={false}
                           />
                         )}
-                        
+
                         {/* Course selection for permissions that need courses */}
                         {COURSE_ASSIGNMENT_PERMISSIONS.includes(permission.id) && roleFormData.permissions.includes(permission.id) && (
                           <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-purple-50 rounded-lg">
@@ -1530,7 +1522,7 @@ const AdminManagement = () => {
                                 <span className="text-xs sm:text-sm text-purple-700">Selected Courses</span>
                               </label>
                             </div>
-                            
+
                             {roleFormData.courseAssignment === 'selected' && (
                               <div className="mt-2 space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
                                 {courses.length > 0 ? (
@@ -1613,13 +1605,13 @@ const AdminManagement = () => {
                   <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
                 </button>
               </div>
-              
+
               <div className="mb-4">
                 <p className="text-sm text-gray-600">
                   Reset password for: <span className="font-semibold text-gray-900">{selectedAdmin?.username}</span>
                 </p>
               </div>
-              
+
               <form onSubmit={handlePasswordReset} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">

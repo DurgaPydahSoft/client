@@ -79,14 +79,12 @@ const SecuritySettings = () => {
           <button
             onClick={() => onChange(setting, !value)}
             disabled={saving}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-              value ? 'bg-blue-600' : 'bg-gray-200'
-            } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${value ? 'bg-blue-600' : 'bg-gray-200'
+              } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                value ? 'translate-x-6' : 'translate-x-1'
-              }`}
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${value ? 'translate-x-6' : 'translate-x-1'
+                }`}
             />
           </button>
         </div>
@@ -121,7 +119,7 @@ const SecuritySettings = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <SEO 
+        <SEO
           title="Security Settings"
           description="Manage security dashboard privacy settings and access controls"
           keywords="security settings, privacy controls, dashboard access"
@@ -181,8 +179,8 @@ const SecuritySettings = () => {
             <div>
               <h3 className="text-lg font-semibold text-blue-900 mb-2">About Security Settings</h3>
               <p className="text-blue-800 mb-3">
-                These settings control what information security guards can see in the security dashboard. 
-                Disabling certain features helps protect student privacy while still allowing necessary 
+                These settings control what information security guards can see in the security dashboard.
+                Disabling certain features helps protect student privacy while still allowing necessary
                 verification functions.
               </p>
               <ul className="text-sm text-blue-700 space-y-1">

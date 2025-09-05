@@ -127,11 +127,10 @@ const AnnouncementManagement = () => {
             <button
               type="submit"
               disabled={submitting}
-              className={`px-6 py-2 rounded-lg text-white font-medium transition-all duration-200 ${
-                submitting 
-                  ? 'bg-gray-400 cursor-not-allowed' 
+              className={`px-6 py-2 rounded-lg text-white font-medium transition-all duration-200 ${submitting
+                  ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
-              }`}
+                }`}
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -156,11 +155,10 @@ const AnnouncementManagement = () => {
             announcements.map(announcement => (
               <div
                 key={announcement._id}
-                className={`p-4 rounded-lg border ${
-                  announcement.isActive 
-                    ? 'border-green-200 bg-green-50' 
+                className={`p-4 rounded-lg border ${announcement.isActive
+                    ? 'border-green-200 bg-green-50'
                     : 'border-gray-200 bg-gray-50'
-                }`}
+                  }`}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -172,11 +170,10 @@ const AnnouncementManagement = () => {
                   </div>
                   <button
                     onClick={() => toggleAnnouncement(announcement._id, announcement.isActive)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      announcement.isActive
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${announcement.isActive
                         ? 'bg-red-100 text-red-700 hover:bg-red-200'
                         : 'bg-green-100 text-green-700 hover:bg-green-200'
-                    }`}
+                      }`}
                   >
                     {announcement.isActive ? 'Deactivate' : 'Activate'}
                   </button>

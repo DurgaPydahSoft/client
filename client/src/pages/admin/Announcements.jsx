@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { 
-  MegaphoneIcon, 
-  PlusIcon, 
-  TrashIcon, 
-  XCircleIcon, 
-  ClockIcon, 
+import {
+  MegaphoneIcon,
+  PlusIcon,
+  TrashIcon,
+  XCircleIcon,
+  ClockIcon,
   PhotoIcon,
   DocumentTextIcon,
   PencilSquareIcon,
@@ -103,13 +103,13 @@ const Announcements = () => {
 
   const handleDelete = async id => {
     if (!window.confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) return;
-    
+
     setDeletingId(id);
     try {
       const response = await api.delete(`/api/announcements/${id}`);
       if (response.data.success) {
         toast.success('Announcement deleted successfully');
-        setAnnouncements(prevAnnouncements => 
+        setAnnouncements(prevAnnouncements =>
           prevAnnouncements.filter(announcement => announcement._id !== id)
         );
       } else {
@@ -157,24 +157,24 @@ const Announcements = () => {
                   <DocumentTextIcon className="w-4 h-4 text-gray-500" />
                   Title
                 </label>
-                <input 
-                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" 
-                  name="title" 
-                  placeholder="Enter announcement title" 
-                  value={form.title} 
-                  onChange={handleFormChange} 
-                  required 
+                <input
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  name="title"
+                  placeholder="Enter announcement title"
+                  value={form.title}
+                  onChange={handleFormChange}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea 
-                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" 
-                  name="description" 
-                  placeholder="Enter announcement details" 
-                  value={form.description} 
-                  onChange={handleFormChange} 
-                  required 
+                <textarea
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  name="description"
+                  placeholder="Enter announcement details"
+                  value={form.description}
+                  onChange={handleFormChange}
+                  required
                   rows={4}
                 />
               </div>
@@ -222,13 +222,13 @@ const Announcements = () => {
                   </div>
                 </div>
               </div>
-              <button 
+              <button
                 className={`w-full sm:w-auto py-2.5 px-6 rounded-lg text-white font-medium transition-all duration-200 flex items-center justify-center gap-2
-                  ${adding 
-                    ? 'bg-gray-400 cursor-not-allowed' 
+                  ${adding
+                    ? 'bg-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 hover:bg-blue-700 shadow hover:shadow-md'
-                  }`} 
-                type="submit" 
+                  }`}
+                type="submit"
                 disabled={adding}
               >
                 {adding ? (
@@ -269,8 +269,8 @@ const Announcements = () => {
                 announcements
                   .filter(a => a.isActive !== false)
                   .map(a => (
-                    <div 
-                      key={a._id} 
+                    <div
+                      key={a._id}
                       className="bg-white rounded-xl shadow-sm p-4 sm:p-5 transition-all duration-200 hover:shadow-lg h-full flex flex-col"
                     >
                       <div className="flex flex-col h-full">
