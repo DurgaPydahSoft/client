@@ -65,6 +65,7 @@ const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelReque
 const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
 const WardenLeaveManagement = lazy(() => import('./pages/warden/LeaveManagement'));
 const WardenElectricityBills = lazy(() => import('./pages/warden/ElectricityBills'));
+const WardenTakeStaffAttendance = lazy(() => import('./pages/warden/TakeStaffAttendance'));
 
 // Principal components
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
@@ -277,6 +278,7 @@ function App() {
                   <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />
                   <Route path="fee-management" element={<WardenFeeManagement />} />
                   <Route path="electricity-bills" element={<WardenElectricityBills />} />
+                  <Route path="take-staff-attendance" element={<WardenTakeStaffAttendance />} />
                 </Route>
 
                 {/* Protected principal routes */}

@@ -17,12 +17,20 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   EyeIcon,
-  EyeSlashIcon
+  EyeSlashIcon,
+  ChartBarIcon,
+  CalendarIcon,
+  SunIcon,
+  MoonIcon,
+  StarIcon,
+  CheckIcon,
+  XMarkIcon as XMark
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
 
 const StaffGuestsManagement = () => {
+  const [activeTab, setActiveTab] = useState('management');
   const [staffGuests, setStaffGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -44,10 +52,29 @@ const StaffGuestsManagement = () => {
     photo: null
   });
 
+  // Attendance-related state
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceStats, setAttendanceStats] = useState({});
+  const [attendanceFilters, setAttendanceFilters] = useState({
+    date: new Date().toISOString().split('T')[0],
+    type: 'all',
+    department: 'all',
+    status: 'all'
+  });
+  const [attendanceSearchTerm, setAttendanceSearchTerm] = useState('');
+
   useEffect(() => {
     fetchStaffGuests();
     fetchStats();
   }, [currentPage, searchTerm, filterType, filterGender]);
+
+  useEffect(() => {
+    if (activeTab === 'attendance') {
+      fetchAttendanceData();
+      fetchAttendanceStats();
+    }
+  }, [activeTab, attendanceFilters, attendanceSearchTerm]);
 
   const fetchStaffGuests = async () => {
     try {
@@ -89,6 +116,46 @@ const StaffGuestsManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const fetchAttendanceData = async () => {
+    try {
+      setAttendanceLoading(true);
+      const params = new URLSearchParams({
+        date: attendanceFilters.date,
+        ...(attendanceFilters.type !== 'all' && { type: attendanceFilters.type }),
+        ...(attendanceFilters.department !== 'all' && { department: attendanceFilters.department }),
+        ...(attendanceFilters.status !== 'all' && { status: attendanceFilters.status }),
+        ...(attendanceSearchTerm && { search: attendanceSearchTerm })
+      });
+
+      const response = await api.get(`/api/admin/staff-attendance?${params}`);
+      if (response.data.success) {
+        setAttendanceData(response.data.data.attendance || []);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance data:', error);
+      toast.error('Failed to fetch attendance data');
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  const fetchAttendanceStats = async () => {
+    try {
+      const params = new URLSearchParams({
+        date: attendanceFilters.date,
+        ...(attendanceFilters.type !== 'all' && { type: attendanceFilters.type }),
+        ...(attendanceFilters.department !== 'all' && { department: attendanceFilters.department })
+      });
+
+      const response = await api.get(`/api/admin/staff-attendance/stats?${params}`);
+      if (response.data.success) {
+        setAttendanceStats(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance stats:', error);
     }
   };
 
@@ -199,6 +266,39 @@ const StaffGuestsManagement = () => {
     setShowForm(false);
   };
 
+  // Attendance helper functions
+  const getAttendanceStatus = (attendance) => {
+    if (!attendance) return 'Absent';
+    if (attendance.morning && attendance.evening && attendance.night) return 'Present';
+    if (attendance.morning || attendance.evening || attendance.night) return 'Partial';
+    return 'Absent';
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Present': return 'text-green-600 bg-green-50';
+      case 'Partial': return 'text-yellow-600 bg-yellow-50';
+      case 'Absent': return 'text-red-600 bg-red-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Present': return <CheckIcon className="w-4 h-4" />;
+      case 'Partial': return <ClockIcon className="w-4 h-4" />;
+      case 'Absent': return <XMark className="w-4 h-4" />;
+      default: return null;
+    }
+  };
+
+  const handleAttendanceFilterChange = (filterType, value) => {
+    setAttendanceFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
+  };
+
   return (
     <>
       <SEO 
@@ -212,48 +312,92 @@ const StaffGuestsManagement = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-blue-900">Staff/Guests Management </h1>
-            <p className="text-gray-600 mt-1">Manage staff and guest information and track their visits</p>
+            <p className="text-gray-600 mt-1">
+              {activeTab === 'management' 
+                ? 'Manage staff and guest information and track their visits'
+                : 'View and analyze staff and guest attendance records'
+              }
+            </p>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <UserPlusIcon className="w-5 h-5" />
-            Add Staff/Guest
-          </button>
+          {activeTab === 'management' && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <UserPlusIcon className="w-5 h-5" />
+              Add Staff/Guest
+            </button>
+          )}
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-            <div className="flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-gray-600">Total Staff</span>
-            </div>
-            <div className="text-2xl font-bold text-blue-900">{stats.totalStaff || 0}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-            <div className="flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-gray-600">Total Guests</span>
-            </div>
-            <div className="text-2xl font-bold text-green-900">{stats.totalGuests || 0}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-            <div className="flex items-center gap-2">
-              <CheckCircleIcon className="w-5 h-5 text-yellow-600" />
-              <span className="text-sm font-medium text-gray-600">Checked In</span>
-            </div>
-            <div className="text-2xl font-bold text-yellow-900">{stats.totalCheckedIn || 0}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
-            <div className="flex items-center gap-2">
-              <UserIcon className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-gray-600">Total Active</span>
-            </div>
-            <div className="text-2xl font-bold text-purple-900">{stats.totalActive || 0}</div>
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('management')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'management'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5" />
+                  Management
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('attendance')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'attendance'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <ChartBarIcon className="w-5 h-5" />
+                  Attendance
+                </div>
+              </button>
+            </nav>
           </div>
         </div>
+
+        {/* Management Tab Content */}
+        {activeTab === 'management' && (
+          <>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-600">Total Staff</span>
+                </div>
+                <div className="text-2xl font-bold text-blue-900">{stats.totalStaff || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-medium text-gray-600">Total Guests</span>
+                </div>
+                <div className="text-2xl font-bold text-green-900">{stats.totalGuests || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <div className="flex items-center gap-2">
+                  <CheckCircleIcon className="w-5 h-5 text-yellow-600" />
+                  <span className="text-sm font-medium text-gray-600">Checked In</span>
+                </div>
+                <div className="text-2xl font-bold text-yellow-900">{stats.totalCheckedIn || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm font-medium text-gray-600">Total Active</span>
+                </div>
+                <div className="text-2xl font-bold text-purple-900">{stats.totalActive || 0}</div>
+              </div>
+            </div>
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -466,6 +610,205 @@ const StaffGuestsManagement = () => {
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {/* Attendance Tab Content */}
+        {activeTab === 'attendance' && (
+          <>
+            {/* Attendance Stats Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+                <div className="flex items-center gap-2">
+                  <CheckIcon className="w-5 h-5 text-green-600" />
+                  <span className="text-sm font-medium text-gray-600">Present</span>
+                </div>
+                <div className="text-2xl font-bold text-green-900">{attendanceStats.present || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+                <div className="flex items-center gap-2">
+                  <ClockIcon className="w-5 h-5 text-yellow-600" />
+                  <span className="text-sm font-medium text-gray-600">Partial</span>
+                </div>
+                <div className="text-2xl font-bold text-yellow-900">{attendanceStats.partial || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+                <div className="flex items-center gap-2">
+                  <XMark className="w-5 h-5 text-red-600" />
+                  <span className="text-sm font-medium text-gray-600">Absent</span>
+                </div>
+                <div className="text-2xl font-bold text-red-900">{attendanceStats.absent || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-600">Total</span>
+                </div>
+                <div className="text-2xl font-bold text-blue-900">{attendanceStats.total || 0}</div>
+              </div>
+            </div>
+
+            {/* Attendance Filters */}
+            <div className="bg-white rounded-lg shadow p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, department..."
+                      value={attendanceSearchTerm}
+                      onChange={(e) => setAttendanceSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="date"
+                    value={attendanceFilters.date}
+                    onChange={(e) => handleAttendanceFilterChange('date', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <select
+                    value={attendanceFilters.type}
+                    onChange={(e) => handleAttendanceFilterChange('type', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="staff">Staff</option>
+                    <option value="guest">Guest</option>
+                  </select>
+                  <select
+                    value={attendanceFilters.department}
+                    onChange={(e) => handleAttendanceFilterChange('department', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Departments</option>
+                    <option value="Security">Security</option>
+                    <option value="Maintenance">Maintenance</option>
+                    <option value="Cleaning">Cleaning</option>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <select
+                    value={attendanceFilters.status}
+                    onChange={(e) => handleAttendanceFilterChange('status', e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Present">Present</option>
+                    <option value="Partial">Partial</option>
+                    <option value="Absent">Absent</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Attendance List */}
+            <div className="bg-white rounded-lg shadow">
+              {attendanceLoading ? (
+                <div className="flex justify-center items-center h-64">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staff/Guest</th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <SunIcon className="w-4 h-4 mx-auto" />
+                          Morning
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <MoonIcon className="w-4 h-4 mx-auto" />
+                          Evening
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <StarIcon className="w-4 h-4 mx-auto" />
+                          Night
+                        </th>
+                        <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {attendanceData && attendanceData.length > 0 ? attendanceData.map((record) => {
+                        const status = getAttendanceStatus(record.attendance);
+                        return (
+                          <tr key={record._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="flex-shrink-0 h-10 w-10">
+                                  {record.photo ? (
+                                    <img
+                                      className="h-10 w-10 rounded-full object-cover"
+                                      src={record.photo}
+                                      alt={record.name}
+                                    />
+                                  ) : (
+                                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                      <UserIcon className="h-6 w-6 text-gray-400" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{record.name}</div>
+                                  <div className="text-sm text-gray-500">
+                                    {record.type} • {record.department || 'No Department'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              {record.attendance?.morning ? (
+                                <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                              ) : (
+                                <XMark className="w-5 h-5 text-red-600 mx-auto" />
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              {record.attendance?.evening ? (
+                                <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                              ) : (
+                                <XMark className="w-5 h-5 text-red-600 mx-auto" />
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              {record.attendance?.night ? (
+                                <CheckIcon className="w-5 h-5 text-green-600 mx-auto" />
+                              ) : (
+                                <XMark className="w-5 h-5 text-red-600 mx-auto" />
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                                {getStatusIcon(status)}
+                                {status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {record.attendance?.notes || '-'}
+                            </td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr>
+                          <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
+                            <ChartBarIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                            <p className="text-lg font-medium">No attendance records found</p>
+                            <p className="text-sm">Select a date to view attendance records</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Add/Edit Form Modal */}
         <AnimatePresence>

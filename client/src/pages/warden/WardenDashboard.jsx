@@ -121,7 +121,7 @@ const WardenDashboardLayout = () => {
       locked: false,
       subItems: [
         {
-          name: 'Take Attendance',
+          name: 'Students',
           path: '/warden/dashboard/take-attendance',
           icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
         },
@@ -130,6 +130,11 @@ const WardenDashboardLayout = () => {
           path: '/warden/dashboard/view-attendance',
           icon: 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z',
         },
+        {
+          name: 'Staff/Guests',
+          path: '/warden/dashboard/take-staff-attendance',
+          icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+        }
       ],
     },
     {
