@@ -441,7 +441,7 @@ const StudentDashboardLayout = () => {
       </main>
 
       {/* Floating Call Button */}
-      <FloatingCallButton />
+      <FloatingCallButton isSidebarOpen={isSidebarOpen} />
     </div>
   );
 };

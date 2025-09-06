@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PhoneIcon, XMarkIcon, HomeIcon, UserIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
-const FloatingCallButton = () => {
+const FloatingCallButton = ({ isSidebarOpen = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuth();
 
@@ -86,7 +86,9 @@ const FloatingCallButton = () => {
   };
 
   return (
-    <div className="fixed bottom-6 left-6 z-[9999]">
+    <div className={`fixed bottom-6 left-6 z-[9999] transition-all duration-300 ${
+      isSidebarOpen ? 'opacity-0 pointer-events-none transform scale-0' : 'opacity-100 pointer-events-auto transform scale-100'
+    }`}>
       {/* Debug indicator
       <div className="absolute -top-8 left-0 bg-red-500 text-white text-xs px-2 py-1 rounded font-bold">
         {isOpen ? 'OPEN' : 'CLOSED'}

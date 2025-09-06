@@ -760,15 +760,15 @@ const MenuManagement = () => {
       </div>
 
       {/* Food Preparation Count Section - Mobile Optimized */}
-      <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl shadow-sm border border-orange-200 p-3 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
         {/* Header - Mobile Stack */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xl sm:text-2xl">🍽️</span>
-            <h2 className="text-base sm:text-lg font-semibold text-orange-900">Food Preparation Count</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Food Preparation Count</h2>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-            <div className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-full self-start sm:self-auto">
+            <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full self-start sm:self-auto">
               Based on yesterday's night attendance
             </div>
             <button
@@ -785,7 +785,7 @@ const MenuManagement = () => {
                 }
               }}
               disabled={loadingFoodCount}
-              className="p-2 text-orange-600 hover:text-orange-700 hover:bg-orange-100 rounded-lg transition-colors disabled:opacity-50 self-start sm:self-auto"
+              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 self-start sm:self-auto"
               title="Refresh count"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -797,7 +797,7 @@ const MenuManagement = () => {
 
         {loadingFoodCount ? (
           <div className="flex items-center justify-center py-6 sm:py-8">
-            <div className="inline-flex items-center gap-2 text-orange-600">
+            <div className="inline-flex items-center gap-2 text-blue-600">
               <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
@@ -805,52 +805,64 @@ const MenuManagement = () => {
             </div>
           </div>
         ) : foodCount ? (
-          <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-3 lg:gap-4">
-            {/* Students Count - Mobile First */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-orange-200 shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{foodCount.counts.students}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 truncate">Students</div>
+          <div className="space-y-3">
+            {/* Students and Staff Count - Two columns on mobile, three on desktop */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {/* Students Count */}
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{foodCount.counts.students}</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍🎓</div>
                 </div>
-                <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍🎓</div>
+              </div>
+
+              {/* Staff Count */}
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{foodCount.counts.staff}</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍💼</div>
+                </div>
+              </div>
+
+              {/* Total Count - Hidden on mobile, shown on desktop */}
+              <div className="hidden sm:block bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 sm:p-4 text-white shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-2xl sm:text-3xl font-bold">{foodCount.counts.total}</div>
+                    <div className="text-xs sm:text-sm opacity-90 truncate">Total Count</div>
+                  </div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">🍽️</div>
+                </div>
               </div>
             </div>
 
-            {/* Staff Count - Mobile First */}
-            <div className="bg-white rounded-lg p-3 sm:p-4 border border-orange-200 shadow-sm">
+            {/* Total Count - Full width on mobile, hidden on desktop */}
+            <div className="sm:hidden bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-lg">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="text-xl sm:text-2xl font-bold text-green-600">{foodCount.counts.staff}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 truncate">Staff/Guests</div>
+                  <div className="text-2xl font-bold">{foodCount.counts.total}</div>
+                  <div className="text-xs opacity-90 truncate">Total Count</div>
                 </div>
-                <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍💼</div>
-              </div>
-            </div>
-
-            {/* Total Count - Mobile First */}
-            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg p-3 sm:p-4 text-white shadow-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="text-2xl sm:text-3xl font-bold">{foodCount.counts.total}</div>
-                  <div className="text-xs sm:text-sm opacity-90 truncate">Total Count</div>
-                </div>
-                <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">🍽️</div>
+                <div className="text-2xl ml-2 flex-shrink-0">🍽️</div>
               </div>
             </div>
           </div>
         ) : (
           <div className="text-center py-6 sm:py-8">
-            <div className="text-orange-400 text-3xl sm:text-4xl mb-2">📊</div>
-            <div className="text-orange-600 font-medium text-sm sm:text-base">No attendance data available</div>
-            <div className="text-orange-500 text-xs sm:text-sm mt-1 px-4">
+            <div className="text-gray-400 text-3xl sm:text-4xl mb-2">📊</div>
+            <div className="text-gray-600 font-medium text-sm sm:text-base">No attendance data available</div>
+            <div className="text-gray-500 text-xs sm:text-sm mt-1 px-4">
               Unable to fetch yesterday's attendance data
             </div>
           </div>
         )}
 
         {foodCount && (
-          <div className="mt-3 sm:mt-4 text-xs text-orange-600 text-center">
+          <div className="mt-3 sm:mt-4 text-xs text-gray-500 text-center">
             Last updated: {new Date(foodCount.lastUpdated).toLocaleString()}
           </div>
         )}
