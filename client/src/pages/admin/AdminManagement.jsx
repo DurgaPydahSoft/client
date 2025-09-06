@@ -929,15 +929,15 @@ const AdminManagement = () => {
             ) : (
               <div className="p-4 sm:p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {currentData.filter(admin => admin && admin._id).map((admin) => (
+                {currentData.filter(admin => admin && admin._id).map((admin) => (
                     <div key={admin._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-all duration-200 hover:border-gray-300 flex flex-col h-full">
                       {/* Card Header */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${isWardenTab ? 'bg-green-100' : isPrincipalTab ? 'bg-purple-100' : 'bg-blue-100'}`}>
-                            {isWardenTab ? (
+                          {isWardenTab ? (
                               <HomeIcon className="w-5 h-5 text-green-600" />
-                            ) : isPrincipalTab ? (
+                          ) : isPrincipalTab ? (
                               <AcademicCapIcon className="w-5 h-5 text-purple-600" />
                             ) : (
                               <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
@@ -946,9 +946,9 @@ const AdminManagement = () => {
                           <div>
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {admin.isActive ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
+                            {admin.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
@@ -958,7 +958,7 @@ const AdminManagement = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          {!isWardenTab && !isPrincipalTab && (
+                        {!isWardenTab && !isPrincipalTab && (
                             <button
                               onClick={() => openPasswordResetModal(admin)}
                               className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -989,7 +989,7 @@ const AdminManagement = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                   </svg>
                                   {admin.customRole || 'Unknown Role'}
-                                </span>
+                              </span>
                               </div>
                             )}
                           </div>
@@ -1027,25 +1027,25 @@ const AdminManagement = () => {
                             <div className="text-xs font-medium text-gray-600 mb-2">Permissions ({admin.permissions.length})</div>
                             <div className="flex flex-wrap gap-1">
                               {admin.permissions.slice(0, 3).map(permission => {
-                                const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
-                                const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
-                                return (
+                              const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
+                              const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
+                              return (
                                   <span key={permission} className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
-                                    <span className="truncate">{permissionLabel}</span>
+                                  <span className="truncate">{permissionLabel}</span>
                                     <span className={`ml-1 px-1 py-0.5 rounded text-xs ${accessLevel === 'full'
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'bg-gray-100 text-gray-600'
-                                      }`}>
-                                      {accessLevel === 'full' ? 'Full' : 'View'}
-                                    </span>
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-gray-100 text-gray-600'
+                                    }`}>
+                                    {accessLevel === 'full' ? 'Full' : 'View'}
                                   </span>
-                                );
-                              })}
+                                </span>
+                              );
+                            })}
                               {admin.permissions.length > 3 && (
                                 <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
                                   +{admin.permissions.length - 3} more
-                                </span>
-                              )}
+                              </span>
+                            )}
                             </div>
                           </div>
                         )}
@@ -1059,11 +1059,11 @@ const AdminManagement = () => {
                                 : 'bg-blue-50 text-blue-700'
                             }`}>
                             {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
-                          </span>
-                        </div>
-                      </div>
+                            </span>
+                          </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
                 </div>
               </div>
             )}
@@ -1440,7 +1440,7 @@ const AdminManagement = () => {
                         <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                        Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
+                      Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
                       </div>
                     </label>
                     <p className="text-xs text-gray-600 mb-3">
@@ -1517,15 +1517,15 @@ const AdminManagement = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                           </div>
-                          <input
-                            type="email"
-                            name="email"
-                            value={formData.email}
-                            onChange={handleFormChange}
-                            required={formData.passwordDeliveryMethod === 'email'}
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleFormChange}
+                          required={formData.passwordDeliveryMethod === 'email'}
                             className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter email address"
-                          />
+                          placeholder="Enter email address"
+                        />
                         </div>
                       </div>
                     )}
@@ -1547,15 +1547,15 @@ const AdminManagement = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                           </div>
-                          <input
-                            type="tel"
-                            name="phoneNumber"
-                            value={formData.phoneNumber}
-                            onChange={handleFormChange}
-                            required={formData.passwordDeliveryMethod === 'mobile'}
+                        <input
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleFormChange}
+                          required={formData.passwordDeliveryMethod === 'mobile'}
                             className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter phone number (e.g., 9876543210)"
-                          />
+                          placeholder="Enter phone number (e.g., 9876543210)"
+                        />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           Enter 10-digit phone number without country code

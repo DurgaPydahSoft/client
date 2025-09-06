@@ -12,6 +12,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.0.18",
+    "@lottiefiles/dotlottie-react": "^0.15.2",
     "axios": "^1.5.0",
     "chart.js": "^4.4.9",
     "framer-motion": "^12.11.0",
