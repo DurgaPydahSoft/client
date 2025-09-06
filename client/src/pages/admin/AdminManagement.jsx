@@ -24,9 +24,9 @@ const PERMISSIONS = [
   { id: 'dashboard_home', label: 'Dashboard Home' },
   { id: 'room_management', label: 'Room Management' },
   { id: 'student_management', label: 'Student Management' },
-  { id: 'maintenance_ticket_management', label: 'Maintenance Ticket Management' },
+  { id: 'maintenance_ticket_management', label: 'Complaints Management' },
   { id: 'leave_management', label: 'Leave Management' },
-  { id: 'announcement_management', label: 'Announcement Management' },
+  { id: 'announcement_management', label: 'Announcements' },
   { id: 'poll_management', label: 'Poll Management' },
   { id: 'menu_management', label: 'Menu Management' },
   { id: 'course_management', label: 'Course Management' },
@@ -919,7 +919,7 @@ const AdminManagement = () => {
       {/* Admin Management Content */}
       {activeTab !== 'courses' && activeTab !== 'custom-roles' && (
         <>
-          {/* Users List */}
+          {/* Users List - Card Layout */}
           <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
             {currentData.length === 0 ? (
               <div className="p-6 sm:p-8 text-center">
@@ -927,104 +927,144 @@ const AdminManagement = () => {
                 <p className="text-sm sm:text-base text-gray-500">No {isWardenTab ? 'wardens' : isPrincipalTab ? 'principals' : 'sub-admins'} found</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {currentData.filter(admin => admin && admin._id).map((admin) => (
-                  <div key={admin._id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                          {isWardenTab ? (
-                            <HomeIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
-                          ) : isPrincipalTab ? (
-                            <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 flex-shrink-0" />
-                          ) : (
-                            <ShieldCheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
+              <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                  {currentData.filter(admin => admin && admin._id).map((admin) => (
+                    <div key={admin._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-all duration-200 hover:border-gray-300 flex flex-col h-full">
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${isWardenTab ? 'bg-green-100' : isPrincipalTab ? 'bg-purple-100' : 'bg-blue-100'}`}>
+                            {isWardenTab ? (
+                              <HomeIcon className="w-5 h-5 text-green-600" />
+                            ) : isPrincipalTab ? (
+                              <AcademicCapIcon className="w-5 h-5 text-purple-600" />
+                            ) : (
+                              <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {admin.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => openEditModal(admin)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit Admin"
+                          >
+                            <PencilIcon className="w-4 h-4" />
+                          </button>
+                          {!isWardenTab && !isPrincipalTab && (
+                            <button
+                              onClick={() => openPasswordResetModal(admin)}
+                              className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                              title="Reset Password"
+                            >
+                              <KeyIcon className="w-4 h-4" />
+                            </button>
                           )}
-                          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
-                          <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex-shrink-0`}>
-                            {admin.isActive ? 'Active' : 'Inactive'}
+                          <button
+                            onClick={() => handleDeleteAdmin(admin._id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Admin"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Card Content */}
+                      <div className="space-y-3">
+                        {/* Role Information */}
+                        {!isWardenTab && !isPrincipalTab && (
+                          <div>
+                            {admin.role === 'custom' && admin.customRoleId && (
+                              <div className="mb-2">
+                                <span className="inline-flex items-center px-2 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                  </svg>
+                                  {admin.customRole || 'Unknown Role'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Warden/Principal Specific Info */}
+                        {isWardenTab && admin.hostelType && (
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.hostelType === 'boys'
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-pink-50 text-pink-700'
+                              }`}>
+                              {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                            </span>
+                          </div>
+                        )}
+
+                        {isPrincipalTab && admin.course && (
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                            </svg>
+                            <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate">
+                              {typeof admin.course === 'object' ? admin.course.name : admin.course}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Permissions for Sub-Admins */}
+                        {!isWardenTab && !isPrincipalTab && admin.permissions && admin.permissions.length > 0 && (
+                          <div>
+                            <div className="text-xs font-medium text-gray-600 mb-2">Permissions ({admin.permissions.length})</div>
+                            <div className="flex flex-wrap gap-1">
+                              {admin.permissions.slice(0, 3).map(permission => {
+                                const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
+                                const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
+                                return (
+                                  <span key={permission} className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
+                                    <span className="truncate">{permissionLabel}</span>
+                                    <span className={`ml-1 px-1 py-0.5 rounded text-xs ${accessLevel === 'full'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-gray-100 text-gray-600'
+                                      }`}>
+                                      {accessLevel === 'full' ? 'Full' : 'View'}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                              {admin.permissions.length > 3 && (
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
+                                  +{admin.permissions.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Role Type Badge */}
+                        <div className="pt-2 border-t border-gray-100">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isWardenTab 
+                              ? 'bg-green-50 text-green-700' 
+                              : isPrincipalTab 
+                                ? 'bg-purple-50 text-purple-700' 
+                                : 'bg-blue-50 text-blue-700'
+                            }`}>
+                            {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
                           </span>
                         </div>
-                        {!isWardenTab && !isPrincipalTab && (
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            {admin.role === 'custom' && admin.customRoleId && (
-                              <span className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">
-                                Custom Role: {admin.customRole || 'Unknown Role'}
-                              </span>
-                            )}
-                            {admin.permissions && admin.permissions.map(permission => {
-                              const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
-                              const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
-                              return (
-                                <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs flex items-center gap-1">
-                                  <span className="truncate">{permissionLabel}</span>
-                                  <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${accessLevel === 'full'
-                                      ? 'bg-green-100 text-green-700'
-                                      : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                    {accessLevel === 'full' ? 'Full' : 'View'}
-                                  </span>
-                                </span>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {isWardenTab && (
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            <span className="px-1.5 sm:px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs">
-                              Warden Permissions
-                            </span>
-                            {admin.hostelType && (
-                              <span className={`px-1.5 sm:px-2 py-0.5 rounded-full text-xs ${admin.hostelType === 'boys'
-                                  ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-pink-50 text-pink-700'
-                                }`}>
-                                {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        {isPrincipalTab && (
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            <span className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs">
-                              Principal Permissions
-                            </span>
-                            {admin.course && (
-                              <span className="px-1.5 sm:px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-xs truncate">
-                                {typeof admin.course === 'object' ? admin.course.name : admin.course}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => openEditModal(admin)}
-                          className="p-1.5 sm:p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit Admin"
-                        >
-                          <PencilIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                        {!isWardenTab && !isPrincipalTab && (
-                          <button
-                            onClick={() => openPasswordResetModal(admin)}
-                            className="p-1.5 sm:p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                            title="Reset Password"
-                          >
-                            <KeyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteAdmin(admin._id)}
-                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Admin"
-                        >
-                          <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1044,7 +1084,7 @@ const AdminManagement = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl mx-2 sm:mx-4 max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-4xl mx-2 sm:mx-4 max-h-[95vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-3 sm:mb-4">
                 <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900">
@@ -1058,46 +1098,79 @@ const AdminManagement = () => {
                 </button>
               </div>
 
-              <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3 sm:space-y-4">
+              <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3">
+                {/* Basic Information - Two Column Layout */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
                     Username <span className="text-red-500">*</span>
+                      </div>
                   </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </div>
                   <input
                     type="text"
                     name="username"
                     value={formData.username}
                     onChange={handleFormChange}
                     required
-                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter username"
                   />
+                    </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
                     Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
                     {showAddModal && <span className="text-red-500">*</span>}
+                      </div>
                   </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </div>
                   <input
                     type="password"
                     name="password"
                     value={formData.password}
                     onChange={handleFormChange}
                     required={showAddModal}
-                    className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter password"
                   />
+                    </div>
+                  </div>
                 </div>
 
                 {!isWardenTab && !isPrincipalTab && (
+                  <div className="space-y-3">
+                    {/* Role Type Selection */}
                   <div>
-                    <div className="mb-3">
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
                         Role Type
+                        </div>
                       </label>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                           <input
                             type="radio"
                             name="roleType"
@@ -1113,11 +1186,17 @@ const AdminManagement = () => {
                                 leaveManagementCourses: []
                               }));
                             }}
-                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                           />
-                          <span className="text-xs sm:text-sm text-gray-700">Sub-Admin (Custom Permissions)</span>
+                          <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">Sub-Admin</div>
+                            <div className="text-xs text-gray-500">Custom Permissions</div>
+                          </div>
                         </label>
-                        <label className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                           <input
                             type="radio"
                             name="roleType"
@@ -1133,9 +1212,15 @@ const AdminManagement = () => {
                                 leaveManagementCourses: []
                               }));
                             }}
-                            className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                           />
-                          <span className="text-xs sm:text-sm text-gray-700">Custom Role</span>
+                          <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                          <div>
+                            <div className="text-sm font-medium text-gray-700">Custom Role</div>
+                            <div className="text-xs text-gray-500">Predefined Role</div>
+                          </div>
                         </label>
                       </div>
                     </div>
@@ -1143,74 +1228,186 @@ const AdminManagement = () => {
                     {roleType === 'sub_admin' ? (
                       // Sub-Admin permissions
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Permissions
                         </label>
-                        <div className="space-y-1 sm:space-y-2 max-h-40 sm:max-h-48 lg:max-h-64 overflow-y-auto">
-                          {PERMISSIONS.map(permission => (
-                            <div key={permission.id}>
-                              <label className="flex items-center gap-2">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                          {PERMISSIONS.map(permission => {
+                            // Get appropriate icon for each permission
+                            const getPermissionIcon = (permissionId) => {
+                              const icons = {
+                                'dashboard_home': (
+                                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z" />
+                                  </svg>
+                                ),
+                                'room_management': (
+                                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                ),
+                                'student_management': (
+                                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                ),
+                                'maintenance_ticket_management': (
+                                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                ),
+                                'leave_management': (
+                                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                ),
+                                'announcement_management': (
+                                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+                                  </svg>
+                                ),
+                                'poll_management': (
+                                  <svg className="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                  </svg>
+                                ),
+                                'menu_management': (
+                                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6m8 0V9a2 2 0 00-2-2H9a2 2 0 00-2 2v4.01" />
+                                  </svg>
+                                ),
+                                'course_management': (
+                                  <svg className="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                  </svg>
+                                ),
+                                'attendance_management': (
+                                  <svg className="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                  </svg>
+                                ),
+                                'found_lost_management': (
+                                  <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                  </svg>
+                                ),
+                                'fee_management': (
+                                  <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                  </svg>
+                                ),
+                                'security_management': (
+                                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                  </svg>
+                                ),
+                                'staff_guests_management': (
+                                  <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                  </svg>
+                                ),
+                                'feature_controls': (
+                                  <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  </svg>
+                                )
+                              };
+                              return icons[permissionId] || (
+                                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              );
+                            };
+
+                            return (
+                              <div key={permission.id} className="border border-gray-200 rounded-lg p-2 hover:bg-gray-50 transition-colors">
+                                <label className="flex items-center gap-2 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   value={permission.id}
                                   checked={formData.permissions.includes(permission.id)}
                                   onChange={handleFormChange}
-                                  className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                 />
-                                <span className="text-xs sm:text-sm text-gray-700">{permission.label}</span>
+                                  {getPermissionIcon(permission.id)}
+                                  <span className="text-sm font-medium text-gray-700">{permission.label}</span>
                               </label>
 
                               {/* Access Level Selector for each permission */}
                               {formData.permissions.includes(permission.id) && (
-                                <AccessLevelSelector
-                                  permissionId={permission.id}
-                                  permissionLabel={permission.label}
-                                  accessLevel={formData.permissionAccessLevels[permission.id] || 'view'}
-                                  onAccessLevelChange={handleAccessLevelChange}
-                                  disabled={false}
-                                />
+                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                  <div className="text-xs font-medium text-blue-700 mb-1">
+                                    Access Level for {permission.label}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="radio"
+                                        name={`access_${permission.id}`}
+                                        value="view"
+                                        checked={formData.permissionAccessLevels[permission.id] === 'view'}
+                                        onChange={() => handleAccessLevelChange(permission.id, 'view')}
+                                        className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                      />
+                                      <span className="text-xs text-blue-700">View Access</span>
+                                    </label>
+                                    <label className="flex items-center gap-2">
+                                      <input
+                                        type="radio"
+                                        name={`access_${permission.id}`}
+                                        value="full"
+                                        checked={formData.permissionAccessLevels[permission.id] === 'full'}
+                                        onChange={() => handleAccessLevelChange(permission.id, 'full')}
+                                        className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                      />
+                                      <span className="text-xs text-blue-700">Full Access</span>
+                                    </label>
+                                  </div>
+                                </div>
                               )}
 
                               {/* Course selection for Leave Management */}
                               {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
-                                <div className="ml-3 sm:ml-4 lg:ml-6 mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
-                                  <label className="block text-xs sm:text-sm font-medium text-blue-700 mb-2">
+                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                  <label className="block text-xs font-medium text-blue-700 mb-1">
                                     Select Courses for Leave Management Access
                                   </label>
-                                  <div className="space-y-1 sm:space-y-2 max-h-20 sm:max-h-24 lg:max-h-32 overflow-y-auto">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-24 overflow-y-auto">
                                     {courses.length > 0 ? (
                                       courses.map(course => {
                                         const isChecked = formData.leaveManagementCourses.includes(course._id);
-                                        console.log(`🔧 Sub-admin course ${course.name} (${course._id}) checked:`, isChecked);
                                         return (
-                                          <label key={course._id} className="flex items-center gap-1 sm:gap-2">
+                                          <label key={course._id} className="flex items-center gap-2">
                                             <input
                                               type="checkbox"
                                               checked={isChecked}
                                               onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
-                                              className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                              className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                             <span className="text-xs text-blue-700 truncate">{course.name}</span>
                                           </label>
                                         );
                                       })
                                     ) : (
-                                      <p className="text-xs text-blue-600">Loading courses...</p>
+                                      <p className="text-xs text-blue-600 col-span-2">Loading courses...</p>
                                     )}
                                   </div>
                                   {formData.leaveManagementCourses.length === 0 && (
-                                    <p className="text-xs text-red-600 mt-1">Please select at least one course</p>
+                                    <p className="text-xs text-red-600 mt-2">Please select at least one course</p>
                                   )}
                                 </div>
                               )}
                             </div>
-                          ))}
+                          );
+                        })}
                         </div>
                       </div>
                     ) : (
                       // Custom Role selection
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Select Custom Role <span className="text-red-500">*</span>
                         </label>
                         <select
@@ -1218,7 +1415,7 @@ const AdminManagement = () => {
                           value={formData.customRoleId}
                           onChange={handleFormChange}
                           required
-                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
                           <option value="">Select a custom role</option>
                           {customRoles.filter(role => role.isActive).map(role => (
@@ -1228,7 +1425,7 @@ const AdminManagement = () => {
                           ))}
                         </select>
                         {customRoles.filter(role => role.isActive).length === 0 && (
-                          <p className="text-xs text-red-600 mt-1">No active custom roles available. Create one first.</p>
+                          <p className="text-xs text-red-600 mt-2">No active custom roles available. Create one first.</p>
                         )}
                       </div>
                     )}
@@ -1237,82 +1434,129 @@ const AdminManagement = () => {
 
                 {/* Password Delivery Section for Sub-Admins - Only show when adding new admin */}
                 {!isWardenTab && !isPrincipalTab && showAddModal && (
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                      Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
+                  <div className="border-t pt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
+                      </div>
                     </label>
-                    <p className="text-xs text-gray-600 mb-2">
+                    <p className="text-xs text-gray-600 mb-3">
                       Leave this blank if you want to provide credentials to the sub-admin manually.
                     </p>
-                    <div className="space-y-2">
-                      <label className="flex items-center gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                         <input
                           type="radio"
                           name="passwordDeliveryMethod"
                           value=""
                           checked={formData.passwordDeliveryMethod === ''}
                           onChange={handleFormChange}
-                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">Don't send credentials (provide manually)</span>
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">Manual</div>
+                          <div className="text-xs text-gray-500">Provide manually</div>
+                        </div>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                         <input
                           type="radio"
                           name="passwordDeliveryMethod"
                           value="email"
                           checked={formData.passwordDeliveryMethod === 'email'}
                           onChange={handleFormChange}
-                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">Send via Email</span>
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">Email</div>
+                          <div className="text-xs text-gray-500">Send via email</div>
+                        </div>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 p-2 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                         <input
                           type="radio"
                           name="passwordDeliveryMethod"
                           value="mobile"
                           checked={formData.passwordDeliveryMethod === 'mobile'}
                           onChange={handleFormChange}
-                          className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                          className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                         />
-                        <span className="text-xs sm:text-sm text-gray-700">Send via Mobile</span>
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <div>
+                          <div className="text-sm font-medium text-gray-700">SMS</div>
+                          <div className="text-xs text-gray-500">Send via mobile</div>
+                        </div>
                       </label>
                     </div>
 
                     {/* Email Input */}
                     {formData.passwordDeliveryMethod === 'email' && (
-                      <div className="mt-3">
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                          Email Address <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via email)</span>
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            Email Address <span className="text-red-500">*</span>
+                          </div>
                         </label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleFormChange}
-                          required={formData.passwordDeliveryMethod === 'email'}
-                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter email address"
-                        />
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleFormChange}
+                            required={formData.passwordDeliveryMethod === 'email'}
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter email address"
+                          />
+                        </div>
                       </div>
                     )}
 
                     {/* Phone Number Input */}
                     {formData.passwordDeliveryMethod === 'mobile' && (
-                      <div className="mt-3">
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                          Phone Number <span className="text-red-500">*</span> <span className="text-gray-500 text-xs">(Required if sending via mobile)</span>
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                            Phone Number <span className="text-red-500">*</span>
+                          </div>
                         </label>
-                        <input
-                          type="tel"
-                          name="phoneNumber"
-                          value={formData.phoneNumber}
-                          onChange={handleFormChange}
-                          required={formData.passwordDeliveryMethod === 'mobile'}
-                          className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter phone number (e.g., 9876543210)"
-                        />
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="tel"
+                            name="phoneNumber"
+                            value={formData.phoneNumber}
+                            onChange={handleFormChange}
+                            required={formData.passwordDeliveryMethod === 'mobile'}
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter phone number (e.g., 9876543210)"
+                          />
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
                           Enter 10-digit phone number without country code
                         </p>
@@ -1321,28 +1565,27 @@ const AdminManagement = () => {
                   </div>
                 )}
 
-                {isWardenTab && (
-                  <div className="p-2 sm:p-3 bg-green-50 rounded-lg">
-                    <p className="text-xs sm:text-sm text-green-700">
-                      <strong>Warden Permissions:</strong> Wardens have access to student oversight,
-                      complaint management, leave approval, room monitoring, announcements,
-                      discipline management, and attendance tracking.
+                {/* Warden and Principal specific sections */}
+                {(isWardenTab || isPrincipalTab) && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Info Section */}
+                    <div className={isWardenTab ? "p-3 bg-green-50 rounded-lg" : "p-3 bg-purple-50 rounded-lg"}>
+                      <h3 className="text-sm font-medium mb-1">
+                        {isWardenTab ? "Warden Permissions" : "Principal Permissions"}
+                      </h3>
+                      <p className="text-xs text-gray-700">
+                        {isWardenTab 
+                          ? "Wardens have access to student oversight, complaint management, leave approval, room monitoring, announcements, discipline management, and attendance tracking."
+                          : "Principals have access to attendance management, student oversight, and course-specific analytics."
+                        }
                     </p>
                   </div>
-                )}
 
-                {isPrincipalTab && (
-                  <div className="p-2 sm:p-3 bg-purple-50 rounded-lg">
-                    <p className="text-xs sm:text-sm text-purple-700">
-                      <strong>Principal Permissions:</strong> Principals have access to attendance management,
-                      student oversight, and course-specific analytics.
-                    </p>
-                  </div>
-                )}
-
+                    {/* Configuration Section */}
+                    <div className="space-y-3">
                 {isWardenTab && (
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                       Hostel Type <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1350,7 +1593,7 @@ const AdminManagement = () => {
                       value={formData.hostelType}
                       onChange={handleFormChange}
                       required={isWardenTab}
-                      className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Hostel Type</option>
                       <option value="boys">Boys Hostel</option>
@@ -1361,7 +1604,7 @@ const AdminManagement = () => {
 
                 {isPrincipalTab && (
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                       Course <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1369,7 +1612,7 @@ const AdminManagement = () => {
                       value={formData.course}
                       onChange={handleFormChange}
                       required={isPrincipalTab}
-                      className="w-full px-2.5 sm:px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="">Select Course ({courses.length} available)</option>
                       {courses.length > 0 ? (
@@ -1382,22 +1625,25 @@ const AdminManagement = () => {
                         <option value="" disabled>Loading courses...</option>
                       )}
                     </select>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-2.5 sm:px-3 lg:px-4 py-2 text-sm sm:text-base bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                    <CheckIcon className="w-4 h-4" />
                     {showAddModal ? `Add ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}` : `Update ${isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}`}
                   </button>
                 </div>
