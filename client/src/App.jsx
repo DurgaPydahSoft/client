@@ -46,6 +46,7 @@ const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
+const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManagement'));
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const ElectricityPayment = lazy(() => import('./pages/student/ElectricityPayment'));
@@ -243,6 +244,11 @@ function App() {
                   <Route path="security/settings" element={
                     <ProtectedSection permission="security_management" sectionName="Security Settings" requiredAccess="full">
                       <SecuritySettings />
+                    </ProtectedSection>
+                  } />
+                  <Route path="staff-guests" element={
+                    <ProtectedSection permission="staff_guests_management" sectionName="Staff/Guests Management">
+                      <StaffGuestsManagement />
                     </ProtectedSection>
                   } />
                 </Route>

@@ -28,6 +28,7 @@ import SecurityDashboard from '../security/SecurityDashboard';
 import SecuritySettings from './SecuritySettings';
 import ResetPassword from './ResetPassword';
 import ResetPasswordModal from './ResetPasswordModal';
+import StaffGuestsManagement from './StaffGuestsManagement';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -441,6 +442,13 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/foundlost',
       show: true,
       locked: !isSuperAdmin && !hasPermission(user, 'found_lost_management')
+    },
+    {
+      name: 'Staff/Guests',
+      icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+      path: '/admin/dashboard/staff-guests',
+      show: true,
+      locked: !isSuperAdmin && !hasPermission(user, 'staff_guests_management')
     },
     {
       name: 'Security',
@@ -864,6 +872,11 @@ const AdminDashboardLayout = () => (
     <Route path="feature-controls" element={<FeatureControls />} />
     <Route path="rooms/management" element={<RoomManagement />} />
     <Route path="rooms/electricity" element={<ElectricityBills />} />
+    <Route path="staff-guests" element={
+      <ProtectedSection permission="staff_guests_management" sectionName="Staff/Guests Management" requiredAccess="full">
+        <StaffGuestsManagement />
+      </ProtectedSection>
+    } />
     <Route path="security" element={<SecurityDashboard />} />
     <Route path="security/settings" element={
       <ProtectedSection permission="security_management" sectionName="Security Settings" requiredAccess="full">

@@ -34,6 +34,7 @@ const PERMISSIONS = [
   { id: 'found_lost_management', label: 'Found & Lost Management' },
   { id: 'fee_management', label: 'Fee Management' },
   { id: 'security_management', label: 'Security Management' },
+  { id: 'staff_guests_management', label: 'Staff/Guests Management' },
   { id: 'feature_controls', label: 'Feature Controls' }
 ];
 

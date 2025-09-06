@@ -150,7 +150,7 @@ const PreRegistrationRequests = () => {
     // Navigate to Students page with add tab
     navigate('/admin/dashboard/students?tab=add');
     
-    toast.success('Navigating to Add Student form with prefilled data');
+    toast.success('Navigating to Add Student form with prefilled data. Pre-registration will be automatically deleted once student is added.');
   };
 
   const handleReject = (request) => {
