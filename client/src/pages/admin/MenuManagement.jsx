@@ -785,7 +785,7 @@ const MenuManagement = () => {
                 }
               }}
               disabled={loadingFoodCount}
-              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 self-start sm:self-auto"
+              className="p-2 text-blue-600 hidden sm:block hover:text-blue-700 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 self-start sm:self-auto"
               title="Refresh count"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
