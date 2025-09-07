@@ -103,7 +103,7 @@ const SecurityDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching approved leaves with filters:', filters);
-      const response = await api.get('/api/leave/approved', { params: { page: filters.page } });
+      const response = await api.get('/api/leave/approved', { params: { page: filters.page, limit: 100 } });
       console.log('Approved leaves response:', response.data);
       if (response.data.success) {
         setLeaves(response.data.data.leaves);
@@ -249,21 +249,19 @@ const SecurityDashboard = () => {
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   };
 
-  // Helper: is today (IST)
+  // Helper: is today (IST) - Fixed to properly handle permission dates
   const isToday = (date) => {
-    // Convert both date and now to IST
-    const toIST = (d) => {
+    // Convert both date and now to IST and normalize to date only (remove time)
+    const toISTDateOnly = (d) => {
       // IST is UTC+5:30
       const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-      return new Date(utc + (5.5 * 60 * 60 * 1000));
+      const istDate = new Date(utc + (5.5 * 60 * 60 * 1000));
+      // Normalize to start of day (00:00:00) to ignore time components
+      return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
     };
-    const nowIST = toIST(new Date());
-    const dateIST = toIST(date);
-    return (
-      nowIST.getFullYear() === dateIST.getFullYear() &&
-      nowIST.getMonth() === dateIST.getMonth() &&
-      nowIST.getDate() === dateIST.getDate()
-    );
+    const nowIST = toISTDateOnly(new Date());
+    const dateIST = toISTDateOnly(date);
+    return nowIST.getTime() === dateIST.getTime();
   };
 
   // Helper: sort and auto-expire
