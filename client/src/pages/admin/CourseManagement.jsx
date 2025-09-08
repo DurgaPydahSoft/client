@@ -367,10 +367,19 @@ const CourseManagement = () => {
 
   // Handle filter changes
   const handleFilterChange = (filterType, value) => {
-    setCalendarFilters(prev => ({
-      ...prev,
-      [filterType]: value
-    }));
+    setCalendarFilters(prev => {
+      const newFilters = {
+        ...prev,
+        [filterType]: value
+      };
+      
+      // Reset Year of Study when Course changes
+      if (filterType === 'courseId') {
+        newFilters.yearOfStudy = '';
+      }
+      
+      return newFilters;
+    });
   };
 
   // Clear all filters
@@ -614,12 +623,112 @@ const CourseManagement = () => {
                   </button>
                 </div>
 
+                {/* Academic Calendar Filters */}
+                <div className="bg-white rounded-lg shadow-sm p-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    {/* Course Filter */}
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Course</label>
+                      <select
+                        value={calendarFilters.courseId}
+                        onChange={(e) => handleFilterChange('courseId', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Courses</option>
+                        {courses.map((course) => (
+                          <option key={course._id} value={course._id}>
+                            {course.name} ({course.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Academic Year Filter */}
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Academic Year</label>
+                      <select
+                        value={calendarFilters.academicYear}
+                        onChange={(e) => handleFilterChange('academicYear', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Years</option>
+                        {academicYears.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Year of Study Filter */}
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Year of Study</label>
+                      <select
+                        value={calendarFilters.yearOfStudy}
+                        onChange={(e) => handleFilterChange('yearOfStudy', e.target.value)}
+                        disabled={!calendarFilters.courseId}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">
+                          {calendarFilters.courseId ? 'All Years' : 'Select Course First'}
+                        </option>
+                        {calendarFilters.courseId && getAvailableYearsForCourse(calendarFilters.courseId).map((year) => (
+                          <option key={year} value={year.toString()}>
+                            Year {year}
+                          </option>
+                        ))}
+                      </select>
+                      {calendarFilters.courseId && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Available years: {getAvailableYearsForCourse(calendarFilters.courseId).join(', ')}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Semester Filter */}
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Semester</label>
+                      <select
+                        value={calendarFilters.semester}
+                        onChange={(e) => handleFilterChange('semester', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Semesters</option>
+                        <option value="Semester 1">Semester 1</option>
+                        <option value="Semester 2">Semester 2</option>
+                      </select>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    <div className="flex items-end">
+                      <button
+                        onClick={clearFilters}
+                        className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Results Count */}
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-600">
+                      Showing {filteredAcademicCalendars.length} of {academicCalendars.length} entries
+                    </p>
+                  </div>
+                </div>
+
                 {/* Academic Calendar Table */}
                 <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                  {academicCalendars.length === 0 ? (
+                  {filteredAcademicCalendars.length === 0 ? (
                     <div className="p-6 sm:p-8 text-center">
                       <CalendarIcon className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 text-gray-400" />
-                      <p className="text-xs sm:text-sm">No academic calendar entries found</p>
+                      <p className="text-xs sm:text-sm">
+                        {academicCalendars.length === 0 
+                          ? 'No academic calendar entries found' 
+                          : 'No entries match the current filters'
+                        }
+                      </p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -650,7 +759,7 @@ const CourseManagement = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {academicCalendars.map((calendar) => (
+                          {filteredAcademicCalendars.map((calendar) => (
                             <tr key={calendar._id} className="hover:bg-gray-50">
                               <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                                 <div className="text-xs sm:text-sm font-medium text-gray-900">
