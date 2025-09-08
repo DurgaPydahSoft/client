@@ -832,11 +832,47 @@ const DashboardHome = () => {
     }
   }, []);
 
-  // Consolidated analytics calculations using raw complaints array
+  // Helper to get start date for week/month
+  const getTimeframeStartDate = () => {
+    const now = new Date();
+    if (timeframe === 'week') {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 6); // Last 7 days
+      return start;
+    } else if (timeframe === 'month') {
+      const start = new Date(now);
+      start.setMonth(now.getMonth() - 1);
+      return start;
+    }
+    return null;
+  };
+
+  // Filter complaints by timeframe and date range
+  const getFilteredComplaints = () => {
+    let filtered = [...complaints];
+    const tfStart = getTimeframeStartDate();
+    if (tfStart) {
+      filtered = filtered.filter(c => new Date(c.createdAt) >= tfStart);
+    }
+    if (categoryGraphStartDate) {
+      const start = new Date(categoryGraphStartDate);
+      filtered = filtered.filter(c => new Date(c.createdAt) >= start);
+    }
+    if (categoryGraphEndDate) {
+      const end = new Date(categoryGraphEndDate);
+      filtered = filtered.filter(c => new Date(c.createdAt) <= end);
+    }
+    return filtered;
+  };
+
+  // Use filtered complaints for timeframe-based analytics
+  const filteredComplaints = getFilteredComplaints();
+
+  // Consolidated analytics calculations using filtered complaints array
   const analyticsData = useMemo(() => {
     try {
-      // Use raw complaints array directly, only filter completely broken ones
-      const validComplaints = complaints
+      // Use filtered complaints array to respect timeframe selection
+      const validComplaints = filteredComplaints
         .map(validateComplaintData)
         .filter(Boolean);
 
@@ -965,7 +1001,7 @@ const DashboardHome = () => {
         recentComplaints: []
       };
     }
-  }, [complaints, validateComplaintData, calculateActiveDuration]);
+  }, [filteredComplaints, validateComplaintData, calculateActiveDuration]);
 
   // Extract values from analytics data
   const {
@@ -1124,42 +1160,6 @@ const DashboardHome = () => {
     };
     fetchData();
   }, [isSafari]);
-
-  // Helper to get start date for week/month
-  const getTimeframeStartDate = () => {
-    const now = new Date();
-    if (timeframe === 'week') {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6); // Last 7 days
-      return start;
-    } else if (timeframe === 'month') {
-      const start = new Date(now);
-      start.setMonth(now.getMonth() - 1);
-      return start;
-    }
-    return null;
-  };
-
-  // Filter complaints by timeframe and date range
-  const getFilteredComplaints = () => {
-    let filtered = [...complaints];
-    const tfStart = getTimeframeStartDate();
-    if (tfStart) {
-      filtered = filtered.filter(c => new Date(c.createdAt) >= tfStart);
-    }
-    if (categoryGraphStartDate) {
-      const start = new Date(categoryGraphStartDate);
-      filtered = filtered.filter(c => new Date(c.createdAt) >= start);
-    }
-    if (categoryGraphEndDate) {
-      const end = new Date(categoryGraphEndDate);
-      filtered = filtered.filter(c => new Date(c.createdAt) <= end);
-    }
-    return filtered;
-  };
-
-  // Use filtered complaints for timeframe-based analytics
-  const filteredComplaints = getFilteredComplaints();
 
   return (
     <>
@@ -1429,7 +1429,7 @@ const DashboardHome = () => {
           <LongPendingPopup
             isOpen={selectedDays !== null}
             onClose={() => setSelectedDays(null)}
-            complaints={complaints}
+            complaints={filteredComplaints}
             days={selectedDays}
             onComplaintClick={(complaint) => {
               const updatedComplaints = complaints.map(c => 
