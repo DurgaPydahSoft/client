@@ -17,7 +17,6 @@ import {
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
-import CourseManagement from './CourseManagement';
 import { useAuth } from '../../context/AuthContext';
 
 const PERMISSIONS = [
@@ -816,20 +815,8 @@ const AdminManagement = () => {
           <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           Custom Roles
         </button>
-        <button
-          onClick={() => setActiveTab('courses')}
-          className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'courses'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-            }`}
-        >
-          <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-          Courses & Branches
-        </button>
       </div>
 
-      {/* Course Management Tab */}
-      {activeTab === 'courses' && <CourseManagement />}
 
       {/* Custom Roles Tab */}
       {activeTab === 'custom-roles' && (
@@ -917,7 +904,7 @@ const AdminManagement = () => {
       )}
 
       {/* Admin Management Content */}
-      {activeTab !== 'courses' && activeTab !== 'custom-roles' && (
+      {activeTab !== 'custom-roles' && (
         <>
           {/* Users List - Card Layout */}
           <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">

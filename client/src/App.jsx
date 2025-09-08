@@ -42,6 +42,7 @@ const ElectricityBills = lazy(() => import('./pages/admin/ElectricityBills'));
 const LeaveManagement = lazy(() => import('./pages/admin/LeaveManagement'));
 const MemberManagement = lazy(() => import('./pages/admin/MemberManagement'));
 const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
+const CourseManagement = lazy(() => import('./pages/admin/CourseManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
@@ -210,6 +211,11 @@ function App() {
                   <Route path="leave" element={
                     <ProtectedSection permission="leave_management" sectionName="Leave Management">
                       <LeaveManagement />
+                    </ProtectedSection>
+                  } />
+                  <Route path="course-management" element={
+                    <ProtectedSection permission="super_admin" sectionName="Course Management">
+                      <CourseManagement />
                     </ProtectedSection>
                   } />
                   <Route path="admin-management" element={
