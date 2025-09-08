@@ -403,8 +403,8 @@ const SecurityDashboard = () => {
   // Expired/Recent requests
   const expiredLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
-    // Only include if start time is more than 3 days ago
-    return (now - start > 3 * 24 * 60 * 60 * 1000);
+    // Only include if start time is more than 2 days ago
+    return (now - start > 2 * 24 * 60 * 60 * 1000);
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
   // Toggle section expansion
@@ -617,7 +617,7 @@ const SecurityDashboard = () => {
               {/* Expired/Recent Requests - Only visible for full access users */}
               {!isViewOnly && (
                 <SectionTable 
-                  title="Expired / Recent Requests (3+ days ago)" 
+                  title="Expired / Recent Requests (2+ days ago)" 
                   leaves={expiredLeaves} 
                   getBlinkingDot={getBlinkingDot} 
                   isLeaveExpired={isLeaveExpired} 
