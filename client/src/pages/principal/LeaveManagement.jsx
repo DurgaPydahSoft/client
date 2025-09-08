@@ -32,6 +32,7 @@ const LeaveManagement = () => {
   const [loadingPreviousLeaves, setLoadingPreviousLeaves] = useState(false);
   const [notifiedLeaves, setNotifiedLeaves] = useState(new Set());
   const [leaveHistoryModal, setLeaveHistoryModal] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const [filters, setFilters] = useState({
     status: 'Warden Verified',
     applicationType: '',
@@ -136,6 +137,7 @@ const LeaveManagement = () => {
 
   const handleApprove = async () => {
     try {
+      setIsApproving(true);
       const response = await api.post('/api/leave/principal/approve', {
         leaveId: selectedLeave._id,
         comment: approvalComment
@@ -149,6 +151,8 @@ const LeaveManagement = () => {
     } catch (error) {
       console.error('Error approving leave:', error);
       toast.error(error.response?.data?.message || 'Failed to approve request');
+    } finally {
+      setIsApproving(false);
     }
   };
 
@@ -493,7 +497,8 @@ const LeaveManagement = () => {
               value={approvalComment}
               onChange={(e) => setApprovalComment(e.target.value)}
               placeholder="Optional approval comment (optional)"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-3 sm:mb-4 text-xs sm:text-sm"
+              disabled={isApproving}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-3 sm:mb-4 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               rows="3"
             />
             <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
@@ -501,16 +506,30 @@ const LeaveManagement = () => {
                 onClick={() => {
                   setShowApproveModal(false);
                   setApprovalComment('');
+                  setIsApproving(false);
                 }}
-                className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm font-medium touch-manipulation"
+                disabled={isApproving}
+                className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm font-medium touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
-                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation"
+                disabled={isApproving}
+                className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium touch-manipulation flex items-center justify-center ${
+                  isApproving 
+                    ? 'bg-green-500 text-white cursor-not-allowed' 
+                    : 'bg-green-600 text-white hover:bg-green-700'
+                }`}
               >
-                Approve Request
+                {isApproving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Approving...
+                  </>
+                ) : (
+                  'Approve Request'
+                )}
               </button>
             </div>
           </motion.div>
