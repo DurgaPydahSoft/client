@@ -850,18 +850,30 @@ const DashboardHome = () => {
   // Filter complaints by timeframe and date range
   const getFilteredComplaints = () => {
     let filtered = [...complaints];
-    const tfStart = getTimeframeStartDate();
-    if (tfStart) {
-      filtered = filtered.filter(c => new Date(c.createdAt) >= tfStart);
+    
+    // Check if custom dates are set
+    const hasCustomDates = categoryGraphStartDate || categoryGraphEndDate;
+    
+    if (hasCustomDates) {
+      // Use custom date range (ignore week/month toggle)
+      if (categoryGraphStartDate) {
+        const start = new Date(categoryGraphStartDate);
+        filtered = filtered.filter(c => new Date(c.createdAt) >= start);
+      }
+      if (categoryGraphEndDate) {
+        const end = new Date(categoryGraphEndDate);
+        // Add 1 day to end date to include the entire end date
+        end.setDate(end.getDate() + 1);
+        filtered = filtered.filter(c => new Date(c.createdAt) < end);
+      }
+    } else {
+      // Use week/month toggle
+      const tfStart = getTimeframeStartDate();
+      if (tfStart) {
+        filtered = filtered.filter(c => new Date(c.createdAt) >= tfStart);
+      }
     }
-    if (categoryGraphStartDate) {
-      const start = new Date(categoryGraphStartDate);
-      filtered = filtered.filter(c => new Date(c.createdAt) >= start);
-    }
-    if (categoryGraphEndDate) {
-      const end = new Date(categoryGraphEndDate);
-      filtered = filtered.filter(c => new Date(c.createdAt) <= end);
-    }
+    
     return filtered;
   };
 
