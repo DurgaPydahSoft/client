@@ -116,7 +116,7 @@ const Login = () => {
         {/* Left Side - Always visible, stacks on mobile */}
         <div className="w-full md:w-1/2 bg-blue-600 p-8 flex flex-col justify-center text-white space-y-6">
 
-          <HomeIcon className="w-6 h-6 text-white" />
+          <HomeIcon className="w-6 h-6 text-white" cursor={"pointer"} onClick={() => navigate('/')} />
 
           <div className="flex items-center justify-center mb-6">
             {/* <AcademicCapIcon className="w-12 h-12" /> */}
@@ -130,12 +130,11 @@ const Login = () => {
             />
 
           </div>
-          {/* <h2 className="text-3xl font-bold text-center">AlumniHub</h2> */}
+          
 
           {/* Hidden on mobile */}
-          <p className="text-center hidden md:block">
-  Welcome to HostelConnectify
-</p>
+          <h2 className="text-2xl font-bold text-center sm:hidden md:block">Hostel Connectify</h2>
+          
 <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
   Log in to manage your hostel activities and connect with fellow students.
 </div>
