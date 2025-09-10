@@ -1,10 +1,21 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { useGlobalSettings } from '../context/GlobalSettingsContext';
 
 const ReceiptGenerator = {
-  generateReceipt: (payment, user = null) => {
+  generateReceipt: (payment, user = null, settings = null) => {
     try {
       const doc = new jsPDF();
+      
+      // Default settings if not provided
+      const defaultSettings = {
+        institution: {
+          name: "Pydah Hostel Management System",
+          fullName: "Pydah Educational Institutions"
+        }
+      };
+      
+      const institutionSettings = settings || defaultSettings;
       
       // Set page margins and dimensions
       const pageWidth = doc.internal.pageSize.width;
@@ -20,7 +31,7 @@ const ReceiptGenerator = {
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
       doc.setFont(undefined, 'normal');
-      doc.text('PYDAH SOFT HOSTEL MANAGEMENT SYSTEM', pageWidth / 2, 45, { align: 'center' });
+      doc.text(institutionSettings.institution.name.toUpperCase(), pageWidth / 2, 45, { align: 'center' });
       
       // Add decorative line
       doc.setDrawColor(30, 64, 175);

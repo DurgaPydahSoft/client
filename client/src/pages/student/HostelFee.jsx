@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useGlobalSettings } from '../../context/GlobalSettingsContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import ReceiptGenerator from '../../components/ReceiptGenerator';
@@ -20,6 +21,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 
 const HostelFee = () => {
   const { user } = useAuth();
+  const { settings } = useGlobalSettings();
   const [feeData, setFeeData] = useState(null);
   const [feeStructure, setFeeStructure] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -284,7 +286,7 @@ const HostelFee = () => {
   };
 
   const downloadReceipt = (payment) => {
-    const success = ReceiptGenerator.generateReceipt(payment, user);
+    const success = ReceiptGenerator.generateReceipt(payment, user, settings);
     if (success) {
       toast.success('Receipt downloaded successfully!');
     } else {

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GlobalSettingsProvider } from './context/GlobalSettingsContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import ProtectedSection from './components/ProtectedSection';
 import React from 'react';
@@ -11,6 +12,7 @@ import SecurityDashboard from './pages/security/SecurityDashboard';
 import PushNotificationInitializer from './components/PushNotificationInitializer';
 import MenuManagement from './pages/admin/MenuManagement';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import DynamicManifest from './components/DynamicManifest';
 import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
 import IOSErrorBoundary from './components/IOSErrorBoundary';
@@ -48,6 +50,7 @@ const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
 const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManagement'));
+const GlobalSettings = lazy(() => import('./pages/admin/GlobalSettings'));
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const ElectricityPayment = lazy(() => import('./pages/student/ElectricityPayment'));
@@ -119,8 +122,10 @@ function App() {
     <HelmetProvider>
       <ErrorBoundary>
         <IOSErrorBoundary>
-          <AuthProvider>
+          <GlobalSettingsProvider>
+            <AuthProvider>
             <PushNotificationInitializer />
+            <DynamicManifest />
             <Suspense fallback={<RouteLoading />}>
               <Routes>
                 {/* Home page */}
@@ -258,6 +263,11 @@ function App() {
                       <StaffGuestsManagement />
                     </ProtectedSection>
                   } />
+                  <Route path="global-settings" element={
+                    <ProtectedSection permission="global_settings" sectionName="Global Settings" requiredAccess="full">
+                      <GlobalSettings />
+                    </ProtectedSection>
+                  } />
                 </Route>
 
                 {/* Protected warden routes */}
@@ -351,6 +361,7 @@ function App() {
               </Routes>
             </Suspense>
           </AuthProvider>
+          </GlobalSettingsProvider>
         </IOSErrorBoundary>
 
         {/* iOS Debug Panel - always available on iOS devices */}

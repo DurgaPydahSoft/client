@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, useAnimation } from 'framer-motion';
 import { useInView } from 'react-intersection-observer';
 import { useAuth } from '../context/AuthContext';
+import { useGlobalSettings } from '../context/GlobalSettingsContext';
 import {
   ChatBubbleLeftRightIcon,
   BellIcon,
@@ -224,6 +225,7 @@ const StatCard = ({ value, label, icon, index }) => {
 };
 
 const DeveloperCard = () => {
+  const { getPydahSoftInfo } = useGlobalSettings();
   const controls = useAnimation();
   const [ref, inView] = useInView({
     threshold: 0.1,
@@ -263,13 +265,13 @@ const DeveloperCard = () => {
         
         {/* Company Name */}
         <div className="mb-4">
-          <h3 className="font-display font-bold text-3xl text-deepsea-900 mb-2">PydahSoft</h3>
+          <h3 className="font-display font-bold text-3xl text-deepsea-900 mb-2">{getPydahSoftInfo().companyName}</h3>
           <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-cyan-400 mx-auto rounded-full"></div>
         </div>
         
         {/* Product Description */}
         <p className="text-gray-600 mb-6 text-lg leading-relaxed">
-          A PydahSoft Product - Transforming hostel management through innovative digital solutions and cutting-edge technology.
+          A {getPydahSoftInfo().companyName} Product - Transforming hostel management through innovative digital solutions and cutting-edge technology.
         </p>
         
         {/* Contact Information */}
@@ -313,6 +315,7 @@ const DeveloperCard = () => {
 const Home = () => {
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { getInstitutionName, getInstitutionFullName, getPydahSoftInfo } = useGlobalSettings();
   const controls = useAnimation();
   const [ref, inView] = useInView({
     threshold: 0.1,
@@ -385,14 +388,13 @@ const Home = () => {
               transition={{ duration: 0.8 }}
               className="mb-8"
             >
-              <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-cyan-200 leading-[1.15]">
-                 HOSTEL
+              <h1 className="font-display text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-cyan-200 leading-[1.15]">
+                {getInstitutionName().toUpperCase()}
                 <br />
-                
-                CONNECTIFY 
+                <span>Hostel Connectify</span> 
               </h1>
               <p className="text-xl md:text-2xl mb-10 font-light text-cyan-100 max-w-2xl mx-auto leading-relaxed">
-                Transforming hostel communication with a modern, transparent, and efficient digital platform.
+                Transforming {getInstitutionName().toLowerCase()} communication with a modern, transparent, and efficient digital platform.
               </p>
             </motion.div>
             
@@ -673,7 +675,7 @@ const Home = () => {
           </div>
           <div className="mt-12 pt-8 border-t border-gray-200">
             <p className="text-center text-gray-600">
-              © {new Date().getFullYear()} Pydah HOSTEL Digital. All rights reserved.
+              © {new Date().getFullYear()} {getInstitutionName()} Digital. All rights reserved.
             </p>
           </div>
         </div>

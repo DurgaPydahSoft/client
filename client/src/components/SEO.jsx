@@ -1,49 +1,65 @@
 import { Helmet } from 'react-helmet-async';
-
-const defaultTitle = 'Pydah Hostel Management System | Digital Hostel Portal';
-const defaultDescription = 'Pydah Hostel\'s comprehensive digital management system for hostel operations, student services, complaints, attendance, and fee management. A modern hostel portal by Pydah Soft.';
-const defaultKeywords = 'Pydah Hostel, Pydah College Hostel, Hostel Management System, Digital Hostel Portal, Student Hostel Services, Hostel Complaints, Hostel Attendance, Hostel Fee Management, Pydah Soft, Hostel Operations, Student Portal, Hostel Digital Platform';
-const defaultAuthor = 'Pydah Educational Institutions';
-const defaultGenerator = 'Pydah Soft';
+import { useGlobalSettings } from '../context/GlobalSettingsContext';
 
 const SEO = ({ 
   title, 
   description, 
   keywords, 
-  ogImage = 'https://hms.pydahsoft.in/og-image.jpg',
+  ogImage,
   ogType = 'website',
-  canonicalUrl = 'https://hms.pydahsoft.in',
+  canonicalUrl,
   structuredData = null
 }) => {
-  const seoTitle = title ? `${title} | Pydah Hostel` : defaultTitle;
-  const seoDescription = description || defaultDescription;
-  const seoKeywords = keywords || defaultKeywords;
+  const { 
+    getSEOTitle, 
+    getSEODescription, 
+    getSEOKeywords, 
+    getWebsiteUrl, 
+    getInstitutionName,
+    getInstitutionFullName,
+    getMainWebsiteUrl,
+    getFormattedAddress,
+    getContactInfo,
+    getPydahSoftInfo,
+    settings
+  } = useGlobalSettings();
+
+  const seoTitle = getSEOTitle(title);
+  const seoDescription = getSEODescription(description);
+  const seoKeywords = getSEOKeywords(keywords);
+  const websiteUrl = canonicalUrl || getWebsiteUrl();
+  const ogImageUrl = ogImage || settings?.seo?.ogImage || `${getWebsiteUrl()}/og-image.jpg`;
 
   // Default structured data for the organization
   const defaultStructuredData = {
     "@context": "https://schema.org",
     "@type": "EducationalOrganization",
-    "name": "Pydah Hostel",
-    "alternateName": "Pydah College Hostel",
-    "description": "Digital hostel management system for Pydah Educational Institutions",
-    "url": "https://hms.pydahsoft.in",
-    "logo": "https://hms.pydahsoft.in/PYDAH_LOGO_PHOTO.jpg",
+    "name": getInstitutionName(),
+    "alternateName": getInstitutionFullName(),
+    "description": seoDescription,
+    "url": websiteUrl,
+    "logo": `${websiteUrl}/PYDAH_LOGO_PHOTO.jpg`,
     "sameAs": [
-      "https://pydah.edu",
-      "https://pydahsoft.com"
+      getMainWebsiteUrl(),
+      getPydahSoftInfo().website
     ],
     "address": {
       "@type": "PostalAddress",
-      "addressCountry": "IN",
-      "addressRegion": "Andhra Pradesh"
+      "streetAddress": settings?.institution?.address?.street || "Pydah Campus",
+      "addressLocality": settings?.institution?.address?.city || "Visakhapatnam",
+      "addressRegion": settings?.institution?.address?.state || "Andhra Pradesh",
+      "postalCode": settings?.institution?.address?.pincode || "530040",
+      "addressCountry": settings?.institution?.address?.country || "IN"
     },
     "contactPoint": {
       "@type": "ContactPoint",
       "contactType": "customer service",
+      "telephone": getContactInfo().phone,
+      "email": getContactInfo().email,
       "availableLanguage": ["English", "Telugu"]
     },
     "serviceType": "Hostel Management System",
-    "areaServed": "Andhra Pradesh, India"
+    "areaServed": settings?.institution?.address?.state || "Andhra Pradesh, India"
   };
 
   const finalStructuredData = structuredData || defaultStructuredData;
@@ -55,8 +71,8 @@ const SEO = ({
       <meta name="title" content={seoTitle} />
       <meta name="description" content={seoDescription} />
       <meta name="keywords" content={seoKeywords} />
-      <meta name="author" content={defaultAuthor} />
-      <meta name="generator" content={defaultGenerator} />
+      <meta name="author" content={getInstitutionFullName()} />
+      <meta name="generator" content={getPydahSoftInfo().companyName} />
       <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
       <meta name="googlebot" content="index, follow" />
       
@@ -69,29 +85,29 @@ const SEO = ({
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={ogType} />
-      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:url" content={websiteUrl} />
       <meta property="og:title" content={seoTitle} />
       <meta property="og:description" content={seoDescription} />
-      <meta property="og:image" content={ogImage} />
+      <meta property="og:image" content={ogImageUrl} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
-      <meta property="og:site_name" content="Pydah Hostel" />
+      <meta property="og:site_name" content={getInstitutionName()} />
       <meta property="og:locale" content="en_US" />
 
       {/* Twitter */}
       <meta property="twitter:card" content="summary_large_image" />
-      <meta property="twitter:url" content={canonicalUrl} />
+      <meta property="twitter:url" content={websiteUrl} />
       <meta property="twitter:title" content={seoTitle} />
       <meta property="twitter:description" content={seoDescription} />
-      <meta property="twitter:image" content={ogImage} />
+      <meta property="twitter:image" content={ogImageUrl} />
       <meta property="twitter:site" content="@pydahsoft" />
 
       {/* Canonical URL */}
-      <link rel="canonical" href={canonicalUrl} />
+      <link rel="canonical" href={websiteUrl} />
       
       {/* Additional SEO Meta Tags */}
-      <meta name="application-name" content="Pydah Hostel" />
-      <meta name="apple-mobile-web-app-title" content="Pydah Hostel" />
+      <meta name="application-name" content={getInstitutionName()} />
+      <meta name="apple-mobile-web-app-title" content={getInstitutionName()} />
       <meta name="theme-color" content="#1e40af" />
       <meta name="msapplication-TileColor" content="#1e40af" />
       
@@ -109,20 +125,20 @@ const SEO = ({
         {JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebApplication",
-          "name": "Pydah Hostel Management System",
+          "name": `${getInstitutionName()} Management System`,
           "description": "Digital hostel management portal for students and administrators",
-          "url": "https://hms.pydahsoft.in",
+          "url": websiteUrl,
           "applicationCategory": "EducationalApplication",
           "operatingSystem": "Web Browser",
           "offers": {
             "@type": "Offer",
             "price": "0",
-            "priceCurrency": "INR"
+            "priceCurrency": settings?.system?.currency || "INR"
           },
           "provider": {
             "@type": "Organization",
-            "name": "Pydah Soft",
-            "url": "https://pydahsoft.com"
+            "name": getPydahSoftInfo().companyName,
+            "url": getPydahSoftInfo().website
           }
         })}
       </script>

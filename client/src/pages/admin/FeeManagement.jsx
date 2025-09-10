@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useGlobalSettings } from '../../context/GlobalSettingsContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import ReceiptGenerator from '../../components/ReceiptGenerator';
@@ -28,6 +29,7 @@ import autoTable from 'jspdf-autotable';
 
 const FeeManagement = () => {
   const { user } = useAuth();
+  const { settings } = useGlobalSettings();
   const [students, setStudents] = useState([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -995,7 +997,7 @@ const FeeManagement = () => {
   const generateReceipt = (payment) => {
     console.log('🔍 Generating receipt for payment:', payment);
     try {
-      const success = ReceiptGenerator.generateReceipt(payment, selectedStudentForPayment);
+      const success = ReceiptGenerator.generateReceipt(payment, selectedStudentForPayment, settings);
       if (success) {
         toast.success('Receipt downloaded successfully!');
       } else {
