@@ -110,7 +110,7 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
       <div className="flex flex-col md:flex-row w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
         {/* Left Side - Always visible, stacks on mobile */}
@@ -133,10 +133,12 @@ const Login = () => {
           {/* <h2 className="text-3xl font-bold text-center">AlumniHub</h2> */}
 
           {/* Hidden on mobile */}
-          <p className="text-center hidden md:block">Connecting past, present and future</p>
-          <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
-            Sign in to access exclusive alumni resources, networking opportunities, and career services.
-          </div>
+          <p className="text-center hidden md:block">
+  Welcome to HostelConnectify
+</p>
+<div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
+  Log in to manage your hostel activities and connect with fellow students.
+</div>
         </div>
 
         {/* Right Side */}
