@@ -391,9 +391,9 @@ const AdmitCards = () => {
         };
 
         const wardenNumbers = {
-          male: '+91-9966814695',    // Boys Warden
+          male: '+91-9493994233',    // Boys Warden
           female: '+91-8333068321',  // Girls Warden
-          default: '+91-9966814695'  // Default fallback
+          default: '+91-9493994233'  // Default fallback
         };
 
         const securityNumber = '+91-8317612655';
