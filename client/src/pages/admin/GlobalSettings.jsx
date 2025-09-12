@@ -66,7 +66,7 @@ const GlobalSettings = () => {
         section: editingSection,
         data: formData
       });
-      
+
       if (response.data.success) {
         // Update the settings state with the new data
         setSettings(prev => ({
@@ -76,10 +76,10 @@ const GlobalSettings = () => {
         }));
         setEditingSection(null);
         setFormData({});
-        
+
         // Refetch global settings to update the context
         refetchGlobalSettings();
-        
+
         toast.success(response.data.data.message || `${editingSection} settings updated successfully`);
       }
     } catch (error) {
@@ -109,12 +109,12 @@ const GlobalSettings = () => {
 
   return (
     <>
-      <SEO 
+      <SEO
         title="Global Settings"
         description="Configure global system settings and preferences for the hostel management system."
         keywords="Global Settings, System Configuration, Admin Settings, System Preferences"
       />
-      
+
       <div className="p-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -140,11 +140,10 @@ const GlobalSettings = () => {
             <nav className="-mb-px flex space-x-8 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('institution')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'institution'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'institution'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <BuildingOfficeIcon className="w-5 h-5" />
@@ -153,11 +152,10 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('urls')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'urls'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'urls'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <GlobeAltIcon className="w-5 h-5" />
@@ -166,11 +164,10 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('seo')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'seo'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'seo'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <DocumentTextIcon className="w-5 h-5" />
@@ -179,11 +176,10 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('system')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeTab === 'system'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'system'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <ComputerDesktopIcon className="w-5 h-5" />
@@ -366,18 +362,20 @@ const GlobalSettings = () => {
                           <p className="mt-1 text-sm text-gray-900">{settings.institution?.type || 'Not set'}</p>
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Full Name</label>
-                        <p className="mt-1 text-sm text-gray-900">{settings.institution?.fullName || 'Not set'}</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-500">Address</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {settings.institution?.address ? 
-                            `${settings.institution.address.street}, ${settings.institution.address.city}, ${settings.institution.address.state} - ${settings.institution.address.pincode}` :
-                            'Not set'
-                          }
-                        </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Full Name</label>
+                          <p className="mt-1 text-sm text-gray-900">{settings.institution?.fullName || 'Not set'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500">Address</label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {settings.institution?.address ?
+                              `${settings.institution.address.street}, ${settings.institution.address.city}, ${settings.institution.address.state} - ${settings.institution.address.pincode}` :
+                              'Not set'
+                            }
+                          </p>
+                        </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -535,7 +533,7 @@ const GlobalSettings = () => {
                     <div className="text-sm text-blue-700">
                       <p className="font-medium mb-1">PydahSoft Branding</p>
                       <p className="mb-2">
-                        PydahSoft branding elements are preserved and cannot be modified through this interface. 
+                        PydahSoft branding elements are preserved and cannot be modified through this interface.
                         This includes the company name, product tagline, and logo references.
                       </p>
                       <div className="text-xs text-blue-600">

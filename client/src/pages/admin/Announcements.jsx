@@ -10,7 +10,9 @@ import {
   PhotoIcon,
   DocumentTextIcon,
   PencilSquareIcon,
-  ArrowUpTrayIcon
+  ArrowUpTrayIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -23,6 +25,7 @@ const Announcements = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [expandedIds, setExpandedIds] = useState([]);
 
   useEffect(() => {
     fetchAnnouncements();
@@ -121,6 +124,12 @@ const Announcements = () => {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const toggleExpand = id => {
+    setExpandedIds(prev =>
+      prev.includes(id) ? prev.filter(expId => expId !== id) : [...prev, id]
+    );
   };
 
   return (
@@ -268,50 +277,71 @@ const Announcements = () => {
               ) : (
                 announcements
                   .filter(a => a.isActive !== false)
-                  .map(a => (
-                    <div
-                      key={a._id}
-                      className="bg-white rounded-xl shadow-sm p-4 sm:p-5 transition-all duration-200 hover:shadow-lg h-full flex flex-col"
-                    >
-                      <div className="flex flex-col h-full">
-                        {a.imageUrl && (
-                          <div className="relative w-full pt-[56.25%] mb-4 overflow-hidden rounded-lg">
-                            <img
-                              src={a.imageUrl}
-                              alt={a.title}
-                              className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                            />
+                  .map(a => {
+                    const isExpanded = expandedIds.includes(a._id);
+                    return (
+                      <div
+                        key={a._id}
+                        className="bg-white rounded-xl shadow-sm p-4 sm:p-5 transition-all duration-200 hover:shadow-lg h-full flex flex-col"
+                      >
+                        <div className="flex flex-col h-full">
+                          {a.imageUrl && (
+                            <div className="relative w-full pt-[56.25%] mb-4 overflow-hidden rounded-lg">
+                              <img
+                                src={a.imageUrl}
+                                alt={a.title}
+                                className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 flex flex-col">
+                            <div className="flex flex-wrap items-start gap-2 mb-2">
+                              <h3 className="font-bold text-base sm:text-lg text-gray-800 break-words flex-1">{a.title}</h3>
+                            </div>
+                            <p className={`text-sm sm:text-base text-gray-600 mb-3 whitespace-pre-wrap break-words ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                              {a.description}
+                            </p>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mt-auto">
+                              <ClockIcon className="w-4 h-4 flex-shrink-0" />
+                              <time className="break-words">{new Date(a.createdAt).toLocaleString()}</time>
+                            </div>
                           </div>
-                        )}
-                        <div className="flex-1 flex flex-col">
-                          <div className="flex flex-wrap items-start gap-2 mb-2">
-                            <h3 className="font-bold text-base sm:text-lg text-gray-800 break-words flex-1">{a.title}</h3>
+                          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center gap-2">
+                            <button
+                              className="w-full sm:w-auto p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                              onClick={() => handleDelete(a._id)}
+                              disabled={deletingId === a._id}
+                            >
+                              {deletingId === a._id ? (
+                                <div className="w-5 h-5 border-t-2 border-red-600 rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <TrashIcon className="w-5 h-5" />
+                                  <span className="text-sm font-medium whitespace-nowrap">Delete</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              className="w-full sm:w-auto p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-1.5 text-sm whitespace-nowrap"
+                              onClick={() => toggleExpand(a._id)}
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <DocumentTextIcon className="w-5 h-5" />
+                                  <span className="font-medium">Read Less</span>
+                                </>
+                              ) : (
+                                <>
+                                  <DocumentTextIcon className="w-5 h-5" />
+                                  <span className="font-medium">Read More</span>
+                                </>
+                              )}
+                            </button>
                           </div>
-                          <p className="text-sm sm:text-base text-gray-600 mb-3 whitespace-pre-wrap break-words line-clamp-3 flex-1">{a.description}</p>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mt-auto">
-                            <ClockIcon className="w-4 h-4 flex-shrink-0" />
-                            <time className="break-words">{new Date(a.createdAt).toLocaleString()}</time>
-                          </div>
-                        </div>
-                        <div className="mt-4 pt-3 border-t border-gray-100">
-                          <button
-                            className="w-full sm:w-auto p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                            onClick={() => handleDelete(a._id)}
-                            disabled={deletingId === a._id}
-                          >
-                            {deletingId === a._id ? (
-                              <div className="w-5 h-5 border-t-2 border-red-600 rounded-full animate-spin" />
-                            ) : (
-                              <>
-                                <TrashIcon className="w-5 h-5" />
-                                <span className="text-sm font-medium">Delete</span>
-                              </>
-                            )}
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
               )}
             </div>
           )}
