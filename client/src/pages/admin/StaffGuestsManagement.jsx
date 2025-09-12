@@ -59,7 +59,8 @@ const StaffGuestsManagement = () => {
     purpose: '',
     checkinDate: '',
     checkoutDate: '',
-    photo: null
+    photo: null,
+    existingPhoto: null
   });
 
   // Attendance-related state
@@ -195,21 +196,35 @@ const StaffGuestsManagement = () => {
       console.log('Form data being submitted:', formData);
       const formDataToSend = new FormData();
       Object.keys(formData).forEach(key => {
+        if (key === 'existingPhoto') {
+          // Skip existingPhoto as it's just for display
+          return;
+        }
         if (formData[key] !== null && formData[key] !== '') {
           formDataToSend.append(key, formData[key]);
         }
       });
+
+      // Debug: Log the FormData contents
+      console.log('FormData entries:');
+      for (let [key, value] of formDataToSend.entries()) {
+        console.log(key, value);
+      }
       console.log('FormData entries:', Array.from(formDataToSend.entries()));
 
       if (editingStaffGuest) {
-        await api.put(`/api/admin/staff-guests/${editingStaffGuest._id}`, formDataToSend, {
+        console.log('Updating staff/guest with ID:', editingStaffGuest._id);
+        const response = await api.put(`/api/admin/staff-guests/${editingStaffGuest._id}`, formDataToSend, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        console.log('Update response:', response.data);
         toast.success('Staff/Guest updated successfully');
       } else {
-        await api.post('/api/admin/staff-guests', formDataToSend, {
+        console.log('Creating new staff/guest');
+        const response = await api.post('/api/admin/staff-guests', formDataToSend, {
           headers: { 'Content-Type': 'multipart/form-data' }
         });
+        console.log('Create response:', response.data);
         toast.success('Staff/Guest added successfully');
       }
 
@@ -226,7 +241,8 @@ const StaffGuestsManagement = () => {
         purpose: '',
         checkinDate: '',
         checkoutDate: '',
-        photo: null
+        photo: null,
+        existingPhoto: null
       });
       fetchStaffGuests();
       fetchStats();
@@ -249,7 +265,8 @@ const StaffGuestsManagement = () => {
       purpose: staffGuest.purpose || '',
       checkinDate: staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toISOString().split('T')[0] : '',
       checkoutDate: staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toISOString().split('T')[0] : '',
-      photo: null
+      photo: null, // New photo file (if selected)
+      existingPhoto: staffGuest.photo // Keep existing photo URL
     });
     setShowForm(true);
   };
@@ -291,7 +308,8 @@ const StaffGuestsManagement = () => {
       purpose: '',
       checkinDate: '',
       checkoutDate: '',
-      photo: null
+      photo: null,
+      existingPhoto: null
     });
     setEditingStaffGuest(null);
     setShowForm(false);
@@ -401,7 +419,7 @@ const StaffGuestsManagement = () => {
       const contentWidth = pageWidth - (margin * 2);
 
       // Function to generate one copy of admit card
-      const generateOneCopy = (startY, copyLabel) => {
+      const generateOneCopy = async (startY, copyLabel) => {
         // Validate staffGuest object
         if (!staffGuest || typeof staffGuest !== 'object') {
           console.error('❌ Invalid staffGuest object:', staffGuest);
@@ -576,15 +594,59 @@ const StaffGuestsManagement = () => {
         doc.rect(photoX, photoY, photoWidth, photoHeight);
 
         // Add staff/guest photo if available
+        console.log('Photo URL:', staffGuest.photo);
         if (staffGuest.photo) {
           try {
             if (staffGuest.photo.startsWith('data:image')) {
+              // Handle base64 data URLs
               doc.addImage(staffGuest.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
+            } else if (staffGuest.photo.startsWith('http') || staffGuest.photo.startsWith('/')) {
+              // Handle server URLs - convert to base64 first
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              
+              // Create a promise to handle async image loading
+              const loadImage = () => {
+                return new Promise((resolve) => {
+                  console.log('Loading image from URL:', staffGuest.photo);
+                  img.onload = () => {
+                    console.log('Image loaded successfully, processing...');
+                    try {
+                      const canvas = document.createElement('canvas');
+                      const ctx = canvas.getContext('2d');
+                      canvas.width = img.width;
+                      canvas.height = img.height;
+                      ctx.drawImage(img, 0, 0);
+                      const dataURL = canvas.toDataURL('image/jpeg');
+                      console.log('Image converted to data URL, adding to PDF...');
+                      doc.addImage(dataURL, 'JPEG', photoX, photoY, photoWidth, photoHeight);
+                      console.log('Image added to PDF successfully');
+                      resolve();
+                    } catch (error) {
+                      console.error('Error processing image:', error);
+                      doc.setFontSize(4);
+                      doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+                      resolve();
+                    }
+                  };
+                  img.onerror = () => {
+                    console.error('Error loading image:', staffGuest.photo);
+                    doc.setFontSize(4);
+                    doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+                    resolve();
+                  };
+                  img.src = staffGuest.photo;
+                });
+              };
+              
+              // Wait for image to load before continuing
+              await loadImage();
             } else {
               doc.setFontSize(4);
               doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
             }
           } catch (error) {
+            console.error('Error adding photo to PDF:', error);
             doc.setFontSize(4);
             doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
           }
@@ -648,7 +710,7 @@ const StaffGuestsManagement = () => {
       };
 
       // Generate Staff/Guest Copy (top half)
-      generateOneCopy(margin, 'STAFF/GUEST COPY');
+      await generateOneCopy(margin, 'STAFF/GUEST COPY');
 
       // Add divider line between copies
       doc.setDrawColor(100, 100, 100);
@@ -656,7 +718,7 @@ const StaffGuestsManagement = () => {
       doc.line(margin + 5, halfPageHeight, pageWidth - margin - 5, halfPageHeight);
 
       // Generate Warden Copy (bottom half)
-      generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
+      await generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
 
       // Save the PDF
       const fileName = `AdmitCard_${staffGuest.name || 'Staff'}_${staffGuest.type || 'Unknown'}.pdf`;
@@ -1726,6 +1788,31 @@ const StaffGuestsManagement = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Photo
                         </label>
+                        
+                        {/* Current Photo Preview */}
+                        {formData.existingPhoto && (
+                          <div className="mb-3">
+                            <p className="text-sm text-gray-600 mb-2">Current Photo:</p>
+                            <img
+                              src={formData.existingPhoto}
+                              alt="Current photo"
+                              className="w-20 h-24 object-cover rounded border border-gray-300"
+                            />
+                          </div>
+                        )}
+                        
+                        {/* New Photo Preview */}
+                        {formData.photo && (
+                          <div className="mb-3">
+                            <p className="text-sm text-gray-600 mb-2">New Photo Preview:</p>
+                            <img
+                              src={URL.createObjectURL(formData.photo)}
+                              alt="New photo preview"
+                              className="w-20 h-24 object-cover rounded border border-gray-300"
+                            />
+                          </div>
+                        )}
+                        
                         <input
                           type="file"
                           name="photo"
@@ -1733,6 +1820,9 @@ const StaffGuestsManagement = () => {
                           onChange={handleInputChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {editingStaffGuest ? 'Select a new photo to replace the current one' : 'Select a photo for this staff/guest'}
+                        </p>
                       </div>
                     </div>
 
