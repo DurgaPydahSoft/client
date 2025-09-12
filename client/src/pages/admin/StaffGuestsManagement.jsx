@@ -28,10 +28,13 @@ import {
   DocumentTextIcon,
   CogIcon,
   PrinterIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  DocumentArrowDownIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 const StaffGuestsManagement = () => {
   const [activeTab, setActiveTab] = useState('management');
@@ -370,7 +373,9 @@ const StaffGuestsManagement = () => {
       const response = await api.get(`/api/admin/staff-guests/${staffGuestId}/admit-card`);
       if (response.data.success) {
         setAdmitCardData(response.data.data);
-        toast.success('Admit card generated successfully');
+        // Generate PDF immediately
+        await generateStaffAdmitCardPDF(response.data.data);
+        toast.success('Admit card generated and downloaded successfully');
       }
     } catch (error) {
       console.error('Error generating admit card:', error);
@@ -380,105 +385,294 @@ const StaffGuestsManagement = () => {
     }
   };
 
+  // Generate PDF for staff/guest admit card with two copies
+  const generateStaffAdmitCardPDF = async (staffGuest) => {
+    try {
+      console.log('Generating PDF for staff/guest:', staffGuest);
+
+      // Create A4 size document for full page with two copies
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      // Set up the page for full A4 size
+      const pageWidth = doc.internal.pageSize.width; // 210mm
+      const pageHeight = doc.internal.pageSize.height; // 297mm
+      const halfPageHeight = pageHeight / 2; // 148.5mm
+      const margin = 10;
+      const contentWidth = pageWidth - (margin * 2);
+
+      // Function to generate one copy of admit card
+      const generateOneCopy = (startY, copyLabel) => {
+        // Validate staffGuest object
+        if (!staffGuest || typeof staffGuest !== 'object') {
+          console.error('❌ Invalid staffGuest object:', staffGuest);
+          throw new Error('Invalid staffGuest object provided to generateOneCopy');
+        }
+
+        // Calculate charges details
+        const dailyRate = dailyRateSettings.staffDailyRate || 100;
+        const dayCount = staffGuest.dayCount || 0;
+        const totalCharges = dailyRate * dayCount;
+        const actualCharges = staffGuest.calculatedCharges || totalCharges;
+
+        // Get staff/guest gender for emergency contacts
+        const staffGender = staffGuest.gender?.toLowerCase();
+
+        // Determine hostel name based on gender
+        const hostelName = staffGender === 'female' ? 'Girls Hostel' : 'Boys Hostel';
+
+        // Emergency contact numbers
+        const wardenNumbers = {
+          male: '+91-9493994233',    // Boys Warden
+          female: '+91-8333068321',  // Girls Warden
+          default: '+91-9493994233'  // Default fallback
+        };
+
+        const securityNumber = '+91-8317612655';
+        const adminNumber = '+91-9490484418';
+
+        // Get appropriate numbers
+        const wardenPhone = wardenNumbers[staffGender] || wardenNumbers.default;
+
+        // Draw border for this copy
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(margin, startY, contentWidth, halfPageHeight - (margin * 2));
+
+        // Add copy label
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text(copyLabel, margin + 5, startY + 5);
+
+        // Header section
+        let yPos = startY + 8;
+
+        // Logo image (left side)
+        try {
+          // Add the Pydah logo image
+          doc.addImage('/PYDAH_LOGO_PHOTO.jpg', 'JPEG', margin + 4, yPos, 22, 12);
+        } catch (error) {
+          console.error('Error adding logo image:', error);
+          // Fallback to placeholder if image fails to load
+          doc.setFillColor(240, 240, 240);
+          doc.rect(margin + 4, yPos, 22, 12);
+          doc.setFontSize(6);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(0, 0, 0);
+          doc.text('PYDAH', margin + 15, yPos + 6, { align: 'center' });
+          doc.text('GROUP', margin + 15, yPos + 9, { align: 'center' });
+        }
+
+        // Main title (center)
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Pydah Group Of Institutions', pageWidth / 2, yPos + 8, { align: 'center' });
+
+        // Right side - Admit Card title
+        doc.setFontSize(8);
+        doc.text('HOSTEL ADMIT CARD', pageWidth - margin - 5, yPos + 4, { align: 'right' });
+        doc.setFontSize(6);
+        doc.text(`${staffGuest.type.toUpperCase()} - ${new Date().getFullYear()}`, pageWidth - margin - 5, yPos + 8, { align: 'right' });
+
+        // Divider line
+        yPos = startY + 24;
+        doc.setDrawColor(100, 100, 100);
+        doc.setLineWidth(0.3);
+        doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos);
+
+        // Staff/Guest details and photo section
+        yPos += 6;
+
+        // Create a layout with QR code, staff details, and photo
+        const centerX = pageWidth / 2;
+        const photoWidth = 30;
+        const photoHeight = 35;
+
+        // QR Code section (left side)
+        const qrCodeX = margin + 15;
+        const qrCodeY = yPos + 2;
+        const qrCodeSize = 30;
+
+        // Website text above QR code
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Visit our website', qrCodeX + qrCodeSize / 2, qrCodeY - 3, { align: 'center' });
+
+        // QR Code border
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.3);
+        doc.rect(qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
+
+        // Add QR Code image
+        try {
+          doc.addImage('/qrcode_hms.pydahsoft.in.png', 'PNG', qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
+        } catch (error) {
+          console.error('Error adding QR code image:', error);
+          // Fallback to placeholder text if image fails to load
+          doc.setFontSize(4);
+          doc.setFont('helvetica', 'bold');
+          doc.text('QR CODE', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize / 2 - 2, { align: 'center' });
+          doc.text('PLACEHOLDER', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize / 2 + 2, { align: 'center' });
+        }
+
+        // Site URL below QR code
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.text('www.hms.pydahsoft.in', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize + 4, { align: 'center' });
+
+        // Emergency Contacts below QR code section
+        const emergencyY = qrCodeY + qrCodeSize + 18;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('EMERGENCY CONTACTS:', qrCodeX, emergencyY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+
+        // Warden contact on single line
+        doc.text(`1. Warden (${staffGender === 'female' ? 'Girls' : 'Boys'}): ${wardenPhone}`, qrCodeX, emergencyY + 5);
+
+        // Admin contact on single line
+        doc.text(`2. Admin: ${adminNumber}`, qrCodeX, emergencyY + 10);
+
+        // Security contact on single line
+        doc.text(`3. Security: ${securityNumber}`, qrCodeX, emergencyY + 15);
+
+        // Charges Summary on the right side of emergency contacts
+        const chargesSummaryX = centerX + 20;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('CHARGES SUMMARY:', chargesSummaryX, emergencyY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.text(`• Daily Rate: ₹${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
+        doc.text(`• Stay Duration: ${dayCount} days`, chargesSummaryX + 1, emergencyY + 10);
+        doc.text(`• Base Amount: ₹${totalCharges}`, chargesSummaryX, emergencyY + 15);
+        if (actualCharges !== totalCharges) {
+          doc.text(`• Adjustment: ₹${totalCharges - actualCharges}`, chargesSummaryX, emergencyY + 20);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 25);
+        } else {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(7);
+          doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 20);
+        }
+
+        // Photo section (right side)
+        const photoX = centerX + 35;
+        const photoY = yPos + 4;
+
+        // Staff/Guest Photo heading
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.text('PHOTO', photoX + photoWidth / 2, photoY - 4, { align: 'center' });
+
+        // Photo border
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.4);
+        doc.rect(photoX, photoY, photoWidth, photoHeight);
+
+        // Add staff/guest photo if available
+        if (staffGuest.photo) {
+          try {
+            if (staffGuest.photo.startsWith('data:image')) {
+              doc.addImage(staffGuest.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
+            } else {
+              doc.setFontSize(4);
+              doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+            }
+          } catch (error) {
+            doc.setFontSize(4);
+            doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+          }
+        } else {
+          doc.setFontSize(4);
+          doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+        }
+
+        // Staff/Guest details section (between QR code and photo)
+        const detailsX = qrCodeX + qrCodeSize + 15; // Position after QR code
+
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('STAFF/GUEST DETAILS', detailsX, yPos);
+        yPos += 4;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+
+        // Staff/Guest details
+        const staffDetails = [
+          ['Name:', String(staffGuest.name || '')],
+          ['Type:', String(staffGuest.type || '')],
+          ['Gender:', String(staffGuest.gender || '')],
+          ['Profession:', String(staffGuest.profession || '')],
+          ['Phone:', String(staffGuest.phoneNumber || '')],
+          ['Email:', String(staffGuest.email || 'N/A')],
+          ['Department:', String(staffGuest.department || 'N/A')],
+          ['Purpose:', String(staffGuest.purpose || 'N/A')],
+          ['Hostel:', String(hostelName)],
+          ['Check-in:', String(staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toLocaleDateString() : 'N/A')],
+          ['Check-out:', String(staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toLocaleDateString() : 'N/A')],
+          ['Status:', String(staffGuest.isCheckedIn ? 'Checked In' : 'Checked Out')]
+        ];
+
+        staffDetails.forEach(([label, value]) => {
+          doc.setFont('helvetica', 'bold');
+          doc.text(label, detailsX, yPos);
+          doc.setFont('helvetica', 'normal');
+          doc.text(value || '', detailsX + 25, yPos);
+          yPos += 3.5;
+        });
+
+        // Important notes - positioned after staff details
+        yPos = startY + 100;
+
+        // Important notes
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.text('IMPORTANT NOTES:', centerX - 50, yPos);
+        yPos += 3;
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(5);
+        doc.text('1. Present this card at hostel entrance for verification', centerX - 50, yPos);
+        yPos += 2.5;
+        doc.text('2. Keep this card safe during your stay', centerX - 50, yPos);
+        yPos += 2.5;
+        doc.text('3. Report any issues to hostel administration', centerX - 50, yPos);
+      };
+
+      // Generate Staff/Guest Copy (top half)
+      generateOneCopy(margin, 'STAFF/GUEST COPY');
+
+      // Add divider line between copies
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.3);
+      doc.line(margin + 5, halfPageHeight, pageWidth - margin - 5, halfPageHeight);
+
+      // Generate Warden Copy (bottom half)
+      generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
+
+      // Save the PDF
+      const fileName = `AdmitCard_${staffGuest.name || 'Staff'}_${staffGuest.type || 'Unknown'}.pdf`;
+      console.log('Saving PDF as:', fileName);
+      doc.save(fileName);
+
+      console.log('PDF generated successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    }
+  };
+
   const printAdmitCard = () => {
     if (!admitCardData) return;
-    
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Admit Card - ${admitCardData.name}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-            .content { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-            .section { margin-bottom: 15px; }
-            .label { font-weight: bold; color: #333; }
-            .value { margin-left: 10px; }
-            .photo { width: 150px; height: 150px; object-fit: cover; border: 2px solid #333; }
-            .charges { background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
-            @media print { body { margin: 0; } }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>HOSTEL ADMIT CARD</h1>
-            <h2>${admitCardData.type.toUpperCase()} - ${admitCardData.name}</h2>
-          </div>
-          <div class="content">
-            <div>
-              <div class="section">
-                <span class="label">Name:</span>
-                <span class="value">${admitCardData.name}</span>
-              </div>
-              <div class="section">
-                <span class="label">Type:</span>
-                <span class="value">${admitCardData.type}</span>
-              </div>
-              <div class="section">
-                <span class="label">Gender:</span>
-                <span class="value">${admitCardData.gender}</span>
-              </div>
-              <div class="section">
-                <span class="label">Profession:</span>
-                <span class="value">${admitCardData.profession}</span>
-              </div>
-              <div class="section">
-                <span class="label">Phone:</span>
-                <span class="value">${admitCardData.phoneNumber}</span>
-              </div>
-              <div class="section">
-                <span class="label">Email:</span>
-                <span class="value">${admitCardData.email || 'N/A'}</span>
-              </div>
-              <div class="section">
-                <span class="label">Department:</span>
-                <span class="value">${admitCardData.department || 'N/A'}</span>
-              </div>
-              <div class="section">
-                <span class="label">Purpose:</span>
-                <span class="value">${admitCardData.purpose || 'N/A'}</span>
-              </div>
-            </div>
-            <div>
-              <div class="section">
-                <span class="label">Check-in Date:</span>
-                <span class="value">${admitCardData.checkinDate ? new Date(admitCardData.checkinDate).toLocaleDateString() : 'N/A'}</span>
-              </div>
-              <div class="section">
-                <span class="label">Check-out Date:</span>
-                <span class="value">${admitCardData.checkoutDate ? new Date(admitCardData.checkoutDate).toLocaleDateString() : 'N/A'}</span>
-              </div>
-              <div class="section">
-                <span class="label">Day Count:</span>
-                <span class="value">${admitCardData.dayCount} days</span>
-              </div>
-              <div class="section">
-                <span class="label">Status:</span>
-                <span class="value">${admitCardData.isCheckedIn ? 'Checked In' : 'Checked Out'}</span>
-              </div>
-              <div class="section">
-                <span class="label">Stay Duration:</span>
-                <span class="value">${admitCardData.stayDuration || 'N/A'}</span>
-              </div>
-              <div class="section charges">
-                <span class="label">Calculated Charges:</span>
-                <span class="value">₹${admitCardData.calculatedCharges}</span>
-              </div>
-              <div class="section">
-                <img src="${admitCardData.photo || '/default-avatar.png'}" alt="Photo" class="photo" />
-              </div>
-            </div>
-          </div>
-          <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
-            Generated on: ${new Date(admitCardData.generatedAt).toLocaleString()}<br>
-            Generated by: ${admitCardData.generatedBy}
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
+    generateStaffAdmitCardPDF(admitCardData);
   };
 
   return (
@@ -745,12 +939,21 @@ const StaffGuestsManagement = () => {
                           <button
                             onClick={() => handleEdit(staffGuest)}
                             className="text-blue-600 hover:text-blue-900"
+                            title="Edit"
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
                           <button
+                            onClick={() => generateStaffAdmitCardPDF(staffGuest)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Generate Admit Card PDF"
+                          >
+                            <DocumentArrowDownIcon className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleDelete(staffGuest._id)}
                             className="text-red-600 hover:text-red-900"
+                            title="Delete"
                           >
                             <TrashIcon className="w-4 h-4" />
                           </button>
@@ -1107,8 +1310,8 @@ const StaffGuestsManagement = () => {
                               disabled={admitCardLoading}
                               className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                             >
-                              <DocumentTextIcon className="w-4 h-4" />
-                              Generate
+                              <DocumentArrowDownIcon className="w-4 h-4" />
+                              {admitCardLoading ? 'Generating...' : 'Generate PDF'}
                             </button>
                           </td>
                         </tr>
@@ -1132,92 +1335,146 @@ const StaffGuestsManagement = () => {
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Admit Card Preview</h3>
                     <button
-                      onClick={printAdmitCard}
+                      onClick={() => generateStaffAdmitCardPDF(admitCardData)}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                     >
-                      <PrinterIcon className="w-4 h-4" />
-                      Print
+                      <DocumentArrowDownIcon className="w-4 h-4" />
+                      Download PDF
                     </button>
                   </div>
                   <div className="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300">
-                    <div className="text-center border-b-2 border-gray-300 pb-4 mb-6">
-                      <h1 className="text-2xl font-bold text-gray-900">HOSTEL ADMIT CARD</h1>
-                      <h2 className="text-lg text-gray-700">{admitCardData.type.toUpperCase()} - {admitCardData.name}</h2>
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Name:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.name}</span>
+                    {/* Header Section */}
+                    <div className="flex items-center justify-between border-b-2 border-gray-300 pb-4 mb-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-16 h-10 bg-gray-200 rounded flex items-center justify-center">
+                          <span className="text-xs font-bold text-gray-600">PYDAH</span>
                         </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Type:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.type}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Gender:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.gender}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Profession:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.profession}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Phone:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.phoneNumber}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Email:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.email || 'N/A'}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Department:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.department || 'N/A'}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Purpose:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.purpose || 'N/A'}</span>
+                        <div>
+                          <h1 className="text-xl font-bold text-gray-900">Pydah Group Of Institutions</h1>
+                          <p className="text-sm text-gray-600">HOSTEL ADMIT CARD</p>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-700">{admitCardData.type.toUpperCase()} - {new Date().getFullYear()}</p>
+                      </div>
+                    </div>
+
+                    {/* Main Content Grid */}
+                    <div className="grid grid-cols-3 gap-6 mb-6">
+                      {/* QR Code Section */}
+                      <div className="text-center">
+                        <div className="w-20 h-20 bg-gray-200 rounded mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-xs text-gray-500">QR CODE</span>
+                        </div>
+                        <p className="text-xs text-gray-600">www.hms.pydahsoft.in</p>
+                        
+                        {/* Emergency Contacts */}
+                        <div className="mt-4 text-left">
+                          <h4 className="text-sm font-bold text-gray-800 mb-2">EMERGENCY CONTACTS:</h4>
+                          <div className="text-xs text-gray-700 space-y-1">
+                            <p>1. Warden ({admitCardData.gender === 'Female' ? 'Girls' : 'Boys'}): +91-{admitCardData.gender === 'Female' ? '8333068321' : '9493994233'}</p>
+                            <p>2. Admin: +91-9490484418</p>
+                            <p>3. Security: +91-8317612655</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Staff Details Section */}
                       <div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Check-in Date:</span>
-                          <span className="ml-2 text-gray-900">
-                            {admitCardData.checkinDate ? new Date(admitCardData.checkinDate).toLocaleDateString() : 'N/A'}
-                          </span>
+                        <h4 className="text-sm font-bold text-gray-800 mb-3">STAFF/GUEST DETAILS</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Name:</span>
+                            <span className="text-gray-900">{admitCardData.name}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Type:</span>
+                            <span className="text-gray-900">{admitCardData.type}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Gender:</span>
+                            <span className="text-gray-900">{admitCardData.gender}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Profession:</span>
+                            <span className="text-gray-900">{admitCardData.profession}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Phone:</span>
+                            <span className="text-gray-900">{admitCardData.phoneNumber}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Email:</span>
+                            <span className="text-gray-900">{admitCardData.email || 'N/A'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Department:</span>
+                            <span className="text-gray-900">{admitCardData.department || 'N/A'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Purpose:</span>
+                            <span className="text-gray-900">{admitCardData.purpose || 'N/A'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Hostel:</span>
+                            <span className="text-gray-900">{admitCardData.gender === 'Female' ? 'Girls Hostel' : 'Boys Hostel'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Check-in:</span>
+                            <span className="text-gray-900">{admitCardData.checkinDate ? new Date(admitCardData.checkinDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Check-out:</span>
+                            <span className="text-gray-900">{admitCardData.checkoutDate ? new Date(admitCardData.checkoutDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                          <div className="flex">
+                            <span className="font-semibold text-gray-700 w-20">Status:</span>
+                            <span className="text-gray-900">{admitCardData.isCheckedIn ? 'Checked In' : 'Checked Out'}</span>
+                          </div>
                         </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Check-out Date:</span>
-                          <span className="ml-2 text-gray-900">
-                            {admitCardData.checkoutDate ? new Date(admitCardData.checkoutDate).toLocaleDateString() : 'N/A'}
-                          </span>
+                      </div>
+
+                      {/* Photo and Charges Section */}
+                      <div>
+                        <div className="text-center mb-4">
+                          <h4 className="text-sm font-bold text-gray-800 mb-2">PHOTO</h4>
+                          <div className="w-24 h-28 border-2 border-gray-300 mx-auto bg-gray-100 flex items-center justify-center">
+                            {admitCardData.photo ? (
+                              <img 
+                                src={admitCardData.photo} 
+                                alt="Photo" 
+                                className="w-20 h-24 object-cover"
+                              />
+                            ) : (
+                              <span className="text-gray-400 text-xs">Photo</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Day Count:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.dayCount} days</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Status:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.isCheckedIn ? 'Checked In' : 'Checked Out'}</span>
-                        </div>
-                        <div className="mb-3">
-                          <span className="font-semibold text-gray-700">Stay Duration:</span>
-                          <span className="ml-2 text-gray-900">{admitCardData.stayDuration || 'N/A'}</span>
-                        </div>
-                        <div className="mb-3 p-3 bg-green-50 rounded-lg">
-                          <span className="font-semibold text-gray-700">Calculated Charges:</span>
-                          <span className="ml-2 text-lg font-bold text-green-600">₹{admitCardData.calculatedCharges}</span>
-                        </div>
-                        <div className="text-center">
-                          <img 
-                            src={admitCardData.photo || '/default-avatar.png'} 
-                            alt="Photo" 
-                            className="w-24 h-24 mx-auto rounded-lg object-cover border-2 border-gray-300"
-                          />
+
+                        {/* Charges Summary */}
+                        <div className="mt-4">
+                          <h4 className="text-sm font-bold text-gray-800 mb-2">CHARGES SUMMARY:</h4>
+                          <div className="text-xs text-gray-700 space-y-1">
+                            <p>• Daily Rate: ₹{dailyRateSettings.staffDailyRate || 100} per day</p>
+                            <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
+                            <p>• Base Amount: ₹{(dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
+                            <p className="font-bold">• Total Payable: ₹{admitCardData.calculatedCharges || 0}</p>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="mt-6 text-center text-sm text-gray-500">
+
+                    {/* Important Notes */}
+                    <div className="border-t border-gray-300 pt-4">
+                      <h4 className="text-sm font-bold text-gray-800 mb-2">IMPORTANT NOTES:</h4>
+                      <div className="text-xs text-gray-700 space-y-1">
+                        <p>1. Present this card at hostel entrance for verification</p>
+                        <p>2. Keep this card safe during your stay</p>
+                        <p>3. Report any issues to hostel administration</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-center text-xs text-gray-500">
                       Generated on: {new Date(admitCardData.generatedAt).toLocaleString()}<br/>
                       Generated by: {admitCardData.generatedBy}
                     </div>
