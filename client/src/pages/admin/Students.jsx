@@ -728,16 +728,16 @@ const Students = () => {
     if (prefilledData) {
       try {
         const data = JSON.parse(prefilledData);
-        
+
         // Set form data (excluding photos and branch initially)
         const { studentPhoto, guardianPhoto1, guardianPhoto2, branch, ...formDataWithoutBranch } = data;
         console.log('🔍 Prefilled form data:', formDataWithoutBranch);
         console.log('🔍 Course ID:', formDataWithoutBranch.course);
         console.log('🔍 Branch ID:', branch);
-        
+
         // Set form without branch first
         setForm({ ...formDataWithoutBranch, branch: '' });
-        
+
         // Set photo previews (URLs from preregistration)
         if (studentPhoto) {
           setStudentPhotoPreview(studentPhoto);
@@ -748,7 +748,7 @@ const Students = () => {
         if (guardianPhoto2) {
           setGuardianPhoto2Preview(guardianPhoto2);
         }
-        
+
         // Fetch branches for the selected course if course is set
         if (formDataWithoutBranch.course) {
           console.log('🔍 Fetching branches for prefilled course:', formDataWithoutBranch.course);
@@ -760,7 +760,7 @@ const Students = () => {
             }
           });
         }
-        
+
         setTab('add'); // Switch to add tab
         sessionStorage.removeItem('preregistrationData'); // Clear after use
         toast.success('Form prefilled with preregistration data');
@@ -785,7 +785,7 @@ const Students = () => {
       console.log('🔍 Checking branch mapping:');
       console.log('  - Current branch ID:', form.branch);
       console.log('  - Available branches:', branches.map(b => ({ id: b._id, name: b.name })));
-      
+
       // Check if the current branch is in the loaded branches
       const branchExists = branches.find(b => b._id === form.branch);
       if (!branchExists) {
@@ -2454,8 +2454,8 @@ const Students = () => {
                     onChange={handleFormChange}
                     disabled={loadingBedLocker}
                     className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber)
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300'
+                      ? 'border-green-300 bg-green-50'
+                      : 'border-gray-300'
                       }`}
                   >
                     <option value="">Select Bed (Optional)</option>
@@ -2491,8 +2491,8 @@ const Students = () => {
                     onChange={handleFormChange}
                     disabled={loadingBedLocker}
                     className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber)
-                        ? 'border-green-300 bg-green-50'
-                        : 'border-gray-300'
+                      ? 'border-green-300 bg-green-50'
+                      : 'border-gray-300'
                       }`}
                   >
                     <option value="">Select Locker (Optional)</option>
@@ -2880,8 +2880,8 @@ const Students = () => {
             type="submit"
             disabled={adding}
             className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${adding
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
               }`}
           >
             {adding ? (
@@ -3221,17 +3221,17 @@ const Students = () => {
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex flex-col gap-1">
                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.hostelStatus === 'Active'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
                                   }`}>
                                   {student.hostelStatus}
                                 </span>
                                 {student.graduationStatus && (
                                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.graduationStatus === 'Graduated'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : student.graduationStatus === 'Dropped'
-                                        ? 'bg-gray-100 text-gray-800'
-                                        : 'bg-yellow-100 text-yellow-800'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : student.graduationStatus === 'Dropped'
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-yellow-100 text-yellow-800'
                                     }`}>
                                     {student.graduationStatus}
                                   </span>
@@ -3341,174 +3341,162 @@ const Students = () => {
 
             {/* Content */}
             <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-                {/* Left Column - Photo and Basic Info */}
-                <div className="xl:col-span-1">
-                  {/* Student Photo */}
-                  <div className="flex justify-center mb-4 sm:mb-6">
-                    {selectedStudent.studentPhoto ? (
-                      <img
-                        src={selectedStudent.studentPhoto}
-                        alt={selectedStudent.name}
-                        className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-gray-200 shadow-lg"
-                      />
-                    ) : (
-                      <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-2xl sm:text-4xl font-bold shadow-lg">
-                        {selectedStudent.name?.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
+              {/* Top Section: Photo + Basic Info */}
+              <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 mb-6">
+                {/* Photo Section */}
+                <div className="flex-shrink-0 flex justify-center items-center">
+                  {selectedStudent.studentPhoto ? (
+                    <img
+                      src={selectedStudent.studentPhoto}
+                      alt={selectedStudent.name}
+                      className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-gray-200 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-2xl sm:text-4xl font-bold shadow-lg">
+                      {selectedStudent.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
 
-                  {/* Basic Information */}
-                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                    <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Basic Information</h4>
-                    <div className="space-y-2 sm:space-y-3">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Name:</span>
-                        <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.name}</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Roll Number:</span>
-                        <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.rollNumber}</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Hostel ID:</span>
-                        <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelId || 'Not assigned'}</span>
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                        <span className="text-xs sm:text-sm text-gray-600">Gender:</span>
-                        <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.gender}</span>
-                      </div>
+                {/* Basic Info Card */}
+                <div className="flex-1 bg-gray-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Basic Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Name */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Name:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.name}</span>
+                    </div>
+                    {/* Roll Number */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Roll Number:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.rollNumber}</span>
+                    </div>
+                    {/* Hostel ID */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelId || 'Not assigned'}</span>
+                    </div>
+                    {/* Gender */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Gender:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.gender}</span>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* Right Columns - Academic, Contact, and Hostel Info */}
-                <div className="xl:col-span-2">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                    {/* Academic Information */}
-                    <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-                      <h4 className="text-base sm:text-lg font-semibold text-blue-800 mb-3 sm:mb-4 flex items-center">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                        Academic Information
-                      </h4>
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Course:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">{selectedStudent.course?.name || getCourseName(selectedStudent.course)}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Branch:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">{selectedStudent.branch?.name || getBranchName(selectedStudent.branch)}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Year:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">Year {selectedStudent.year}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Category:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">{selectedStudent.category === 'A+' ? 'A+ (AC)' : selectedStudent.category === 'B+' ? 'B+ (AC)' : selectedStudent.category}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Batch:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">{selectedStudent.batch}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-blue-700">Academic Year:</span>
-                          <span className="font-medium text-blue-900 text-sm sm:text-base">{selectedStudent.academicYear}</span>
-                        </div>
+              {/* Bottom Section: Other Info Cards */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                {/* Academic Information */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Academic Information
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Course', value: selectedStudent.course?.name || getCourseName(selectedStudent.course) },
+                      { label: 'Branch', value: selectedStudent.branch?.name || getBranchName(selectedStudent.branch) },
+                      { label: 'Year', value: `Year ${selectedStudent.year}` },
+                      { label: 'Category', value: selectedStudent.category === 'A+' ? 'A+ (AC)' : selectedStudent.category === 'B+' ? 'B+ (AC)' : selectedStudent.category },
+                      { label: 'Batch', value: selectedStudent.batch },
+                      { label: 'Academic Year', value: selectedStudent.academicYear },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
+                        <span className="font-medium text-blue-900 text-sm sm:text-base">{item.value}</span>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-green-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                    Contact Information
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Student Phone', value: selectedStudent.studentPhone },
+                      { label: 'Parent Phone', value: selectedStudent.parentPhone },
+                      { label: 'Email', value: selectedStudent.email },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-green-700">{item.label}:</span>
+                        <span className="font-medium text-green-900 break-all text-sm sm:text-base">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hostel Information */}
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-purple-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Hostel Information
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Room Number:</span>
+                      <span className="font-medium text-purple-900 text-sm sm:text-base">Room {selectedStudent.roomNumber}</span>
                     </div>
-
-                    {/* Contact Information */}
-                    <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-                      <h4 className="text-base sm:text-lg font-semibold text-green-800 mb-3 sm:mb-4 flex items-center">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        Contact Information
-                      </h4>
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-green-700">Student Phone:</span>
-                          <span className="font-medium text-green-900 text-sm sm:text-base">{selectedStudent.studentPhone}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-green-700">Parent Phone:</span>
-                          <span className="font-medium text-green-900 text-sm sm:text-base">{selectedStudent.parentPhone}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-green-700">Email:</span>
-                          <span className="font-medium text-green-900 break-all text-sm sm:text-base">{selectedStudent.email}</span>
-                        </div>
+                    {selectedStudent.bedNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-purple-700">Bed Number:</span>
+                        <span className="font-medium text-blue-600 text-sm sm:text-base">{selectedStudent.bedNumber}</span>
                       </div>
+                    )}
+                    {selectedStudent.lockerNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-purple-700">Locker Number:</span>
+                        <span className="font-medium text-green-600 text-sm sm:text-base">{selectedStudent.lockerNumber}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Meal Type:</span>
+                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.mealType === 'veg' ? 'text-green-600' : 'text-orange-600'}`}>
+                        {selectedStudent.mealType === 'veg' ? 'Veg' : 'Non-Veg'}
+                      </span>
                     </div>
-
-                    {/* Hostel Information */}
-                    <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
-                      <h4 className="text-base sm:text-lg font-semibold text-purple-800 mb-3 sm:mb-4 flex items-center">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        Hostel Information
-                      </h4>
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-purple-700">Room Number:</span>
-                          <span className="font-medium text-purple-900 text-sm sm:text-base">Room {selectedStudent.roomNumber}</span>
-                        </div>
-                        {selectedStudent.bedNumber && (
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                            <span className="text-xs sm:text-sm text-purple-700">Bed Number:</span>
-                            <span className="font-medium text-blue-600 text-sm sm:text-base">{selectedStudent.bedNumber}</span>
-                          </div>
-                        )}
-                        {selectedStudent.lockerNumber && (
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                            <span className="text-xs sm:text-sm text-purple-700">Locker Number:</span>
-                            <span className="font-medium text-green-600 text-sm sm:text-base">{selectedStudent.lockerNumber}</span>
-                          </div>
-                        )}
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-purple-700">Meal Type:</span>
-                          <span className={`font-medium text-sm sm:text-base ${selectedStudent.mealType === 'veg' ? 'text-green-600' : 'text-orange-600'}`}>
-                            {selectedStudent.mealType === 'veg' ? 'Veg' : 'Non-Veg'}
-                          </span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-purple-700">Parent Permission:</span>
-                          <span className={`font-medium text-sm sm:text-base ${selectedStudent.parentPermissionForOuting ? 'text-green-600' : 'text-red-600'}`}>
-                            {selectedStudent.parentPermissionForOuting ? 'Enabled' : 'Disabled'}
-                          </span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                            }`}>
-                            {selectedStudent.hostelStatus}
-                          </span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center">
-                          <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
-                              ? 'bg-blue-100 text-blue-800'
-                              : selectedStudent.graduationStatus === 'Dropped'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                            {selectedStudent.graduationStatus}
-                          </span>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Parent Permission:</span>
+                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.parentPermissionForOuting ? 'text-green-600' : 'text-red-600'}`}>
+                        {selectedStudent.parentPermissionForOuting ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
+                        {selectedStudent.hostelStatus}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                        ? 'bg-blue-100 text-blue-800'
+                        : selectedStudent.graduationStatus === 'Dropped'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {selectedStudent.graduationStatus}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
@@ -3956,8 +3944,8 @@ const Students = () => {
               type="submit"
               disabled={editing}
               className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${editing
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
               {editing ? 'Saving...' : 'Save Changes'}
@@ -4022,8 +4010,8 @@ const Students = () => {
               onClick={handleBulkUpload}
               disabled={!bulkFile || bulkProcessing}
               className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 ${!bulkFile || bulkProcessing
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
               {bulkProcessing ? (
@@ -4416,8 +4404,8 @@ const Students = () => {
               onClick={handleConfirmBulkUpload}
               disabled={bulkProcessing || editablePreviewData.length === 0}
               className={`px-4 py-2 text-white rounded-lg transition-colors ${(bulkProcessing || editablePreviewData.length === 0)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700'
                 }`}
             >
               {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.filter((_, index) => !previewErrors[index] || Object.keys(previewErrors[index]).length === 0).length} Valid Students`}
@@ -4788,8 +4776,8 @@ const Students = () => {
                 onClick={handleRenew}
                 disabled={isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear}
                 className={`px-4 py-2 text-white rounded-lg transition-colors ${(isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear)
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
                   }`}
               >
                 {isRenewing ? 'Renewing...' : 'Renew Batches'}
@@ -5013,8 +5001,8 @@ const Students = () => {
                 type="submit"
                 disabled={photoEditLoading}
                 className={`w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${photoEditLoading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
                   }`}
               >
                 {photoEditLoading ? 'Updating...' : 'Update Photos'}
@@ -5270,8 +5258,8 @@ const Students = () => {
                 type="submit"
                 disabled={passwordResetLoading}
                 className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${passwordResetLoading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-orange-600 hover:bg-orange-700'
                   }`}
               >
                 {passwordResetLoading ? 'Resetting...' : 'Reset Password'}
@@ -5344,8 +5332,8 @@ const Students = () => {
               onClick={capturePhoto}
               disabled={!cameraReady}
               className={`px-6 py-3 rounded-lg flex items-center space-x-2 ${cameraReady
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                 }`}
             >
               <CameraIcon className="w-5 h-5" />
@@ -5386,8 +5374,8 @@ const Students = () => {
                 <button
                   key={t.value}
                   className={`flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg transition-all duration-300 text-xs sm:text-sm font-medium relative overflow-hidden group ${tab === t.value
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
-                      : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg transform scale-105'
+                    : 'bg-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50'
                     }`}
                   onClick={() => setTab(t.value)}
                 >
@@ -5400,8 +5388,8 @@ const Students = () => {
                   <div className={`relative z-10 flex items-center space-x-2 ${tab === t.value ? 'text-white' : 'text-gray-600 group-hover:text-blue-600'
                     }`}>
                     <div className={`transition-all duration-300 ${tab === t.value
-                        ? 'text-white transform scale-110'
-                        : 'text-gray-500 group-hover:text-blue-500 group-hover:scale-110'
+                      ? 'text-white transform scale-110'
+                      : 'text-gray-500 group-hover:text-blue-500 group-hover:scale-110'
                       }`}>
                       {t.icon}
                     </div>
