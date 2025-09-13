@@ -102,14 +102,14 @@ const StaffGuestsManagement = () => {
   const fetchStaffGuests = async () => {
     try {
       setLoading(true);
-       const params = new URLSearchParams({
-         page: currentPage,
-         limit: 10,
-         search: searchTerm,
-         type: filterType !== 'all' ? filterType : '',
-         gender: filterGender !== 'all' ? filterGender : '',
-         isActive: 'true'
-       });
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 10,
+        search: searchTerm,
+        type: filterType !== 'all' ? filterType : '',
+        gender: filterGender !== 'all' ? filterGender : '',
+        isActive: 'true'
+      });
 
       const response = await api.get(`/api/admin/staff-guests?${params}`);
       console.log('Full API response:', response);
@@ -408,70 +408,49 @@ const StaffGuestsManagement = () => {
     try {
       console.log('Generating PDF for staff/guest:', staffGuest);
 
-      // Create A4 size document for full page with two copies
       const doc = new jsPDF('p', 'mm', 'a4');
-
-      // Set up the page for full A4 size
-      const pageWidth = doc.internal.pageSize.width; // 210mm
-      const pageHeight = doc.internal.pageSize.height; // 297mm
-      const halfPageHeight = pageHeight / 2; // 148.5mm
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const halfPageHeight = pageHeight / 2;
       const margin = 10;
       const contentWidth = pageWidth - (margin * 2);
 
-      // Function to generate one copy of admit card
       const generateOneCopy = async (startY, copyLabel) => {
-        // Validate staffGuest object
         if (!staffGuest || typeof staffGuest !== 'object') {
           console.error('❌ Invalid staffGuest object:', staffGuest);
           throw new Error('Invalid staffGuest object provided to generateOneCopy');
         }
 
-        // Calculate charges details
         const dailyRate = dailyRateSettings.staffDailyRate || 100;
         const dayCount = staffGuest.dayCount || 0;
         const totalCharges = dailyRate * dayCount;
         const actualCharges = staffGuest.calculatedCharges || totalCharges;
-
-        // Get staff/guest gender for emergency contacts
         const staffGender = staffGuest.gender?.toLowerCase();
-
-        // Determine hostel name based on gender
         const hostelName = staffGender === 'female' ? 'Girls Hostel' : 'Boys Hostel';
 
-        // Emergency contact numbers
         const wardenNumbers = {
-          male: '+91-9493994233',    // Boys Warden
-          female: '+91-8333068321',  // Girls Warden
-          default: '+91-9493994233'  // Default fallback
+          male: '+91-9493994233',
+          female: '+91-8333068321',
+          default: '+91-9493994233'
         };
-
         const securityNumber = '+91-8317612655';
         const adminNumber = '+91-9490484418';
-
-        // Get appropriate numbers
         const wardenPhone = wardenNumbers[staffGender] || wardenNumbers.default;
 
-        // Draw border for this copy
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.5);
         doc.rect(margin, startY, contentWidth, halfPageHeight - (margin * 2));
 
-        // Add copy label
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(0, 0, 0);
         doc.text(copyLabel, margin + 5, startY + 5);
 
-        // Header section
         let yPos = startY + 8;
-
-        // Logo image (left side)
         try {
-          // Add the Pydah logo image
           doc.addImage('/PYDAH_LOGO_PHOTO.jpg', 'JPEG', margin + 4, yPos, 22, 12);
         } catch (error) {
           console.error('Error adding logo image:', error);
-          // Fallback to placeholder if image fails to load
           doc.setFillColor(240, 240, 240);
           doc.rect(margin + 4, yPos, 22, 12);
           doc.setFontSize(6);
@@ -481,64 +460,50 @@ const StaffGuestsManagement = () => {
           doc.text('GROUP', margin + 15, yPos + 9, { align: 'center' });
         }
 
-        // Main title (center)
         doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text('Pydah Group Of Institutions', pageWidth / 2, yPos + 8, { align: 'center' });
 
-        // Right side - Admit Card title
         doc.setFontSize(8);
         doc.text('HOSTEL ADMIT CARD', pageWidth - margin - 5, yPos + 4, { align: 'right' });
         doc.setFontSize(6);
         doc.text(`${staffGuest.type.toUpperCase()} - ${new Date().getFullYear()}`, pageWidth - margin - 5, yPos + 8, { align: 'right' });
 
-        // Divider line
         yPos = startY + 24;
         doc.setDrawColor(100, 100, 100);
         doc.setLineWidth(0.3);
         doc.line(margin + 5, yPos, pageWidth - margin - 5, yPos);
 
-        // Staff/Guest details and photo section
         yPos += 6;
-
-        // Create a layout with QR code, staff details, and photo
         const centerX = pageWidth / 2;
         const photoWidth = 30;
         const photoHeight = 35;
-
-        // QR Code section (left side)
         const qrCodeX = margin + 15;
         const qrCodeY = yPos + 2;
         const qrCodeSize = 30;
 
-        // Website text above QR code
         doc.setFontSize(6);
         doc.setFont('helvetica', 'bold');
         doc.text('Visit our website', qrCodeX + qrCodeSize / 2, qrCodeY - 3, { align: 'center' });
 
-        // QR Code border
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.3);
         doc.rect(qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
 
-        // Add QR Code image
         try {
           doc.addImage('/qrcode_hms.pydahsoft.in.png', 'PNG', qrCodeX, qrCodeY, qrCodeSize, qrCodeSize);
         } catch (error) {
           console.error('Error adding QR code image:', error);
-          // Fallback to placeholder text if image fails to load
           doc.setFontSize(4);
           doc.setFont('helvetica', 'bold');
           doc.text('QR CODE', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize / 2 - 2, { align: 'center' });
           doc.text('PLACEHOLDER', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize / 2 + 2, { align: 'center' });
         }
 
-        // Site URL below QR code
         doc.setFontSize(6);
         doc.setFont('helvetica', 'normal');
         doc.text('www.hms.pydahsoft.in', qrCodeX + qrCodeSize / 2, qrCodeY + qrCodeSize + 4, { align: 'center' });
 
-        // Emergency Contacts below QR code section
         const emergencyY = qrCodeY + qrCodeSize + 18;
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
@@ -546,71 +511,54 @@ const StaffGuestsManagement = () => {
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
-
-        // Warden contact on single line
         doc.text(`1. Warden (${staffGender === 'female' ? 'Girls' : 'Boys'}): ${wardenPhone}`, qrCodeX, emergencyY + 5);
-
-        // Admin contact on single line
         doc.text(`2. Admin: ${adminNumber}`, qrCodeX, emergencyY + 10);
-
-        // Security contact on single line
         doc.text(`3. Security: ${securityNumber}`, qrCodeX, emergencyY + 15);
 
-        // Charges Summary on the right side of emergency contacts
+        // Fix: Ensure Charges Summary uses consistent font styling
         const chargesSummaryX = centerX + 20;
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
         doc.text('CHARGES SUMMARY:', chargesSummaryX, emergencyY);
 
-        doc.setFont('helvetica', 'normal');
+        doc.setFont('helvetica', 'normal'); // Set to normal for list items
         doc.setFontSize(7);
         doc.text(`• Daily Rate: ₹${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
-        doc.text(`• Stay Duration: ${dayCount} days`, chargesSummaryX + 1, emergencyY + 10);
+        doc.text(`• Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
         doc.text(`• Base Amount: ₹${totalCharges}`, chargesSummaryX, emergencyY + 15);
+
         if (actualCharges !== totalCharges) {
           doc.text(`• Adjustment: ₹${totalCharges - actualCharges}`, chargesSummaryX, emergencyY + 20);
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
           doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 25);
         } else {
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(7);
           doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 20);
         }
 
-        // Photo section (right side)
+        // Reset to normal font for subsequent text
+        doc.setFont('helvetica', 'normal');
+
+        // Photo section
         const photoX = centerX + 35;
         const photoY = yPos + 4;
-
-        // Staff/Guest Photo heading
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
         doc.text('PHOTO', photoX + photoWidth / 2, photoY - 4, { align: 'center' });
-
-        // Photo border
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.4);
         doc.rect(photoX, photoY, photoWidth, photoHeight);
 
-        // Add staff/guest photo if available
-        console.log('Photo URL:', staffGuest.photo);
         if (staffGuest.photo) {
           try {
             if (staffGuest.photo.startsWith('data:image')) {
-              // Handle base64 data URLs
               doc.addImage(staffGuest.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
             } else if (staffGuest.photo.startsWith('http') || staffGuest.photo.startsWith('/')) {
-              // Handle server URLs - convert to base64 first
               const img = new Image();
               img.crossOrigin = 'anonymous';
-              
-              // Create a promise to handle async image loading
               const loadImage = () => {
                 return new Promise((resolve) => {
-                  console.log('Loading image from URL:', staffGuest.photo);
                   img.onload = () => {
-                    console.log('Image loaded successfully, processing...');
                     try {
                       const canvas = document.createElement('canvas');
                       const ctx = canvas.getContext('2d');
@@ -618,19 +566,15 @@ const StaffGuestsManagement = () => {
                       canvas.height = img.height;
                       ctx.drawImage(img, 0, 0);
                       const dataURL = canvas.toDataURL('image/jpeg');
-                      console.log('Image converted to data URL, adding to PDF...');
                       doc.addImage(dataURL, 'JPEG', photoX, photoY, photoWidth, photoHeight);
-                      console.log('Image added to PDF successfully');
                       resolve();
-                    } catch (error) {
-                      console.error('Error processing image:', error);
+                    } catch {
                       doc.setFontSize(4);
                       doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
                       resolve();
                     }
                   };
                   img.onerror = () => {
-                    console.error('Error loading image:', staffGuest.photo);
                     doc.setFontSize(4);
                     doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
                     resolve();
@@ -638,15 +582,12 @@ const StaffGuestsManagement = () => {
                   img.src = staffGuest.photo;
                 });
               };
-              
-              // Wait for image to load before continuing
               await loadImage();
             } else {
               doc.setFontSize(4);
               doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
             }
-          } catch (error) {
-            console.error('Error adding photo to PDF:', error);
+          } catch {
             doc.setFontSize(4);
             doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
           }
@@ -655,19 +596,16 @@ const StaffGuestsManagement = () => {
           doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
         }
 
-        // Staff/Guest details section (between QR code and photo)
-        const detailsX = qrCodeX + qrCodeSize + 15; // Position after QR code
-
+        // Staff details
+        const detailsX = qrCodeX + qrCodeSize + 15;
         doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
         doc.text('STAFF/GUEST DETAILS', detailsX, yPos);
         yPos += 4;
 
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
 
-        // Staff/Guest details
         const staffDetails = [
           ['Name:', String(staffGuest.name || '')],
           ['Type:', String(staffGuest.type || '')],
@@ -691,36 +629,36 @@ const StaffGuestsManagement = () => {
           yPos += 3.5;
         });
 
-        // Important notes - positioned after staff details
-        yPos = startY + 100;
+        // IMPORTANT NOTES aligned below charges and emergency contacts
+        const notesY = emergencyY + 25 + 5;
+        const notesX = qrCodeX;
 
-        // Important notes
-        doc.setFontSize(6);
+        doc.setFontSize(8);
         doc.setFont('helvetica', 'bold');
-        doc.text('IMPORTANT NOTES:', centerX - 50, yPos);
-        yPos += 3;
+        doc.text('IMPORTANT NOTES:', notesX, notesY);
 
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(5);
-        doc.text('1. Present this card at hostel entrance for verification', centerX - 50, yPos);
-        yPos += 2.5;
-        doc.text('2. Keep this card safe during your stay', centerX - 50, yPos);
-        yPos += 2.5;
-        doc.text('3. Report any issues to hostel administration', centerX - 50, yPos);
+        doc.setFontSize(7);
+        const noteLines = [
+          '1. Present this card at hostel entrance for verification.',
+          '2. Keep this card safe during your stay.',
+          '3. Report any issues to hostel administration.'
+        ];
+        let noteYPos = notesY + 4;
+        noteLines.forEach((line) => {
+          doc.text(line, notesX, noteYPos);
+          noteYPos += 4;
+        });
       };
 
-      // Generate Staff/Guest Copy (top half)
       await generateOneCopy(margin, 'STAFF/GUEST COPY');
 
-      // Add divider line between copies
       doc.setDrawColor(100, 100, 100);
       doc.setLineWidth(0.3);
       doc.line(margin + 5, halfPageHeight, pageWidth - margin - 5, halfPageHeight);
 
-      // Generate Warden Copy (bottom half)
       await generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
 
-      // Save the PDF
       const fileName = `AdmitCard_${staffGuest.name || 'Staff'}_${staffGuest.type || 'Unknown'}.pdf`;
       console.log('Saving PDF as:', fileName);
       doc.save(fileName);
@@ -732,6 +670,9 @@ const StaffGuestsManagement = () => {
     }
   };
 
+
+
+
   const printAdmitCard = () => {
     if (!admitCardData) return;
     generateStaffAdmitCardPDF(admitCardData);
@@ -739,12 +680,12 @@ const StaffGuestsManagement = () => {
 
   return (
     <>
-      <SEO 
+      <SEO
         title="Staff/Guests Management"
         description="Manage staff and guest information, track check-ins and check-outs. Comprehensive staff and guest management system."
         keywords="Staff Management, Guest Management, Check-in, Check-out, Visitor Management, Staff Tracking"
       />
-      
+
       <div className="p-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -759,15 +700,15 @@ const StaffGuestsManagement = () => {
               </span>
             </div>
             <p className="text-gray-600 mt-1">
-              {activeTab === 'management' 
+              {activeTab === 'management'
                 ? 'Manage staff and guest information and track their visits'
                 : activeTab === 'attendance'
-                ? 'View and analyze staff and guest attendance records'
-                : activeTab === 'admit-card'
-                ? 'Generate and print admit cards for staff and guests'
-                : activeTab === 'settings'
-                ? 'Configure daily rates and system settings'
-                : 'Staff and guest management system'
+                  ? 'View and analyze staff and guest attendance records'
+                  : activeTab === 'admit-card'
+                    ? 'Generate and print admit cards for staff and guests'
+                    : activeTab === 'settings'
+                      ? 'Configure daily rates and system settings'
+                      : 'Staff and guest management system'
               }
             </p>
           </div>
@@ -788,11 +729,10 @@ const StaffGuestsManagement = () => {
             <nav className="-mb-px flex space-x-8">
               <button
                 onClick={() => setActiveTab('management')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'management'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'management'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <UserIcon className="w-5 h-5" />
@@ -801,11 +741,10 @@ const StaffGuestsManagement = () => {
               </button>
               <button
                 onClick={() => setActiveTab('attendance')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'attendance'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'attendance'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <ChartBarIcon className="w-5 h-5" />
@@ -814,11 +753,10 @@ const StaffGuestsManagement = () => {
               </button>
               <button
                 onClick={() => setActiveTab('admit-card')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'admit-card'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'admit-card'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <DocumentTextIcon className="w-5 h-5" />
@@ -827,11 +765,10 @@ const StaffGuestsManagement = () => {
               </button>
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'settings'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'settings'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
               >
                 <div className="flex items-center gap-2">
                   <CogIcon className="w-5 h-5" />
@@ -877,230 +814,229 @@ const StaffGuestsManagement = () => {
               </div>
             </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by name, profession, phone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Types</option>
-              <option value="staff">Staff</option>
-              <option value="guest">Guest</option>
-            </select>
-            <select
-              value={filterGender}
-              onChange={(e) => setFilterGender(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Staff/Guests List */}
-        <div className="bg-white rounded-lg shadow">
-          {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <LoadingSpinner size="lg" />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profession</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Charges</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {console.log('Rendering table with staffGuests:', staffGuests)}
-                  {staffGuests && staffGuests.length > 0 ? staffGuests.map((staffGuest) => (
-                    <tr key={staffGuest._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {staffGuest.photo ? (
-                          <img
-                            src={staffGuest.photo}
-                            alt={staffGuest.name}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <UserIcon className="w-6 h-6 text-gray-400" />
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{staffGuest.name}</div>
-                        {staffGuest.email && (
-                          <div className="text-sm text-gray-500">{staffGuest.email}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          staffGuest.type === 'staff' 
-                            ? 'bg-blue-100 text-blue-800' 
-                            : 'bg-green-100 text-green-800'
-                        }`}>
-                          {staffGuest.type.charAt(0).toUpperCase() + staffGuest.type.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {staffGuest.gender}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {staffGuest.profession}
-                        {staffGuest.department && (
-                          <div className="text-xs text-gray-500">{staffGuest.department}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {staffGuest.phoneNumber}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        <span className="font-medium text-green-600">₹{staffGuest.calculatedCharges || 0}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <CheckCircleIcon className="w-3 h-3 mr-1" />
-                            Checked In
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            <ClockIcon className="w-3 h-3 mr-1" />
-                            Checked Out
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEdit(staffGuest)}
-                            className="text-blue-600 hover:text-blue-900"
-                            title="Edit"
-                          >
-                            <PencilIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => generateStaffAdmitCardPDF(staffGuest)}
-                            className="text-purple-600 hover:text-purple-900"
-                            title="Generate Admit Card PDF"
-                          >
-                            <DocumentArrowDownIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(staffGuest._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Delete"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
-                          {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
-                            <button
-                              onClick={() => handleCheckInOut(staffGuest._id, 'checkout')}
-                              className="text-orange-600 hover:text-orange-900"
-                              title="Check Out"
-                            >
-                              <EyeSlashIcon className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleCheckInOut(staffGuest._id, 'checkin')}
-                              className="text-green-600 hover:text-green-900"
-                              title="Check In"
-                            >
-                              <EyeIcon className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
-                        <UserIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                        <p className="text-lg font-medium">No staff/guests found</p>
-                        <p className="text-sm">Add your first staff member or guest to get started</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing page <span className="font-medium">{currentPage}</span> of{' '}
-                    <span className="font-medium">{totalPages}</span>
-                  </p>
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow p-4 mb-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, profession, phone..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Types</option>
+                  <option value="staff">Staff</option>
+                  <option value="guest">Guest</option>
+                </select>
+                <select
+                  value={filterGender}
+                  onChange={(e) => setFilterGender(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Genders</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Staff/Guests List */}
+            <div className="bg-white rounded-lg shadow">
+              {loading ? (
+                <div className="flex justify-center items-center h-64">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profession</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Charges</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {console.log('Rendering table with staffGuests:', staffGuests)}
+                      {staffGuests && staffGuests.length > 0 ? staffGuests.map((staffGuest) => (
+                        <tr key={staffGuest._id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {staffGuest.photo ? (
+                              <img
+                                src={staffGuest.photo}
+                                alt={staffGuest.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                                <UserIcon className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{staffGuest.name}</div>
+                            {staffGuest.email && (
+                              <div className="text-sm text-gray-500">{staffGuest.email}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${staffGuest.type === 'staff'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                              }`}>
+                              {staffGuest.type.charAt(0).toUpperCase() + staffGuest.type.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {staffGuest.gender}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {staffGuest.profession}
+                            {staffGuest.department && (
+                              <div className="text-xs text-gray-500">{staffGuest.department}</div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {staffGuest.phoneNumber}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="font-medium text-green-600">₹{staffGuest.calculatedCharges || 0}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                Checked In
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <ClockIcon className="w-3 h-3 mr-1" />
+                                Checked Out
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEdit(staffGuest)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Edit"
+                              >
+                                <PencilIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => generateStaffAdmitCardPDF(staffGuest)}
+                                className="text-purple-600 hover:text-purple-900"
+                                title="Generate Admit Card PDF"
+                              >
+                                <DocumentArrowDownIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(staffGuest._id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Delete"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </button>
+                              {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
+                                <button
+                                  onClick={() => handleCheckInOut(staffGuest._id, 'checkout')}
+                                  className="text-orange-600 hover:text-orange-900"
+                                  title="Check Out"
+                                >
+                                  <EyeSlashIcon className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleCheckInOut(staffGuest._id, 'checkin')}
+                                  className="text-green-600 hover:text-green-900"
+                                  title="Check In"
+                                >
+                                  <EyeIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                            <UserIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                            <p className="text-lg font-medium">No staff/guests found</p>
+                            <p className="text-sm">Add your first staff member or guest to get started</p>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       Previous
                     </button>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                       disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                     >
                       Next
                     </button>
-                  </nav>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Showing page <span className="font-medium">{currentPage}</span> of{' '}
+                        <span className="font-medium">{totalPages}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Next
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
-        </div>
           </>
         )}
 
@@ -1349,11 +1285,10 @@ const StaffGuestsManagement = () => {
                             <div className="text-sm text-gray-500">{staffGuest.profession}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              staffGuest.type === 'staff' 
-                                ? 'bg-blue-100 text-blue-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${staffGuest.type === 'staff'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                              }`}>
                               {staffGuest.type.charAt(0).toUpperCase() + staffGuest.type.slice(1)}
                             </span>
                           </td>
@@ -1429,7 +1364,7 @@ const StaffGuestsManagement = () => {
                           <span className="text-xs text-gray-500">QR CODE</span>
                         </div>
                         <p className="text-xs text-gray-600">www.hms.pydahsoft.in</p>
-                        
+
                         {/* Emergency Contacts */}
                         <div className="mt-4 text-left">
                           <h4 className="text-sm font-bold text-gray-800 mb-2">EMERGENCY CONTACTS:</h4>
@@ -1502,9 +1437,9 @@ const StaffGuestsManagement = () => {
                           <h4 className="text-sm font-bold text-gray-800 mb-2">PHOTO</h4>
                           <div className="w-24 h-28 border-2 border-gray-300 mx-auto bg-gray-100 flex items-center justify-center">
                             {admitCardData.photo ? (
-                              <img 
-                                src={admitCardData.photo} 
-                                alt="Photo" 
+                              <img
+                                src={admitCardData.photo}
+                                alt="Photo"
                                 className="w-20 h-24 object-cover"
                               />
                             ) : (
@@ -1537,7 +1472,7 @@ const StaffGuestsManagement = () => {
                     </div>
 
                     <div className="mt-4 text-center text-xs text-gray-500">
-                      Generated on: {new Date(admitCardData.generatedAt).toLocaleString()}<br/>
+                      Generated on: {new Date(admitCardData.generatedAt).toLocaleString()}<br />
                       Generated by: {admitCardData.generatedBy}
                     </div>
                   </div>
@@ -1788,7 +1723,7 @@ const StaffGuestsManagement = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Photo
                         </label>
-                        
+
                         {/* Current Photo Preview */}
                         {formData.existingPhoto && (
                           <div className="mb-3">
@@ -1800,7 +1735,7 @@ const StaffGuestsManagement = () => {
                             />
                           </div>
                         )}
-                        
+
                         {/* New Photo Preview */}
                         {formData.photo && (
                           <div className="mb-3">
@@ -1812,7 +1747,7 @@ const StaffGuestsManagement = () => {
                             />
                           </div>
                         )}
-                        
+
                         <input
                           type="file"
                           name="photo"

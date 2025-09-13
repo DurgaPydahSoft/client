@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  DevicePhoneMobileIcon, 
+import {
+  DevicePhoneMobileIcon,
   XMarkIcon,
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
@@ -62,7 +62,7 @@ const PWAInstallPrompt = () => {
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 left-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4"
+          className="fixed top-4 left-4 right-4 md:w-1/3 mx-auto z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">

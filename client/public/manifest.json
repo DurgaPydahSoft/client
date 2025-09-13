@@ -9,8 +9,18 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
-  "categories": ["education", "productivity", "utilities"],
-  "keywords": ["pydah hostel", "hostel management", "student portal", "digital hostel", "pydah soft"],
+  "categories": [
+    "education",
+    "productivity",
+    "utilities"
+  ],
+  "keywords": [
+    "pydah hostel",
+    "hostel management",
+    "student portal",
+    "digital hostel",
+    "pydah soft"
+  ],
   "author": "Pydah Soft",
   "icons": [
     {
@@ -84,21 +94,36 @@
       "short_name": "Dashboard",
       "description": "Access student dashboard",
       "url": "/student/dashboard",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Leave Management",
       "short_name": "Leave",
       "description": "Apply for leave or permission",
       "url": "/student/leave",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     },
     {
       "name": "Complaints",
       "short_name": "Complaints",
       "description": "Raise hostel complaints",
       "url": "/student/complaints",
-      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ],
   "related_applications": [
@@ -111,4 +136,4 @@
   "edge_side_panel": {
     "preferred_width": 400
   }
-} 
+}
