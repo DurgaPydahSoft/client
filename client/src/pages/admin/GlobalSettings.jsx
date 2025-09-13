@@ -137,12 +137,12 @@ const GlobalSettings = () => {
         {/* Tabs */}
         <div className="mb-6">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8 overflow-x-auto">
+            <nav className="flex flex-col md:flex-row md:space-x-8 md:overflow-x-auto">
               <button
                 onClick={() => setActiveTab('institution')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'institution'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap self-start md:self-auto ${activeTab === 'institution'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -152,9 +152,9 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('urls')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'urls'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap self-start md:self-auto ${activeTab === 'urls'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -164,9 +164,9 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('seo')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'seo'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap self-start md:self-auto ${activeTab === 'seo'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -176,9 +176,9 @@ const GlobalSettings = () => {
               </button>
               <button
                 onClick={() => setActiveTab('system')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === 'system'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap self-start md:self-auto ${activeTab === 'system'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -189,6 +189,7 @@ const GlobalSettings = () => {
             </nav>
           </div>
         </div>
+
 
         {/* Content */}
         <div className="bg-white rounded-lg shadow">

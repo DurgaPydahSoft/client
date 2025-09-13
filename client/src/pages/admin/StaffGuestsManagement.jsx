@@ -726,58 +726,68 @@ const StaffGuestsManagement = () => {
         {/* Tabs */}
         <div className="mb-6">
           <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
+            <nav className="flex flex-wrap -mb-px space-x-0 sm:space-x-8">
+
+              {/* Management Button */}
               <button
                 onClick={() => setActiveTab('management')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'management'
+                className={`w-1/2 sm:w-auto py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'management'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                <div className="flex items-center gap-2">
-                  <UserIcon className="w-5 h-5" />
-                  Management
+                <div className="flex items-center gap-1 sm:gap-2 justify-center">
+                  <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs sm:text-sm">Management</span>
                 </div>
               </button>
+
+              {/* Attendance Button */}
               <button
                 onClick={() => setActiveTab('attendance')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'attendance'
+                className={`w-1/2 sm:w-auto py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'attendance'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                <div className="flex items-center gap-2">
-                  <ChartBarIcon className="w-5 h-5" />
-                  Attendance
+                <div className="flex items-center gap-1 sm:gap-2 justify-center">
+                  <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs sm:text-sm">Attendance</span>
                 </div>
               </button>
+
+              {/* Admit Card Button */}
               <button
                 onClick={() => setActiveTab('admit-card')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'admit-card'
+                className={`w-1/2 sm:w-auto py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'admit-card'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                <div className="flex items-center gap-2">
-                  <DocumentTextIcon className="w-5 h-5" />
-                  Admit Card
+                <div className="flex items-center gap-1 sm:gap-2 justify-center">
+                  <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs sm:text-sm">Admit Card</span>
                 </div>
               </button>
+
+              {/* Settings Button */}
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'settings'
+                className={`w-1/2 sm:w-auto py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'settings'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                <div className="flex items-center gap-2">
-                  <CogIcon className="w-5 h-5" />
-                  Settings
+                <div className="flex items-center gap-1 sm:gap-2 justify-center">
+                  <CogIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-xs sm:text-sm">Settings</span>
                 </div>
               </button>
+
             </nav>
           </div>
         </div>
+
 
         {/* Management Tab Content */}
         {activeTab === 'management' && (
@@ -1485,18 +1495,18 @@ const StaffGuestsManagement = () => {
         {/* Settings Tab Content */}
         {activeTab === 'settings' && (
           <>
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-6 w-full max-w-4xl mx-auto">
               <div className="mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Daily Rate Settings</h2>
                 <p className="text-gray-600 mt-1">Configure daily charges for staff members</p>
               </div>
 
-              <div className="max-w-md">
+              <div className="max-w-md mx-auto sm:max-w-full">
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Staff Daily Rate (₹)
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
                     <CurrencyDollarIcon className="w-5 h-5 text-gray-400" />
                     <input
                       type="number"
@@ -1505,13 +1515,13 @@ const StaffGuestsManagement = () => {
                         ...prev,
                         staffDailyRate: parseFloat(e.target.value) || 0
                       }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter daily rate"
                     />
                     <button
                       onClick={() => updateDailyRateSettings(dailyRateSettings.staffDailyRate)}
                       disabled={settingsLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto"
                     >
                       {settingsLoading ? 'Updating...' : 'Update'}
                     </button>
@@ -1543,6 +1553,7 @@ const StaffGuestsManagement = () => {
               </div>
             </div>
           </>
+
         )}
 
         {/* Add/Edit Form Modal */}
