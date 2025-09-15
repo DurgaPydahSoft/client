@@ -39,7 +39,7 @@ const Leave = () => {
   const [isResendingOtp, setIsResendingOtp] = useState(false);
   const [resendingLeaveId, setResendingLeaveId] = useState(null);
   const isSubmittingRef = useRef(false);
-  
+
   // Form data for Leave applications
   const [leaveFormData, setLeaveFormData] = useState({
     startDate: '',
@@ -47,7 +47,7 @@ const Leave = () => {
     gatePassDateTime: '',
     reason: ''
   });
-  
+
   // Form data for Permission applications
   const [permissionFormData, setPermissionFormData] = useState({
     permissionDate: '',
@@ -61,7 +61,7 @@ const Leave = () => {
     stayDate: '',
     reason: ''
   });
-  
+
   const { user } = useAuth ? useAuth() : { user: null };
 
   useEffect(() => {
@@ -85,7 +85,7 @@ const Leave = () => {
   // Timer effect for resend OTP functionality
   useEffect(() => {
     const timers = {};
-    
+
     leaves.forEach(leave => {
       if (leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel') {
         const timer = setInterval(() => {
@@ -125,7 +125,7 @@ const Leave = () => {
       console.log('Fetching leave requests...');
       const response = await api.get('/api/leave/my-requests');
       console.log('Leave response:', response.data);
-      
+
       if (response.data.success) {
         setLeaves(response.data.data);
         // Initialize resend OTP states
@@ -146,7 +146,7 @@ const Leave = () => {
         status: error.response?.status,
         headers: error.response?.headers
       });
-      
+
       if (error.response?.status === 401) {
         toast.error('Please login again to continue');
         // Redirect to login if needed
@@ -160,13 +160,13 @@ const Leave = () => {
 
   const handleResendOTP = async (leaveId) => {
     if (isResendingOtp) return;
-    
+
     setIsResendingOtp(true);
     setResendingLeaveId(leaveId);
-    
+
     try {
       const response = await api.post('/api/leave/resend-otp', { leaveId });
-      
+
       if (response.data.success) {
         toast.success('OTP resend request processed. Same OTP (4 digits) has been sent to your parent\'s phone in both Telugu and English.');
         // Refresh the leaves to get updated data
@@ -185,20 +185,20 @@ const Leave = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Prevent multiple submissions using both state and ref
     if (isSubmitting || isSubmittingRef.current) {
       console.log('Submission already in progress, ignoring click');
       return;
     }
-    
+
     // Immediately disable the form to prevent multiple clicks
     setIsSubmitting(true);
     isSubmittingRef.current = true;
-    
+
     // Add a small delay to ensure state updates before processing
     await new Promise(resolve => setTimeout(resolve, 100));
-    
+
     try {
       let formData;
       if (applicationType === 'Leave') {
@@ -206,10 +206,10 @@ const Leave = () => {
         const gatePassTime = new Date(leaveFormData.gatePassDateTime);
         const startDate = new Date(leaveFormData.startDate);
         const today = new Date();
-        
+
         // Check if start date is today
         const isStartDateToday = startDate.toDateString() === today.toDateString();
-        
+
         if (!isStartDateToday) {
           // For future dates, gate pass must be after 4:30 PM
           const hours = gatePassTime.getHours();
@@ -222,7 +222,7 @@ const Leave = () => {
           }
         }
         // For same day leave, any time is allowed
-        
+
         formData = {
           applicationType: 'Leave',
           ...leaveFormData
@@ -242,7 +242,7 @@ const Leave = () => {
       console.log('Submitting request:', formData);
       const response = await api.post('/api/leave/create', formData);
       console.log('Submit response:', response.data);
-      
+
       if (response.data.success) {
         if (applicationType !== 'Stay in Hostel') {
           toast.success('Request submitted successfully. OTP (4 digits) has been sent to your parent\'s phone in both Telugu and English.');
@@ -263,7 +263,7 @@ const Leave = () => {
         status: error.response?.status,
         headers: error.response?.headers
       });
-      
+
       if (error.response?.status === 401) {
         toast.error('Please login again to continue');
         // Redirect to login if needed
@@ -314,7 +314,7 @@ const Leave = () => {
 
     try {
       const response = await api.delete(`/api/leave/${leaveId}`);
-      
+
       if (response.data.success) {
         toast.success('Request deleted successfully');
         // Remove the deleted request from the list
@@ -391,7 +391,7 @@ const Leave = () => {
     }
     const now = new Date();
     const qrAvailableFrom = new Date(leave.qrAvailableFrom);
-    
+
     if (leave.applicationType === 'Leave') {
       const endDate = new Date(leave.endDate);
       return now >= qrAvailableFrom && now <= endDate;
@@ -401,7 +401,7 @@ const Leave = () => {
       const endOfDay = new Date(permissionDate.setHours(23, 59, 59, 999));
       return now >= startOfDay && now <= endOfDay;
     }
-    
+
     return false;
   };
 
@@ -410,14 +410,14 @@ const Leave = () => {
     if (leave.status !== 'Approved' || leave.applicationType === 'Stay in Hostel') {
       return false;
     }
-    
+
     if (!leave.incomingQrGenerated) {
       return false;
     }
-    
+
     const now = new Date();
     const incomingQrExpiresAt = new Date(leave.incomingQrExpiresAt);
-    
+
     return now <= incomingQrExpiresAt;
   };
 
@@ -465,86 +465,199 @@ const Leave = () => {
   // PDF Download function for individual request
   const downloadIndividualRequestPDF = async (leave) => {
     if (isDownloading) return;
-    
+
     setIsDownloading(true);
-    
+
     try {
       const doc = new jsPDF();
       const displayInfo = formatDisplayDate(leave);
-      
-      // Add header
-      doc.setFontSize(20);
-      doc.setTextColor(30, 64, 175); // Blue color
-      doc.text(`${leave.applicationType} Request`, 105, 20, { align: 'center' });
-      
-      // Add student info
-      doc.setFontSize(12);
-      doc.setTextColor(55, 65, 81); // Gray color
-      doc.text(`Student Name: ${user?.name || 'N/A'}`, 20, 35);
-      doc.text(`Roll Number: ${user?.rollNumber || 'N/A'}`, 20, 42);
-      doc.text(`Course: ${user?.course?.name || user?.course || 'N/A'}`, 20, 49);
-      doc.text(`Branch: ${user?.branch?.name || user?.branch || 'N/A'}`, 20, 56);
-      doc.text(`Room: ${user?.roomNumber || 'N/A'}`, 20, 63);
-      
-      // Add request details
+
+      const margin = 10;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const contentWidth = pageWidth - 2 * margin;
+      const startY = 20;
+      let yPos = startY;
+
+      // Draw border around the whole content (optional if already present)
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, margin, contentWidth, 250);
+
+      // Header section
+      try {
+        doc.addImage('/PYDAH_LOGO_PHOTO.jpg', 'JPEG', margin + 2, yPos, 20, 12);
+      } catch (error) {
+        console.error('Error adding logo image:', error);
+        doc.setFillColor(240, 240, 240);
+        doc.rect(margin + 2, yPos, 20, 12);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('PYDAH', margin + 12, yPos + 6, { align: 'center' });
+        doc.text('GROUP', margin + 12, yPos + 9, { align: 'center' });
+      }
+
       doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(30, 64, 175);
-      doc.text('Request Details:', 20, 80);
-      
-      doc.setFontSize(11);
+      doc.text('Pydah Group Of Institutions', pageWidth / 2, yPos + 10, { align: 'center' });
+
+      doc.setFontSize(10);
       doc.setTextColor(55, 65, 81);
-      
-      // Application type and status
-      doc.text(`Application Type: ${leave.applicationType}`, 20, 90);
-      
-      // Status with color highlighting
+      doc.text(`${leave.applicationType.toUpperCase()} REQUEST`, pageWidth - margin - 2, yPos + 8, { align: 'right' });
+
+      yPos += 18;
+
+      // Draw the thin horizontal line under the header with padding
+      const lineY = yPos + 4;
+      doc.setDrawColor(100, 100, 100);
+      doc.setLineWidth(0.3);
+      doc.line(margin + 5, lineY, pageWidth - margin - 5, lineY);
+
+      yPos = lineY + 6; // padding between line and content
+
+      // STUDENT DETAILS title
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('STUDENT DETAILS', pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 6;
+
+      // Student details content
+      const details = [
+        ['Name:', user?.name || 'N/A'],
+        ['Roll Number:', user?.rollNumber || 'N/A'],
+        ['Course:', user?.course?.name || user?.course || 'N/A'],
+        ['Branch:', user?.branch?.name || user?.branch || 'N/A'],
+        ['Room:', user?.roomNumber || 'N/A'],
+        ['Applied On:', new Date(leave.createdAt).toLocaleDateString()]
+      ];
+
+      const labelX = pageWidth / 2 - 40;
+      const valueX = pageWidth / 2 + 10;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+
+      details.forEach(([label, value]) => {
+        doc.setFont('helvetica', 'bold');
+        doc.text(label, labelX, yPos);
+        doc.setFont('helvetica', 'normal');
+        doc.text(value, valueX, yPos);
+        yPos += 6;
+      });
+
+      yPos += 4;
+
+      // REQUEST DETAILS title
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('REQUEST DETAILS', pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+
+      // Application Type
+      doc.text('Application Type:', labelX, yPos);
+      doc.text(leave.applicationType || 'N/A', valueX, yPos);
+      yPos += 6;
+
+      // Status with color
+      doc.text('Status:', labelX, yPos);
       if (leave.status === 'Approved') {
-        doc.setTextColor(34, 197, 94); // Green color for approved
-        doc.text(`Status: ${leave.status}`, 20, 97);
+        doc.setTextColor(34, 197, 94);
       } else if (leave.status === 'Rejected') {
-        doc.setTextColor(239, 68, 68); // Red color for rejected
-        doc.text(`Status: ${leave.status}`, 20, 97);
+        doc.setTextColor(239, 68, 68);
       } else {
-        doc.setTextColor(245, 158, 11); // Yellow color for pending
-        doc.text(`Status: ${leave.status}`, 20, 97);
+        doc.setTextColor(245, 158, 11);
       }
-      
-      // Reset text color for other fields
+      doc.text(leave.status || 'N/A', valueX, yPos);
+      yPos += 6;
       doc.setTextColor(55, 65, 81);
-      doc.text(`Applied On: ${new Date(leave.createdAt).toLocaleDateString()}`, 20, 104);
-      
-      // Date/Time information based on type
+
+      // Conditional fields based on applicationType
       if (leave.applicationType === 'Leave') {
-        doc.text(`Start Date: ${displayInfo.start}`, 20, 111);
-        doc.text(`End Date: ${displayInfo.end}`, 20, 118);
-        doc.text(`Duration: ${displayInfo.duration}`, 20, 125);
-        doc.text(`Gate Pass: ${new Date(leave.gatePassDateTime).toLocaleString()}`, 20, 132);
+        doc.text('Start Date:', labelX, yPos);
+        doc.text(displayInfo.start || 'N/A', valueX, yPos);
+        yPos += 6;
+
+        doc.text('End Date:', labelX, yPos);
+        doc.text(displayInfo.end || 'N/A', valueX, yPos);
+        yPos += 6;
+
+        doc.text('Duration:', labelX, yPos);
+        doc.text(displayInfo.duration || 'N/A', valueX, yPos);
+        yPos += 6;
+
+        doc.text('Gate Pass:', labelX, yPos);
+        doc.text(new Date(leave.gatePassDateTime).toLocaleString() || 'N/A', valueX, yPos);
+        yPos += 6;
       } else if (leave.applicationType === 'Permission') {
-        doc.text(`Permission Date: ${displayInfo.date}`, 20, 111);
-        doc.text(`Out Time: ${leave.outTime}`, 20, 118);
-        doc.text(`In Time: ${leave.inTime}`, 20, 125);
+        doc.text('Permission Date:', labelX, yPos);
+        doc.text(displayInfo.date || 'N/A', valueX, yPos);
+        yPos += 6;
+
+        doc.text('Out Time:', labelX, yPos);
+        doc.text(leave.outTime || 'N/A', valueX, yPos);
+        yPos += 6;
+
+        doc.text('In Time:', labelX, yPos);
+        doc.text(leave.inTime || 'N/A', valueX, yPos);
+        yPos += 6;
       } else if (leave.applicationType === 'Stay in Hostel') {
-        doc.text(`Stay Date: ${displayInfo.date}`, 20, 111);
+        doc.text('Stay Date:', labelX, yPos);
+        doc.text(displayInfo.date || 'N/A', valueX, yPos);
+        yPos += 6;
       }
-      
-      // Reason
-      doc.text(`Reason: ${leave.reason}`, 20, 140);
-      
-      // Rejection reason if applicable
+
+      yPos += 4;
+
+      // REASON title
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('REASON', pageWidth / 2, yPos, { align: 'center' });
+
+      yPos += 6;
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(55, 65, 81);
+      doc.text(leave.reason || 'N/A', pageWidth / 2, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+
+      yPos += 20;
+
+      // Rejection Reason if applicable
       if (leave.rejectionReason) {
-        doc.setTextColor(239, 68, 68); // Red color
-        doc.text(`Rejection Reason: ${leave.rejectionReason}`, 20, 147);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(239, 68, 68);
+        doc.text('REJECTION REASON', pageWidth / 2, yPos, { align: 'center' });
+
+        yPos += 6;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(55, 65, 81);
+        doc.text(leave.rejectionReason || 'N/A', pageWidth / 2, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+
+        yPos += 10;
       }
-      
-      // Generation info
+
+      // Footer
       doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
       doc.setTextColor(107, 114, 128);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 20, 160);
-      
-      // Save the PDF
+      const date = new Date();
+      doc.text(`Generated on: ${date.toLocaleDateString()} at ${date.toLocaleTimeString()}`, margin + 2, 250);
+
+      // Save PDF
       const fileName = `${leave.applicationType.toLowerCase().replace(' ', '_')}_request_${user?.rollNumber || 'student'}_${new Date(leave.createdAt).toISOString().slice(0, 10)}.pdf`;
       doc.save(fileName);
-      
+
       toast.success(`${leave.applicationType} request PDF downloaded successfully!`);
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -553,6 +666,12 @@ const Leave = () => {
       setIsDownloading(false);
     }
   };
+
+
+
+
+
+
 
   const today = new Date();
   const todayStr = today.toISOString().slice(0, 10);
@@ -563,7 +682,7 @@ const Leave = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-8 mt-16 sm:mt-0">
-        <SEO 
+        <SEO
           title="Leave & Permission Requests"
           description="Submit and track your hostel leave and permission requests"
           keywords="leave request, permission request, hostel leave, student permissions"
@@ -601,11 +720,40 @@ const Leave = () => {
                     key={leave._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors"
+                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors relative flex flex-col"
                   >
-                    <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-center sm:justify-between">
+                    {/* Mobile only: Download and Delete buttons at top-right */}
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 sm:hidden">
+                      <button
+                        onClick={() => downloadIndividualRequestPDF(leave)}
+                        disabled={isDownloading}
+                        className={`p-1 rounded-full ${isDownloading ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600 hover:text-purple-700'}`}
+                      >
+                        {isDownloading ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                        ) : (
+                          <DocumentArrowDownIcon className="w-5 h-5" />
+                        )}
+                      </button>
+
+                      {canDeleteRequest(leave.status) && (
+                        <button
+                          onClick={() => handleDeleteRequest(leave._id)}
+                          disabled={isDeleting && deletingId === leave._id}
+                          className={`p-1 rounded-full ${isDeleting && deletingId === leave._id ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                        >
+                          {isDeleting && deletingId === leave._id ? (
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
+                          ) : (
+                            <TrashIcon className="w-5 h-5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex-1 space-y-3">
-                        {/* Status and Type Tags - Mobile optimized */}
+                        {/* Status and Type Tags */}
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
                             {getStatusIcon(leave.status)}
@@ -621,7 +769,7 @@ const Leave = () => {
                           </span>
                         </div>
 
-                        {/* Date/Time Info - Mobile optimized */}
+                        {/* Date/Time Info */}
                         <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-2">
                           {leave.applicationType === 'Leave' ? (
                             <>
@@ -663,17 +811,17 @@ const Leave = () => {
                           )}
                         </div>
 
-                        {/* Reason - Mobile optimized */}
+                        {/* Reason */}
                         <p className="text-gray-700 mb-2 text-sm sm:text-base break-words leading-relaxed">{leave.reason}</p>
 
-                        {/* Rejection Reason - Mobile optimized */}
+                        {/* Rejection Reason */}
                         {leave.rejectionReason && (
                           <p className="text-xs sm:text-sm text-red-600 leading-relaxed">
                             Rejection Reason: {leave.rejectionReason}
                           </p>
                         )}
 
-                        {/* Status Messages - Mobile optimized */}
+                        {/* Status Messages */}
                         {leave.applicationType !== 'Stay in Hostel' && leave.status === 'Warden Verified' && (
                           <div className="mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
                             <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">
@@ -701,17 +849,15 @@ const Leave = () => {
                         )}
                       </div>
 
-                      {/* Action Buttons - Mobile optimized */}
-                      <div className="flex flex-col gap-2 sm:gap-2 w-full sm:w-auto">
-                        {/* Download PDF Button */}
+                      {/* Action Buttons for larger screens */}
+                      <div className="hidden sm:flex flex-col gap-2 w-full sm:w-auto">
                         <button
                           onClick={() => downloadIndividualRequestPDF(leave)}
                           disabled={isDownloading}
-                          className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
-                            isDownloading
-                              ? 'bg-gray-400 text-white cursor-not-allowed'
-                              : 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800'
-                          }`}
+                          className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 ${isDownloading
+                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                            : 'bg-purple-600 text-white hover:bg-purple-700 active:bg-purple-800'
+                            }`}
                         >
                           {isDownloading ? (
                             <>
@@ -726,16 +872,14 @@ const Leave = () => {
                           )}
                         </button>
 
-                        {/* Delete Button - Only show for deletable requests */}
                         {canDeleteRequest(leave.status) && (
                           <button
                             onClick={() => handleDeleteRequest(leave._id)}
                             disabled={isDeleting && deletingId === leave._id}
-                            className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
-                              isDeleting && deletingId === leave._id
-                                ? 'bg-gray-400 text-white cursor-not-allowed'
-                                : 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                            }`}
+                            className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 ${isDeleting && deletingId === leave._id
+                              ? 'bg-gray-400 text-white cursor-not-allowed'
+                              : 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                              }`}
                           >
                             {isDeleting && deletingId === leave._id ? (
                               <>
@@ -751,82 +895,71 @@ const Leave = () => {
                           </button>
                         )}
 
-                        {/* Resend OTP Button - Only show for pending OTP verification requests */}
+                        {/* Desktop Resend OTP button */}
                         {leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel' && (
-                          <div className="w-full sm:w-auto">
+                          <>
                             {resendOtpStates[leave._id]?.canResend ? (
                               <button
                                 onClick={() => handleResendOTP(leave._id)}
                                 disabled={isResendingOtp && resendingLeaveId === leave._id}
-                                className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${
-                                  isResendingOtp && resendingLeaveId === leave._id
-                                    ? 'bg-gray-400 text-white cursor-not-allowed'
-                                    : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
-                                }`}
+                                className={`w-full px-3 py-2.5 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 ${isResendingOtp && resendingLeaveId === leave._id
+                                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                                  : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                                  }`}
                               >
                                 {isResendingOtp && resendingLeaveId === leave._id ? (
                                   <>
                                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
-                                    <span className="text-xs sm:text-sm">Resending...</span>
+                                    <span>Resending...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <ArrowPathIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    <span className="text-xs sm:text-sm">Resend OTP</span>
+                                    <ArrowPathIcon className="w-4 h-4" />
+                                    <span>Resend OTP</span>
                                   </>
                                 )}
                               </button>
                             ) : (
-                              <div className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded bg-gray-100 text-gray-500 text-xs sm:text-sm font-semibold flex items-center justify-center gap-2">
-                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                                <span className="text-xs sm:text-sm">
-                                  Resend in {resendOtpStates[leave._id]?.minutesUntilResend || 0}m
-                                </span>
+                              <div className="w-full px-3 py-2.5 rounded bg-gray-100 text-gray-500 text-sm font-semibold flex items-center justify-center gap-2">
+                                <ClockIcon className="w-4 h-4" />
+                                <span>Resend in {resendOtpStates[leave._id]?.minutesUntilResend || 0}m</span>
                               </div>
                             )}
-                          </div>
+                          </>
                         )}
 
-                        {/* QR Code Button for Approved Leave/Permission */}
+                        {/* QR Code Buttons */}
                         {leave.status === 'Approved' && (
                           <>
-                            {isQrAvailable(leave) ? (
+                            {isQrAvailable(leave) && (
                               <button
-                                className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold touch-manipulation ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
+                                className={`w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold ${leave.visitLocked ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'}`}
                                 disabled={leave.visitLocked}
                                 onClick={async () => {
                                   if (leave.visitLocked) return;
                                   try {
                                     const res = await api.post(`/api/leave/qr-view/${leave._id}`);
-                                    if (res.data.success) {
-                                      setQrModal({ open: true, leave });
-                                    }
+                                    if (res.data.success) setQrModal({ open: true, leave });
                                   } catch (err) {
-                                    if (err.response && err.response.data && err.response.data.visitLocked) {
+                                    if (err.response?.data?.visitLocked) {
                                       toast.error('Visit limit reached');
-                                      // Optionally update UI
                                       leave.visitLocked = true;
                                       setLeaves([...leaves]);
-                                    } else {
-                                      toast.error('Unable to open QR code');
-                                    }
+                                    } else toast.error('Unable to open QR code');
                                   }
                                 }}
                               >
                                 <span className="text-xs sm:text-sm">{leave.visitLocked ? 'Visit Locked' : 'View Outgoing QR'}</span>
                               </button>
-                            ) : null}
-                            
-                            {/* Incoming QR Code Button */}
-                            {isIncomingQrAvailable(leave) ? (
+                            )}
+
+                            {isIncomingQrAvailable(leave) && (
                               <button
-                                className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold touch-manipulation bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
+                                className="w-full sm:w-auto px-3 py-2.5 sm:py-2 rounded transition-colors text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800"
                                 onClick={async () => {
                                   try {
                                     const res = await api.post(`/api/leave/incoming-qr-view/${leave._id}`);
-                                    if (res.data.success) {
-                                      setIncomingQrModal({ open: true, leave });
-                                    }
+                                    if (res.data.success) setIncomingQrModal({ open: true, leave });
                                   } catch (err) {
                                     toast.error(err.response?.data?.message || 'Unable to open incoming QR code');
                                   }
@@ -834,40 +967,53 @@ const Leave = () => {
                               >
                                 <span className="text-xs sm:text-sm">View Incoming QR</span>
                               </button>
-                            ) : null}
-                            
-                            {/* Visit Count Display - Mobile optimized */}
-                            <div className="text-center">
-                              <div className="text-xs text-gray-500">
-                                Outgoing: {leave.outgoingVisitCount || 0}/{leave.maxVisits || 2}
-                              </div>
-                              {leave.incomingQrGenerated && (
-                                <div className="text-xs text-gray-500">
-                                  Incoming: {leave.incomingVisitCount || 0}/1
-                                </div>
-                              )}
-                              {new Date() < new Date(leave.qrAvailableFrom) ? (
-                                <div className="text-xs text-gray-500">
-                                  QR available in {getTimeUntilQrAvailable(leave)} min
-                                </div>
-                              ) : leave.incomingQrGenerated && new Date() < new Date(leave.incomingQrExpiresAt) ? (
-                                <div className="text-xs text-blue-500">
-                                  Incoming QR expires in {getTimeUntilIncomingQrExpires(leave)} min
-                                </div>
-                              ) : (
-                                <div className="text-xs text-red-500">
-                                  .
-                                </div>
-                              )}
-                            </div>
+                            )}
                           </>
                         )}
                       </div>
                     </div>
+
+                    {/* Mobile View: Resend OTP Button at bottom */}
+                    {leave.status === 'Pending OTP Verification' && leave.applicationType !== 'Stay in Hostel' && (
+                      <div className="mt-3 sm:hidden w-full">
+                        {resendOtpStates[leave._id]?.canResend ? (
+                          <button
+                            onClick={() => handleResendOTP(leave._id)}
+                            disabled={isResendingOtp && resendingLeaveId === leave._id}
+                            className={`w-full px-3 py-2.5 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 ${isResendingOtp && resendingLeaveId === leave._id
+                              ? 'bg-gray-400 text-white cursor-not-allowed'
+                              : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                              }`}
+                          >
+                            {isResendingOtp && resendingLeaveId === leave._id ? (
+                              <>
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                <span>Resending...</span>
+                              </>
+                            ) : (
+                              <>
+                                <ArrowPathIcon className="w-4 h-4" />
+                                <span>Resend OTP</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <div className="w-full px-3 py-2.5 rounded bg-gray-100 text-gray-500 text-sm font-semibold flex items-center justify-center gap-2">
+                            <ClockIcon className="w-4 h-4" />
+                            <span>Resend in {resendOtpStates[leave._id]?.minutesUntilResend || 0}m</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}
             </div>
+
+
+
+
+
           )}
         </div>
       </div>
@@ -950,9 +1096,9 @@ const Leave = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            
+
             <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4 pr-6 sm:pr-10">New Request</h2>
-            
+
             {/* Application Type Selector - Dropdown for better mobile UX */}
             <div className="mb-4 sm:mb-6">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">
@@ -964,18 +1110,16 @@ const Leave = () => {
                   onClick={() => setShowApplicationTypeDropdown(!showApplicationTypeDropdown)}
                   className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg bg-white text-left text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
                 >
-                  <span className={`font-medium ${
-                    applicationType === 'Leave' ? 'text-blue-600' :
+                  <span className={`font-medium ${applicationType === 'Leave' ? 'text-blue-600' :
                     applicationType === 'Permission' ? 'text-purple-600' :
-                    applicationType === 'Stay in Hostel' ? 'text-green-600' : 'text-gray-700'
-                  }`}>
+                      applicationType === 'Stay in Hostel' ? 'text-green-600' : 'text-gray-700'
+                    }`}>
                     {applicationType}
                   </span>
-                  <ChevronDownIcon className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${
-                    showApplicationTypeDropdown ? 'rotate-180' : ''
-                  }`} />
+                  <ChevronDownIcon className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showApplicationTypeDropdown ? 'rotate-180' : ''
+                    }`} />
                 </button>
-                
+
                 {showApplicationTypeDropdown && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
                     <button
@@ -1049,8 +1193,8 @@ const Leave = () => {
                         Gate Pass Date and Time
                       </label>
                       <p className="text-xs text-gray-500 mb-1 sm:mb-2">
-                        {leaveFormData.startDate === todayStr 
-                          ? 'Select current or future time for today.' 
+                        {leaveFormData.startDate === todayStr
+                          ? 'Select current or future time for today.'
                           : 'Time must be after 4:30 PM for future dates.'
                         }
                       </p>
@@ -1178,21 +1322,20 @@ const Leave = () => {
                   </div>
                 </>
               )}
-              
+
               {/* Action Buttons - Mobile optimized */}
               <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-6">
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-white rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium ${
-                    isSubmitting
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : applicationType === 'Leave' 
-                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm' 
+                  className={`w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-white rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium ${isSubmitting
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : applicationType === 'Leave'
+                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm'
                       : applicationType === 'Permission'
-                      ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 shadow-sm'
-                      : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm'
-                  }`}
+                        ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 shadow-sm'
+                        : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm'
+                    }`}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">

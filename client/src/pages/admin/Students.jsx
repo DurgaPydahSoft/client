@@ -3635,8 +3635,10 @@ const Students = () => {
   // Edit Modal
   const renderEditModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-xl p-3 sm:p-6 w-full max-w-4xl mx-auto max-h-[95vh] overflow-y-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-2">
+      <div className="bg-white rounded-xl p-4 sm:p-6 w-full max-w-5xl mx-auto max-h-[95vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3 sm:gap-2">
           <div>
             <h3 className="text-lg sm:text-xl font-bold text-gray-800">Edit Student</h3>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Update student information</p>
@@ -3652,298 +3654,308 @@ const Students = () => {
               <span className="hidden sm:inline">Reset Password</span>
               <span className="sm:hidden">Reset</span>
             </button>
-            <button
-              onClick={() => {
-                setEditModal(false);
-              }}
-              className="text-gray-500 hover:text-gray-700 p-2"
-            >
+            <button onClick={() => setEditModal(false)} className="text-gray-500 hover:text-gray-700 p-2">
               <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleEditSubmit} className="space-y-4 sm:space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                name="name"
-                value={editForm.name}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
-              <input
-                type="text"
-                name="rollNumber"
-                value={editForm.rollNumber}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel ID</label>
-              <input
-                type="text"
-                name="hostelId"
-                value={editForm.hostelId}
-                disabled
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-                placeholder="Auto-generated"
-              />
-              <p className="text-xs text-gray-500">Cannot be modified</p>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
-              <select
-                name="course"
-                value={editForm.course}
-                onChange={handleEditFormChange}
-                required
-                disabled={loadingCourses}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
-                {courses.map(course => (
-                  <option key={course._id} value={course._id}>
-                    {course.name} ({course.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
-              <input
-                type="number"
-                name="year"
-                value={editForm.year}
-                onChange={handleEditFormChange}
-                required
-                min={1}
-                max={4}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
-              <select
-                name="branch"
-                value={editForm.branch}
-                onChange={handleEditFormChange}
-                required
-                disabled={!editForm.course || loadingBranches}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
-                {branches.map(branch => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name} ({branch.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
-              <select
-                name="gender"
-                value={editForm.gender}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
-              <select
-                name="category"
-                value={editForm.category}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Category</option>
-                {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Meal Type</label>
-              <select
-                name="mealType"
-                value={editForm.mealType}
-                onChange={handleEditFormChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="non-veg">Non-Veg</option>
-                <option value="veg">Veg</option>
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Permission for Outing</label>
-              <div className="flex items-center space-x-2">
+        <form onSubmit={handleEditSubmit} className="space-y-6">
+
+          {/* Personal Info */}
+          <div className="p-4 border rounded-lg space-y-4">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Personal Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
                 <input
-                  type="checkbox"
-                  name="parentPermissionForOuting"
-                  checked={editForm.parentPermissionForOuting}
+                  type="text"
+                  name="name"
+                  value={editForm.name}
                   onChange={handleEditFormChange}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-                <span className="text-xs sm:text-sm text-gray-700">Enable parent permission</span>
               </div>
-              <p className="text-xs text-gray-500 mt-1">When disabled, permission requests go directly to principal</p>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
-              <select
-                name="roomNumber"
-                value={editForm.roomNumber}
-                onChange={handleEditFormChange}
-                required
-                disabled={!editForm.category}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Room</option>
-                {editForm.category && ROOM_MAPPINGS[editForm.gender]?.[editForm.category]?.map(room => (
-                  <option key={room} value={room}>{room}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Bed Number (Optional)</label>
-              <input
-                type="text"
-                name="bedNumber"
-                value={editForm.bedNumber || ''}
-                onChange={handleEditFormChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 320 Bed 1"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Locker Number (Optional)</label>
-              <input
-                type="text"
-                name="lockerNumber"
-                value={editForm.lockerNumber || ''}
-                onChange={handleEditFormChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 320 Locker 1"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
-              <input
-                type="tel"
-                name="studentPhone"
-                value={editForm.studentPhone}
-                onChange={handleEditFormChange}
-                pattern="[0-9]{10}"
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter phone number (optional)"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Phone</label>
-              <input
-                type="tel"
-                name="parentPhone"
-                value={editForm.parentPhone}
-                onChange={handleEditFormChange}
-                required
-                pattern="[0-9]{10}"
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Email (Optional)</label>
-              <input
-                type="email"
-                name="email"
-                value={editForm.email}
-                onChange={handleEditFormChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter email address (optional)"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
-              <select
-                name="batch"
-                value={editForm.batch}
-                onChange={handleEditFormChange}
-                required
-                disabled={!editForm.course}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Batch</option>
-                {editForm.course && generateBatches(editForm.course, courses).map(batch => (
-                  <option key={batch} value={batch}>{batch}</option>
-                ))}
-              </select>
-              {editForm.course && (() => {
-                const course = courses.find(c => c._id === editForm.course);
-                return course ? (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Format: YYYY-YYYY (e.g., 2020-{2020 + course.duration}) for {course.name} ({course.duration} years)
-                  </p>
-                ) : null;
-              })()}
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Academic Year</label>
-              <select
-                name="academicYear"
-                value={editForm.academicYear}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Academic Year</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel Status</label>
-              <select
-                name="hostelStatus"
-                value={editForm.hostelStatus || 'Active'}
-                onChange={handleEditFormChange}
-                required
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
+                <input
+                  type="text"
+                  name="rollNumber"
+                  value={editForm.rollNumber}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
+                <select
+                  name="gender"
+                  value={editForm.gender}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
             </div>
           </div>
 
+          {/* Academic Info */}
+          <div className="p-4 border rounded-lg space-y-4">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Academic Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
+                <select
+                  name="course"
+                  value={editForm.course}
+                  onChange={handleEditFormChange}
+                  required
+                  disabled={loadingCourses}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
+                  {courses.map(course => (
+                    <option key={course._id} value={course._id}>
+                      {course.name} ({course.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
+                <select
+                  name="branch"
+                  value={editForm.branch}
+                  onChange={handleEditFormChange}
+                  required
+                  disabled={!editForm.course || loadingBranches}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
+                  {branches.map(branch => (
+                    <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
+                <input
+                  type="number"
+                  name="year"
+                  value={editForm.year}
+                  onChange={handleEditFormChange}
+                  required
+                  min={1}
+                  max={4}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
+                <select
+                  name="batch"
+                  value={editForm.batch}
+                  onChange={handleEditFormChange}
+                  required
+                  disabled={!editForm.course}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Batch</option>
+                  {editForm.course && generateBatches(editForm.course, courses).map(batch => (
+                    <option key={batch} value={batch}>{batch}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Academic Year</label>
+                <select
+                  name="academicYear"
+                  value={editForm.academicYear}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Academic Year</option>
+                  {generateAcademicYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Room Info */}
+          <div className="p-4 border rounded-lg space-y-4">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Hostel Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel ID</label>
+                <input
+                  type="text"
+                  name="hostelId"
+                  value={editForm.hostelId}
+                  disabled
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  placeholder="Auto-generated"
+                />
+                <p className="text-xs text-gray-500">Cannot be modified</p>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
+                <select
+                  name="category"
+                  value={editForm.category}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Category</option>
+                  {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
+                <select
+                  name="roomNumber"
+                  value={editForm.roomNumber}
+                  onChange={handleEditFormChange}
+                  required
+                  disabled={!editForm.category}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select Room</option>
+                  {editForm.category && ROOM_MAPPINGS[editForm.gender]?.[editForm.category]?.map(room => (
+                    <option key={room} value={room}>{room}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Bed Number (Optional)</label>
+                <input
+                  type="text"
+                  name="bedNumber"
+                  value={editForm.bedNumber || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., 320 Bed 1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Locker Number (Optional)</label>
+                <input
+                  type="text"
+                  name="lockerNumber"
+                  value={editForm.lockerNumber || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="e.g., 320 Locker 1"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Meal Type</label>
+                <select
+                  name="mealType"
+                  value={editForm.mealType}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="non-veg">Non-Veg</option>
+                  <option value="veg">Veg</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel Status</label>
+                <select
+                  name="hostelStatus"
+                  value={editForm.hostelStatus || 'Active'}
+                  onChange={handleEditFormChange}
+                  required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="col-span-full">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Permission for Outing</label>
+                <div className="flex items-center space-x-2 mt-1">
+                  <input
+                    type="checkbox"
+                    name="parentPermissionForOuting"
+                    checked={editForm.parentPermissionForOuting}
+                    onChange={handleEditFormChange}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-xs sm:text-sm text-gray-700">Enable parent permission</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">When disabled, permission requests go directly to principal</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Info */}
+          <div className="p-4 border rounded-lg space-y-4">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Contact Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
+                <input
+                  type="tel"
+                  name="studentPhone"
+                  value={editForm.studentPhone}
+                  onChange={handleEditFormChange}
+                  pattern="[0-9]{10}"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter phone number (optional)"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Phone</label>
+                <input
+                  type="tel"
+                  name="parentPhone"
+                  value={editForm.parentPhone}
+                  onChange={handleEditFormChange}
+                  required
+                  pattern="[0-9]{10}"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="col-span-full">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Email (Optional)</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={editForm.email}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter email address (optional)"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Buttons */}
           <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-2 sm:pt-4">
             <button
               type="button"
-              onClick={() => {
-                setEditModal(false);
-              }}
-              className="w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => setEditModal(false)}
+              className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={editing}
-              className={`w-full sm:w-auto px-3 sm:px-4 py-2 sm:py-2 text-sm rounded-lg text-white font-medium transition-colors ${editing
+              className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${editing
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
                 }`}
@@ -3951,10 +3963,12 @@ const Students = () => {
               {editing ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
+
         </form>
       </div>
     </div>
   );
+
 
   // Update the bulk upload section
   const renderBulkUploadSection = () => (
