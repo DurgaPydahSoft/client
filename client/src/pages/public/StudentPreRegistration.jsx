@@ -32,7 +32,7 @@ const CameraIcon = () => (
 const StudentPreRegistration = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
   // Form state
   const [form, setForm] = useState({
     name: '',
@@ -128,10 +128,10 @@ const StudentPreRegistration = () => {
       setBranches([]);
       return;
     }
-    
+
     console.log('🔍 Fetching branches for course ID:', courseId);
     console.log('🔍 Available courses:', courses.map(c => ({ id: c._id, name: c.name })));
-    
+
     setLoadingBranches(true);
     try {
       const res = await api.get(`/api/course-management/branches/${courseId}`);
@@ -161,39 +161,39 @@ const StudentPreRegistration = () => {
   const generateBatches = (courseId, courses) => {
     const course = courses.find(c => c._id === courseId);
     if (!course) return [];
-    
+
     const currentYear = new Date().getFullYear();
     const batches = [];
-    
+
     for (let i = 0; i < 5; i++) {
       const startYear = currentYear - i;
       const endYear = startYear + course.duration;
       batches.push(`${startYear}-${endYear}`);
     }
-    
+
     return batches;
   };
 
   const generateAcademicYears = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    
+
     for (let i = 0; i < 3; i++) {
       const startYear = currentYear - i;
       const endYear = startYear + 1;
       years.push(`${startYear}-${endYear}`);
     }
-    
+
     return years;
   };
 
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
     const fieldValue = type === 'checkbox' ? checked : value;
-    
+
     setForm(prev => {
       const newForm = { ...prev, [name]: fieldValue };
-      
+
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         newForm.branch = '';
@@ -203,7 +203,7 @@ const StudentPreRegistration = () => {
       if (name === 'gender') {
         // Reset any gender-dependent fields if needed
       }
-      
+
       return newForm;
     });
   };
@@ -215,7 +215,7 @@ const StudentPreRegistration = () => {
         toast.error('Image size should be less than 5MB');
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         switch (type) {
@@ -249,17 +249,17 @@ const StudentPreRegistration = () => {
   const startCamera = async (type) => {
     try {
       setCameraReady(false);
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'user',
           width: { ideal: 1280 },
           height: { ideal: 720 }
-        } 
+        }
       });
       setStream(mediaStream);
       setCameraType(type);
       setShowCamera(true);
-      
+
       setTimeout(() => {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
@@ -294,7 +294,7 @@ const StudentPreRegistration = () => {
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
     context.drawImage(videoRef.current, 0, 0);
-    
+
     canvas.toBlob((blob) => {
       if (blob) {
         const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
@@ -376,18 +376,18 @@ const StudentPreRegistration = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setLoading(true);
     try {
       const formData = new FormData();
-      
+
       // Add form fields
       Object.keys(form).forEach(key => {
         formData.append(key, form[key]);
       });
-      
+
       // Add photos
       if (studentPhoto) {
         formData.append('studentPhoto', studentPhoto);
@@ -404,13 +404,13 @@ const StudentPreRegistration = () => {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       toast.success('Pre-registration submitted successfully! Your request is pending admin approval.');
-      navigate('/student/preregister/success', { 
-        state: { 
+      navigate('/student/preregister/success', {
+        state: {
           rollNumber: form.rollNumber,
-          name: form.name 
-        } 
+          name: form.name
+        }
       });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit pre-registration');
@@ -424,6 +424,11 @@ const StudentPreRegistration = () => {
       <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-8">
         {/* Header */}
         <div className="text-center mb-4 sm:mb-6 lg:mb-8">
+          <img
+            src="/PYDAH_LOGO_PHOTO.jpg"
+            alt="Pydah Logo"
+            className="mx-auto mb-4 h-20 sm:h-24 object-contain"
+          />
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
             Student Pre-Registration
           </h1>
@@ -435,7 +440,7 @@ const StudentPreRegistration = () => {
         {/* Form */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
           <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
-            
+
             {/* Personal Information Section */}
             <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
               <div className="flex items-center mb-3 sm:mb-4">
@@ -704,7 +709,7 @@ const StudentPreRegistration = () => {
             <div className="bg-blue-50 rounded-lg p-4 sm:p-6">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Photo Upload</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                
+
                 {/* Student Photo */}
                 <div className="bg-white rounded-lg p-3 sm:p-4 border border-blue-200">
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2 sm:mb-3">Your Photo *</label>
@@ -860,11 +865,10 @@ const StudentPreRegistration = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className={`px-6 sm:px-8 py-3 sm:py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm sm:text-sm w-full sm:w-auto ${
-                  loading 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
-                }`}
+                className={`px-6 sm:px-8 py-3 sm:py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm sm:text-sm w-full sm:w-auto ${loading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
+                  }`}
               >
                 {loading ? 'Submitting...' : 'Submit Pre-Registration'}
               </button>

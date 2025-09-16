@@ -83,8 +83,8 @@ const steps = [
 ];
 
 const stats = [
-  { 
-    value: '98%', 
+  {
+    value: '98%',
     label: 'Resolution Rate',
     icon: (
       <svg className="w-8 h-8 text-cyan-500 stroke-current" fill="none" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -92,8 +92,8 @@ const stats = [
       </svg>
     )
   },
-  { 
-    value: '<24h', 
+  {
+    value: '<24h',
     label: 'Response Time',
     icon: (
       <svg className="w-8 h-8 text-cyan-500 stroke-current" fill="none" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -101,8 +101,8 @@ const stats = [
       </svg>
     )
   },
-  { 
-    value: '10k+', 
+  {
+    value: '10k+',
     label: 'Students Served',
     icon: (
       <svg className="w-8 h-8 text-cyan-500 stroke-current" fill="none" strokeWidth="1.5" viewBox="0 0 24 24">
@@ -254,26 +254,26 @@ const DeveloperCard = () => {
         <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 p-1 mb-6">
           <div className="w-full h-full rounded-full bg-white p-1">
             <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center overflow-hidden">
-              <img 
-                src="/PYDAHSOFT LOGO.ico" 
-                alt="PydahSoft Logo" 
+              <img
+                src="/PYDAHSOFT LOGO.ico"
+                alt="PydahSoft Logo"
                 className="w-full h-full rounded-full object-cover"
               />
             </div>
           </div>
         </div>
-        
+
         {/* Company Name */}
         <div className="mb-4">
           <h3 className="font-display font-bold text-3xl text-deepsea-900 mb-2">{getPydahSoftInfo().companyName}</h3>
           <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-cyan-400 mx-auto rounded-full"></div>
         </div>
-        
+
         {/* Product Description */}
         <p className="text-gray-600 mb-6 text-lg leading-relaxed">
           A {getPydahSoftInfo().companyName} Product - Transforming hostel management through innovative digital solutions and cutting-edge technology.
         </p>
-        
+
         {/* Contact Information */}
         <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 w-full max-w-sm">
           <h4 className="font-display font-bold text-lg text-deepsea-900 mb-3">For Queries Contact</h4>
@@ -292,7 +292,7 @@ const DeveloperCard = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Social/Contact Links */}
         <div className="flex gap-4 mt-6">
           <a href="tel:+919392604899" className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
@@ -379,7 +379,7 @@ const Home = () => {
             />
           ))}
         </div>
-        
+
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center z-10 relative px-4">
           <div className="text-left">
             <motion.div
@@ -391,29 +391,41 @@ const Home = () => {
               <h1 className="font-display text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-200 to-cyan-200 leading-[1.15]">
                 {getInstitutionName().toUpperCase()}
                 <br />
-                <span>Hostel Connectify</span> 
+                <span>Hostel Connectify</span>
               </h1>
               <p className="text-xl md:text-2xl mb-10 font-light text-cyan-100 max-w-2xl mx-auto leading-relaxed">
                 Transforming {getInstitutionName().toLowerCase()} communication with a modern, transparent, and efficient digital platform.
               </p>
             </motion.div>
-            
-            <motion.div 
+
+            <motion.div
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
               className="flex justify-center md:justify-start"
             >
-              <button 
-                className="group relative px-8 py-4 bg-white text-deepsea-900 font-semibold rounded-2xl hover:bg-cyan-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95 overflow-hidden"
-                onClick={() => navigate('/login')}
-              >
-                <span className="relative z-10 flex items-center gap-2">
-                  Get Started
-                  <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-200 to-blue-200 opacity-0 group-hover:opacity-50 transition-opacity duration-300"></div>
-              </button>
+              <div className="flex flex-col md:flex-row justify-center md:justify-start gap-4">
+                <button
+                  className="group relative px-8 py-4 bg-white text-deepsea-900 font-semibold rounded-2xl hover:bg-cyan-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95 overflow-hidden"
+                  onClick={() => navigate('/login')}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Get Started
+                    <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-200 to-blue-200 opacity-0 group-hover:opacity-50 transition-opacity duration-300 rounded-2xl"></div>
+                </button>
+
+                <button
+                  className="group relative px-8 py-4 bg-transparent border-2 border-white/30 text-white font-medium rounded-2xl hover:border-white hover:bg-white/10 transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 active:scale-95 overflow-hidden"
+                  onClick={() => navigate('/student/preregister/')}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Register Now
+                    <ArrowRightIcon className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </span>
+                </button>
+              </div>
             </motion.div>
           </div>
 
@@ -513,7 +525,7 @@ const Home = () => {
               Experience the future of hostel management with our cutting-edge features
             </p>
           </motion.div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
             {features.map((f, idx) => (
               <FeatureCard key={idx} index={idx} {...f} />
@@ -615,7 +627,7 @@ const Home = () => {
             <p className="text-xl text-cyan-100 max-w-2xl mx-auto mb-12">
               Join thousands of students who have already transformed their hostel experience
             </p>
-            <button 
+            <button
               onClick={() => navigate('/login')}
               className="group relative px-8 py-4 bg-white text-deepsea-900 font-semibold rounded-2xl hover:bg-cyan-100 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 active:scale-95"
             >
