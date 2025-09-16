@@ -279,6 +279,7 @@ const Announcements = () => {
                   .filter(a => a.isActive !== false)
                   .map(a => {
                     const isExpanded = expandedIds.includes(a._id);
+                    const isLongDescription = a.description.length > 150;
                     return (
                       <div
                         key={a._id}
@@ -298,7 +299,7 @@ const Announcements = () => {
                             <div className="flex flex-wrap items-start gap-2 mb-2">
                               <h3 className="font-bold text-base sm:text-lg text-gray-800 break-words flex-1">{a.title}</h3>
                             </div>
-                            <p className={`text-sm sm:text-base text-gray-600 mb-3 whitespace-pre-wrap break-words ${!isExpanded ? 'line-clamp-3' : ''}`}>
+                            <p className={`text-sm sm:text-base text-gray-600 mb-3 whitespace-pre-wrap break-words ${!isExpanded && isLongDescription ? 'line-clamp-3' : ''}`}>
                               {a.description}
                             </p>
                             <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mt-auto">
@@ -321,22 +322,24 @@ const Announcements = () => {
                                 </>
                               )}
                             </button>
-                            <button
-                              className="w-full sm:w-auto p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-1.5 text-sm whitespace-nowrap"
-                              onClick={() => toggleExpand(a._id)}
-                            >
-                              {isExpanded ? (
-                                <>
-                                  <DocumentTextIcon className="w-5 h-5" />
-                                  <span className="font-medium">Read Less</span>
-                                </>
-                              ) : (
-                                <>
-                                  <DocumentTextIcon className="w-5 h-5" />
-                                  <span className="font-medium">Read More</span>
-                                </>
-                              )}
-                            </button>
+                            {isLongDescription && (
+                              <button
+                                className="w-full sm:w-auto p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-1.5 text-sm whitespace-nowrap"
+                                onClick={() => toggleExpand(a._id)}
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <DocumentTextIcon className="w-5 h-5" />
+                                    <span className="font-medium">Read Less</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <DocumentTextIcon className="w-5 h-5" />
+                                    <span className="font-medium">Read More</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
