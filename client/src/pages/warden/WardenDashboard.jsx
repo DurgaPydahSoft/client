@@ -1,20 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, useLocation } from 'react-router-dom';
-import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Bars3Icon,
   XMarkIcon,
   ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
-import WardenHome from './WardenHome';
-import TakeAttendance from './TakeAttendance';
-import ViewAttendance from './ViewAttendance';
 import NotificationBell from '../../components/NotificationBell';
-import FeeManagement from './FeeManagement';
-import WardenRaiseComplaint from './WardenRaiseComplaint';
-import WardenViewComplaints from './WardenViewComplaints';
 
 // Permission Denied Component
 const PermissionDenied = ({ sectionName }) => {
@@ -26,7 +19,7 @@ const PermissionDenied = ({ sectionName }) => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
         <p className="text-gray-600 mb-6">
-          You don't have permission to access the <strong>{sectionName}</strong> section. 
+          You don't have permission to access the <strong>{sectionName}</strong> section.
           Please contact your admin to request access.
         </p>
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -49,7 +42,7 @@ const WardenDashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState(new Set());
   const { pathname } = useLocation();
-  
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -208,12 +201,12 @@ const WardenDashboardLayout = () => {
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
       {/* Mobile Menu Button */}
-          <button
+      <button
         onClick={() => setIsSidebarOpen(true)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200"
-          >
+      >
         <Bars3Icon className="w-6 h-6 text-gray-600" />
-          </button>
+      </button>
 
       {/* Mobile Sidebar Backdrop */}
       <AnimatePresence>
@@ -235,15 +228,15 @@ const WardenDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-72 lg:w-56 h-screen bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 bottom-0 w-72 lg:w-56 bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
-                <button
+        <button
           onClick={() => setIsSidebarOpen(false)}
           className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-                >
+        >
           <XMarkIcon className="w-6 h-6 text-gray-600" />
-                </button>
+        </button>
 
         {/* Header */}
         <div className="p-4 flex-shrink-0">
@@ -256,9 +249,9 @@ const WardenDashboardLayout = () => {
             <div className="flex-1">
               <h1 className="font-semibold text-xs">Hostel Warden</h1>
               <p className="text-xs text-green-100">Management Portal</p>
-                    </div>
-                    </div>
-                  </div>
+            </div>
+          </div>
+        </div>
 
         {/* Navigation */}
         <div className="flex-1 overflow-hidden">
@@ -295,11 +288,10 @@ const WardenDashboardLayout = () => {
                   <div className="space-y-1">
                     <button
                       onClick={() => toggleExpanded(item.name)}
-                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
-                        pathname.startsWith(item.path)
-                          ? "bg-green-50 text-green-700 shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${pathname.startsWith(item.path)
+                        ? "bg-green-50 text-green-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative">
@@ -320,9 +312,8 @@ const WardenDashboardLayout = () => {
                         {item.name}
                       </div>
                       <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          expandedItems.has(item.name) ? 'rotate-180' : ''
-                        }`}
+                        className={`w-4 h-4 transition-transform duration-200 ${expandedItems.has(item.name) ? 'rotate-180' : ''
+                          }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -343,10 +334,9 @@ const WardenDashboardLayout = () => {
                             key={subItem.name}
                             to={subItem.path}
                             className={({ isActive }) =>
-                              `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${
-                                isActive
-                                  ? "bg-green-100 text-green-700 shadow-sm"
-                                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                              `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
+                                ? "bg-green-100 text-green-700 shadow-sm"
+                                : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
                               }`
                             }
                             end
@@ -377,10 +367,9 @@ const WardenDashboardLayout = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
-                        isActive
-                          ? "bg-green-50 text-green-700 shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${isActive
+                        ? "bg-green-50 text-green-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`
                     }
                     end
@@ -419,10 +408,10 @@ const WardenDashboardLayout = () => {
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-gray-900 truncate">
                 {user?.name || 'Warden'}
-                </div>
+              </div>
               <div className="text-xs text-gray-500 truncate">
                 Warden
-                  </div>
+              </div>
             </div>
           </div>
           <motion.button
@@ -450,13 +439,13 @@ const WardenDashboardLayout = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen">
+      <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
           <div className="flex justify-end mb-4">
             <NotificationBell />
           </div>
           <Outlet />
-            </div>
+        </div>
       </main>
     </div>
   );
