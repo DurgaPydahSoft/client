@@ -130,14 +130,14 @@ const Login = () => {
             />
 
           </div>
-          
+
 
           {/* Hidden on mobile */}
           <h2 className="text-2xl font-bold text-center sm:hidden md:block">Hostel Connectify</h2>
-          
-<div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
-  Log in to manage your hostel activities and connect with fellow students.
-</div>
+
+          <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
+            Log in to manage your hostel activities and connect with fellow students.
+          </div>
         </div>
 
         {/* Right Side */}
