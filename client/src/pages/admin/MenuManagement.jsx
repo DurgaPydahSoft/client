@@ -686,7 +686,7 @@ const MenuManagement = () => {
       const response = await api.post('/api/notifications/send-menu-all', {
         mealType,
         title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
-        message: `🍽️ check out today's menu! Tap to see what's cooking.`,
+        message: `🍽️ check out today's menu! Tap to see what's cooking.`, 
         url: '/student'
       });
 
@@ -731,6 +731,15 @@ const MenuManagement = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-4 space-y-6  mt-8">
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite linear;
+        }
+      `}</style>
       {/* Hero Banner Section */}
       <div className="relative overflow-hidden rounded-xl shadow-lg">
         <img
@@ -752,9 +761,12 @@ const MenuManagement = () => {
           <button
             onClick={openTodayModal}
             disabled={loadingToday}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50 shadow-md"
+            className="relative overflow-hidden px-6 py-3 bg-green-600 text-white rounded-lg text-sm font-medium transition-all duration-300 disabled:opacity-50 hover:bg-green-700 shadow-md hover:shadow-lg"
           >
-            {loadingToday ? 'Loading...' : 'Update Today\'s Menu'}
+            <span className="relative z-10">
+              {loadingToday ? 'Loading...' : "Update Today's Menu"}
+            </span>
+            <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></span>
           </button>
         </div>
       </div>
@@ -1205,8 +1217,8 @@ const MenuManagement = () => {
                   key={meal}
                   onClick={() => setSelectedMealType(meal)}
                   className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${selectedMealType === meal
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-800'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-800'
                     }`}
                   disabled={savingToday}
                 >

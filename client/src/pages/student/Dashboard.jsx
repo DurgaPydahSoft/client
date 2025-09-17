@@ -287,7 +287,7 @@ const StudentDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 bottom-0 w-64 sm:w-72 bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
+        className="fixed lg:relative top-0 left-0 w-64 sm:w-72 h-screen bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
       >
         {/* Mobile Close Button */}
         <button
@@ -427,7 +427,7 @@ const StudentDashboardLayout = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto scrollbar-visible">
+      <main className="flex-1 overflow-y-auto h-screen scrollbar-visible">
         <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-8">
           <div className="flex justify-end mb-3 sm:mb-4">
             <NotificationBell />
@@ -656,10 +656,9 @@ const DashboardHome = () => {
               onClick={handleOpenMenuModal}
               className="w-full lg:w-auto p-2.5 sm:p-3 lg:p-4 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 text-orange-700 hover:from-orange-100 hover:to-orange-200 transition-all duration-300 touch-manipulation border border-orange-200 col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-1"
             >
-              <div className="w-full h-6 sm:w-24 sm:h-7 lg:w-28 lg:h-8 mb-1.5 sm:mb-2 mx-auto overflow-hidden relative">
+              <div className="w-48 h-6 sm:w-24 sm:h-7 lg:w-28 lg:h-8 mb-1.5 sm:mb-2 mx-auto overflow-hidden relative">
                 <div className="flex animate-scroll-left-smooth absolute whitespace-nowrap">
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍕</span>
-                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🌮</span>
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍣</span>
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍩</span>
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍔</span>
@@ -667,7 +666,15 @@ const DashboardHome = () => {
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍜</span>
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🥗</span>
                   <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍰</span>
-                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍮</span>
+                  {/* Duplicate for seamless loop */}
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍕</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍣</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍩</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍔</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🥪</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍜</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🥗</span>
+                  <span className="text-lg sm:text-xl lg:text-2xl flex-shrink-0 mr-3">🍰</span>
                 </div>
               </div>
               <span className="text-xs sm:text-sm block text-center">Today's Menu</span>
