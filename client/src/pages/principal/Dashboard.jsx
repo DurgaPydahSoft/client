@@ -175,7 +175,7 @@ const PrincipalDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-purple-50 via-white to-purple-50">
+    <div className="h-screen flex bg-gradient-to-br from-purple-50 via-white to-purple-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}

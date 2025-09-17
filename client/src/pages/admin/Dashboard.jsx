@@ -537,7 +537,7 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
+    <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}
