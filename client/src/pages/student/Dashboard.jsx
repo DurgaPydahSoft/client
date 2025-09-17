@@ -291,7 +291,7 @@ const StudentDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-64 sm:w-72 h-screen bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
+        className="fixed lg:relative top-0 left-0 bottom-0 w-64 sm:w-72 bg-gradient-to-b from-blue-900 to-blue-800 border-r border-blue-700 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none rounded-tr-3xl rounded-br-3xl"
       >
         {/* Mobile Close Button */}
         <button
@@ -431,7 +431,7 @@ const StudentDashboardLayout = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen scrollbar-visible">
+      <main className="flex-1 overflow-y-auto scrollbar-visible">
         <div className="max-w-7xl mx-auto p-3 sm:p-4 lg:p-8">
           <div className="flex justify-end mb-3 sm:mb-4">
             <NotificationBell />

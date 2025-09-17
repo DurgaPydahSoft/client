@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate, NavLink, Outlet, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { useNavigate, NavLink, Outlet, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bars3Icon,
   XMarkIcon,
-  LockClosedIcon,
   ShieldExclamationIcon
 } from '@heroicons/react/24/outline';
-import PrincipalHome from './PrincipalHome';
-import PrincipalAttendance from './PrincipalAttendance';
-import PrincipalStudents from './Students';
-import PrincipalViewComplaints from './PrincipalViewComplaints';
 import NotificationBell from '../../components/NotificationBell';
 import ResetPasswordModal from '../admin/ResetPasswordModal';
 
@@ -34,7 +29,7 @@ const PermissionDenied = ({ sectionName }) => {
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
         <p className="text-gray-600 mb-6">
-          You don't have permission to access the <strong>{sectionName}</strong> section. 
+          You don't have permission to access the <strong>{sectionName}</strong> section.
           Please contact your super admin to request access.
         </p>
         <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -65,7 +60,7 @@ const PrincipalDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
-  
+
   // Debug: Log user data to see what permissions principals have
   console.log('🎓 Principal Dashboard - User Data:', {
     role: user?.role,
@@ -81,7 +76,7 @@ const PrincipalDashboard = () => {
     poll: false
   });
   const { pathname } = useLocation();
-  
+
   const handleLogout = () => {
     logout();
     navigate('/login');
@@ -96,7 +91,7 @@ const PrincipalDashboard = () => {
     const fetchNotificationCount = async () => {
       try {
         console.log('🔔 Fetching notification count for principal');
-        
+
         const response = await api.get('/api/notifications/principal/count');
         if (response.data.success) {
           setNotificationCount(response.data.count);
@@ -109,10 +104,10 @@ const PrincipalDashboard = () => {
     };
 
     fetchNotificationCount();
-    
+
     // Set up polling for notifications
     const interval = setInterval(fetchNotificationCount, 30000); // Poll every 30 seconds
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -121,7 +116,7 @@ const PrincipalDashboard = () => {
   const hasPermission = (permission) => {
     const isSuperAdmin = user?.role === 'super_admin';
     const isPrincipal = user?.role === 'principal';
-    
+
     console.log('🔐 Permission check:', {
       permission,
       userRole: user?.role,
@@ -209,7 +204,7 @@ const PrincipalDashboard = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 w-56 h-screen bg-white border-r border-purple-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 bottom-0 w-56 bg-white border-r border-purple-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
         <button
@@ -239,24 +234,24 @@ const PrincipalDashboard = () => {
         {/* Navigation */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Top fade indicator */}
-          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
-               id="top-fade"></div>
-          
-          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible" 
-               onScroll={(e) => {
-                 const target = e.target;
-                 const topFade = document.getElementById('top-fade');
-                 const bottomFade = document.getElementById('bottom-fade');
-                 
-                 if (topFade && bottomFade) {
-                   // Show top fade when scrolled down
-                   topFade.style.opacity = target.scrollTop > 10 ? '1' : '0';
-                   
-                   // Show bottom fade when not at bottom
-                   const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
-                   bottomFade.style.opacity = isAtBottom ? '0' : '1';
-                 }
-               }}>
+          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300"
+            id="top-fade"></div>
+
+          <nav className="flex-1 px-4 space-y-2 overflow-y-auto min-h-0 scrollbar-visible"
+            onScroll={(e) => {
+              const target = e.target;
+              const topFade = document.getElementById('top-fade');
+              const bottomFade = document.getElementById('bottom-fade');
+
+              if (topFade && bottomFade) {
+                // Show top fade when scrolled down
+                topFade.style.opacity = target.scrollTop > 10 ? '1' : '0';
+
+                // Show bottom fade when not at bottom
+                const isAtBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 5;
+                bottomFade.style.opacity = isAtBottom ? '0' : '1';
+              }
+            }}>
             {menuItems.filter(item => item.show).map((item, index) => (
               <motion.div
                 key={item.name}
@@ -289,10 +284,9 @@ const PrincipalDashboard = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${
-                        isActive
-                          ? "bg-purple-50 text-purple-700 shadow-sm"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-normal transition-all duration-300 ${isActive
+                        ? "bg-purple-50 text-purple-700 shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                       }`
                     }
                     end
@@ -338,10 +332,10 @@ const PrincipalDashboard = () => {
               </motion.div>
             ))}
           </nav>
-          
+
           {/* Bottom fade indicator */}
-          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300" 
-               id="bottom-fade"></div>
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none z-10 opacity-0 transition-opacity duration-300"
+            id="bottom-fade"></div>
         </div>
 
         {/* User Profile and Logout */}
@@ -359,7 +353,7 @@ const PrincipalDashboard = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Password Reset Button */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -382,7 +376,7 @@ const PrincipalDashboard = () => {
             </svg>
             Reset Password
           </motion.button>
-          
+
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -408,7 +402,7 @@ const PrincipalDashboard = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto h-screen">
+      <main className="flex-1 overflow-y-auto">
         <div className="max-w-7xl mx-auto p-4 lg:p-8">
           <div className="flex justify-end mb-4">
             <NotificationBell />
@@ -416,11 +410,11 @@ const PrincipalDashboard = () => {
           <Outlet />
         </div>
       </main>
-      
+
       {/* Reset Password Modal */}
-      <ResetPasswordModal 
-        isOpen={showResetPasswordModal} 
-        onClose={() => setShowResetPasswordModal(false)} 
+      <ResetPasswordModal
+        isOpen={showResetPasswordModal}
+        onClose={() => setShowResetPasswordModal(false)}
       />
     </div>
   );
