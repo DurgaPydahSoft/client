@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, useOutletContext, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import {LoadingSpinner} from '../../components/LoadingSpinner';
 import {
   Bars3Icon,
   XMarkIcon,
@@ -252,12 +253,7 @@ const StudentDashboardLayout = () => {
   // Show loading state while feature toggles are being fetched
   if (featureLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading features...</p>
-        </div>
-      </div>
+        <LoadingSpinner size="lg"/>
     );
   }
 

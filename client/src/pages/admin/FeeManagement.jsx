@@ -1695,116 +1695,117 @@ const FeeManagement = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto mt-16 sm:mt-0">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-900 mb-2">
-          Hostel Fee Management
-        </h1>
-        <p className="text-gray-600">
-          Manage student fee payments and track payment status
-        </p>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="mb-6">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('students')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'students'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-            >
-              Students
-            </button>
-            <button
-              onClick={() => setActiveTab('structure')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'structure'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-            >
-              Fee Structure
-            </button>
-            <button
-              onClick={() => setActiveTab('payments')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'payments'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Payments
-            </button>
-            <button
-              onClick={() => setActiveTab('reminders')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'reminders'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Fee Reminders
-            </button>
-          </nav>
+    <div className="min-h-screen bg-gray-50">
+      <div className="p-3 sm:p-4 lg:p-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
+            Hostel Fee Management
+          </h1>
+          <p className="text-sm sm:text-base text-gray-600">
+            Manage student fee payments and track payment status
+          </p>
         </div>
-      </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-4 sm:mb-6">
+          <div className="border-b border-gray-200 overflow-x-auto">
+            <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 min-w-max">
+              <button
+                onClick={() => setActiveTab('students')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'students'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                Students
+              </button>
+              <button
+                onClick={() => setActiveTab('structure')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'structure'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                Fee Structure
+              </button>
+              {/* <button
+                onClick={() => setActiveTab('payments')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                  activeTab === 'payments'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Payments
+              </button> */}
+              <button
+                onClick={() => setActiveTab('reminders')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                  activeTab === 'reminders'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Fee Reminders
+              </button>
+            </nav>
+          </div>
+        </div>
 
       {activeTab === 'students' && (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <UserGroupIcon className="w-6 h-6 text-blue-600" />
+                  <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Students</p>
-                  <p className="text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
-                  <p className="text-xs text-gray-500">Displayed: {students.length} (Page {currentPage})</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Students</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Displayed: {students.length} (Page {currentPage})</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-6 h-6 text-purple-600" />
+                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Fee Amount</p>
-                  <p className="text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Fee Amount</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <ReceiptRefundIcon className="w-6 h-6 text-green-600" />
+                  <ReceiptRefundIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Students with Concession</p>
-                  <p className="text-lg font-semibold text-gray-900">{stats.studentsWithConcession || 0}</p>
-                  <p className="text-xs text-gray-500">
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Students with Concession</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{stats.studentsWithConcession || 0}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">
                     {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-6 h-6 text-orange-600" />
+                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Concession</p>
-                  <p className="text-lg font-semibold text-gray-900">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Concession</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">
                     {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
                   </p>
                 </div>
@@ -1896,166 +1897,335 @@ const FeeManagement = () => {
 
 
           {/* Filters */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                  <input
-                    type="text"
-                    placeholder="Search by student name or roll number..."
-                    value={filters.search}
-                    onChange={(e) => handleFilterChange('search', e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <MagnifyingGlassIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by student name or roll number..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
               </div>
+            </div>
 
-              <div className="flex gap-2">
-                <select
-                  value={filters.academicYear}
-                  onChange={(e) => handleFilterChange('academicYear', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Academic Years</option>
-                  <option value="2023-2024">2023-2024</option>
-                  <option value="2024-2025">2024-2025</option>
-                  <option value="2025-2026">2025-2026</option>
-                </select>
+            {/* Filters */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+              <select
+                value={filters.academicYear}
+                onChange={(e) => handleFilterChange('academicYear', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Years</option>
+                <option value="2023-2024">2023-2024</option>
+                <option value="2024-2025">2024-2025</option>
+                <option value="2025-2026">2025-2026</option>
+              </select>
 
-                <select
-                  value={filters.course}
-                  onChange={(e) => handleFilterChange('course', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Courses</option>
-                  {courses.map(course => (
-                    <option key={course._id} value={course._id}>{course.name}</option>
-                  ))}
-                </select>
+              <select
+                value={filters.course}
+                onChange={(e) => handleFilterChange('course', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Courses</option>
+                {courses.map(course => (
+                  <option key={course._id} value={course._id}>{course.name}</option>
+                ))}
+              </select>
 
-                <select
-                  value={filters.category}
-                  onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Categories</option>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B+">B+</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </select>
+              <select
+                value={filters.category}
+                onChange={(e) => handleFilterChange('category', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Categories</option>
+                <option value="A+">A+</option>
+                <option value="A">A</option>
+                <option value="B+">B+</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
 
-                <select
-                  value={filters.gender}
-                  onChange={(e) => handleFilterChange('gender', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Genders</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+              <select
+                value={filters.gender}
+                onChange={(e) => handleFilterChange('gender', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Genders</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
 
+              <div className="flex gap-2 col-span-2 sm:col-span-1">
                 <button
                   onClick={clearFilters}
-                  className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="flex-1 sm:flex-none px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center gap-1 text-sm"
                 >
                   <FunnelIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Clear</span>
                 </button>
 
                 <button
                   onClick={fetchStudents}
-                  className="px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50"
+                  className="flex-1 sm:flex-none px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-1 text-sm"
                 >
                   <ArrowPathIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Refresh</span>
                 </button>
-
-                {/* Removed "Create Fee Reminders" button as it's no longer relevant */}
               </div>
             </div>
           </div>
 
           {/* Students Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Student Fee Management</h3>
-                <div className="text-sm text-gray-600">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">Student Fee Management</h3>
+                <div className="text-xs sm:text-sm text-gray-600">
                   Showing {students.length} of {stats.totalStudents} students
                   {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course & Year
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Fee
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {tableLoading ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-4 text-center">
-                        <LoadingSpinner />
-                      </td>
-                    </tr>
-                  ) : students.length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="px-6 py-4 text-center text-gray-500">
-                        <div className="space-y-2">
-                          <p>No students found</p>
-                          <p className="text-sm">Please adjust your filters or check back later.</p>
+
+            {tableLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <LoadingSpinner />
+              </div>
+            ) : students.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No students found</h3>
+                <p className="mt-1 text-sm text-gray-500">Please adjust your filters or check back later.</p>
+              </div>
+            ) : (
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Student
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Course & Year
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Category
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Fee
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {students.map((student) => (
+                        <tr
+                          key={student._id}
+                          className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
+                          onClick={() => openBalanceModal(student)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.name || 'No Name'}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {student.rollNumber || 'No Roll Number'}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {student.roomNumber && `Room: ${student.roomNumber}`}
+                                {student.gender && ` • ${student.gender}`}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <div>
+                              <div className="font-medium">
+                                {student.course?.name || 'Unknown Course'}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Year {student.year || 'Unknown'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              if (student.category) {
+                                const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+                                if (feeStructure) {
+                                  const hasConcession = student.concession && student.concession > 0;
+                                  return (
+                                    <div>
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        {student.category} ✓
+                                      </span>
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
+                                        {hasConcession && (
+                                          <div className="text-xs text-blue-600 font-medium">
+                                            Concession: ₹{student.concession.toLocaleString()}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                } else {
+                                  return (
+                                    <div>
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        {student.category} ✗
+                                      </span>
+                                      <div className="text-xs text-gray-500 mt-1">
+                                        Year: {student.academicYear || 'Unknown'}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              }
+                              return (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  Unknown
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              const feeStructure = getFeeStructureForStudent(
+                                student.course,
+                                student.year,
+                                student.category,
+                                student.academicYear
+                              );
+                              if (feeStructure) {
+                                const hasConcession = student.concession && student.concession > 0;
+                                const originalTotal = feeStructure.totalFee;
+                                const calculatedTotal = student.totalCalculatedFee || originalTotal;
+
+                                return (
+                                  <div>
+                                    {hasConcession ? (
+                                      <>
+                                        <div className="font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
+                                        <div className="font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
+                                        <div className="text-xs text-blue-600 font-medium">
+                                          After Concession
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
+                                    )}
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="text-red-500 text-xs">
+                                  <div className="font-medium">No fee structure</div>
+                                  <div className="text-gray-400">Course: {student.course?.name || 'Unknown'}</div>
+                                  <div className="text-gray-400">Year: {student.year || 'Unknown'}</div>
+                                  <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
+                                  <div className="text-gray-400">Academic Year: {student.academicYear || 'Unknown'}</div>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openPaymentModal(student);
+                              }}
+                              className="text-green-600 hover:text-green-900 mr-3"
+                              title="Record Payment"
+                            >
+                              <ReceiptRefundIcon className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openBalanceModal(student);
+                              }}
+                              className="text-purple-600 hover:text-purple-900"
+                              title="View Balance"
+                            >
+                              <EyeIcon className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="lg:hidden space-y-3 p-4">
+                  {students.map((student) => (
+                    <div
+                      key={student._id}
+                      className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => openBalanceModal(student)}
+                    >
+                      {/* Student Header */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-sm font-medium text-gray-900">
+                            {student.name || 'No Name'}
+                          </h3>
+                          <p className="text-xs text-gray-500">
+                            {student.rollNumber || 'No Roll Number'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {student.roomNumber && `Room: ${student.roomNumber}`}
+                            {student.gender && ` • ${student.gender}`}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    students.map((student) => (
-                      <tr
-                        key={student._id}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
-                        onClick={() => openBalanceModal(student)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {student.name || 'No Name'}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {student.rollNumber || 'No Roll Number'}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {student.roomNumber && `Room: ${student.roomNumber}`}
-                              {student.gender && ` • ${student.gender}`}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div>
-                            <div className="font-medium">
-                              {student.course?.name || 'Unknown Course'}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Year {student.year || 'Unknown'}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPaymentModal(student);
+                            }}
+                            className="text-green-600 hover:text-green-900 p-1"
+                            title="Record Payment"
+                          >
+                            <ReceiptRefundIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBalanceModal(student);
+                            }}
+                            className="text-purple-600 hover:text-purple-900 p-1"
+                            title="View Balance"
+                          >
+                            <EyeIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Course & Year */}
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 mb-1">Course & Year</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {student.course?.name || 'Unknown Course'}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Year {student.year || 'Unknown'}
+                        </div>
+                      </div>
+
+                      {/* Category & Fee */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Category</div>
                           {(() => {
                             if (student.category) {
                               const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
@@ -2063,40 +2233,34 @@ const FeeManagement = () => {
                                 const hasConcession = student.concession && student.concession > 0;
                                 return (
                                   <div>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                       {student.category} ✓
                                     </span>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {feeStructure.academicYear} - ₹{feeStructure.totalFee.toLocaleString()}
-                                      {hasConcession && (
-                                        <div className="text-xs text-blue-600 font-medium">
-                                          Concession: ₹{student.concession.toLocaleString()}
-                                        </div>
-                                      )}
-                                    </div>
+                                    {hasConcession && (
+                                      <div className="text-xs text-blue-600 font-medium mt-1">
+                                        Concession: ₹{student.concession.toLocaleString()}
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               } else {
                                 return (
-                                  <div>
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                      {student.category} ✗
-                                    </span>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Year: {student.academicYear || 'Unknown'}
-                                    </div>
-                                  </div>
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    {student.category} ✗
+                                  </span>
                                 );
                               }
                             }
                             return (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 Unknown
                               </span>
                             );
                           })()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-gray-500 mb-1">Total Fee</div>
                           {(() => {
                             const feeStructure = getFeeStructureForStudent(
                               student.course,
@@ -2113,75 +2277,50 @@ const FeeManagement = () => {
                                 <div>
                                   {hasConcession ? (
                                     <>
-                                      <div className="font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
-                                      <div className="font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
+                                      <div className="text-sm font-medium text-green-600 line-through">₹{originalTotal.toLocaleString()}</div>
+                                      <div className="text-sm font-medium text-blue-600">₹{calculatedTotal.toLocaleString()}</div>
                                       <div className="text-xs text-blue-600 font-medium">
                                         After Concession
                                       </div>
                                     </>
                                   ) : (
-                                    <div className="font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
+                                    <div className="text-sm font-medium text-green-600">₹{originalTotal.toLocaleString()}</div>
                                   )}
-
                                 </div>
                               );
                             }
                             return (
                               <div className="text-red-500 text-xs">
                                 <div className="font-medium">No fee structure</div>
-                                <div className="text-gray-400">Course: {student.course?.name || 'Unknown'}</div>
-                                <div className="text-gray-400">Year: {student.year || 'Unknown'}</div>
-                                <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
-                                <div className="text-gray-400">Academic Year: {student.academicYear || 'Unknown'}</div>
                               </div>
                             );
                           })()}
-                        </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openPaymentModal(student);
-                            }}
-                            className="text-green-600 hover:text-green-900 mr-3"
-                            title="Record Payment"
-                          >
-                            <ReceiptRefundIcon className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openBalanceModal(student);
-                            }}
-                            className="text-purple-600 hover:text-purple-900"
-                            title="View Balance"
-                          >
-                            <EyeIcon className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="bg-white px-3 sm:px-4 lg:px-6 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Previous
                   </button>
+                  <span className="flex items-center text-sm text-gray-700">
+                    Page {currentPage} of {totalPages}
+                  </span>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -3435,104 +3574,117 @@ const FeeManagement = () => {
       {activeTab === 'reminders' && (
         <>
           {/* Reminder Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
-                  <UserGroupIcon className="w-6 h-6 text-blue-600" />
+                  <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Total Students</p>
-                  <p className="text-lg font-semibold text-gray-900">{reminderStats.totalStudents}</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Students</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.totalStudents}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-green-100 rounded-lg">
-                  <CheckCircleIcon className="w-6 h-6 text-green-600" />
+                  <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Paid Students</p>
-                  <p className="text-lg font-semibold text-gray-900">{reminderStats.paidStudents}</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Paid Students</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.paidStudents}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <ExclamationTriangleIcon className="w-6 h-6 text-orange-600" />
+                  <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Pending Students</p>
-                  <p className="text-lg font-semibold text-gray-900">{reminderStats.pendingStudents}</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Pending Students</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.pendingStudents}</p>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-purple-100 rounded-lg">
-                  <BellIcon className="w-6 h-6 text-purple-600" />
+                  <BellIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-gray-600">Active Reminders</p>
-                  <p className="text-lg font-semibold text-gray-900">{reminderStats.activeReminders}</p>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Active Reminders</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.activeReminders}</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Reminder Management */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
               <h2 className="text-lg font-semibold text-gray-900">Fee Reminders Management</h2>
-              <div className="flex space-x-2">
-                <button
-                  onClick={createAllFeeReminders}
-                  disabled={reminderLoading}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  Create All Fee Reminders
-                </button>
-                <button
-                  onClick={() => {
-                    setReminderModalType('bulk');
-                    setShowReminderModal(true);
-                  }}
-                  disabled={selectedReminders.length === 0}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <BellIcon className="w-4 h-4" />
-                  Send Bulk Reminders ({selectedReminders.length})
-                </button>
-                <button
-                  onClick={syncFeeStatus}
-                  disabled={reminderLoading}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  <ArrowPathIcon className="w-4 h-4" />
-                  Sync Fee Status
-                </button>
-                <button
-                  onClick={() => {
-                    fetchFeeReminders();
-                    fetchReminderStats();
-                  }}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center gap-2"
-                >
-                  <ArrowPathIcon className="w-4 h-4" />
-                  Refresh
-                </button>
+              
+              {/* Mobile-friendly button layout */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
+                {/* Primary actions - always visible */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={createAllFeeReminders}
+                    disabled={reminderLoading}
+                    className="flex-1 sm:flex-none bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Create All</span>
+                    <span className="sm:hidden">Create</span>
+                  </button>
+                  <button
+                    onClick={syncFeeStatus}
+                    disabled={reminderLoading}
+                    className="flex-1 sm:flex-none bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Sync Status</span>
+                    <span className="sm:hidden">Sync</span>
+                  </button>
+                </div>
+                
+                {/* Secondary actions */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setReminderModalType('bulk');
+                      setShowReminderModal(true);
+                    }}
+                    disabled={selectedReminders.length === 0}
+                    className="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                  >
+                    <BellIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Send Bulk ({selectedReminders.length})</span>
+                    <span className="sm:hidden">Bulk ({selectedReminders.length})</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      fetchFeeReminders();
+                      fetchReminderStats();
+                    }}
+                    className="flex-1 sm:flex-none bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <ArrowPathIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Refresh</span>
+                    <span className="sm:hidden">Refresh</span>
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-6">
+              <div className="sm:col-span-2 lg:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -3541,7 +3693,7 @@ const FeeManagement = () => {
                     placeholder="Search by name or roll number..."
                     value={reminderFilters.search}
                     onChange={(e) => setReminderFilters(prev => ({ ...prev, search: e.target.value }))}
-                    className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
                 </div>
               </div>
@@ -3551,7 +3703,7 @@ const FeeManagement = () => {
                 <select
                   value={reminderFilters.academicYear}
                   onChange={(e) => setReminderFilters(prev => ({ ...prev, academicYear: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   {generateAcademicYears().map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -3564,7 +3716,7 @@ const FeeManagement = () => {
                 <select
                   value={reminderFilters.course}
                   onChange={(e) => setReminderFilters(prev => ({ ...prev, course: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value="">All Courses</option>
                   {courses.map(course => (
@@ -3578,7 +3730,7 @@ const FeeManagement = () => {
                 <select
                   value={reminderFilters.status}
                   onChange={(e) => setReminderFilters(prev => ({ ...prev, status: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value="">All Status</option>
                   <option value="paid">Fully Paid</option>
@@ -3591,7 +3743,7 @@ const FeeManagement = () => {
                 <select
                   value={reminderFilters.reminderType}
                   onChange={(e) => setReminderFilters(prev => ({ ...prev, reminderType: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                 >
                   <option value="">All Types</option>
                   <option value="active">Active Reminders</option>
@@ -3613,113 +3765,211 @@ const FeeManagement = () => {
                   <p className="mt-1 text-sm text-gray-500">No fee reminders match your current filters.</p>
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <input
+                              type="checkbox"
+                              checked={selectedReminders.length === getFilteredReminders().length && getFilteredReminders().length > 0}
+                              onChange={(e) => handleSelectAllReminders(e.target.checked)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reminder Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {getFilteredReminders().map((reminder) => (
+                          <tr key={reminder._id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={selectedReminders.includes(reminder._id)}
+                                onChange={(e) => handleReminderSelection(reminder._id, e.target.checked)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                              />
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {reminder.student?.name || 'N/A'}
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  {reminder.student?.rollNumber || 'N/A'}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {reminder.student?.course?.name || 'N/A'}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                Year {reminder.student?.year || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex space-x-2">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  reminder.feeStatus.term1 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  Term 1
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  reminder.feeStatus.term2 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  Term 2
+                                </span>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  reminder.feeStatus.term3 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  Term 3
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                reminder.currentReminder > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {reminder.currentReminder > 0 ? `Reminder ${reminder.currentReminder}` : 'No Active Reminder'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button
+                                onClick={() => {
+                                  setReminderModalType('send');
+                                  setSelectedReminders([reminder.student._id]);
+                                  setShowReminderModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                              >
+                                Send Reminder
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="lg:hidden space-y-4">
+                    {/* Select All for Mobile */}
+                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center">
                         <input
                           type="checkbox"
                           checked={selectedReminders.length === getFilteredReminders().length && getFilteredReminders().length > 0}
                           onChange={(e) => handleSelectAllReminders(e.target.checked)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
                         />
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reminder Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
+                        <span className="text-sm font-medium text-gray-700">Select All</span>
+                      </div>
+                      <span className="text-sm text-gray-500">{selectedReminders.length} selected</span>
+                    </div>
+
+                    {/* Mobile Cards */}
                     {getFilteredReminders().map((reminder) => (
-                      <tr key={reminder._id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <input
-                            type="checkbox"
-                            checked={selectedReminders.includes(reminder._id)}
-                            onChange={(e) => handleReminderSelection(reminder._id, e.target.checked)}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {reminder.student?.name || 'N/A'}
+                      <div key={reminder._id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedReminders.includes(reminder._id)}
+                              onChange={(e) => handleReminderSelection(reminder._id, e.target.checked)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
+                            />
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-900">
+                                {reminder.student?.name || 'N/A'}
+                              </h3>
+                              <p className="text-xs text-gray-500">
+                                {reminder.student?.rollNumber || 'N/A'}
+                              </p>
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {reminder.student?.rollNumber || 'N/A'}
-                            </div>
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
-                            {reminder.student?.course?.name || 'N/A'}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            Year {reminder.student?.year || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex space-x-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              reminder.feeStatus.term1 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              Term 1
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              reminder.feeStatus.term2 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              Term 2
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              reminder.feeStatus.term3 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
-                              Term 3
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            reminder.currentReminder > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {reminder.currentReminder > 0 ? `Reminder ${reminder.currentReminder}` : 'No Active Reminder'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => {
                               setReminderModalType('send');
                               setSelectedReminders([reminder.student._id]);
                               setShowReminderModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            className="text-blue-600 hover:text-blue-900 text-sm font-medium"
                           >
-                            Send Reminder
+                            Send
                           </button>
-                        </td>
-                      </tr>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Course:</span>
+                            <span className="text-xs font-medium text-gray-900">
+                              {reminder.student?.course?.name || 'N/A'} - Year {reminder.student?.year || 'N/A'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">Reminder Status:</span>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              reminder.currentReminder > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {reminder.currentReminder > 0 ? `Reminder ${reminder.currentReminder}` : 'No Active'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-xs text-gray-500 block mb-1">Fee Status:</span>
+                            <div className="flex flex-wrap gap-1">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                reminder.feeStatus.term1 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                T1
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                reminder.feeStatus.term2 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                T2
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                reminder.feeStatus.term3 === 'Paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                T3
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                </>
               )}
             </div>
 
             {/* Pagination for Fee Reminders */}
             {reminderTotalPages > 1 && (
-              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+              <div className="bg-white px-3 sm:px-6 py-3 flex items-center justify-between border-t border-gray-200">
                 <div className="flex-1 flex justify-between sm:hidden">
                   <button
                     onClick={() => setReminderCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={reminderCurrentPage === 1}
-                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Previous
                   </button>
+                  <span className="flex items-center text-sm text-gray-700">
+                    Page {reminderCurrentPage} of {reminderTotalPages}
+                  </span>
                   <button
                     onClick={() => setReminderCurrentPage(prev => Math.min(prev + 1, reminderTotalPages))}
                     disabled={reminderCurrentPage === reminderTotalPages}
-                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -3758,14 +4008,40 @@ const FeeManagement = () => {
 
       {/* Reminder Modal */}
       {showReminderModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-md sm:max-w-lg mx-auto bg-white rounded-lg shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900">
                 {reminderModalType === 'bulk' ? 'Send Bulk Reminders' : 'Send Manual Reminder'}
               </h3>
-              
-              <div className="mb-4">
+              <button
+                onClick={() => {
+                  setShowReminderModal(false);
+                  setReminderMessage('');
+                  setSelectedReminders([]);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 sm:p-6">
+              {/* Selected Students Info */}
+              {reminderModalType === 'bulk' && selectedReminders.length > 0 && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <span className="font-medium">{selectedReminders.length}</span> student{selectedReminders.length > 1 ? 's' : ''} selected
+                  </p>
+                </div>
+              )}
+
+              {/* Custom Message */}
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Custom Message (Optional)
                 </label>
@@ -3773,19 +4049,23 @@ const FeeManagement = () => {
                   value={reminderMessage}
                   onChange={(e) => setReminderMessage(e.target.value)}
                   placeholder="Enter custom reminder message..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm"
+                  rows={4}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Leave empty to use default reminder message
+                </p>
               </div>
 
-              <div className="flex justify-end space-x-3">
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                 <button
                   onClick={() => {
                     setShowReminderModal(false);
                     setReminderMessage('');
                     setSelectedReminders([]);
                   }}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  className="w-full sm:w-auto px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors font-medium"
                 >
                   Cancel
                 </button>
@@ -3801,15 +4081,29 @@ const FeeManagement = () => {
                     setSelectedReminders([]);
                   }}
                   disabled={sendingReminders}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  {sendingReminders ? 'Sending...' : 'Send Reminder'}
+                  {sendingReminders ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <BellIcon className="w-4 h-4" />
+                      Send Reminder{reminderModalType === 'bulk' ? 's' : ''}
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };
