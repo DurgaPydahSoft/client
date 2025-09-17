@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import {
   DevicePhoneMobileIcon,
   XMarkIcon,
@@ -9,6 +10,7 @@ import {
 const PWAInstallPrompt = () => {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     // Check if app is already installed
@@ -50,8 +52,11 @@ const PWAInstallPrompt = () => {
     localStorage.setItem('pwa-prompt-dismissed', Date.now().toString());
   };
 
-  // Don't show if already installed or recently dismissed
-  if (isInstalled || !showPrompt) {
+  // Don't show if already installed, recently dismissed, or on specific pages
+  const excludedPaths = ['/student/preregister', '/student/preregister/success'];
+  const shouldHide = isInstalled || !showPrompt || excludedPaths.some(path => location.pathname.startsWith(path));
+  
+  if (shouldHide) {
     return null;
   }
 
