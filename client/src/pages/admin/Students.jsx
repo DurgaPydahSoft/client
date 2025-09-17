@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, ShareIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -263,6 +263,12 @@ const Students = () => {
   // Student details modal states
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Share credentials modal states
+  const [shareModal, setShareModal] = useState(false);
+  const [shareStudent, setShareStudent] = useState(null);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [customMessage, setCustomMessage] = useState('');
 
   // Room availability states
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
@@ -3281,6 +3287,16 @@ const Students = () => {
                                     <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </button>
                                 )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openShareModal(student);
+                                  }}
+                                  className="p-1.5 text-green-600 hover:text-green-800 rounded-lg hover:bg-green-50 transition-colors"
+                                  title="Share credentials via SMS"
+                                >
+                                  <ShareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -5145,6 +5161,45 @@ const Students = () => {
     setStudentDetailsModal(true);
   };
 
+  // Share credentials functions
+  const openShareModal = (student) => {
+    setShareStudent(student);
+    setCustomMessage('');
+    setShareModal(true);
+  };
+
+  const handleShareCredentials = async (e) => {
+    e.preventDefault();
+    
+    if (!shareStudent?.studentPhone) {
+      toast.error('Student mobile number not found');
+      return;
+    }
+
+    setShareLoading(true);
+    try {
+      const response = await api.post('/api/admin/students/share-credentials', {
+        studentId: shareStudent._id,
+        studentPhone: shareStudent.studentPhone,
+        customMessage: customMessage.trim() || null
+      });
+
+      if (response.data.success) {
+        toast.success('Credentials sent successfully via SMS!');
+        setShareModal(false);
+        setShareStudent(null);
+        setCustomMessage('');
+      } else {
+        toast.error(response.data.message || 'Failed to send credentials');
+      }
+    } catch (err) {
+      console.error('Error sharing credentials:', err);
+      toast.error(err.response?.data?.message || 'Failed to send credentials');
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
   const handlePasswordReset = async (e) => {
     e.preventDefault();
 
@@ -5278,6 +5333,104 @@ const Students = () => {
                   }`}
               >
                 {passwordResetLoading ? 'Resetting...' : 'Reset Password'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  );
+
+  // Share Credentials Modal
+  const renderShareModal = () => (
+    shareModal && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-xl font-bold text-gray-800">Share Credentials</h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {shareStudent?.name} ({shareStudent?.rollNumber})
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShareModal(false);
+                setShareStudent(null);
+                setCustomMessage('');
+              }}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <XMarkIcon className="w-6 h-6" />
+            </button>
+          </div>
+
+          <form onSubmit={handleShareCredentials} className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="text-sm font-medium text-blue-800 mb-2">Student Details:</h4>
+              <div className="text-sm text-blue-700 space-y-1">
+                <div><strong>Name:</strong> {shareStudent?.name}</div>
+                <div><strong>Roll Number:</strong> {shareStudent?.rollNumber}</div>
+                <div><strong>Hostel ID:</strong> {shareStudent?.hostelId || 'N/A'}</div>
+                <div><strong>Mobile:</strong> {shareStudent?.studentPhone || 'N/A'}</div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Custom Message (Optional)
+              </label>
+              <textarea
+                value={customMessage}
+                onChange={(e) => setCustomMessage(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Add a custom message to include with the credentials..."
+              />
+            </div>
+
+            <div className="bg-green-50 p-3 rounded-lg">
+              <h4 className="text-sm font-medium text-green-800 mb-2">SMS Template:</h4>
+              <p className="text-xs text-green-700">
+                "Welcome to PYDAH HOSTEL. Your Account is created with UserID: {shareStudent?.rollNumber || shareStudent?.hostelId} Password: [Current Password] login with link: hms.pydahsoft.in -Pydah"
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mt-0.5" />
+                </div>
+                <div className="ml-2">
+                  <h4 className="text-sm font-medium text-yellow-800 mb-1">Important Note:</h4>
+                  <p className="text-xs text-yellow-700">
+                    This feature can only send the original password for <strong>first-time login students</strong> who haven't changed their password yet. For students who have already logged in and changed their password, the system will send a default password and they will need to reset their password.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShareModal(false);
+                  setShareStudent(null);
+                  setCustomMessage('');
+                }}
+                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={shareLoading || !shareStudent?.studentPhone}
+                className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${shareLoading || !shareStudent?.studentPhone
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700'
+                  }`}
+              >
+                {shareLoading ? 'Sending...' : 'Send Credentials'}
               </button>
             </div>
           </form>
@@ -5440,6 +5593,7 @@ const Students = () => {
         onRenew={handleRenewBatches}
       />
       {passwordResetModal && renderPasswordResetModal()}
+      {renderShareModal()}
       {renderCameraModal()}
 
       {/* Room View Modal */}
