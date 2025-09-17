@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, useOutletContext, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import {LoadingSpinner} from '../../components/LoadingSpinner';
+import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   Bars3Icon,
   XMarkIcon,
