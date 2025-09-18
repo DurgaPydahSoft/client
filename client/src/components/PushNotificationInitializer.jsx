@@ -128,7 +128,19 @@ const PushNotificationInitializer = () => {
               console.log('🔔 Notification clicked:', event);
               const url = event.notification?.additionalData?.url;
               if (url) {
-                window.location.href = url;
+                // Check if user is authenticated
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+                
+                if (!token || !user) {
+                  // User not authenticated, redirect to login page
+                  console.log('🔔 User not authenticated, redirecting to login page');
+                  window.location.href = '/login';
+                } else {
+                  // User is authenticated, redirect to the intended URL
+                  console.log('🔔 User authenticated, redirecting to:', url);
+                  window.location.href = url;
+                }
               }
             });
 

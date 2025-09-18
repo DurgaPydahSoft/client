@@ -3242,20 +3242,12 @@ const FeeManagement = () => {
                                 {term.replace('term', 'Term ')}
                               </div>
                               <div className="space-y-2 text-sm">
-                                {/* {balance.hasConcession && (
-                                  <div className="flex justify-between">
-                                    <span>Original:</span>
-                                    <span className="font-medium text-gray-500 line-through">₹{originalTermFee.toLocaleString()}</span>
-                                  </div>
-                                )} */}
+                                
                                 <div className="flex justify-between">
                                   <span>Required:</span>
                                   <span className="font-medium">₹{termData.required.toLocaleString()}</span>
                                 </div>
-                                {/* <div className="flex justify-between">
-                                <span>Paid:</span>
-                                <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
-                              </div> */}
+                                
                                 <div className="flex justify-between">
                                   <span>Balance:</span>
                                   <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -3332,7 +3324,7 @@ const FeeManagement = () => {
           </div>
         </div>
       )}
-      
+
       {/* Fee Structure Modal */}
       {showFeeStructureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
