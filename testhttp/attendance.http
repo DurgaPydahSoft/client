@@ -1,0 +1,46 @@
+@baseUrl = http://localhost:5000/api
+
+### Attendance: Get Students (Admin/Warden)
+GET {{baseUrl}}/attendance/students?course=&branch=&gender=&category=&roomNumber=
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+
+### Attendance: Take Attendance
+POST {{baseUrl}}/attendance/take
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+Content-Type: application/json
+
+{
+  "date": "2025-01-01",
+  "records": [
+    { "studentId": "{{STUDENT_ID}}", "status": "Present" }
+  ]
+}
+
+### Attendance: Get Attendance For Date
+GET {{baseUrl}}/attendance/date?date=2025-01-01
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+
+### Attendance: Get Range
+GET {{baseUrl}}/attendance/range?start=2025-01-01&end=2025-01-31
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+
+### Attendance: Stats
+GET {{baseUrl}}/attendance/stats?start=2025-01-01&end=2025-01-31
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+
+### Attendance: Update
+PUT {{baseUrl}}/attendance/update
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+Content-Type: application/json
+
+{
+  "studentId": "{{STUDENT_ID}}",
+  "date": "2025-01-01",
+  "status": "Absent"
+}
+
+### Attendance: Delete
+DELETE {{baseUrl}}/attendance/{{STUDENT_ID}}/2025-01-01
+Authorization: Bearer {{ADMIN_OR_WARDEN_TOKEN}}
+
+

@@ -1,0 +1,36 @@
+@baseUrl = http://localhost:5000/api/fee-structures
+
+### Public: Get Fee Structures
+GET {{baseUrl}}/
+
+### Public: Get Academic Years
+GET {{baseUrl}}/academic-years
+
+### Public: Get Stats
+GET {{baseUrl}}/stats
+
+### Public: Get Fee Structure For Admit Card
+GET {{baseUrl}}/admit-card/2024-25/OC
+
+### Public: Get Fee Structure By Year & Category
+GET {{baseUrl}}/2024-25/OC
+
+### Admin: Create/Update Fee Structure
+POST {{baseUrl}}/
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "academicYear": "2024-25",
+  "category": "OC",
+  "fees": {
+    "hostel": 10000,
+    "mess": 12000
+  }
+}
+
+### Admin: Delete Fee Structure
+DELETE {{baseUrl}}/2024-25/OC
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+

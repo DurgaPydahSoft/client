@@ -1,0 +1,18 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+
+### Get Accurate Fee Reminder Stats
+GET {{baseUrl}}/fee-reminders/admin/accurate-stats
+Authorization: Bearer {{adminToken}}
+
+### Get Accurate Fee Reminder Stats for Specific Academic Year
+GET {{baseUrl}}/fee-reminders/admin/accurate-stats?academicYear=2024-2025
+Authorization: Bearer {{adminToken}}
+
+### Compare with Regular Stats
+GET {{baseUrl}}/fee-reminders/admin/stats?academicYear=2024-2025
+Authorization: Bearer {{adminToken}}
+
+### Get Fee Reminders with Combined Stats
+GET {{baseUrl}}/fee-reminders/admin/all?page=1&limit=10&academicYear=2024-2025
+Authorization: Bearer {{adminToken}}

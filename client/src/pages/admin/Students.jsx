@@ -10,7 +10,6 @@ import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 // Dynamic course and branch data will be fetched from backend
-
 // Room mappings based on gender and category
 const ROOM_MAPPINGS = {
   Male: {

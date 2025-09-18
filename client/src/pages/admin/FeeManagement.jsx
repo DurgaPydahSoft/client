@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalSettings } from '../../context/GlobalSettingsContext';
 import api from '../../utils/axios';
@@ -8,6 +8,7 @@ import {
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
+  ChartBarIcon,
   ClockIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -116,6 +117,7 @@ const FeeManagement = () => {
     status: '',
     reminderType: ''
   });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedReminders, setSelectedReminders] = useState([]);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderModalType, setReminderModalType] = useState(''); // 'send', 'bulk'
@@ -123,6 +125,11 @@ const FeeManagement = () => {
   const [sendingReminders, setSendingReminders] = useState(false);
   const [reminderCurrentPage, setReminderCurrentPage] = useState(1);
   const [reminderTotalPages, setReminderTotalPages] = useState(1);
+  const [emailServiceStatus, setEmailServiceStatus] = useState(null);
+  const [reminderOptions, setReminderOptions] = useState({
+    sendEmail: true,
+    sendPushNotification: true
+  });
 
 
   // Generate academic years dynamically (3 years before and after current year)
@@ -1393,6 +1400,20 @@ const FeeManagement = () => {
     fetchHostelFeePayments();
   }, []);
 
+  // Check email service status on component mount
+  useEffect(() => {
+    checkEmailServiceStatus();
+  }, []);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(reminderFilters.search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [reminderFilters.search]);
+
   // Refresh fee structures when filters change
   useEffect(() => {
     if (feeStructureFilter.academicYear || feeStructureFilter.category) {
@@ -1422,8 +1443,8 @@ const FeeManagement = () => {
       if (reminderFilters.status) {
         queryParams.append('status', reminderFilters.status);
       }
-      if (reminderFilters.search) {
-        queryParams.append('search', reminderFilters.search);
+      if (debouncedSearch) {
+        queryParams.append('search', debouncedSearch);
       }
 
       const queryString = queryParams.toString();
@@ -1434,9 +1455,12 @@ const FeeManagement = () => {
 
       if (response.data.success) {
         console.log('🔔 Found fee reminders:', response.data.data.feeReminders?.length || 0);
-        console.log('🔔 Sample reminder data:', response.data.data.feeReminders?.[0]);
         setFeeReminders(response.data.data.feeReminders || []);
         setReminderTotalPages(response.data.data.totalPages || 1);
+        
+        // Stats are now fetched separately via fetchReminderStats()
+        // No need to set stats from combined response
+        
         setError(null);
       } else {
         console.log('🔔 No fee reminders found');
@@ -1452,28 +1476,102 @@ const FeeManagement = () => {
     }
   };
 
-  // Fetch fee reminder statistics
+  // Fetch accurate fee reminder statistics (always for ALL academic years)
   const fetchReminderStats = async () => {
     try {
-      console.log('📊 Fetching fee reminder stats...');
+      console.log('📊 Fetching accurate fee reminder stats for ALL academic years...');
 
-      const queryParams = new URLSearchParams();
-      if (reminderFilters.academicYear) {
-        queryParams.append('academicYear', reminderFilters.academicYear);
-      }
-
-      const queryString = queryParams.toString();
-      const url = `/api/fee-reminders/admin/stats${queryString ? `?${queryString}` : ''}`;
+      // Always fetch stats for all academic years, not filtered by selected academic year
+      const url = `/api/fee-reminders/admin/accurate-stats`;
       
       const response = await api.get(url);
 
       if (response.data.success) {
-        console.log('📊 Fee reminder stats:', response.data.data);
+        console.log('📊 Accurate fee reminder stats :', response.data.data);
+        console.log('📊 Setting reminderStats to:', response.data.data);
         setReminderStats(response.data.data);
       }
 
     } catch (err) {
-      console.error('Error fetching fee reminder stats:', err);
+      console.error('Error fetching accurate fee reminder stats:', err);
+    }
+  };
+
+  // Check email service status
+  const checkEmailServiceStatus = async () => {
+    try {
+      console.log('📧 Checking email service status...');
+      const response = await api.get('/api/admin/email/status');
+      console.log('📧 Email service status response:', response.data);
+      
+      if (response.data.success) {
+        setEmailServiceStatus(response.data.data);
+        console.log('📧 Email service status set:', response.data.data);
+      }
+    } catch (err) {
+      console.error('📧 Error checking email service status:', err);
+      setEmailServiceStatus({ configured: false, error: 'Unable to check status' });
+    }
+  };
+
+  // Test email functionality
+  const testEmail = async () => {
+    if (!testEmailData.email) {
+      toast.error('Please enter an email address');
+      return;
+    }
+
+    try {
+      setTestingEmail(true);
+      console.log('📧 Testing email to:', testEmailData.email);
+
+      const response = await api.post('/api/fee-reminders/test-email', {
+        studentEmail: testEmailData.email,
+        reminderNumber: testEmailData.reminderNumber
+      });
+
+      if (response.data.success) {
+        toast.success(`Test email sent successfully to ${testEmailData.email}`);
+        setShowEmailTestModal(false);
+        setTestEmailData({ email: '', reminderNumber: 1 });
+      } else {
+        toast.error(response.data.message || 'Failed to send test email');
+      }
+
+    } catch (err) {
+      console.error('Error testing email:', err);
+      toast.error(err.response?.data?.message || 'Failed to send test email');
+    } finally {
+      setTestingEmail(false);
+    }
+  };
+
+  // Cleanup orphaned fee reminders
+  const cleanupOrphanedReminders = async () => {
+    if (!window.confirm('This will permanently delete all fee reminders for students who have been deleted from the system. Are you sure you want to continue?')) {
+      return;
+    }
+
+    try {
+      setReminderLoading(true);
+      console.log('🧹 Cleaning up orphaned fee reminders...');
+
+      const response = await api.post('/api/fee-reminders/admin/cleanup-orphaned');
+
+      if (response.data.success) {
+        const deletedCount = response.data.data?.deletedCount || 0;
+        toast.success(`Successfully cleaned up ${deletedCount} orphaned fee reminders`);
+        // Refresh the reminders list
+        await fetchFeeReminders();
+        await fetchReminderStats();
+      } else {
+        toast.error(response.data.message || 'Failed to cleanup orphaned reminders');
+      }
+    } catch (err) {
+      console.error('Error cleaning up orphaned reminders:', err);
+      toast.error(err.response?.data?.message || 'Failed to cleanup orphaned reminders');
+    } finally {
+      setReminderLoading(false);
     }
   };
 
@@ -1482,15 +1580,30 @@ const FeeManagement = () => {
     try {
       setSendingReminders(true);
       console.log('📤 Sending manual reminder to student:', studentId);
+      console.log('📤 Notification options:', reminderOptions);
 
       const response = await api.post('/api/fee-reminders/admin/send-manual', {
         studentId,
         reminderType,
-        message: reminderMessage || 'Please pay your pending hostel fees.'
+        message: reminderMessage || 'Please pay your pending hostel fees.',
+        sendEmail: reminderOptions.sendEmail,
+        sendPushNotification: reminderOptions.sendPushNotification
       });
 
       if (response.data.success) {
-        toast.success('Reminder sent successfully');
+        const emailSent = response.data.data?.emailSent;
+        const pushSent = response.data.data?.pushSent;
+        
+        let statusMessage = 'Reminder sent successfully';
+        if (emailSent && pushSent) {
+          statusMessage += ' (Email + Push Notification)';
+        } else if (emailSent) {
+          statusMessage += ' (Email only)';
+        } else if (pushSent) {
+          statusMessage += ' (Push Notification only)';
+        }
+        
+        toast.success(statusMessage);
         fetchFeeReminders(); // Refresh the list
       } else {
         toast.error(response.data.message || 'Failed to send reminder');
@@ -1514,14 +1627,33 @@ const FeeManagement = () => {
     try {
       setSendingReminders(true);
       console.log('📤 Sending bulk reminders to:', selectedReminders.length, 'students');
+      console.log('📤 Notification options:', reminderOptions);
 
       const response = await api.post('/api/fee-reminders/admin/send-bulk', {
         studentIds: selectedReminders,
-        message: reminderMessage || 'Please pay your pending hostel fees.'
+        message: reminderMessage || 'Please pay your pending hostel fees.',
+        sendEmail: reminderOptions.sendEmail,
+        sendPushNotification: reminderOptions.sendPushNotification
       });
 
       if (response.data.success) {
-        toast.success(`Reminders sent to ${selectedReminders.length} students`);
+        const successCount = response.data.data?.successCount || selectedReminders.length;
+        const errorCount = response.data.data?.errorCount || 0;
+        
+        let statusMessage = `Reminders sent to ${successCount} students`;
+        if (reminderOptions.sendEmail && reminderOptions.sendPushNotification) {
+          statusMessage += ' (Email + Push Notification)';
+        } else if (reminderOptions.sendEmail) {
+          statusMessage += ' (Email only)';
+        } else if (reminderOptions.sendPushNotification) {
+          statusMessage += ' (Push Notification only)';
+        }
+        
+        if (errorCount > 0) {
+          statusMessage += `, ${errorCount} failed`;
+        }
+        
+        toast.success(statusMessage);
         setSelectedReminders([]);
         fetchFeeReminders(); // Refresh the list
       } else {
@@ -1548,17 +1680,18 @@ const FeeManagement = () => {
   // Handle select all reminders
   const handleSelectAllReminders = (isSelected) => {
     if (isSelected) {
-      setSelectedReminders(feeReminders.map(reminder => reminder._id));
+      setSelectedReminders(getFilteredReminders.map(reminder => reminder._id));
     } else {
       setSelectedReminders([]);
     }
   };
 
-  // Filter reminders based on current filters
-  const getFilteredReminders = () => {
+  // Memoized filter reminders based on current filters
+  const getFilteredReminders = useMemo(() => {
     let filtered = [...feeReminders];
 
-    if (reminderFilters.search) {
+    // Client-side search (since we're using debounced search for API calls)
+    if (reminderFilters.search && !debouncedSearch) {
       const searchTerm = reminderFilters.search.toLowerCase();
       filtered = filtered.filter(reminder => 
         reminder.student?.name?.toLowerCase().includes(searchTerm) ||
@@ -1597,7 +1730,7 @@ const FeeManagement = () => {
     }
 
     return filtered;
-  };
+  }, [feeReminders, reminderFilters, debouncedSearch]);
 
   // Create fee reminders for all students
   const createAllFeeReminders = async () => {
@@ -1667,17 +1800,24 @@ const FeeManagement = () => {
   useEffect(() => {
     if (activeTab === 'reminders') {
       fetchFeeReminders();
-      fetchReminderStats();
+      fetchReminderStats(); // Fetch accurate stats separately
     }
   }, [activeTab]);
 
-  // Fetch reminders when filters change
+  // Fetch reminders when filters change (excluding search which is debounced)
   useEffect(() => {
     if (activeTab === 'reminders') {
       fetchFeeReminders();
-      fetchReminderStats();
+      // Don't refetch stats when filters change - stats should show totals for all academic years
     }
-  }, [reminderFilters]);
+  }, [reminderFilters.academicYear, reminderFilters.course, reminderFilters.status, reminderFilters.reminderType]);
+
+  // Fetch reminders when debounced search changes
+  useEffect(() => {
+    if (activeTab === 'reminders') {
+      fetchFeeReminders();
+    }
+  }, [debouncedSearch]);
 
   // Fetch reminders when page changes
   useEffect(() => {
@@ -3574,15 +3714,28 @@ const FeeManagement = () => {
       {activeTab === 'reminders' && (
         <>
           {/* Reminder Statistics */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          {console.log('🔍 Current reminderStats in render:', reminderStats)}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Students</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.totalStudents}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Students </p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.totalStudents || 0}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">With Fee Structure </p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.studentsWithReminders || 0}</p>
                 </div>
               </div>
             </div>
@@ -3593,7 +3746,7 @@ const FeeManagement = () => {
                   <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Paid Students</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Paid Students </p>
                   <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.paidStudents}</p>
                 </div>
               </div>
@@ -3605,7 +3758,7 @@ const FeeManagement = () => {
                   <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Pending Students</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Pending Students </p>
                   <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.pendingStudents}</p>
                 </div>
               </div>
@@ -3617,17 +3770,37 @@ const FeeManagement = () => {
                   <BellIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Active Reminders</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Active Reminders </p>
                   <p className="text-base sm:text-lg font-semibold text-gray-900">{reminderStats.activeReminders}</p>
                 </div>
               </div>
             </div>
           </div>
+          
+          {/* Info about students without fee structures */}
+          {reminderStats.studentsWithoutReminders > 0 && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    {reminderStats.studentsWithoutReminders} students without fee structures
+                  </h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    These students don't have fee reminder records because no fee structure is defined for their course/year/category combination. 
+                    They are included in the pending count but won't receive fee reminders.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Reminder Management */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
-              <h2 className="text-lg font-semibold text-gray-900">Fee Reminders Management</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Fee Reminders Management</h2>
+              </div>
               
               {/* Mobile-friendly button layout */}
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
@@ -3670,14 +3843,34 @@ const FeeManagement = () => {
                   <button
                     onClick={() => {
                       fetchFeeReminders();
-                      fetchReminderStats();
+                      // Don't refresh stats - they should always show totals for all academic years
                     }}
                     className="flex-1 sm:flex-none bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-700 flex items-center justify-center gap-2 text-sm"
                   >
                     <ArrowPathIcon className="w-4 h-4" />
-                    <span className="hidden sm:inline">Refresh</span>
+                    <span className="hidden sm:inline">Refresh List</span>
                     <span className="sm:hidden">Refresh</span>
                   </button>
+                  <button
+                    onClick={() => {
+                      fetchReminderStats();
+                    }}
+                    className="flex-1 sm:flex-none bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <ChartBarIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Refresh Stats</span>
+                    <span className="sm:hidden">Stats</span>
+                  </button>
+                  {/* <button
+                    onClick={cleanupOrphanedReminders}
+                    className="flex-1 sm:flex-none bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span className="hidden sm:inline">Cleanup N/A</span>
+                    <span className="sm:hidden">Cleanup</span>
+                  </button> */}
                 </div>
               </div>
             </div>
@@ -3758,7 +3951,7 @@ const FeeManagement = () => {
                 <div className="flex justify-center items-center py-8">
                   <LoadingSpinner />
                 </div>
-              ) : getFilteredReminders().length === 0 ? (
+              ) : getFilteredReminders.length === 0 ? (
                 <div className="text-center py-8">
                   <BellIcon className="mx-auto h-12 w-12 text-gray-400" />
                   <h3 className="mt-2 text-sm font-medium text-gray-900">No reminders found</h3>
@@ -3774,7 +3967,7 @@ const FeeManagement = () => {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             <input
                               type="checkbox"
-                              checked={selectedReminders.length === getFilteredReminders().length && getFilteredReminders().length > 0}
+                              checked={selectedReminders.length === getFilteredReminders.length && getFilteredReminders.length > 0}
                               onChange={(e) => handleSelectAllReminders(e.target.checked)}
                               className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                             />
@@ -3787,7 +3980,7 @@ const FeeManagement = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {getFilteredReminders().map((reminder) => (
+                        {getFilteredReminders.map((reminder) => (
                           <tr key={reminder._id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <input
@@ -3866,7 +4059,7 @@ const FeeManagement = () => {
                       <div className="flex items-center">
                         <input
                           type="checkbox"
-                          checked={selectedReminders.length === getFilteredReminders().length && getFilteredReminders().length > 0}
+                          checked={selectedReminders.length === getFilteredReminders.length && getFilteredReminders.length > 0}
                           onChange={(e) => handleSelectAllReminders(e.target.checked)}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-3"
                         />
@@ -3876,7 +4069,7 @@ const FeeManagement = () => {
                     </div>
 
                     {/* Mobile Cards */}
-                    {getFilteredReminders().map((reminder) => (
+                    {getFilteredReminders.map((reminder) => (
                       <div key={reminder._id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center">
@@ -4040,6 +4233,47 @@ const FeeManagement = () => {
                 </div>
               )}
 
+              {/* Single Student Info for Manual Reminder */}
+              {reminderModalType === 'send' && selectedReminders.length > 0 && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        Sending reminder to:
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {(() => {
+                          const student = students.find(s => s._id === selectedReminders[0]);
+                          return student ? `${student.name} (${student.rollNumber})` : 'Loading...';
+                        })()}
+                      </p>
+                      {(() => {
+                        const student = students.find(s => s._id === selectedReminders[0]);
+                        return student?.email ? (
+                          <p className="text-xs text-green-600 mt-1">
+                            📧 {student.email}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-red-500 mt-1">
+                            ⚠️ No email address available
+                          </p>
+                        );
+                      })()}
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">
+                        {(() => {
+                          const student = students.find(s => s._id === selectedReminders[0]);
+                          if (!student?.email) return 'Email disabled';
+                          if (!emailServiceStatus?.configured) return 'Email service inactive';
+                          return 'Email available';
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Custom Message */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -4057,6 +4291,64 @@ const FeeManagement = () => {
                 </p>
               </div>
 
+              {/* Notification Options */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Send Via
+                </label>
+                <div className="space-y-3">
+                  {/* Email Option */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="sendEmail"
+                      checked={reminderOptions.sendEmail}
+                      onChange={(e) => setReminderOptions(prev => ({
+                        ...prev,
+                        sendEmail: e.target.checked
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="sendEmail" className="ml-2 text-sm text-gray-700 flex items-center">
+                      {/* <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg> */}
+                      Email Notification
+                      {!emailServiceStatus?.configured && (
+                        <span className="ml-2 text-xs text-red-500">(Service Inactive)</span>
+                      )}
+                    </label>
+                  </div>
+
+                  {/* Push Notification Option */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="sendPushNotification"
+                      checked={reminderOptions.sendPushNotification}
+                      onChange={(e) => setReminderOptions(prev => ({
+                        ...prev,
+                        sendPushNotification: e.target.checked
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="sendPushNotification" className="ml-2 text-sm text-gray-700 flex items-center">
+                      {/* <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM4.828 7l2.586 2.586a2 2 0 002.828 0L12.828 7H4.828zM4 19h10v-2H4v2z" />
+                      </svg> */}
+                      Push Notification
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Validation Message */}
+                {!reminderOptions.sendEmail && !reminderOptions.sendPushNotification && (
+                  <p className="mt-2 text-xs text-red-500">
+                    Please select at least one notification method
+                  </p>
+                )}
+              </div>
+
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
                 <button
@@ -4071,6 +4363,12 @@ const FeeManagement = () => {
                 </button>
                 <button
                   onClick={() => {
+                    // Validate that at least one notification method is selected
+                    if (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification) {
+                      toast.error('Please select at least one notification method');
+                      return;
+                    }
+
                     if (reminderModalType === 'bulk') {
                       sendBulkReminders();
                     } else {
@@ -4079,8 +4377,13 @@ const FeeManagement = () => {
                     setShowReminderModal(false);
                     setReminderMessage('');
                     setSelectedReminders([]);
+                    // Reset options to default
+                    setReminderOptions({
+                      sendEmail: true,
+                      sendPushNotification: true
+                    });
                   }}
-                  disabled={sendingReminders}
+                  disabled={sendingReminders || (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification)}
                   className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   {sendingReminders ? (
@@ -4102,7 +4405,7 @@ const FeeManagement = () => {
             </div>
           </div>
         </div>
-      )}
+      )}      
     </div>
     </div>
   );

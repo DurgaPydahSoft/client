@@ -1,0 +1,41 @@
+@baseUrl = http://localhost:5000/api
+
+### Admin Login (super_admin/sub_admin/warden/principal/custom)
+POST {{baseUrl}}/admin-management/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "superadmin123"
+}
+
+### Validate Admin Token
+GET {{baseUrl}}/admin-management/validate
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Reset Admin's Own Password
+POST {{baseUrl}}/admin-management/reset-password
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "newPassword": "newSecurePassword123"
+}
+
+### Admin: Get Sub-Admins & Custom Role Admins (super_admin only)
+GET {{baseUrl}}/admin-management/sub-admins
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Create Sub-Admin (super_admin only)
+POST {{baseUrl}}/admin-management/sub-admins
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "username": "subadmin01",
+  "password": "password123",
+  "permissions": ["leave_management"],
+  "leaveManagementCourses": ["<courseId>"]
+}
+
+

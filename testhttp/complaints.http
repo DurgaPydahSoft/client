@@ -1,0 +1,106 @@
+@baseUrl = http://localhost:5000/api
+
+### Student: Create Complaint (with image)
+POST {{baseUrl}}/complaints/
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="title"
+
+Light not working
+--WebKitFormBoundary
+Content-Disposition: form-data; name="description"
+
+Bulb fused in room 101
+--WebKitFormBoundary
+Content-Disposition: form-data; name="image"; filename="issue.jpg"
+Content-Type: image/jpeg
+
+< ./sample/issue.jpg
+--WebKitFormBoundary--
+
+### Student: My Complaints
+GET {{baseUrl}}/complaints/my
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Complaint Details
+GET {{baseUrl}}/complaints/{{COMPLAINT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Complaint Timeline
+GET {{baseUrl}}/complaints/{{COMPLAINT_ID}}/timeline
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Give Feedback
+POST {{baseUrl}}/complaints/{{COMPLAINT_ID}}/feedback
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: application/json
+
+{
+  "feedback": "Issue resolved quickly, thanks!",
+  "rating": 5
+}
+
+### Admin: All Complaints
+GET {{baseUrl}}/complaints/admin/all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Complaint Details
+GET {{baseUrl}}/complaints/admin/{{COMPLAINT_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Update Complaint Status
+PUT {{baseUrl}}/complaints/admin/{{COMPLAINT_ID}}/status
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "status": "Resolved"
+}
+
+### Admin: Complaint Timeline
+GET {{baseUrl}}/complaints/admin/{{COMPLAINT_ID}}/timeline
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: AI Config
+GET {{baseUrl}}/complaints/admin/ai/config
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Update AI Config
+PUT {{baseUrl}}/complaints/admin/ai/config
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "enabled": true
+}
+
+### Admin: AI Quick Setup
+POST {{baseUrl}}/complaints/admin/ai/quick-setup
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: AI Toggle
+POST {{baseUrl}}/complaints/admin/ai/toggle
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Warden: Create Complaint
+POST {{baseUrl}}/complaints/warden
+Authorization: Bearer {{WARDEN_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="title"
+
+Broken window in corridor
+--WebKitFormBoundary--
+
+### Warden: Complaints
+GET {{baseUrl}}/complaints/warden
+Authorization: Bearer {{WARDEN_TOKEN}}
+
+### Principal: Complaints
+GET {{baseUrl}}/complaints/principal
+Authorization: Bearer {{PRINCIPAL_TOKEN}}
+
+

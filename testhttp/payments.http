@@ -1,0 +1,72 @@
+@baseUrl = http://localhost:5000/api/payments
+
+### Student: Initiate Payment
+POST {{baseUrl}}/initiate
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: application/json
+
+{
+  "amount": 1500,
+  "purpose": "Electricity Bill"
+}
+
+### Student: Payment Status
+GET {{baseUrl}}/status/{{PAYMENT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Verify Payment
+POST {{baseUrl}}/verify/{{PAYMENT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Payment History
+GET {{baseUrl}}/history
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Cancel Payment
+DELETE {{baseUrl}}/cancel/{{PAYMENT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Admin: Payment Stats
+GET {{baseUrl}}/stats
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Record Hostel Fee Payment
+POST {{baseUrl}}/hostel-fee
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "studentId": "{{STUDENT_ID}}",
+  "amount": 10000,
+  "mode": "Cash"
+}
+
+### Admin: Get Student's Hostel Fee Payments
+GET {{baseUrl}}/hostel-fee/{{STUDENT_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Student: Own Hostel Fee Payment History
+GET {{baseUrl}}/hostel-fee/history/{{STUDENT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Admin: Hostel Fee Payment Stats
+GET {{baseUrl}}/hostel-fee/stats
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Webhook (no auth)
+POST {{baseUrl}}/webhook
+Content-Type: application/json
+
+{
+  "example": "payload"
+}
+
+### Test Webhook (no auth)
+POST {{baseUrl}}/webhook-test
+Content-Type: application/json
+
+{
+  "test": true
+}
+
+

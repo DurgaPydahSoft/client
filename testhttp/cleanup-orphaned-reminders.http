@@ -1,0 +1,15 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+
+### Cleanup Orphaned Fee Reminders
+POST {{baseUrl}}/fee-reminders/admin/cleanup-orphaned
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+### Get Fee Reminders (to see before cleanup)
+GET {{baseUrl}}/fee-reminders/admin/all?page=1&limit=10
+Authorization: Bearer {{adminToken}}
+
+### Get Fee Reminder Stats
+GET {{baseUrl}}/fee-reminders/admin/stats
+Authorization: Bearer {{adminToken}}

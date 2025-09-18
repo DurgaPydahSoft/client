@@ -1,0 +1,46 @@
+@baseUrl = http://localhost:5000/api/notifications
+
+### Test Notification (no auth)
+POST {{baseUrl}}/test
+
+### Notification Status (no auth)
+GET {{baseUrl}}/status
+
+### Send Menu Notification (any authenticated)
+POST {{baseUrl}}/send-menu
+Authorization: Bearer {{ANY_TOKEN}}
+Content-Type: application/json
+
+{
+  "title": "Today's Menu",
+  "message": "Check out the delicious breakfast!",
+  "url": "/"
+}
+
+### Send Menu Notification To All Students (admin)
+POST {{baseUrl}}/send-menu-all
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "title": "Today's Menu",
+  "message": "Breakfast served at 8 AM"
+}
+
+### Admin: List Notifications
+GET {{baseUrl}}/admin
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Unread Notifications
+GET {{baseUrl}}/admin/unread
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Unread Count
+GET {{baseUrl}}/admin/count
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Mark All Read
+PATCH {{baseUrl}}/admin/read-all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+

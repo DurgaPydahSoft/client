@@ -1,0 +1,36 @@
+
+@baseUrl = http://localhost:5000/api
+
+### Student Login
+POST {{baseUrl}}/auth/student/login
+Content-Type: application/json
+
+{
+  "rollNumber": "21CS001",
+  "password": "password123"
+}
+
+### Verify Student Roll Number
+POST {{baseUrl}}/auth/student/verify
+Content-Type: application/json
+
+{
+  "rollNumber": "21CS001"
+}
+
+### Complete Student Registration
+POST {{baseUrl}}/auth/student/register
+Content-Type: application/json
+
+{
+  "rollNumber": "21CS001",
+  "password": "password123"
+}
+
+### Validate Token (Student/Admin/etc.)
+GET {{baseUrl}}/auth/validate
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Test Auth Routes
+GET {{baseUrl}}/auth/test
+

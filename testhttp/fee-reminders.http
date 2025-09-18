@@ -1,0 +1,39 @@
+@baseUrl = http://localhost:5000/api/fee-reminders
+
+### Student: My Fee Reminders
+GET {{baseUrl}}/student/{{STUDENT_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Admin/Warden: All Fee Reminders
+GET {{baseUrl}}/admin/all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin/Warden: Stats
+GET {{baseUrl}}/admin/stats
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin/Warden: Update Status
+PUT {{baseUrl}}/admin/{{FEE_REMINDER_ID}}/status
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "status": "Paid"
+}
+
+### Admin: Create Fee Reminder
+POST {{baseUrl}}/admin/create
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "studentId": "{{STUDENT_ID}}",
+  "amount": 5000,
+  "dueDate": "2025-02-01"
+}
+
+### Admin: Create Fee Reminders For All Students
+POST {{baseUrl}}/admin/create-all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+

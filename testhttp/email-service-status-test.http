@@ -1,0 +1,18 @@
+@baseUrl = http://localhost:5000/api
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+
+### Test Email Service Status
+GET {{baseUrl}}/admin/email/status
+Authorization: Bearer {{adminToken}}
+
+### Test Email Service Status (without auth - should fail)
+GET {{baseUrl}}/admin/email/status
+
+### Test Email Service with Test Endpoint
+POST {{baseUrl}}/admin/email/test
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "testEmail": "test@example.com"
+}

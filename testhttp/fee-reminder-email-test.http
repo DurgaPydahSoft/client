@@ -1,0 +1,57 @@
+@baseUrl = http://localhost:5000/api/fee-reminders
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+
+### Test Email Service Status
+GET {{baseUrl}}/admin/stats
+Authorization: Bearer {{adminToken}}
+
+### Test Fee Reminder Email (First Reminder)
+POST {{baseUrl}}/test-email
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "studentEmail": "test@example.com",
+  "reminderNumber": 1
+}
+
+### Test Fee Reminder Email (Second Reminder)
+POST {{baseUrl}}/test-email
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "studentEmail": "test@example.com",
+  "reminderNumber": 2
+}
+
+### Test Fee Reminder Email (Final Reminder)
+POST {{baseUrl}}/test-email
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "studentEmail": "test@example.com",
+  "reminderNumber": 3
+}
+
+### Send Manual Reminder (with email)
+POST {{baseUrl}}/admin/send-manual
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "studentId": "STUDENT_ID_HERE",
+  "reminderType": "manual",
+  "message": "Please pay your pending hostel fees."
+}
+
+### Send Bulk Reminders (with email)
+POST {{baseUrl}}/admin/send-bulk
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "studentIds": ["STUDENT_ID_1", "STUDENT_ID_2"],
+  "message": "Please pay your pending hostel fees."
+}

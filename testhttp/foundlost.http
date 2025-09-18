@@ -1,0 +1,69 @@
+@baseUrl = http://localhost:5000/api
+
+### Student: Create Found/Lost Post
+POST {{baseUrl}}/foundlost/
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="title"
+
+Lost Wallet
+--WebKitFormBoundary
+Content-Disposition: form-data; name="description"
+
+Black leather wallet lost near cafeteria
+--WebKitFormBoundary
+Content-Disposition: form-data; name="image"; filename="item.jpg"
+Content-Type: image/jpeg
+
+< ./sample/item.jpg
+--WebKitFormBoundary--
+
+### Public: List All Posts
+GET {{baseUrl}}/foundlost/all
+
+### Student: My Posts
+GET {{baseUrl}}/foundlost/my
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Public: Post Details
+GET {{baseUrl}}/foundlost/{{POST_ID}}
+
+### Student: Claim Item
+POST {{baseUrl}}/foundlost/{{POST_ID}}/claim
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Update Post
+PUT {{baseUrl}}/foundlost/{{POST_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="description"
+
+Updated description
+--WebKitFormBoundary--
+
+### Student: Close Post
+DELETE {{baseUrl}}/foundlost/{{POST_ID}}
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Admin: All Posts
+GET {{baseUrl}}/foundlost/admin/all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Update Post Status
+PUT {{baseUrl}}/foundlost/admin/{{POST_ID}}/status
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "status": "Closed"
+}
+
+### Admin: Analytics
+GET {{baseUrl}}/foundlost/admin/analytics
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+

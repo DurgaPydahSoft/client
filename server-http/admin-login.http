@@ -1,0 +1,8 @@
+POST https://hostel-complaint-backend.onrender.com/api/admin-management/login
+Content-Type: application/json
+
+{
+  "username": "superadmin",
+  "password": "superadmin123"
+}
+

@@ -1,0 +1,43 @@
+@baseUrl = http://localhost:5000/api/polls
+
+### Admin: Create Poll
+POST {{baseUrl}}/
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "question": "How was breakfast?",
+  "options": ["Excellent", "Good", "Average", "Poor"],
+  "expiresAt": "2025-01-05T12:00:00Z"
+}
+
+### Admin: Get All Polls
+GET {{baseUrl}}/admin/all
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Student: Get Active Polls
+GET {{baseUrl}}/active
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Vote
+POST {{baseUrl}}/{{POLL_ID}}/vote
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: application/json
+
+{
+  "optionIndex": 1
+}
+
+### Admin: End Poll
+POST {{baseUrl}}/{{POLL_ID}}/end
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Delete Poll
+DELETE {{baseUrl}}/{{POLL_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Student: Poll Results
+GET {{baseUrl}}/{{POLL_ID}}/results
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+

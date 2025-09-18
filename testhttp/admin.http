@@ -1,0 +1,110 @@
+@baseUrl = http://localhost:5000/api
+
+### Admin: Get All Students (supports query filters)
+GET {{baseUrl}}/admin/students?page=1&limit=10
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Get Student By ID
+GET {{baseUrl}}/admin/students/{{STUDENT_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Add Student (multipart with photos)
+POST {{baseUrl}}/admin/students
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="name"
+
+John Doe
+--WebKitFormBoundary
+Content-Disposition: form-data; name="rollNumber"
+
+21CS001
+--WebKitFormBoundary
+Content-Disposition: form-data; name="password"
+
+password123
+--WebKitFormBoundary
+Content-Disposition: form-data; name="studentPhoto"; filename="photo.jpg"
+Content-Type: image/jpeg
+
+< ./sample/photo.jpg
+--WebKitFormBoundary--
+
+### Admin: Update Student (multipart with photos)
+PUT {{baseUrl}}/admin/students/{{STUDENT_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="name"
+
+John Updated
+--WebKitFormBoundary--
+
+### Admin: Delete Student
+DELETE {{baseUrl}}/admin/students/{{STUDENT_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Student Count
+GET {{baseUrl}}/admin/students/count
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Course Counts
+GET {{baseUrl}}/admin/students/course-counts
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Preview Bulk Upload (Excel)
+POST {{baseUrl}}/admin/students/bulk-upload-preview
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="file"; filename="students.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./sample/students.xlsx
+--WebKitFormBoundary--
+
+### Admin: Commit Bulk Upload
+POST {{baseUrl}}/admin/students/bulk-upload-commit
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Temp Students Summary
+GET {{baseUrl}}/admin/students/temp-summary
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Clear Temp Students
+DELETE {{baseUrl}}/admin/students/temp-clear
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Reset Student Password
+POST {{baseUrl}}/admin/students/{{STUDENT_ID}}/reset-password
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Generate Admit Card (single)
+POST {{baseUrl}}/admin/students/{{STUDENT_ID}}/admit-card
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Get Students For Admit Cards
+GET {{baseUrl}}/admin/students/admit-cards?page=1&limit=20
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Generate Bulk Admit Cards
+POST {{baseUrl}}/admin/students/bulk-admit-cards
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Branches by Course
+GET {{baseUrl}}/admin/branches/{{COURSE_ID}}
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Initialize Counters
+POST {{baseUrl}}/admin/counters/initialize
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Counters Status
+GET {{baseUrl}}/admin/counters/status
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+

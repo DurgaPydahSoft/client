@@ -1,0 +1,65 @@
+@baseUrl = http://localhost:5000/api/cafeteria/menu
+
+### Admin: Create/Update Menu For Date
+POST {{baseUrl}}/date
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="date"
+
+2025-01-01
+--WebKitFormBoundary
+Content-Disposition: form-data; name="meal"
+
+breakfast
+--WebKitFormBoundary
+Content-Disposition: form-data; name="item"
+
+Idli
+--WebKitFormBoundary--
+
+### Admin: Get Menu For Date
+GET {{baseUrl}}/date?date=2025-01-01
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Student: Today's Menu (public)
+GET {{baseUrl}}/today
+
+### Student: Today's Menu With Ratings
+GET {{baseUrl}}/today/with-ratings
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Student: Submit Meal Rating
+POST {{baseUrl}}/rate
+Authorization: Bearer {{STUDENT_TOKEN}}
+Content-Type: application/json
+
+{
+  "date": "2025-01-01",
+  "meal": "breakfast",
+  "rating": 4
+}
+
+### Student: Get User Meal Rating
+GET {{baseUrl}}/rating?date=2025-01-01&meal=breakfast
+Authorization: Bearer {{STUDENT_TOKEN}}
+
+### Admin: Rating Stats
+GET {{baseUrl}}/ratings/stats?date=2025-01-01
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Cleanup Old Menu Images
+POST {{baseUrl}}/cleanup-images
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Delete Menu Images
+POST {{baseUrl}}/delete-images
+Authorization: Bearer {{ADMIN_TOKEN}}
+Content-Type: application/json
+
+{
+  "keys": ["menu/2025-01-01/breakfast.jpg"]
+}
+
+

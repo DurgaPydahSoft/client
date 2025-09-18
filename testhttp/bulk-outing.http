@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:5000/api/bulk-outing
+
+### Warden: Create Bulk Outing
+POST {{baseUrl}}/create
+Authorization: Bearer {{WARDEN_TOKEN}}
+Content-Type: application/json
+
+{
+  "title": "Evening Walk",
+  "date": "2025-01-10",
+  "studentIds": ["{{STUDENT_ID}}"]
+}
+
+### Warden: Get Own Bulk Outings
+GET {{baseUrl}}/warden
+Authorization: Bearer {{WARDEN_TOKEN}}
+
+### Warden: Get Students For Bulk Outing
+GET {{baseUrl}}/warden/students
+Authorization: Bearer {{WARDEN_TOKEN}}
+
+### Admin: Get All Bulk Outings
+GET {{baseUrl}}/admin
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Get Students In Bulk Outing
+GET {{baseUrl}}/admin/{{BULK_OUTING_ID}}/students
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Approve Bulk Outing
+POST {{baseUrl}}/admin/{{BULK_OUTING_ID}}/approve
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+### Admin: Reject Bulk Outing
+POST {{baseUrl}}/admin/{{BULK_OUTING_ID}}/reject
+Authorization: Bearer {{ADMIN_TOKEN}}
+
+
