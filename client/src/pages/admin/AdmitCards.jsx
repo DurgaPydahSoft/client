@@ -186,7 +186,7 @@ const AdmitCards = () => {
         const studentAcademicYear = studentData.academicYear || '2024-2025';
 
         // Fetch fee structure using student's course, year, category and academic year
-        const feeStructure = await fetchFeeStructure(student.course, student.year, student.category || 'A', studentAcademicYear);
+        const feeStructure = await fetchFeeStructure(studentData.courseId, studentData.year, studentData.category || 'A', studentAcademicYear);
 
         setPreviewModal({
           open: true,
@@ -282,13 +282,11 @@ const AdmitCards = () => {
         return feeStructureCache[cacheKey];
       }
 
-      console.log('Fetching fee structure for:', { academicYear: studentAcademicYear, course: studentCourse, year: studentYear, category: studentCategory });
 
       const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${studentYear}/${studentCategory}`);
 
       if (response.data.success) {
         const feeStructure = response.data.data;
-        console.log('Fee structure fetched:', feeStructure);
 
         // Cache the result
         setFeeStructureCache(prev => ({
@@ -336,8 +334,7 @@ const AdmitCards = () => {
       const studentAcademicYear = student.academicYear || '2024-2025';
 
       // Fetch fee structure for the student's course, year, category and academic year
-      const feeStructure = await fetchFeeStructure(student.course, student.year, student.category || 'A', studentAcademicYear);
-      console.log('Fee structure for student:', feeStructure);
+      const feeStructure = await fetchFeeStructure(student.courseId, student.year, student.category || 'A', studentAcademicYear);
 
       // Fetch student password
       let studentPassword = null;
@@ -610,33 +607,27 @@ const AdmitCards = () => {
 
 
 
+        // Check if fee structure has nested data structure
+        const actualFeeStructure = feeStructure?.data || feeStructure;
+
         // Fee data with concession information
         const feeData = [
           ['Term', 'Original Amount', 'After Concession', 'Remarks'],
-          ['1st Term', `Rs : ${feeStructure?.term1Fee || 0}`, `Rs : ${student.calculatedTerm1Fee || feeStructure?.term1Fee || 0}`, ''],
-          ['2nd Term', `Rs : ${feeStructure?.term2Fee || 0}`, `Rs : ${student.calculatedTerm2Fee || feeStructure?.term2Fee || 0}`, 'Before 2nd MID Term'],
-          ['3rd Term', `Rs : ${feeStructure?.term3Fee || 0}`, `Rs : ${student.calculatedTerm3Fee || feeStructure?.term3Fee || 0}`, 'Before 2nd Sem Start']
+          ['1st Term', `Rs : ${actualFeeStructure?.term1Fee || 0}`, `Rs : ${student.calculatedTerm1Fee || actualFeeStructure?.term1Fee || 0}`, ''],
+          ['2nd Term', `Rs : ${actualFeeStructure?.term2Fee || 0}`, `Rs : ${student.calculatedTerm2Fee || actualFeeStructure?.term2Fee || 0}`, 'Before 2nd MID Term'],
+          ['3rd Term', `Rs : ${actualFeeStructure?.term3Fee || 0}`, `Rs : ${student.calculatedTerm3Fee || actualFeeStructure?.term3Fee || 0}`, 'Before 2nd Sem Start']
         ];
 
         // Always add total row
-        const totalOriginalFee = (feeStructure?.term1Fee || 0) + (feeStructure?.term2Fee || 0) + (feeStructure?.term3Fee || 0);
+        const totalOriginalFee = (actualFeeStructure?.term1Fee || 0) + (actualFeeStructure?.term2Fee || 0) + (actualFeeStructure?.term3Fee || 0);
 
         // Calculate total after concession: if calculated fees exist, use them; otherwise, use original fees
-        const totalAfterConcession = (student.calculatedTerm1Fee || feeStructure?.term1Fee || 0) +
-          (student.calculatedTerm2Fee || feeStructure?.term2Fee || 0) +
-          (student.calculatedTerm3Fee || feeStructure?.term3Fee || 0);
+        const totalAfterConcession = (student.calculatedTerm1Fee || actualFeeStructure?.term1Fee || 0) +
+          (student.calculatedTerm2Fee || actualFeeStructure?.term2Fee || 0) +
+          (student.calculatedTerm3Fee || actualFeeStructure?.term3Fee || 0);
 
         feeData.push(['TOTAL', `Rs : ${totalOriginalFee.toLocaleString()}`, `Rs : ${totalAfterConcession.toLocaleString()}`, '']);
 
-        console.log('🔍 Fee data prepared:', {
-          feeData,
-          feeStructure,
-          studentCalculatedFees: {
-            term1: student.calculatedTerm1Fee,
-            term2: student.calculatedTerm2Fee,
-            term3: student.calculatedTerm3Fee
-          }
-        });
 
         // Check if autoTable is available
         console.log('🔍 autoTable availability check:', {

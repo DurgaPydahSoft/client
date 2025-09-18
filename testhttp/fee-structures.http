@@ -9,11 +9,11 @@ GET {{baseUrl}}/academic-years
 ### Public: Get Stats
 GET {{baseUrl}}/stats
 
-### Public: Get Fee Structure For Admit Card
-GET {{baseUrl}}/admit-card/2024-25/OC
+### Public: Get Fee Structure For Admit Card (with course and year)
+GET {{baseUrl}}/admit-card/2024-2025/COURSE_ID/1/A
 
-### Public: Get Fee Structure By Year & Category
-GET {{baseUrl}}/2024-25/OC
+### Public: Get Fee Structure By Year & Category (with course and year)
+GET {{baseUrl}}/2024-2025/COURSE_ID/1/A
 
 ### Admin: Create/Update Fee Structure
 POST {{baseUrl}}/
