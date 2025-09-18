@@ -185,8 +185,8 @@ const AdmitCards = () => {
         const studentData = studentResponse.data.data.student;
         const studentAcademicYear = studentData.academicYear || '2024-2025';
 
-        // Fetch fee structure using student's academic year
-        const feeStructure = await fetchFeeStructure(student.category || 'A', studentAcademicYear);
+        // Fetch fee structure using student's course, year, category and academic year
+        const feeStructure = await fetchFeeStructure(student.course, student.year, student.category || 'A', studentAcademicYear);
 
         setPreviewModal({
           open: true,
@@ -272,9 +272,9 @@ const AdmitCards = () => {
 
 
   // Fetch fee structure for a student
-  const fetchFeeStructure = async (studentCategory, studentAcademicYear) => {
+  const fetchFeeStructure = async (studentCourse, studentYear, studentCategory, studentAcademicYear) => {
     try {
-      const cacheKey = `${studentAcademicYear}-${studentCategory}`;
+      const cacheKey = `${studentAcademicYear}-${studentCourse}-${studentYear}-${studentCategory}`;
 
       // Check cache first
       if (feeStructureCache[cacheKey]) {
@@ -282,9 +282,9 @@ const AdmitCards = () => {
         return feeStructureCache[cacheKey];
       }
 
-      console.log('Fetching fee structure for:', { academicYear: studentAcademicYear, category: studentCategory });
+      console.log('Fetching fee structure for:', { academicYear: studentAcademicYear, course: studentCourse, year: studentYear, category: studentCategory });
 
-      const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCategory}`);
+      const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${studentYear}/${studentCategory}`);
 
       if (response.data.success) {
         const feeStructure = response.data.data;
@@ -335,8 +335,8 @@ const AdmitCards = () => {
       // Get academic year from student details (default to 2024-2025 if not available)
       const studentAcademicYear = student.academicYear || '2024-2025';
 
-      // Fetch fee structure for the student's category and academic year
-      const feeStructure = await fetchFeeStructure(student.category || 'A', studentAcademicYear);
+      // Fetch fee structure for the student's course, year, category and academic year
+      const feeStructure = await fetchFeeStructure(student.course, student.year, student.category || 'A', studentAcademicYear);
       console.log('Fee structure for student:', feeStructure);
 
       // Fetch student password

@@ -591,9 +591,9 @@ const Students = () => {
     });
   };
 
-  // Fetch fee structure when category and academic year are selected
-  const fetchFeeStructure = async (category, academicYear) => {
-    if (!category || !academicYear) {
+  // Fetch fee structure when course, year, category and academic year are selected
+  const fetchFeeStructure = async (course, year, category, academicYear) => {
+    if (!course || !year || !category || !academicYear) {
       setFeeStructure(null);
       setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
       return;
@@ -601,7 +601,7 @@ const Students = () => {
 
     try {
       setLoadingFeeStructure(true);
-      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${category}`);
+      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${course}/${year}/${category}`);
 
       if (response.data.success) {
         const feeData = response.data.data;
@@ -826,15 +826,15 @@ const Students = () => {
     }
   }, [form.roomNumber]);
 
-  // Fetch fee structure when category or academic year changes
+  // Fetch fee structure when course, year, category or academic year changes
   useEffect(() => {
-    if (form.category && form.academicYear) {
-      fetchFeeStructure(form.category, form.academicYear);
+    if (form.course && form.year && form.category && form.academicYear) {
+      fetchFeeStructure(form.course, form.year, form.category, form.academicYear);
     } else {
       setFeeStructure(null);
       setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
     }
-  }, [form.category, form.academicYear]);
+  }, [form.course, form.year, form.category, form.academicYear]);
 
   const handleFormChange = e => {
     const { name, value, type, checked } = e.target;

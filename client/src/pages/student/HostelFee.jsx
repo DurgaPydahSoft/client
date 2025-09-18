@@ -41,14 +41,14 @@ const HostelFee = () => {
       // Fetch fee reminder data, fee structure, and payment history in parallel
       const [feeResponse, structureResponse, paymentResponse] = await Promise.all([
         api.get(`/api/fee-reminders/student/${user._id}`),
-        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}`),
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course}&year=${user.year}`),
         api.get(`/api/payments/hostel-fee/history/${user._id}`)
       ]);
       
       if (feeResponse.data.success) {
         setFeeData(feeResponse.data.data);
         
-        // Find fee structure for student's category
+        // Find fee structure for student's course, year, and category
         if (structureResponse.data.success && structureResponse.data.data) {
           const studentStructure = structureResponse.data.data.find(
             structure => structure.category === user.category
@@ -56,7 +56,7 @@ const HostelFee = () => {
           setFeeStructure(studentStructure);
           
           if (!studentStructure) {
-            console.warn(`No fee structure found for category: ${user.category} and academic year: ${user.academicYear}`);
+            console.warn(`No fee structure found for course: ${user.course}, year: ${user.year}, category: ${user.category} and academic year: ${user.academicYear}`);
           }
         }
       } else {
