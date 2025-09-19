@@ -264,6 +264,24 @@ const SecurityDashboard = () => {
     return nowIST.getTime() === dateIST.getTime();
   };
 
+  // Helper: is today or yesterday (IST) - For outgoing requests
+  const isTodayOrYesterday = (date) => {
+    // Convert both date and now to IST and normalize to date only (remove time)
+    const toISTDateOnly = (d) => {
+      // IST is UTC+5:30
+      const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
+      const istDate = new Date(utc + (5.5 * 60 * 60 * 1000));
+      // Normalize to start of day (00:00:00) to ignore time components
+      return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
+    };
+    const nowIST = toISTDateOnly(new Date());
+    const yesterdayIST = new Date(nowIST);
+    yesterdayIST.setDate(yesterdayIST.getDate() - 1);
+    const dateIST = toISTDateOnly(date);
+    
+    return nowIST.getTime() === dateIST.getTime() || yesterdayIST.getTime() === dateIST.getTime();
+  };
+
   // Helper: sort and auto-expire
   const getSortedLeaves = () => {
     const now = new Date();
@@ -376,10 +394,10 @@ const SecurityDashboard = () => {
   const now = new Date();
   const sortedLeaves = getSortedLeaves();
   
-  // Outgoing leaves (not verified yet)
+  // Outgoing leaves (not verified yet) - includes today and yesterday
   const outgoingLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
-    return isToday(start) && leave.verificationStatus === 'Not Verified' && !leave._frontendExpired;
+    return isTodayOrYesterday(start) && leave.verificationStatus === 'Not Verified' && !leave._frontendExpired;
   });
   
   // Incoming leaves (verified outgoing, waiting for incoming)
@@ -534,7 +552,7 @@ const SecurityDashboard = () => {
             <>
                             {/* Outgoing Leaves - Always visible for all users */}
               <SectionTable 
-                title="Outgoing Requests (Exit)" 
+                title="Outgoing Requests (Exit) - Today & Yesterday" 
                 leaves={outgoingLeaves} 
                 getBlinkingDot={getBlinkingDot} 
                 isLeaveExpired={isLeaveExpired} 
@@ -826,11 +844,23 @@ const SectionTable = ({
                             <span className="font-medium">{new Date(leave.startDate).toLocaleDateString()}</span>
                             <span>-</span>
                             <span className="font-medium">{new Date(leave.endDate).toLocaleDateString()}</span>
+                            {/* Show if this is yesterday's request */}
+                            {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded ml-2">
+                                Yesterday
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <div className="flex items-center gap-1">
                             <CalendarIcon className="w-4 h-4 text-gray-500" />
                             <span className="font-medium">{new Date(leave.permissionDate).toLocaleDateString()}</span>
+                            {/* Show if this is yesterday's request */}
+                            {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded ml-2">
+                                Yesterday
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -996,6 +1026,12 @@ const SectionTable = ({
                             new Date(leave.permissionDate).toLocaleDateString()
                           )}
                         </span>
+                        {/* Show if this is yesterday's request */}
+                        {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                          <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded">
+                            Yesterday
+                          </span>
+                        )}
                       </div>
                       
                       {leave.applicationType === 'Permission' && (
