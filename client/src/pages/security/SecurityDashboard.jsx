@@ -103,27 +103,11 @@ const SecurityDashboard = () => {
     try {
       setLoading(true);
       console.log('Fetching approved leaves with filters:', filters);
-      // Increase limit to ensure we get all recent leaves
-      const response = await api.get('/api/leave/approved', { params: { page: 1, limit: 500 } });
+      const response = await api.get('/api/leave/approved', { params: { page: filters.page, limit: 100 } });
       console.log('Approved leaves response:', response.data);
       if (response.data.success) {
-        const leaves = response.data.data.leaves;
-        console.log('Set approved leaves:', leaves);
-        
-        // Debug: Log all leaves with their dates and verification status
-        leaves.forEach(leave => {
-          const start = getRequestDate(leave);
-          console.log('Fetched leave:', {
-            studentName: leave.student?.name,
-            rollNumber: leave.student?.rollNumber,
-            startDate: start,
-            verificationStatus: leave.verificationStatus,
-            applicationType: leave.applicationType,
-            status: leave.status
-          });
-        });
-        
-        setLeaves(leaves);
+        setLeaves(response.data.data.leaves);
+        console.log('Set approved leaves:', response.data.data.leaves);
       }
     } catch (error) {
       console.error('Error fetching approved leaves:', error);
@@ -295,22 +279,7 @@ const SecurityDashboard = () => {
     yesterdayIST.setDate(yesterdayIST.getDate() - 1);
     const dateIST = toISTDateOnly(date);
     
-    const isToday = nowIST.getTime() === dateIST.getTime();
-    const isYesterday = yesterdayIST.getTime() === dateIST.getTime();
-    const result = isToday || isYesterday;
-    
-    // Debug logging
-    console.log('isTodayOrYesterday debug:', {
-      inputDate: date,
-      dateIST: dateIST.toISOString().split('T')[0],
-      nowIST: nowIST.toISOString().split('T')[0],
-      yesterdayIST: yesterdayIST.toISOString().split('T')[0],
-      isToday,
-      isYesterday,
-      result
-    });
-    
-    return result;
+    return nowIST.getTime() === dateIST.getTime() || yesterdayIST.getTime() === dateIST.getTime();
   };
 
   // Helper: sort and auto-expire
@@ -319,9 +288,10 @@ const SecurityDashboard = () => {
     // Clone and add frontend-only expired status if needed
     const enhanced = filteredLeaves.map(leave => {
       const start = getRequestDate(leave);
+      // Only mark as expired if it's from before yesterday (not today or yesterday)
       if (
         leave.verificationStatus !== 'Verified' &&
-        now - start > 12 * 60 * 60 * 1000 // 12 hours
+        !isTodayOrYesterday(start) // Only expire if not today or yesterday
       ) {
         return { ...leave, _frontendExpired: true };
       }
@@ -431,34 +401,22 @@ const SecurityDashboard = () => {
     const isTodayOrYesterdayResult = isTodayOrYesterday(start);
     const isNotVerified = leave.verificationStatus === 'Not Verified';
     const isNotExpired = !leave._frontendExpired;
+    const shouldInclude = isTodayOrYesterdayResult && isNotVerified && isNotExpired;
     
-    // Debug logging
-    console.log('Leave debug:', {
-      studentName: leave.student?.name,
-      rollNumber: leave.student?.rollNumber,
-      startDate: start,
-      isTodayOrYesterday: isTodayOrYesterdayResult,
-      verificationStatus: leave.verificationStatus,
-      isNotVerified,
-      isNotExpired,
-      willShow: isTodayOrYesterdayResult && isNotVerified && isNotExpired
-    });
+    // Debug logging for yesterday's leaves
+    if (isTodayOrYesterdayResult && !isToday(start)) {
+      console.log('Yesterday leave debug:', {
+        studentName: leave.student?.name,
+        rollNumber: leave.student?.rollNumber,
+        startDate: start,
+        verificationStatus: leave.verificationStatus,
+        isNotVerified,
+        isNotExpired,
+        shouldInclude
+      });
+    }
     
-    return isTodayOrYesterdayResult && isNotVerified && isNotExpired;
-  });
-
-  // Debug summary
-  console.log('Outgoing leaves summary:', {
-    totalLeaves: sortedLeaves.length,
-    outgoingCount: outgoingLeaves.length,
-    todayCount: sortedLeaves.filter(leave => {
-      const start = getRequestDate(leave);
-      return isToday(start) && leave.verificationStatus === 'Not Verified' && !leave._frontendExpired;
-    }).length,
-    yesterdayCount: sortedLeaves.filter(leave => {
-      const start = getRequestDate(leave);
-      return !isToday(start) && isTodayOrYesterday(start) && leave.verificationStatus === 'Not Verified' && !leave._frontendExpired;
-    }).length
+    return shouldInclude;
   });
   
   // Incoming leaves (verified outgoing, waiting for incoming)
