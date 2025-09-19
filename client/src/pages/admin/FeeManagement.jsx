@@ -2617,7 +2617,7 @@ const FeeManagement = () => {
               </button>
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="space-y-6">
               {(() => {
                 // Check if any structures match the current filters
                 let filteredStructures = feeStructures;
@@ -2633,97 +2633,106 @@ const FeeManagement = () => {
 
                 if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.course || feeStructureFilter.year)) {
                   return (
-                    <div className="text-center py-8">
-                      <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">No fee structures found matching the current filters</p>
-                      <p className="text-sm text-gray-400 mt-2">
+                    <div className="text-center py-12">
+                      <Cog6ToothIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Fee Structures Found</h3>
+                      <p className="text-gray-500 mb-4">No fee structures match your current filters</p>
+                      <p className="text-sm text-gray-400">
                         Try adjusting your filters or create new fee structures.
                       </p>
                     </div>
                   );
                 }
 
-                return (
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Academic Year
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Course
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Year
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Category
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total Fee
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Term 1 (40%)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Term 2 (30%)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Term 3 (30%)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredStructures.map((structure, index) => (
-                        <tr key={`${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}-${structure.category}-${index}`} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {structure.academicYear}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {structure.course?.name || 'Unknown Course'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            Year {structure.year}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {structure.category}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            ₹{structure.totalFee.toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ₹{structure.term1Fee || Math.round(structure.totalFee * 0.4).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ₹{structure.term2Fee || Math.round(structure.totalFee * 0.3).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ₹{structure.term3Fee || Math.round(structure.totalFee * 0.3).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => openFeeStructureModal(structure)}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                <EyeIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
+                // Group structures by academic year
+                const groupedStructures = filteredStructures.reduce((groups, structure) => {
+                  const year = structure.academicYear;
+                  if (!groups[year]) {
+                    groups[year] = [];
+                  }
+                  groups[year].push(structure);
+                  return groups;
+                }, {});
+
+                return Object.keys(groupedStructures)
+                  .sort((a, b) => b.localeCompare(a)) // Sort years descending (newest first)
+                  .map(academicYear => (
+                    <div key={academicYear} className="space-y-4">
+                      {/* Academic Year Header */}
+                      <div className="flex items-center gap-3 pb-2 border-b-2 border-blue-200">
+                        <div className="flex items-center gap-2">
+                          <AcademicCapIcon className="w-6 h-6 text-blue-600" />
+                          <h3 className="text-xl font-bold text-gray-900">{academicYear}</h3>
+                        </div>
+                        <div className="flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
+                          {groupedStructures[academicYear].length} Structure{groupedStructures[academicYear].length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      {/* Fee Structure Cards Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {groupedStructures[academicYear].map((structure, index) => {
+                          const term1Fee = structure.term1Fee || Math.round(structure.totalFee * 0.4);
+                          const term2Fee = structure.term2Fee || Math.round(structure.totalFee * 0.3);
+                          const term3Fee = structure.term3Fee || Math.round(structure.totalFee * 0.3);
+                          
+                          return (
+                            <div
+                              key={`${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}-${structure.category}-${index}`}
+                              className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+                            >
+                              {/* Card Header */}
+                              <div className="p-4 border-b border-gray-100">
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex-1 min-w-0">
+                                    <h4 className="text-lg font-semibold text-gray-900 truncate">
+                                      {structure.course?.name || 'Unknown Course'}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        Year {structure.year}
+                                      </span>
+                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        {structure.category}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1 ml-2">
+                                    <button
+                                      onClick={() => openFeeStructureModal(structure)}
+                                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="View Details"
+                                    >
+                                      <EyeIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category)}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Delete Structure"
+                                    >
+                                      <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                                {/* Fee Details */}
+                                <div className="p-4">
+                                  {/* Total Fee */}
+                                  <div className="text-center">
+                                    <div className="text-2xl font-bold text-gray-900">
+                                      ₹{structure.totalFee.toLocaleString()}
+                                    </div>
+                                    <div className="text-sm text-gray-500">Total Fee</div>
+                                  </div>
+                                </div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
               })()}
             </div>
           </div>
