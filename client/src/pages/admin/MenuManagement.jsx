@@ -872,12 +872,6 @@ const MenuManagement = () => {
             </div>
           </div>
         )}
-
-        {/* {foodCount && (
-          <div className="mt-3 sm:mt-4 text-xs text-gray-500 text-center">
-            Last updated: {new Date(foodCount.lastUpdated).toLocaleString()}
-          </div>
-        )} */}
       </div>
 
       {/* Today's Menu Overview */}

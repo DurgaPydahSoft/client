@@ -538,6 +538,15 @@ const AdminDashboard = () => {
 
   return (
     <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite linear;
+        }
+      `}</style>
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}
@@ -630,12 +639,12 @@ const AdminDashboard = () => {
                   <div>
                     <button
                       onClick={() => toggleSubmenu(item.name)}
-                      className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${pathname.startsWith(item.path)
-                        ? "bg-blue-50 text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      className={`relative overflow-hidden flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${pathname.startsWith(item.path)
+                        ? "bg-blue-100 text-blue-700 shadow-sm"
+                        : "text-black hover:bg-gray-50 hover:text-gray-900"
                         }`}
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 relative z-10">
                         <svg
                           className="w-4 h-4 lg:w-5 lg:h-5"
                           fill="none"
@@ -652,7 +661,7 @@ const AdminDashboard = () => {
                         <span>{item.name}</span>
                       </div>
                       <svg
-                        className={`w-4 h-4 transition-transform duration-200 ${expandedMenus[item.name] ? 'rotate-180' : ''
+                        className={`w-4 h-4 transition-transform duration-200 relative z-10 ${expandedMenus[item.name] ? 'rotate-180' : ''
                           }`}
                         fill="none"
                         stroke="currentColor"
@@ -665,6 +674,9 @@ const AdminDashboard = () => {
                           d="M19 9l-7 7-7-7"
                         />
                       </svg>
+                      {pathname.startsWith(item.path) && (
+                        <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-blue-500/30 to-transparent animate-shimmer"></span>
+                      )}
                     </button>
 
                     {/* Submenu items */}
@@ -682,9 +694,9 @@ const AdminDashboard = () => {
                               key={subItem.name}
                               to={subItem.path}
                               className={({ isActive }) =>
-                                `flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
-                                  ? "bg-blue-50 text-blue-700 shadow-sm"
-                                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                `relative overflow-hidden flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
+                                  ? "bg-blue-100 text-blue-700 shadow-sm"
+                                  : "text-black hover:bg-gray-50 hover:text-gray-900"
                                 }`
                               }
                             >
@@ -723,7 +735,10 @@ const AdminDashboard = () => {
                                   </motion.div>
                                 )}
                               </div>
-                              <span>{subItem.name}</span>
+                              <span className="relative z-10">{subItem.name}</span>
+                              {pathname === subItem.path && (
+                                <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-blue-500/30 to-transparent animate-shimmer"></span>
+                              )}
                             </NavLink>
                           ))}
                         </motion.div>
@@ -735,9 +750,9 @@ const AdminDashboard = () => {
                   <NavLink
                     to={item.path}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
-                        ? "bg-blue-50 text-blue-700 shadow-sm"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                      `relative overflow-hidden flex items-center gap-3 px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${isActive
+                        ? "bg-blue-100 text-blue-700 shadow-sm"
+                        : "text-black hover:bg-gray-50 hover:text-gray-900"
                       }`
                     }
                     end
@@ -777,7 +792,10 @@ const AdminDashboard = () => {
                         </motion.div>
                       )}
                     </div>
-                    {item.name}
+                    <span className="relative z-10">{item.name}</span>
+                    {pathname === item.path && (
+                      <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-blue-500/30 to-transparent animate-shimmer"></span>
+                    )}
                   </NavLink>
                 )}
               </motion.div>
@@ -799,36 +817,37 @@ const AdminDashboard = () => {
               <div className="text-xs lg:text-sm font-semibold text-gray-900 truncate">
                 {user?.name || 'Admin'}
               </div>
-              <div className="text-xs text-gray-500 truncate">
-                {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'sub_admin' ? 'Sub Admin' : 'Admin'}
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500 truncate">
+                  {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'sub_admin' ? 'Sub Admin' : 'Admin'}
+                </div>
+                {/* Password Reset Icon - Show for sub-admins, principals, and super admin */}
+                {(user?.role === 'sub_admin' || user?.role === 'principal' || user?.role === 'super_admin') && (
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowResetPasswordModal(true)}
+                    className="p-1.5  hover:text-orange-600 hover:bg-orange-50 rounded-full transition-all duration-200"
+                    title="Reset Password"
+                  >
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                      />
+                    </svg>
+                  </motion.button>
+                )}
               </div>
             </div>
           </div>
-
-          {/* Password Reset Button - Only show for sub-admins and principals */}
-          {(user?.role === 'sub_admin' || user?.role === 'principal') && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowResetPasswordModal(true)}
-              className="w-full flex items-center justify-center gap-2 px-3 lg:px-4 py-2 text-xs font-normal text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition-all duration-300 shadow hover:shadow-md mb-2"
-            >
-              <svg
-                className="w-3 h-3 lg:w-4 lg:h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                />
-              </svg>
-              Reset Password
-            </motion.button>
-          )}
 
           <motion.button
             whileHover={{ scale: 1.02 }}
