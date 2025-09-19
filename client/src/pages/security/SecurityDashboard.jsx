@@ -567,6 +567,8 @@ const SecurityDashboard = () => {
                 onToggle={() => toggleSection('outgoing')}
                 sectionKey="outgoing"
                 isViewOnly={isViewOnly}
+                isToday={isToday}
+                isTodayOrYesterday={isTodayOrYesterday}
               />
               
               {/* Incoming Leaves - Only visible for full access users */}
@@ -587,6 +589,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('incoming')}
                   sectionKey="incoming"
                   isViewOnly={isViewOnly}
+                  isToday={isToday}
+                  isTodayOrYesterday={isTodayOrYesterday}
                 />
               )}
               
@@ -608,6 +612,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('completed')}
                   sectionKey="completed"
                   isViewOnly={isViewOnly}
+                  isToday={isToday}
+                  isTodayOrYesterday={isTodayOrYesterday}
                 />
               )}
               
@@ -629,6 +635,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('upcoming')}
                   sectionKey="upcoming"
                   isViewOnly={isViewOnly}
+                  isToday={isToday}
+                  isTodayOrYesterday={isTodayOrYesterday}
                 />
               )}
               
@@ -650,6 +658,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('expired')}
                   sectionKey="expired"
                   isViewOnly={isViewOnly}
+                  isToday={isToday}
+                  isTodayOrYesterday={isTodayOrYesterday}
                 />
               )}
             </>
@@ -746,7 +756,9 @@ const SectionTable = ({
   isExpanded,
   onToggle,
   sectionKey,
-  isViewOnly = false
+  isViewOnly = false,
+  isToday,
+  isTodayOrYesterday
 }) => (
   <div className="mb-6 sm:mb-8 bg-white rounded-lg shadow-sm overflow-hidden">
     {/* Section Header with Toggle */}
