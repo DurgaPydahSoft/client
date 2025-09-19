@@ -66,6 +66,18 @@ const FeeManagement = () => {
     category: '',
     totalFee: 0
   });
+  const [bulkFeeForm, setBulkFeeForm] = useState({
+    academicYear: '',
+    course: '',
+    year: '',
+    categories: {
+      'A+': { totalFee: 0, exists: false },
+      'A': { totalFee: 0, exists: false },
+      'B+': { totalFee: 0, exists: false },
+      'B': { totalFee: 0, exists: false },
+      'C': { totalFee: 0, exists: false }
+    }
+  });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('students'); // 'students', 'structure', 'payments', or 'reminders'
   const [feeStructureFilter, setFeeStructureFilter] = useState({
@@ -552,7 +564,12 @@ const FeeManagement = () => {
   const handleFeeStructureSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate form data
+    // Check if this is bulk creation
+    if (bulkFeeForm.course && bulkFeeForm.year) {
+      return await handleBulkFeeStructureSubmit();
+    }
+
+    // Validate form data for single creation
     if (!feeStructureForm.academicYear || !feeStructureForm.course || !feeStructureForm.year || !feeStructureForm.category || !feeStructureForm.totalFee) {
       toast.error('Please fill in all required fields');
       return;
@@ -621,6 +638,84 @@ const FeeManagement = () => {
     } catch (err) {
       console.error('Error saving fee structure:', err);
       setError(err.response?.data?.message || 'Failed to save fee structure');
+    } finally {
+      setFeeStructureLoading(false);
+    }
+  };
+
+  const handleBulkFeeStructureSubmit = async () => {
+    // Validate all categories have fees
+    const categories = Object.entries(bulkFeeForm.categories).map(([category, data]) => ({
+      category,
+      totalFee: data.totalFee
+    }));
+
+    const missingCategories = categories.filter(cat => !cat.totalFee || cat.totalFee <= 0);
+    if (missingCategories.length > 0) {
+      toast.error(`Please provide fees for all categories: ${missingCategories.map(c => c.category).join(', ')}`);
+      return;
+    }
+
+    try {
+      setFeeStructureLoading(true);
+
+      const bulkData = {
+        academicYear: bulkFeeForm.academicYear,
+        course: bulkFeeForm.course,
+        year: parseInt(bulkFeeForm.year),
+        categories: categories
+      };
+
+      console.log('🔍 Frontend: Sending bulk fee data to backend:', bulkData);
+
+      const response = await api.post('/api/fee-structures', bulkData);
+
+      console.log('🔍 Frontend: Bulk response from backend:', response.data);
+
+      if (response.data.success) {
+        const courseName = courses.find(c => c._id === bulkData.course)?.name || 'Unknown Course';
+        toast.success(`Successfully created/updated ${response.data.data.length} fee structures for ${courseName} Year ${bulkData.year}!`);
+        
+        setShowFeeStructureModal(false);
+        setSelectedFeeStructure(null);
+        
+        // Reset forms
+        setFeeStructureForm({
+          academicYear: '',
+          course: '',
+          year: '',
+          category: '',
+          totalFee: 0
+        });
+        setBulkFeeForm({
+          academicYear: '',
+          course: '',
+          year: '',
+          categories: {
+            'A+': { totalFee: 0, exists: false },
+            'A': { totalFee: 0, exists: false },
+            'B+': { totalFee: 0, exists: false },
+            'B': { totalFee: 0, exists: false },
+            'C': { totalFee: 0, exists: false }
+          }
+        });
+
+        // Refresh data
+        await Promise.all([
+          fetchFeeStructures(),
+          fetchStudents()
+        ]);
+
+        setTimeout(() => {
+          fetchStats();
+        }, 500);
+      } else {
+        console.error('🔍 Frontend: Backend returned error:', response.data);
+        setError(response.data.message || 'Failed to save fee structures');
+      }
+    } catch (err) {
+      console.error('Error saving bulk fee structures:', err);
+      setError(err.response?.data?.message || 'Failed to save fee structures');
     } finally {
       setFeeStructureLoading(false);
     }
@@ -718,9 +813,59 @@ const FeeManagement = () => {
         category: '',
         totalFee: 0
       });
+      
+      // Reset bulk form
+      setBulkFeeForm({
+        academicYear: feeStructureFilter.academicYear || '2024-2025',
+        course: '',
+        year: '',
+        categories: {
+          'A+': { totalFee: 0, exists: false },
+          'A': { totalFee: 0, exists: false },
+          'B+': { totalFee: 0, exists: false },
+          'B': { totalFee: 0, exists: false },
+          'C': { totalFee: 0, exists: false }
+        }
+      });
     }
 
     setShowFeeStructureModal(true);
+  };
+
+  // Check existing fee structures for bulk creation
+  const checkExistingFeeStructures = (academicYear, course, year) => {
+    if (!academicYear || !course || !year) return;
+
+    const existingStructures = feeStructures.filter(structure => 
+      structure.academicYear === academicYear &&
+      structure.course?._id === course &&
+      structure.year === parseInt(year)
+    );
+
+    const updatedCategories = { ...bulkFeeForm.categories };
+    
+    // Reset all categories
+    Object.keys(updatedCategories).forEach(category => {
+      updatedCategories[category] = { totalFee: 0, exists: false };
+    });
+
+    // Populate existing data
+    existingStructures.forEach(structure => {
+      if (updatedCategories[structure.category]) {
+        updatedCategories[structure.category] = {
+          totalFee: structure.totalFee,
+          exists: true
+        };
+      }
+    });
+
+    setBulkFeeForm(prev => ({
+      ...prev,
+      academicYear,
+      course,
+      year,
+      categories: updatedCategories
+    }));
   };
 
   const deleteFeeStructure = async (academicYear, course, year, category) => {
@@ -2617,7 +2762,7 @@ const FeeManagement = () => {
               </button>
             </div>
 
-            <div className="space-y-6">
+            <div className="overflow-x-auto">
               {(() => {
                 // Check if any structures match the current filters
                 let filteredStructures = feeStructures;
@@ -2633,106 +2778,134 @@ const FeeManagement = () => {
 
                 if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.course || feeStructureFilter.year)) {
                   return (
-                    <div className="text-center py-12">
-                      <Cog6ToothIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Fee Structures Found</h3>
-                      <p className="text-gray-500 mb-4">No fee structures match your current filters</p>
-                      <p className="text-sm text-gray-400">
+                    <div className="text-center py-8">
+                      <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                      <p className="text-gray-500">No fee structures found matching the current filters</p>
+                      <p className="text-sm text-gray-400 mt-2">
                         Try adjusting your filters or create new fee structures.
                       </p>
                     </div>
                   );
                 }
 
-                // Group structures by academic year
-                const groupedStructures = filteredStructures.reduce((groups, structure) => {
-                  const year = structure.academicYear;
-                  if (!groups[year]) {
-                    groups[year] = [];
+                // Group structures by academic year, course, and year
+                const groupedStructures = filteredStructures.reduce((acc, structure) => {
+                  const key = `${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}`;
+                  if (!acc[key]) {
+                    acc[key] = {
+                      academicYear: structure.academicYear,
+                      course: structure.course,
+                      year: structure.year,
+                      categories: {}
+                    };
                   }
-                  groups[year].push(structure);
-                  return groups;
+                  acc[key].categories[structure.category] = structure;
+                  return acc;
                 }, {});
 
-                return Object.keys(groupedStructures)
-                  .sort((a, b) => b.localeCompare(a)) // Sort years descending (newest first)
-                  .map(academicYear => (
-                    <div key={academicYear} className="space-y-4">
-                      {/* Academic Year Header */}
-                      <div className="flex items-center gap-3 pb-2 border-b-2 border-blue-200">
-                        <div className="flex items-center gap-2">
-                          <AcademicCapIcon className="w-6 h-6 text-blue-600" />
-                          <h3 className="text-xl font-bold text-gray-900">{academicYear}</h3>
-                        </div>
-                        <div className="flex-1 h-px bg-gradient-to-r from-blue-200 to-transparent"></div>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-                          {groupedStructures[academicYear].length} Structure{groupedStructures[academicYear].length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
+                const categories = ['A+', 'A', 'B+', 'B', 'C'];
 
-                      {/* Fee Structure Cards Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {groupedStructures[academicYear].map((structure, index) => {
-                          const term1Fee = structure.term1Fee || Math.round(structure.totalFee * 0.4);
-                          const term2Fee = structure.term2Fee || Math.round(structure.totalFee * 0.3);
-                          const term3Fee = structure.term3Fee || Math.round(structure.totalFee * 0.3);
-                          
-                          return (
-                            <div
-                              key={`${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}-${structure.category}-${index}`}
-                              className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-                            >
-                              {/* Card Header */}
-                              <div className="p-4 border-b border-gray-100">
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1 min-w-0">
-                                    <h4 className="text-lg font-semibold text-gray-900 truncate">
-                                      {structure.course?.name || 'Unknown Course'}
-                                    </h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                        Year {structure.year}
-                                      </span>
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                        {structure.category}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1 ml-2">
-                                    <button
-                                      onClick={() => openFeeStructureModal(structure)}
-                                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                      title="View Details"
-                                    >
-                                      <EyeIcon className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category)}
-                                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                      title="Delete Structure"
-                                    >
-                                      <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </div>
+                return (
+                  <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                            Academic Year
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                            Course
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
+                            Year
+                          </th>
+                          {categories.map(category => (
+                            <th key={category} className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200 last:border-r-0">
+                              <div className="flex flex-col items-center">
+                                <span className="text-lg font-bold text-gray-800">{category}</span>
+                                <span className="text-xs text-gray-500 font-normal">Category</span>
                               </div>
-
-                                {/* Fee Details */}
-                                <div className="p-4">
-                                  {/* Total Fee */}
-                                  <div className="text-center">
-                                    <div className="text-2xl font-bold text-gray-900">
-                                      ₹{structure.totalFee.toLocaleString()}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {Object.values(groupedStructures).map((group, groupIndex) => (
+                          <tr key={`${group.academicYear}-${group.course?._id || group.course}-${group.year}-${groupIndex}`} className="hover:bg-gray-50 transition-colors duration-150">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center">
+                                <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
+                                {group.academicYear}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center">
+                                <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
+                                {group.course?.name || 'Unknown Course'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center justify-center">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  Year {group.year}
+                                </span>
+                              </div>
+                            </td>
+                            {categories.map(category => {
+                              const structure = group.categories[category];
+                              return (
+                                <td key={category} className="px-3 py-4 text-center border-r border-gray-200 last:border-r-0">
+                                  {structure ? (
+                                    <div 
+                                      className="cursor-pointer group"
+                                      onClick={() => openFeeStructureModal(structure)}
+                                    >
+                                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200 hover:border-green-300 transition-all duration-200 hover:shadow-md relative group">
+                                        <div className="text-lg font-bold text-green-700 group-hover:text-green-800">
+                                          ₹{structure.totalFee.toLocaleString()}
+                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                          <span className="text-white text-sm font-medium">Click to view details</span>
+                                        </div>
+                                      </div>
                                     </div>
-                                    <div className="text-sm text-gray-500">Total Fee</div>
-                                  </div>
-                                </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ));
+                                  ) : (
+                                    <div className="text-gray-400 text-sm py-2">
+                                      <div className="w-16 h-16 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-xs text-gray-400">N/A</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </td>
+                              );
+                            })}
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    // Delete all structures in this group
+                                    if (window.confirm(`Are you sure you want to delete all fee structures for ${group.course?.name} Year ${group.year}?`)) {
+                                      Object.values(group.categories).forEach(structure => {
+                                        deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category);
+                                      });
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors duration-200"
+                                  title="Delete All"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
               })()}
             </div>
           </div>
@@ -3337,10 +3510,10 @@ const FeeManagement = () => {
       {/* Fee Structure Modal */}
       {showFeeStructureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className={`bg-white rounded-lg p-6 w-full ${selectedFeeStructure ? 'max-w-4xl max-h-[90vh] overflow-y-auto' : 'max-w-4xl max-h-[90vh] overflow-y-auto'}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-                {selectedFeeStructure ? 'Edit Fee Structure' : 'Add Fee Structure'}
+                {selectedFeeStructure ? 'Fee Structure Details' : 'Add Fee Structure'}
               </h3>
               <button
                 onClick={() => setShowFeeStructureModal(false)}
@@ -3353,164 +3526,260 @@ const FeeManagement = () => {
               </button>
             </div>
 
-            <form onSubmit={handleFeeStructureSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Academic Year
-                  </label>
-                  <select
-                    value={feeStructureForm.academicYear}
-                    onChange={(e) => setFeeStructureForm(prev => ({ ...prev, academicYear: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    <option value="">Select Academic Year</option>
-                    {generateAcademicYears().map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Course
-                  </label>
-                  <select
-                    value={feeStructureForm.course}
-                    onChange={(e) => setFeeStructureForm(prev => ({ ...prev, course: e.target.value, year: '' }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  >
-                    <option value="">Select Course</option>
-                    {courses.map(course => (
-                      <option key={course._id} value={course._id}>{course.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Year of Study
-                  </label>
-                  <select
-                    value={feeStructureForm.year}
-                    onChange={(e) => setFeeStructureForm(prev => ({ ...prev, year: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    disabled={!feeStructureForm.course || getAvailableYearsForCreation(feeStructureForm.course, feeStructureForm.academicYear).length === 0}
-                  >
-                    <option value="">
-                      {!feeStructureForm.course 
-                        ? 'Select Course first'
-                        : getAvailableYearsForCreation(feeStructureForm.course, feeStructureForm.academicYear).length === 0 
-                          ? 'All years already have fee structures'
-                          : 'Select Year'
-                      }
-                    </option>
-                    {getAvailableYearsForCreation(feeStructureForm.course, feeStructureForm.academicYear).map(year => (
-                      <option key={year} value={year}>Year {year}</option>
-                    ))}
-                  </select>
-                  {getAvailableYearsForCreation(feeStructureForm.course, feeStructureForm.academicYear).length === 0 && feeStructureForm.course && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      All years for this course already have fee structures for the selected academic year.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={feeStructureForm.category}
-                    onChange={(e) => setFeeStructureForm(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    disabled={getAvailableCategoriesForCreation().length === 0}
-                  >
-                    <option value="">
-                      {getAvailableCategoriesForCreation().length === 0
-                        ? 'All categories already created for this combination'
-                        : 'Select Category'
-                      }
-                    </option>
-                    {getAvailableCategoriesForCreation().map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                  {getAvailableCategoriesForCreation().length === 0 && feeStructureForm.course && feeStructureForm.year && (
-                    <p className="text-sm text-gray-500 mt-1">
-                      All categories for this course and year already have fee structures for the selected academic year.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Total Fee (₹)
-                  </label>
-                  <input
-                    type="number"
-                    value={feeStructureForm.totalFee}
-                    onChange={(e) => setFeeStructureForm(prev => ({ ...prev, totalFee: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                    min="0"
-                  />
-                </div>
-
-                {/* Term Fee Breakdown Preview */}
-                {feeStructureForm.totalFee > 0 && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
-                      <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
-                      Term Fee Breakdown (Auto-calculated)
-                    </h4>
-                    <div className="grid grid-cols-3 gap-3 text-sm">
-                      <div className="text-center bg-white rounded-lg p-2 border border-blue-100">
-                        <div className="font-medium text-blue-600">Term 1</div>
-                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term1Fee.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">40%</div>
-                      </div>
-                      <div className="text-center bg-white rounded-lg p-2 border border-green-100">
-                        <div className="font-medium text-green-600">Term 2</div>
-                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term2Fee.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">30%</div>
-                      </div>
-                      <div className="text-center bg-white rounded-lg p-2 border border-purple-100">
-                        <div className="font-medium text-purple-600">Term 3</div>
-                        <div className="text-gray-600 font-semibold">₹{calculateTermFees(feeStructureForm.totalFee).term3Fee.toLocaleString()}</div>
-                        <div className="text-xs text-gray-500">30%</div>
-                      </div>
+            {selectedFeeStructure ? (
+              // Detailed View Mode
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <AcademicCapIcon className="w-5 h-5 text-blue-600 mr-2" />
+                    Basic Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="text-sm font-medium text-gray-500 mb-1">Academic Year</div>
+                      <div className="text-lg font-semibold text-gray-900">{selectedFeeStructure.academicYear}</div>
                     </div>
-                    <div className="mt-3 text-center">
-                      <div className="text-sm font-medium text-gray-700">
-                        Total: ₹{feeStructureForm.totalFee.toLocaleString()}
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="text-sm font-medium text-gray-500 mb-1">Course</div>
+                      <div className="text-lg font-semibold text-gray-900">{selectedFeeStructure.course?.name || 'Unknown Course'}</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="text-sm font-medium text-gray-500 mb-1">Year of Study</div>
+                      <div className="text-lg font-semibold text-gray-900">Year {selectedFeeStructure.year}</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="text-sm font-medium text-gray-500 mb-1">Category</div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                          {selectedFeeStructure.category}
+                        </span>
                       </div>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowFeeStructureModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={feeStructureLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {feeStructureLoading ? 'Saving...' : (selectedFeeStructure ? 'Update' : 'Save')}
-                </button>
+                {/* Fee Breakdown */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <CurrencyDollarIcon className="w-5 h-5 text-green-600 mr-2" />
+                    Fee Breakdown
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
+                      <div className="text-sm font-medium text-gray-500 mb-2">Total Fee</div>
+                      <div className="text-2xl font-bold text-green-700">₹{selectedFeeStructure.totalFee.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
+                      <div className="text-sm font-medium text-gray-500 mb-2">Term 1 (40%)</div>
+                      <div className="text-xl font-bold text-blue-700">₹{(selectedFeeStructure.term1Fee || Math.round(selectedFeeStructure.totalFee * 0.4)).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1">Due: Start of Academic Year</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
+                      <div className="text-sm font-medium text-gray-500 mb-2">Term 2 (30%)</div>
+                      <div className="text-xl font-bold text-orange-700">₹{(selectedFeeStructure.term2Fee || Math.round(selectedFeeStructure.totalFee * 0.3)).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1">Due: Mid Academic Year</div>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
+                      <div className="text-sm font-medium text-gray-500 mb-2">Term 3 (30%)</div>
+                      <div className="text-xl font-bold text-purple-700">₹{(selectedFeeStructure.term3Fee || Math.round(selectedFeeStructure.totalFee * 0.3)).toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 mt-1">Due: End of Academic Year</div>
+                    </div>
+                  </div>
+                </div>
+                {/* Actions */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowFeeStructureModal(false)}
+                    className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Switch to edit mode
+                      setFeeStructureForm({
+                        academicYear: selectedFeeStructure.academicYear,
+                        course: selectedFeeStructure.course?._id || selectedFeeStructure.course,
+                        year: selectedFeeStructure.year.toString(),
+                        category: selectedFeeStructure.category,
+                        totalFee: selectedFeeStructure.totalFee
+                      });
+                      setSelectedFeeStructure(null); // Switch to add mode
+                    }}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  >
+                    Edit Structure
+                  </button>
+                  <button
+                    onClick={() => deleteFeeStructure(selectedFeeStructure.academicYear, selectedFeeStructure.course?._id || selectedFeeStructure.course, selectedFeeStructure.year, selectedFeeStructure.category)}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+                  >
+                    Delete Structure
+                  </button>
+                </div>
               </div>
-            </form>
+            ) : (
+              // Add Fee Structure Mode - Bulk Creation
+              <form onSubmit={handleFeeStructureSubmit}>
+                <div className="space-y-4">
+                  {/* First row - Academic Year, Course, Year of Study */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Academic Year
+                      </label>
+                      <select
+                        value={bulkFeeForm.academicYear}
+                        onChange={(e) => {
+                          setBulkFeeForm(prev => ({ ...prev, academicYear: e.target.value }));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="">Select Academic Year</option>
+                        {generateAcademicYears().map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Course
+                      </label>
+                      <select
+                        value={bulkFeeForm.course}
+                        onChange={(e) => {
+                          setBulkFeeForm(prev => ({ ...prev, course: e.target.value, year: '' }));
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      >
+                        <option value="">Select Course</option>
+                        {courses.map(course => (
+                          <option key={course._id} value={course._id}>{course.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Year of Study
+                      </label>
+                      <select
+                        value={bulkFeeForm.year}
+                        onChange={(e) => {
+                          setBulkFeeForm(prev => ({ ...prev, year: e.target.value }));
+                          // Check for existing fee structures when year is selected
+                          if (e.target.value && bulkFeeForm.course && bulkFeeForm.academicYear) {
+                            checkExistingFeeStructures(bulkFeeForm.academicYear, bulkFeeForm.course, e.target.value);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                        disabled={!bulkFeeForm.course}
+                      >
+                        <option value="">
+                          {!bulkFeeForm.course 
+                            ? 'Select Course first'
+                            : 'Select Year'
+                          }
+                        </option>
+                        {bulkFeeForm.course && courses.find(c => c._id === bulkFeeForm.course) && 
+                          Array.from({ length: courses.find(c => c._id === bulkFeeForm.course).duration }, (_, i) => i + 1).map(year => (
+                            <option key={year} value={year}>Year {year}</option>
+                          ))
+                        }
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Bulk Creation Form - Show when course and year are selected */}
+                  {bulkFeeForm.course && bulkFeeForm.year ? (
+                    <div className="space-y-4">
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <UserGroupIcon className="w-5 h-5 text-green-600 mr-2" />
+                          Set Fees for All Categories
+                        </h4>
+                        <p className="text-sm text-gray-600 mb-4">
+                          Set individual total fees for each category. Term fees will be automatically calculated (40%, 30%, 30%).
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {Object.entries(bulkFeeForm.categories).map(([category, data]) => (
+                            <div key={category} className="bg-white rounded-lg p-4 border border-green-100">
+                              <div className="flex items-center justify-between mb-2">
+                                <label className="text-sm font-medium text-gray-700">
+                                  Category {category}
+                                </label>
+                                {data.exists && (
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                                    Existing
+                                  </span>
+                                )}
+                              </div>
+                              <input
+                                type="number"
+                                value={data.totalFee || ''}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  setBulkFeeForm(prev => ({
+                                    ...prev,
+                                    categories: {
+                                      ...prev.categories,
+                                      [category]: { ...data, totalFee: value }
+                                    }
+                                  }));
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                placeholder="Enter total fee"
+                                min="0"
+                                required
+                              />
+                              {data.totalFee > 0 && (
+                                <div className="mt-2 text-xs text-gray-500">
+                                  <div className="flex justify-between">
+                                    <span>T1: ₹{Math.round(data.totalFee * 0.4).toLocaleString()}</span>
+                                    <span>T2: ₹{Math.round(data.totalFee * 0.3).toLocaleString()}</span>
+                                  </div>
+                                  <div className="text-center mt-1">
+                                    T3: ₹{Math.round(data.totalFee * 0.3).toLocaleString()}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <UserGroupIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                      <p>Please select Course and Year to set fees for all categories</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeeStructureModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={feeStructureLoading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {feeStructureLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
