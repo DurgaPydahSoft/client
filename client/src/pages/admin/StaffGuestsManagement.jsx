@@ -59,6 +59,7 @@ const StaffGuestsManagement = () => {
     purpose: '',
     checkinDate: '',
     checkoutDate: '',
+    dailyRate: '',
     photo: null,
     existingPhoto: null
   });
@@ -241,6 +242,7 @@ const StaffGuestsManagement = () => {
         purpose: '',
         checkinDate: '',
         checkoutDate: '',
+        dailyRate: '',
         photo: null,
         existingPhoto: null
       });
@@ -265,6 +267,7 @@ const StaffGuestsManagement = () => {
       purpose: staffGuest.purpose || '',
       checkinDate: staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toISOString().split('T')[0] : '',
       checkoutDate: staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toISOString().split('T')[0] : '',
+      dailyRate: staffGuest.dailyRate || '',
       photo: null, // New photo file (if selected)
       existingPhoto: staffGuest.photo // Keep existing photo URL
     });
@@ -308,6 +311,7 @@ const StaffGuestsManagement = () => {
       purpose: '',
       checkinDate: '',
       checkoutDate: '',
+      dailyRate: '',
       photo: null,
       existingPhoto: null
     });
@@ -421,7 +425,7 @@ const StaffGuestsManagement = () => {
           throw new Error('Invalid staffGuest object provided to generateOneCopy');
         }
 
-        const dailyRate = dailyRateSettings.staffDailyRate || 100;
+        const dailyRate = staffGuest.dailyRate || dailyRateSettings.staffDailyRate || 100;
         const dayCount = staffGuest.dayCount || 0;
         const totalCharges = dailyRate * dayCount;
         const actualCharges = staffGuest.calculatedCharges || totalCharges;
@@ -552,46 +556,25 @@ const StaffGuestsManagement = () => {
         if (staffGuest.photo) {
           try {
             if (staffGuest.photo.startsWith('data:image')) {
+              // Handle base64 data URLs (preferred method from backend)
               doc.addImage(staffGuest.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
             } else if (staffGuest.photo.startsWith('http') || staffGuest.photo.startsWith('/')) {
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              const loadImage = () => {
-                return new Promise((resolve) => {
-                  img.onload = () => {
-                    try {
-                      const canvas = document.createElement('canvas');
-                      const ctx = canvas.getContext('2d');
-                      canvas.width = img.width;
-                      canvas.height = img.height;
-                      ctx.drawImage(img, 0, 0);
-                      const dataURL = canvas.toDataURL('image/jpeg');
-                      doc.addImage(dataURL, 'JPEG', photoX, photoY, photoWidth, photoHeight);
-                      resolve();
-                    } catch {
-                      doc.setFontSize(4);
-                      doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
-                      resolve();
-                    }
-                  };
-                  img.onerror = () => {
-                    doc.setFontSize(4);
-                    doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
-                    resolve();
-                  };
-                  img.src = staffGuest.photo;
-                });
-              };
-              await loadImage();
+              // Handle URL-based images (fallback method - should not happen with new backend)
+              // For now, just show placeholder since URL loading will fail due to CORS
+              doc.setFontSize(4);
+              doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
             } else {
+              // Handle other image formats or invalid URLs
               doc.setFontSize(4);
               doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
             }
-          } catch {
+          } catch (error) {
+            console.error('Error adding image to PDF:', error);
             doc.setFontSize(4);
             doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
           }
         } else {
+          // No photo available
           doc.setFontSize(4);
           doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
         }
@@ -793,7 +776,7 @@ const StaffGuestsManagement = () => {
         {activeTab === 'management' && (
           <>
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
               <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
                 <div className="flex items-center gap-2">
                   <UserIcon className="w-5 h-5 text-blue-600" />
@@ -807,6 +790,13 @@ const StaffGuestsManagement = () => {
                   <span className="text-sm font-medium text-gray-600">Total Guests</span>
                 </div>
                 <div className="text-2xl font-bold text-green-900">{stats.totalGuests || 0}</div>
+              </div>
+              <div className="bg-white rounded-lg shadow p-4 border-l-4 border-indigo-500">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-5 h-5 text-indigo-600" />
+                  <span className="text-sm font-medium text-gray-600">Total Students</span>
+                </div>
+                <div className="text-2xl font-bold text-indigo-900">{stats.totalStudents || 0}</div>
               </div>
               <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
                 <div className="flex items-center gap-2">
@@ -847,6 +837,7 @@ const StaffGuestsManagement = () => {
                   <option value="all">All Types</option>
                   <option value="staff">Staff</option>
                   <option value="guest">Guest</option>
+                  <option value="student">Student</option>
                 </select>
                 <select
                   value={filterGender}
@@ -1462,9 +1453,9 @@ const StaffGuestsManagement = () => {
                         <div className="mt-4">
                           <h4 className="text-sm font-bold text-gray-800 mb-2">CHARGES SUMMARY:</h4>
                           <div className="text-xs text-gray-700 space-y-1">
-                            <p>• Daily Rate: ₹{dailyRateSettings.staffDailyRate || 100} per day</p>
+                            <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
                             <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
-                            <p>• Base Amount: ₹{(dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
+                            <p>• Base Amount: ₹{(admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
                             <p className="font-bold">• Total Payable: ₹{admitCardData.calculatedCharges || 0}</p>
                           </div>
                         </div>
@@ -1613,6 +1604,7 @@ const StaffGuestsManagement = () => {
                         >
                           <option value="staff">Staff</option>
                           <option value="guest">Guest</option>
+                          <option value="student">Student</option>
                         </select>
                       </div>
 
@@ -1675,7 +1667,7 @@ const StaffGuestsManagement = () => {
                         />
                       </div>
 
-                      {formData.type === 'staff' && (
+                      {['staff', 'student'].includes(formData.type) && (
                         <div className="md:col-span-2">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Department
@@ -1729,6 +1721,101 @@ const StaffGuestsManagement = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
                       </div>
+
+                      {/* Daily Rate and Charges Display - For Staff and Students */}
+                      {['staff', 'student'].includes(formData.type) && (
+                        <div className="md:col-span-2">
+                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                              <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
+                              Daily Rate & Charges Information
+                            </h4>
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                <div className="text-sm font-medium text-gray-600 mb-3">Individual Daily Rate</div>
+                                <div className="space-y-2">
+                                  <div className="relative">
+                                    <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                      type="number"
+                                      name="dailyRate"
+                                      value={formData.dailyRate}
+                                      onChange={handleInputChange}
+                                      placeholder={dailyRateSettings.staffDailyRate || 100}
+                                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                      min="0"
+                                      step="0.01"
+                                    />
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Leave empty to use default: ₹{dailyRateSettings.staffDailyRate || 100}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg p-4 border border-green-100">
+                                <div className="text-sm font-medium text-gray-600 mb-3">Calculated Charges</div>
+                                <div className="space-y-2">
+                                  <div className="text-lg font-bold text-green-700">
+                                    ₹{(() => {
+                                      if (!formData.checkinDate) return '0';
+                                      const startDate = new Date(formData.checkinDate);
+                                      const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
+                                      const timeDiff = endDate.getTime() - startDate.getTime();
+                                      const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                      const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                      return (dayCount * rateToUse).toLocaleString();
+                                    })()}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {(() => {
+                                      if (!formData.checkinDate) return 'Enter check-in date to calculate';
+                                      const startDate = new Date(formData.checkinDate);
+                                      const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
+                                      const timeDiff = endDate.getTime() - startDate.getTime();
+                                      const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                      const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                      return `${dayCount} days × ₹${rateToUse}`;
+                                    })()}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="bg-white rounded-lg p-4 border border-purple-100">
+                                <div className="text-sm font-medium text-gray-600 mb-3">Default Rate</div>
+                                <div className="space-y-2">
+                                  <div className="text-lg font-bold text-purple-700">₹{dailyRateSettings.staffDailyRate || 100}</div>
+                                  <div className="text-xs text-gray-500">From settings</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-3 text-xs text-gray-600">
+                              <p>• Set individual daily rate or leave empty to use default from settings</p>
+                              <p>• Charges are calculated based on the number of days between check-in and check-out dates</p>
+                              <p>• If no check-out date is provided, charges are calculated until today</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Guest Information - No Charges */}
+                      {formData.type === 'guest' && (
+                        <div className="md:col-span-2">
+                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                              <UserIcon className="w-4 h-4 mr-2 text-green-600" />
+                              Guest Information
+                            </h4>
+                            <div className="bg-white rounded-lg p-3 border border-green-100">
+                              <div className="text-sm font-medium text-gray-600 mb-1">Charges</div>
+                              <div className="text-lg font-bold text-green-700">₹0</div>
+                              <div className="text-xs text-gray-500">No charges for guests</div>
+                            </div>
+                            <div className="mt-3 text-xs text-gray-600">
+                              <p>• Guests are not charged for their stay</p>
+                              <p>• Only staff members are subject to daily charges</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
