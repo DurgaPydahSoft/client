@@ -311,6 +311,39 @@ const Complaints = () => {
     }
   };
 
+  const handleDeleteComplaint = async (complaintId, complaintDescription) => {
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Are you sure you want to delete this complaint?\n\nDescription: ${complaintDescription}\n\nThis action cannot be undone.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      toast.loading('Deleting complaint...');
+      const res = await api.delete(`/api/complaints/admin/${complaintId}`);
+
+      if (res.data.success) {
+        toast.success('Complaint deleted successfully!');
+        // Refresh the complaints list
+        await fetchComplaints();
+        // Close the modal if it's open for the deleted complaint
+        if (selected && selected._id === complaintId) {
+          setSelected(null);
+        }
+      } else {
+        throw new Error(res.data.message || 'Failed to delete complaint');
+      }
+    } catch (error) {
+      console.error('Error deleting complaint:', error);
+      toast.error(error.response?.data?.message || 'Failed to delete complaint');
+    } finally {
+      toast.dismiss();
+    }
+  };
+
   const openDetails = async complaint => {
     if (!complaint || typeof complaint !== 'object') {
       console.error('Invalid complaint object:', complaint);
@@ -632,7 +665,7 @@ const Complaints = () => {
                       </div>
                     </>
                   ) : (
-                    <div className="text-xs sm:text-sm text-gray-500 text-purple-600 mb-2">
+                    <div className="text-xs sm:text-sm text-purple-600 mb-2">
                       Raised by: {c.raisedBy === 'warden' ? 'Warden' : 'Student'}
                     </div>
                   )}
@@ -646,12 +679,25 @@ const Complaints = () => {
                     <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
                       {c.currentStatus || 'Received'}
                     </span>
-                    <button
-                      className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
-                      onClick={() => openDetails(c)}
-                    >
-                      View Details
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {c.currentStatus === 'Received' && !isLocked && (
+                        <button
+                          onClick={() => handleDeleteComplaint(c._id, c.description)}
+                          className="p-1.5 sm:p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                          title="Delete complaint"
+                        >
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
+                      <button
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
+                        onClick={() => openDetails(c)}
+                      >
+                        View Details
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -666,16 +712,17 @@ const Complaints = () => {
   // Render individual complaint card for Kanban columns
   const renderComplaintCard = (complaint) => {
     const isLocked = complaint.isLockedForUpdates === true;
+    const canDelete = complaint.currentStatus === 'Received' && !isLocked;
+    
     return (
       <div
         key={complaint._id || complaint.id}
-        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer mb-2 group ${isLocked ? 'opacity-70' : ''}`}
-        onClick={() => openDetails(complaint)}
+        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 mb-2 group ${isLocked ? 'opacity-70' : ''}`}
       >
         <div className="p-3">
           {/* Header */}
           <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => openDetails(complaint)}>
               <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors duration-200">
                 <UserIcon className="w-4 h-4 text-gray-600 group-hover:text-blue-600" />
               </div>
@@ -688,9 +735,25 @@ const Complaints = () => {
                 </p>
               </div>
             </div>
-            <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[complaint.currentStatus] || STATUS_COLORS['Received']} shadow-sm`}>
-              {complaint.currentStatus}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[complaint.currentStatus] || STATUS_COLORS['Received']} shadow-sm`}>
+                {complaint.currentStatus}
+              </span>
+              {canDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteComplaint(complaint._id, complaint.description);
+                  }}
+                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                  title="Delete complaint"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Category and Type */}
@@ -711,13 +774,15 @@ const Complaints = () => {
           </div>
 
           {/* Description */}
-          <p className="text-xs text-gray-600 mb-2 overflow-hidden leading-relaxed" style={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical'
-          }}>
-            {complaint.description}
-          </p>
+          <div className="cursor-pointer" onClick={() => openDetails(complaint)}>
+            <p className="text-xs text-gray-600 mb-2 overflow-hidden leading-relaxed" style={{
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical'
+            }}>
+              {complaint.description}
+            </p>
+          </div>
 
           {/* Assigned Member */}
           {complaint.assignedTo && (
