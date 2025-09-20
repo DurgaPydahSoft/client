@@ -616,7 +616,7 @@ const TakeStaffAttendance = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mb-3 sm:mb-4 lg:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
+          className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-[60] bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
         >
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
             <button

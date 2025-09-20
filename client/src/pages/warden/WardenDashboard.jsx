@@ -199,7 +199,7 @@ const WardenDashboardLayout = () => {
   ];
 
   return (
-    <div className="min-h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
+    <div className="h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsSidebarOpen(true)}

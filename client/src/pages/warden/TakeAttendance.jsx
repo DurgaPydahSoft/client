@@ -822,58 +822,58 @@ const TakeAttendance = () => {
 
         {/* Submit Button - Mobile Optimized */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-3 sm:mb-4 lg:mb-6 sticky top-16 z-10 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static"
-        >
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !isAnySessionActive()}
-              className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${
-                submitting || !isAnySessionActive()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
-              }`}
-          >
-            {submitting ? (
-              <>
-                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs sm:text-sm">Saving Attendance...</span>
-              </>
-            ) : !isAnySessionActive() ? (
-              <>
-                <ClockIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-                <span className="hidden sm:inline">No Active Session</span>
-                <span className="sm:hidden text-xs">No Active Session</span>
-              </>
-            ) : (
-              <>
-                    <CheckIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-                    <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
-                    <span className="sm:hidden text-xs">Save Attendance</span>
-              </>
-            )}
-          </button>
-            
-            {/* Quick Stats */}
-            <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
-              <div className="text-center">
-                <div className="font-semibold text-green-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
-                <div className="text-xs">Present</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-yellow-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
-                <div className="text-xs">Partial</div>
-              </div>
-              <div className="text-center">
-                <div className="font-semibold text-red-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
-                <div className="text-xs">Absent</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ delay: 0.2 }}
+  className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-[60] bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
+>
+  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
+    <button
+      onClick={handleSubmit}
+      disabled={submitting || !isAnySessionActive()}
+      className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${
+        submitting || !isAnySessionActive()
+          ? 'bg-gray-400 cursor-not-allowed'
+          : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
+      }`}
+    >
+      {submitting ? (
+        <>
+          <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs sm:text-sm">Saving Attendance...</span>
+        </>
+      ) : !isAnySessionActive() ? (
+        <>
+          <ClockIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+          <span className="hidden sm:inline">No Active Session</span>
+          <span className="sm:hidden text-xs">No Active Session</span>
+        </>
+      ) : (
+        <>
+          <CheckIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+          <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
+          <span className="sm:hidden text-xs">Save Attendance</span>
+        </>
+      )}
+    </button>
+    
+    {/* Quick Stats */}
+    <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
+      <div className="text-center">
+        <div className="font-semibold text-green-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
+        <div className="text-xs">Present</div>
+      </div>
+      <div className="text-center">
+        <div className="font-semibold text-yellow-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
+        <div className="text-xs">Partial</div>
+      </div>
+      <div className="text-center">
+        <div className="font-semibold text-red-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
+        <div className="text-xs">Absent</div>
+      </div>
+    </div>
+  </div>
+</motion.div>
 
         {/* Students List - Mobile Optimized */}
         <motion.div
