@@ -71,6 +71,7 @@ const TakeAttendance = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Time-based session management
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -208,6 +209,12 @@ const TakeAttendance = () => {
   useEffect(() => {
     fetchStudents();
   }, [selectedDate, filters]);
+
+  // Filter students based on search query
+  const filteredStudents = students.filter(student => 
+    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   useEffect(() => {
     fetchFilters();
@@ -860,20 +867,61 @@ const TakeAttendance = () => {
     {/* Quick Stats */}
     <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
       <div className="text-center">
-        <div className="font-semibold text-green-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
+        <div className="font-semibold text-green-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
         <div className="text-xs">Present</div>
       </div>
       <div className="text-center">
-        <div className="font-semibold text-yellow-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
+        <div className="font-semibold text-yellow-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
         <div className="text-xs">Partial</div>
       </div>
       <div className="text-center">
-        <div className="font-semibold text-red-600 text-sm sm:text-base">{students.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
+        <div className="font-semibold text-red-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
         <div className="text-xs">Absent</div>
       </div>
     </div>
   </div>
 </motion.div>
+
+        {/* Search Filter */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
+        >
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
+            <div className="flex-1 w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Search Students
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name or roll number..."
+                  className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+            {searchQuery && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
+                <span>Showing {filteredStudents.length} of {students.length} students</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        </motion.div>
 
         {/* Students List - Mobile Optimized */}
         <motion.div
@@ -885,20 +933,20 @@ const TakeAttendance = () => {
           <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-              Students ({students.length})
+              Students ({filteredStudents.length}{searchQuery ? ` of ${students.length}` : ''})
             </h2>
               <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
-                  <span>Present: {students.filter(s => getAttendanceStatus(s) === 'Present').length}</span>
+                  <span>Present: {filteredStudents.filter(s => getAttendanceStatus(s) === 'Present').length}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 bg-yellow-500 rounded-full"></div>
-                  <span>Partial: {students.filter(s => getAttendanceStatus(s) === 'Partial').length}</span>
+                  <span>Partial: {filteredStudents.filter(s => getAttendanceStatus(s) === 'Partial').length}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full"></div>
-                  <span>Absent: {students.filter(s => getAttendanceStatus(s) === 'Absent').length}</span>
+                  <span>Absent: {filteredStudents.filter(s => getAttendanceStatus(s) === 'Absent').length}</span>
                 </div>
               </div>
             </div>
@@ -907,7 +955,7 @@ const TakeAttendance = () => {
           {/* Mobile Card View */}
           <div className="block sm:hidden">
             <div className="divide-y divide-gray-200">
-              {students.map((student, index) => {
+              {filteredStudents.map((student, index) => {
                 const status = getAttendanceStatus(student);
                 return (
                   <motion.div
@@ -1132,7 +1180,7 @@ const TakeAttendance = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student, index) => {
+                  {filteredStudents.map((student, index) => {
                     const status = getAttendanceStatus(student);
                     return (
                       <motion.tr
@@ -1287,10 +1335,12 @@ const TakeAttendance = () => {
             </div>
           </div>
 
-          {students.length === 0 && (
+          {filteredStudents.length === 0 && (
             <div className="text-center py-8 sm:py-12">
               <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
-              <p className="text-xs sm:text-sm text-gray-500">No students found with the selected filters.</p>
+              <p className="text-xs sm:text-sm text-gray-500">
+                {searchQuery ? `No students found matching "${searchQuery}"` : 'No students found with the selected filters.'}
+              </p>
             </div>
           )}
         </motion.div>

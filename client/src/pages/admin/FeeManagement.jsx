@@ -26,6 +26,7 @@ import {
   BellIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import ReminderConfig from './ReminderConfig';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -79,7 +80,7 @@ const FeeManagement = () => {
     }
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('students'); // 'students', 'structure', 'payments', or 'reminders'
+  const [activeTab, setActiveTab] = useState('students'); // 'students', 'structure', 'payments', 'reminders', or 'reminder-config'
   const [feeStructureFilter, setFeeStructureFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     course: '',
@@ -140,7 +141,8 @@ const FeeManagement = () => {
   const [emailServiceStatus, setEmailServiceStatus] = useState(null);
   const [reminderOptions, setReminderOptions] = useState({
     sendEmail: true,
-    sendPushNotification: true
+    sendPushNotification: true,
+    sendSMS: true
   });
 
 
@@ -1732,7 +1734,8 @@ const FeeManagement = () => {
         reminderType,
         message: reminderMessage || 'Please pay your pending hostel fees.',
         sendEmail: reminderOptions.sendEmail,
-        sendPushNotification: reminderOptions.sendPushNotification
+        sendPushNotification: reminderOptions.sendPushNotification,
+        sendSMS: reminderOptions.sendSMS
       });
 
       if (response.data.success) {
@@ -1778,7 +1781,8 @@ const FeeManagement = () => {
         studentIds: selectedReminders,
         message: reminderMessage || 'Please pay your pending hostel fees.',
         sendEmail: reminderOptions.sendEmail,
-        sendPushNotification: reminderOptions.sendPushNotification
+        sendPushNotification: reminderOptions.sendPushNotification,
+        sendSMS: reminderOptions.sendSMS
       });
 
       if (response.data.success) {
@@ -1786,12 +1790,13 @@ const FeeManagement = () => {
         const errorCount = response.data.data?.errorCount || 0;
         
         let statusMessage = `Reminders sent to ${successCount} students`;
-        if (reminderOptions.sendEmail && reminderOptions.sendPushNotification) {
-          statusMessage += ' (Email + Push Notification)';
-        } else if (reminderOptions.sendEmail) {
-          statusMessage += ' (Email only)';
-        } else if (reminderOptions.sendPushNotification) {
-          statusMessage += ' (Push Notification only)';
+        const methods = [];
+        if (reminderOptions.sendEmail) methods.push('Email');
+        if (reminderOptions.sendPushNotification) methods.push('Push Notification');
+        if (reminderOptions.sendSMS) methods.push('SMS');
+        
+        if (methods.length > 0) {
+          statusMessage += ` (${methods.join(' + ')})`;
         }
         
         if (errorCount > 0) {
@@ -2034,6 +2039,17 @@ const FeeManagement = () => {
               >
                 Fee Reminders
               </button>
+              <button
+                onClick={() => setActiveTab('reminder-config')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                  activeTab === 'reminder-config'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {/* <Cog6ToothIcon className="w-4 h-4 mr-1" /> */}
+                Reminder Config
+              </button>
             </nav>
           </div>
         </div>
@@ -2097,89 +2113,6 @@ const FeeManagement = () => {
               </div>
             </div>
           </div>
-
-
-          {/* Fee Structure Summary - COMMENTED OUT */}
-          {/* {activeTab === 'students' && feeStructures.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3">Fee Structure Summary</h3>
-
-              <div className="mb-4 flex gap-2">
-                <select
-                  value={feeStructureFilter.academicYear}
-                  onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Academic Years</option>
-                  {[...new Set(feeStructures.map(s => s.academicYear))].sort().map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={feeStructureFilter.category || ''}
-                  onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">All Categories</option>
-                  {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => setFeeStructureFilter({ academicYear: '', category: '' })}
-                  className="px-3 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Clear Filters
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {(() => {
-                  let filteredStructures = feeStructures;
-
-                  if (feeStructureFilter.academicYear) {
-                    filteredStructures = filteredStructures.filter(s =>
-                      s.academicYear === feeStructureFilter.academicYear
-                    );
-                  }
-
-                  if (feeStructureFilter.category) {
-                    filteredStructures = filteredStructures.filter(s =>
-                      s.category === feeStructureFilter.category
-                    );
-                  }
-
-                  return filteredStructures.map((structure, index) => (
-                    <div key={`${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}-${structure.category}-${index}`} className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-sm font-medium text-gray-900">{structure.category}</div>
-                      <div className="text-lg font-bold text-blue-600">₹{structure.totalFee.toLocaleString()}</div>
-                      <div className="text-xs text-gray-500">{structure.academicYear}</div>
-                    </div>
-                  ));
-                })()}
-              </div>
-
-              <div className="mt-3 text-sm text-gray-600">
-                Showing {(() => {
-                  let filteredCount = feeStructures.length;
-                  if (feeStructureFilter.academicYear) {
-                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
-                  }
-                  if (feeStructureFilter.category) {
-                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
-                  }
-                  return filteredCount;
-                })()} of {feeStructures.length} Fee Structures |
-                Academic Years: {[...new Set(feeStructures.map(s => s.academicYear))].sort().join(', ')}
-              </div>
-            </div>
-          )} */}
-
-
-
-
 
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
@@ -2306,6 +2239,18 @@ const FeeManagement = () => {
                           Total Fee
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 1 Balance
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 2 Balance
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Term 3 Balance
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total Balance
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -2420,6 +2365,62 @@ const FeeManagement = () => {
                                   <div className="text-gray-400">Academic Year: {student.academicYear || 'Unknown'}</div>
                                 </div>
                               );
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              const balance = calculateStudentBalance(student);
+                              if (balance && balance.termBalances) {
+                                const term1Balance = balance.termBalances.term1?.balance || 0;
+                                return (
+                                  <div className={`font-medium ${term1Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term1Balance.toLocaleString()}
+                                  </div>
+                                );
+                              }
+                              return <div className="text-gray-400">-</div>;
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              const balance = calculateStudentBalance(student);
+                              if (balance && balance.termBalances) {
+                                const term2Balance = balance.termBalances.term2?.balance || 0;
+                                return (
+                                  <div className={`font-medium ${term2Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term2Balance.toLocaleString()}
+                                  </div>
+                                );
+                              }
+                              return <div className="text-gray-400">-</div>;
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              const balance = calculateStudentBalance(student);
+                              if (balance && balance.termBalances) {
+                                const term3Balance = balance.termBalances.term3?.balance || 0;
+                                return (
+                                  <div className={`font-medium ${term3Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term3Balance.toLocaleString()}
+                                  </div>
+                                );
+                              }
+                              return <div className="text-gray-400">-</div>;
+                            })()}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {(() => {
+                              const balance = calculateStudentBalance(student);
+                              if (balance) {
+                                const totalBalance = balance.totalBalance || 0;
+                                return (
+                                  <div className={`font-bold ${totalBalance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{totalBalance.toLocaleString()}
+                                  </div>
+                                );
+                              }
+                              return <div className="text-gray-400">-</div>;
                             })()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -4463,6 +4464,11 @@ const FeeManagement = () => {
         </>
       )}
 
+      {/* Reminder Config Tab Content */}
+      {activeTab === 'reminder-config' && (
+        <ReminderConfig />
+      )}
+
       {/* Reminder Modal */}
       {showReminderModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
@@ -4603,10 +4609,29 @@ const FeeManagement = () => {
                       Push Notification
                     </label>
                   </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="sendSMS"
+                      checked={reminderOptions.sendSMS}
+                      onChange={(e) => setReminderOptions(prev => ({
+                        ...prev,
+                        sendSMS: e.target.checked
+                      }))}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="sendSMS" className="ml-2 text-sm text-gray-700 flex items-center">
+                      <svg className="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                      </svg>
+                      SMS Notification
+                    </label>
+                  </div>
                 </div>
                 
                 {/* Validation Message */}
-                {!reminderOptions.sendEmail && !reminderOptions.sendPushNotification && (
+                {!reminderOptions.sendEmail && !reminderOptions.sendPushNotification && !reminderOptions.sendSMS && (
                   <p className="mt-2 text-xs text-red-500">
                     Please select at least one notification method
                   </p>
@@ -4628,7 +4653,7 @@ const FeeManagement = () => {
                 <button
                   onClick={() => {
                     // Validate that at least one notification method is selected
-                    if (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification) {
+                    if (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification && !reminderOptions.sendSMS) {
                       toast.error('Please select at least one notification method');
                       return;
                     }
@@ -4644,10 +4669,11 @@ const FeeManagement = () => {
                     // Reset options to default
                     setReminderOptions({
                       sendEmail: true,
-                      sendPushNotification: true
+                      sendPushNotification: true,
+                      sendSMS: true
                     });
                   }}
-                  disabled={sendingReminders || (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification)}
+                  disabled={sendingReminders || (!reminderOptions.sendEmail && !reminderOptions.sendPushNotification && !reminderOptions.sendSMS)}
                   className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   {sendingReminders ? (
