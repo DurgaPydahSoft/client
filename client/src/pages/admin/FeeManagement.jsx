@@ -34,6 +34,7 @@ const FeeManagement = () => {
   const { user } = useAuth();
   const { settings } = useGlobalSettings();
   const [students, setStudents] = useState([]);
+  const [allStudents, setAllStudents] = useState([]); // Store all students for KPI calculations
   const [stats, setStats] = useState({
     totalStudents: 0,
     studentsWithFees: 0,
@@ -45,6 +46,28 @@ const FeeManagement = () => {
     term2Due: 0,
     term3Due: 0
   });
+  const [studentFilteredBalances, setStudentFilteredBalances] = useState({}); // Store date-filtered balances for each student
+  
+  // Calculate real-time KPI stats for ALL students (not just current page)
+  const calculateRealTimeStats = () => {
+    let totalDue = 0;
+    let term1Due = 0;
+    let term2Due = 0;
+    let term3Due = 0;
+    
+    // Use allStudents instead of students (which is paginated)
+    allStudents.forEach(student => {
+      const studentBalance = calculateStudentBalance(student);
+      if (studentBalance) {
+        totalDue += studentBalance.totalBalance;
+        term1Due += studentBalance.termBalances.term1.balance;
+        term2Due += studentBalance.termBalances.term2.balance;
+        term3Due += studentBalance.termBalances.term3.balance;
+      }
+    });
+    
+    return { totalDue, term1Due, term2Due, term3Due };
+  };
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -178,6 +201,69 @@ const FeeManagement = () => {
     }
 
     return baseCategories;
+  };
+
+  // Helper function to get student term due dates from backend
+  const getStudentTermDueDates = async (student) => {
+    try {
+      const response = await api.get(`/api/reminder-config/calculate-term-due-dates/${student.course._id}/${student.academicYear}/${student.year}`, {
+        params: { semesterStartDate: new Date().toISOString() }
+      });
+      
+      if (response.data.success) {
+        return response.data.data; // Returns { term1: Date, term2: Date, term3: Date }
+      }
+    } catch (error) {
+      console.log('No due dates configured for student:', student.name, error.message);
+    }
+    return null; // No due dates configured
+  };
+
+  // Helper function to filter balances based on due dates
+  const getDateFilteredBalance = (studentBalance, termDueDates, currentDate) => {
+    if (!studentBalance) {
+      // No balance data, return zeros
+      return {
+        term1Due: 0,
+        term2Due: 0,
+        term3Due: 0,
+        totalDue: 0
+      };
+    }
+
+    if (!termDueDates) {
+      // No due dates configured, show all balances
+      return {
+        term1Due: studentBalance.termBalances.term1.balance,
+        term2Due: studentBalance.termBalances.term2.balance,
+        term3Due: studentBalance.termBalances.term3.balance,
+        totalDue: studentBalance.totalBalance
+      };
+    }
+
+    // Filter balances based on due dates
+    const filteredBalance = {
+      term1Due: currentDate >= new Date(termDueDates.term1) ? studentBalance.termBalances.term1.balance : 0,
+      term2Due: currentDate >= new Date(termDueDates.term2) ? studentBalance.termBalances.term2.balance : 0,
+      term3Due: currentDate >= new Date(termDueDates.term3) ? studentBalance.termBalances.term3.balance : 0,
+      totalDue: 0
+    };
+
+    // Debug logging for date filtering
+    console.log('🔍 Date filtering for student:', studentBalance);
+    console.log('🔍 Current date:', currentDate);
+    console.log('🔍 Term due dates:', termDueDates);
+    console.log('🔍 Term balances before filtering:', {
+      term1: studentBalance.termBalances.term1.balance,
+      term2: studentBalance.termBalances.term2.balance,
+      term3: studentBalance.termBalances.term3.balance
+    });
+    console.log('🔍 Filtered balances:', filteredBalance);
+
+    // Calculate total due
+    filteredBalance.totalDue = filteredBalance.term1Due + filteredBalance.term2Due + filteredBalance.term3Due;
+
+    return filteredBalance;
   };
 
   // Fetch fee structure for a specific student course, year, category and academic year
@@ -375,6 +461,30 @@ const FeeManagement = () => {
   };
 
   // Fetch all students for statistics (without pagination)
+  // Fetch all payments for all students to ensure accurate balance calculations
+  const fetchAllPaymentsForStats = async (allStudentsData) => {
+    try {
+      console.log('🔍 Frontend: Fetching all payments for statistics...');
+      
+      // Fetch all hostel fee payments using the correct endpoint
+      const response = await api.get(`/api/payments/all?paymentType=hostel_fee&limit=10000`);
+      
+      if (response.data.success) {
+        const allPayments = response.data.data.payments || [];
+        console.log('🔍 Frontend: All payments fetched:', allPayments.length);
+        
+        // Update the global payments state
+        setPayments(allPayments);
+        
+        return allPayments;
+      }
+    } catch (error) {
+      console.error('Error fetching all payments:', error);
+      console.error('Error details:', error.response?.data);
+    }
+    return [];
+  };
+
   const fetchAllStudentsForStats = async () => {
     try {
       console.log('🔍 Frontend: Fetching all students for statistics...');
@@ -393,6 +503,11 @@ const FeeManagement = () => {
       if (response.data.success) {
         const allStudentsData = response.data.data.students || response.data.data || [];
         console.log('🔍 Frontend: All students for stats:', allStudentsData.length);
+
+        // Store all students for KPI calculations
+        setAllStudents(allStudentsData);
+
+        // Payments will be fetched individually for each student during processing
 
         // Update stats with all students data
         const totalStudents = allStudentsData.length;
@@ -415,7 +530,11 @@ const FeeManagement = () => {
         let term2Due = 0;
         let term3Due = 0;
 
-        allStudentsData.forEach(student => {
+        // Process students with date-based filtering
+        const currentDate = new Date();
+        const filteredBalances = {};
+        
+        for (const student of allStudentsData) {
           const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
           if (feeStructure) {
             const originalFee = feeStructure.totalFee;
@@ -430,16 +549,55 @@ const FeeManagement = () => {
               studentsWithConcession++;
             }
 
-            // Calculate dues for each student
-            const studentBalance = calculateStudentBalance(student);
-            if (studentBalance) {
-              totalDue += studentBalance.totalBalance;
-              term1Due += studentBalance.termBalances.term1.balance;
-              term2Due += studentBalance.termBalances.term2.balance;
-              term3Due += studentBalance.termBalances.term3.balance;
+            // Fetch student's payments directly from API (like the balance modal does)
+            console.log('🔍 Processing student:', student.name, 'ID:', student._id);
+            try {
+              const response = await api.get(`/api/payments/hostel-fee/${student._id}?academicYear=${student.academicYear}`);
+              let studentPayments = [];
+              
+              if (response.data.success) {
+                studentPayments = response.data.data.payments || [];
+                console.log('🔍 Fetched payments for student:', student.name, studentPayments.length);
+              }
+              
+              // Update global payments state with this student's payments
+              setPayments(prev => {
+                const existingPayments = prev.filter(p => p.studentId !== student._id);
+                return [...existingPayments, ...studentPayments];
+              });
+              
+              // Calculate balance with the fetched payments
+              const studentBalance = calculateStudentBalance(student);
+              console.log('🔍 Student balance calculated:', studentBalance);
+              
+              if (studentBalance) {
+                // Get term due dates for this student
+                const termDueDates = await getStudentTermDueDates(student);
+                console.log('🔍 Term due dates for student:', student.name, termDueDates);
+                
+                // Apply date-based filtering
+                const filteredBalance = getDateFilteredBalance(studentBalance, termDueDates, currentDate);
+                console.log('🔍 Final filtered balance for student:', student.name, filteredBalance);
+                
+                // Store filtered balance for this student
+                filteredBalances[student._id] = filteredBalance;
+                
+                // Add filtered amounts to totals
+                totalDue += filteredBalance.totalDue;
+                term1Due += filteredBalance.term1Due;
+                term2Due += filteredBalance.term2Due;
+                term3Due += filteredBalance.term3Due;
+              } else {
+                console.log('🔍 No balance calculated for student:', student.name);
+              }
+            } catch (error) {
+              console.error('Error fetching payments for student:', student.name, error);
             }
           }
-        });
+        }
+
+        // Update the filtered balances state
+        setStudentFilteredBalances(filteredBalances);
 
         const averageFeeAmount = studentsWithFees > 0 ? Math.round(totalFeeAmount / studentsWithFees) : 0;
 
@@ -1399,50 +1557,56 @@ const FeeManagement = () => {
     const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
     if (!feeStructure) return null;
 
-    const studentPaymentHistory = payments.filter(p => p.studentId === student._id);
+    const studentPaymentHistory = payments.filter(p => {
+      // Handle both string and object IDs
+      const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
+      const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
+      return paymentStudentId === studentId;
+    });
     const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
 
     // Debug logging
     console.log('🔍 Balance calculation for student:', student.name);
+    console.log('🔍 Fee structure:', {
+      totalFee: feeStructure.totalFee,
+      term1Fee: feeStructure.term1Fee,
+      term2Fee: feeStructure.term2Fee,
+      term3Fee: feeStructure.term3Fee
+    });
+    console.log('🔍 Student calculated fees:', {
+      calculatedTerm1Fee: student.calculatedTerm1Fee,
+      calculatedTerm2Fee: student.calculatedTerm2Fee,
+      calculatedTerm3Fee: student.calculatedTerm3Fee,
+      totalCalculatedFee: student.totalCalculatedFee,
+      concession: student.concession
+    });
     console.log('🔍 Student payment history:', studentPaymentHistory);
-    console.log('🔍 All payments:', payments);
+    console.log('🔍 Total paid:', totalPaid);
+    console.log('🔍 All payments in state:', payments.length);
+    console.log('🔍 Student ID:', student._id, 'Type:', typeof student._id);
+    console.log('🔍 Sample payment studentId:', payments[0]?.studentId, 'Type:', typeof payments[0]?.studentId);
 
     // Check if student has concession applied
     const hasConcession = student.concession && student.concession > 0;
 
-    // Calculate term-wise balance using concession amounts if available
-    // Note: Concession is applied to Term 1 only, excess to Term 2, then Term 3
+    // Calculate term-wise balance using student's calculated fees (which already account for concessions)
     const termBalances = {
       term1: {
-        required: hasConcession ?
-          (student.calculatedTerm1Fee || Math.max(0, feeStructure.term1Fee - (student.concession || 0))) :
-          (feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4)),
+        required: student.calculatedTerm1Fee || feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term1')
           .reduce((sum, p) => sum + p.amount, 0),
         balance: 0
       },
       term2: {
-        required: hasConcession ?
-          (student.calculatedTerm2Fee || (() => {
-            const concession = student.concession || 0;
-            const remainingConcession = Math.max(0, concession - feeStructure.term1Fee);
-            return Math.max(0, feeStructure.term2Fee - remainingConcession);
-          })()) :
-          (feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3)),
+        required: student.calculatedTerm2Fee || feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term2')
           .reduce((sum, p) => sum + p.amount, 0),
         balance: 0
       },
       term3: {
-        required: hasConcession ?
-          (student.calculatedTerm3Fee || (() => {
-            const concession = student.concession || 0;
-            const remainingConcession = Math.max(0, concession - feeStructure.term1Fee - feeStructure.term2Fee);
-            return Math.max(0, feeStructure.term3Fee - remainingConcession);
-          })()) :
-          (feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3)),
+        required: student.calculatedTerm3Fee || feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3),
         paid: studentPaymentHistory
           .filter(p => p.term === 'term3')
           .reduce((sum, p) => sum + p.amount, 0),
@@ -1502,6 +1666,14 @@ const FeeManagement = () => {
 
     const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
     const isFullyPaid = totalBalance === 0;
+
+    // Debug logging for final balances
+    console.log('🔍 Final term balances for', student.name, ':', {
+      term1: { required: termBalances.term1.required, paid: termBalances.term1.paid, balance: termBalances.term1.balance },
+      term2: { required: termBalances.term2.required, paid: termBalances.term2.paid, balance: termBalances.term2.balance },
+      term3: { required: termBalances.term3.required, paid: termBalances.term3.paid, balance: termBalances.term3.balance },
+      totalBalance
+    });
 
     // Calculate original vs calculated totals
     const originalTotalFee = feeStructure.totalFee;
@@ -2101,7 +2273,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.totalDue || 0).toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().totalDue.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">Overall outstanding</p>
                 </div>
               </div>
@@ -2114,7 +2286,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 1 Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term1Due || 0).toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term1Due.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">First term pending</p>
                 </div>
               </div>
@@ -2127,7 +2299,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 2 Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term2Due || 0).toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term2Due.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">Second term pending</p>
                 </div>
               </div>
@@ -2138,11 +2310,11 @@ const FeeManagement = () => {
                 <div className="p-2 bg-purple-100 rounded-lg">
                   <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
                 </div>
-                <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Term 3 Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term3Due || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 hidden sm:block">Third term pending</p>
-                </div>
+                  <div className="ml-2 sm:ml-3">
+                    <p className="text-xs sm:text-sm font-medium text-gray-600">Term 3 Due</p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term3Due.toLocaleString()}</p>
+                    <p className="text-xs text-gray-500 hidden sm:block">Third term pending</p>
+                  </div>
               </div>
             </div>
           </div>
@@ -2402,12 +2574,12 @@ const FeeManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(() => {
-                              const balance = calculateStudentBalance(student);
-                              if (balance && balance.termBalances) {
-                                const term1Balance = balance.termBalances.term1?.balance || 0;
+                              const studentBalance = calculateStudentBalance(student);
+                              if (studentBalance) {
+                                const term1Due = studentBalance.termBalances.term1.balance || 0;
                                 return (
-                                  <div className={`font-medium ${term1Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term1Balance.toLocaleString()}
+                                  <div className={`font-medium ${term1Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term1Due.toLocaleString()}
                                   </div>
                                 );
                               }
@@ -2416,12 +2588,12 @@ const FeeManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(() => {
-                              const balance = calculateStudentBalance(student);
-                              if (balance && balance.termBalances) {
-                                const term2Balance = balance.termBalances.term2?.balance || 0;
+                              const studentBalance = calculateStudentBalance(student);
+                              if (studentBalance) {
+                                const term2Due = studentBalance.termBalances.term2.balance || 0;
                                 return (
-                                  <div className={`font-medium ${term2Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term2Balance.toLocaleString()}
+                                  <div className={`font-medium ${term2Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term2Due.toLocaleString()}
                                   </div>
                                 );
                               }
@@ -2430,12 +2602,12 @@ const FeeManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(() => {
-                              const balance = calculateStudentBalance(student);
-                              if (balance && balance.termBalances) {
-                                const term3Balance = balance.termBalances.term3?.balance || 0;
+                              const studentBalance = calculateStudentBalance(student);
+                              if (studentBalance) {
+                                const term3Due = studentBalance.termBalances.term3.balance || 0;
                                 return (
-                                  <div className={`font-medium ${term3Balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term3Balance.toLocaleString()}
+                                  <div className={`font-medium ${term3Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{term3Due.toLocaleString()}
                                   </div>
                                 );
                               }
@@ -2444,12 +2616,12 @@ const FeeManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(() => {
-                              const balance = calculateStudentBalance(student);
-                              if (balance) {
-                                const totalBalance = balance.totalBalance || 0;
+                              const studentBalance = calculateStudentBalance(student);
+                              if (studentBalance) {
+                                const totalDue = studentBalance.totalBalance || 0;
                                 return (
-                                  <div className={`font-bold ${totalBalance === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{totalBalance.toLocaleString()}
+                                  <div className={`font-bold ${totalDue === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    ₹{totalDue.toLocaleString()}
                                   </div>
                                 );
                               }
@@ -2538,6 +2710,65 @@ const FeeManagement = () => {
                         </div>
                         <div className="text-xs text-gray-500">
                           Year {student.year || 'Unknown'}
+                        </div>
+                      </div>
+
+                      {/* Term Balances */}
+                      <div className="mb-3">
+                        <div className="text-xs text-gray-500 mb-2">Term Dues</div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="flex justify-between">
+                            <span>Term 1:</span>
+                            <span className={`font-medium ${(() => {
+                              const studentBalance = calculateStudentBalance(student);
+                              const term1Due = studentBalance?.termBalances.term1.balance || 0;
+                              return term1Due === 0 ? 'text-green-600' : 'text-red-600';
+                            })()}`}>
+                              ₹{(() => {
+                                const studentBalance = calculateStudentBalance(student);
+                                return (studentBalance?.termBalances.term1.balance || 0).toLocaleString();
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Term 2:</span>
+                            <span className={`font-medium ${(() => {
+                              const studentBalance = calculateStudentBalance(student);
+                              const term2Due = studentBalance?.termBalances.term2.balance || 0;
+                              return term2Due === 0 ? 'text-green-600' : 'text-red-600';
+                            })()}`}>
+                              ₹{(() => {
+                                const studentBalance = calculateStudentBalance(student);
+                                return (studentBalance?.termBalances.term2.balance || 0).toLocaleString();
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Term 3:</span>
+                            <span className={`font-medium ${(() => {
+                              const studentBalance = calculateStudentBalance(student);
+                              const term3Due = studentBalance?.termBalances.term3.balance || 0;
+                              return term3Due === 0 ? 'text-green-600' : 'text-red-600';
+                            })()}`}>
+                              ₹{(() => {
+                                const studentBalance = calculateStudentBalance(student);
+                                return (studentBalance?.termBalances.term3.balance || 0).toLocaleString();
+                              })()}
+                            </span>
+                          </div>
+                          <div className="flex justify-between font-bold">
+                            <span>Total:</span>
+                            <span className={`font-bold ${(() => {
+                              const studentBalance = calculateStudentBalance(student);
+                              const totalDue = studentBalance?.totalBalance || 0;
+                              return totalDue === 0 ? 'text-green-600' : 'text-red-600';
+                            })()}`}>
+                              ₹{(() => {
+                                const studentBalance = calculateStudentBalance(student);
+                                return (studentBalance?.totalBalance || 0).toLocaleString();
+                              })()}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -3229,8 +3460,9 @@ const FeeManagement = () => {
                       </div>
                     )}
                     {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
-                      const balance = calculateStudentBalance(selectedStudentForPayment);
-                      const totalBalance = balance?.totalBalance || 0;
+                      // Note: This will be updated to async when payment modal is opened
+                      const balance = null; // Will be calculated when modal opens
+                      const totalBalance = 0; // Will be updated when modal opens
                       return totalBalance > 0 ? (
                         <div className="mt-2 space-y-1">
                           <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
