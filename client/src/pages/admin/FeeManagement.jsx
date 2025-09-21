@@ -39,7 +39,11 @@ const FeeManagement = () => {
     studentsWithFees: 0,
     studentsWithoutFees: 0,
     totalFeeAmount: 0,
-    averageFeeAmount: 0
+    averageFeeAmount: 0,
+    totalDue: 0,
+    term1Due: 0,
+    term2Due: 0,
+    term3Due: 0
   });
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
@@ -80,7 +84,7 @@ const FeeManagement = () => {
     }
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('students'); // 'students', 'structure', 'payments', 'reminders', or 'reminder-config'
+  const [activeTab, setActiveTab] = useState('dues'); // 'dues', 'structure', 'payments', 'reminders', or 'reminder-config'
   const [feeStructureFilter, setFeeStructureFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     course: '',
@@ -286,7 +290,7 @@ const FeeManagement = () => {
 
   // Fetch all students for accurate statistics when filters change
   useEffect(() => {
-    if (activeTab === 'students') {
+    if (activeTab === 'dues') {
       fetchAllStudentsForStats();
     }
   }, [filters.academicYear, filters.category, filters.gender, activeTab]);
@@ -405,6 +409,12 @@ const FeeManagement = () => {
         let totalConcessionAmount = 0;
         let studentsWithConcession = 0;
 
+        // Calculate dues
+        let totalDue = 0;
+        let term1Due = 0;
+        let term2Due = 0;
+        let term3Due = 0;
+
         allStudentsData.forEach(student => {
           const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
           if (feeStructure) {
@@ -419,6 +429,15 @@ const FeeManagement = () => {
             if (concession > 0) {
               studentsWithConcession++;
             }
+
+            // Calculate dues for each student
+            const studentBalance = calculateStudentBalance(student);
+            if (studentBalance) {
+              totalDue += studentBalance.totalBalance;
+              term1Due += studentBalance.termBalances.term1.balance;
+              term2Due += studentBalance.termBalances.term2.balance;
+              term3Due += studentBalance.termBalances.term3.balance;
+            }
           }
         });
 
@@ -432,7 +451,11 @@ const FeeManagement = () => {
           averageFeeAmount,
           totalCalculatedFeeAmount,
           totalConcessionAmount,
-          studentsWithConcession
+          studentsWithConcession,
+          totalDue,
+          term1Due,
+          term2Due,
+          term3Due
         });
 
         console.log('🔍 Frontend: Stats updated:', {
@@ -2002,13 +2025,13 @@ const FeeManagement = () => {
           <div className="border-b border-gray-200 overflow-x-auto">
             <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 min-w-max">
               <button
-                onClick={() => setActiveTab('students')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'students'
+                onClick={() => setActiveTab('dues')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'dues'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
               >
-                Students
+                Dues
               </button>
               <button
                 onClick={() => setActiveTab('structure')}
@@ -2054,10 +2077,10 @@ const FeeManagement = () => {
           </div>
         </div>
 
-      {activeTab === 'students' && (
+      {activeTab === 'dues' && (
         <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
+          {/* Dues Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-blue-100 rounded-lg">
@@ -2073,27 +2096,13 @@ const FeeManagement = () => {
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Fee Amount</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{stats.totalFeeAmount.toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
-              <div className="flex items-center">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <ReceiptRefundIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                </div>
-                <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Students with Concession</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">{stats.studentsWithConcession || 0}</p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    {stats.totalStudents > 0 ? Math.round(((stats.studentsWithConcession || 0) / stats.totalStudents) * 100) : 0}% of total
-                  </p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Due</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.totalDue || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Overall outstanding</p>
                 </div>
               </div>
             </div>
@@ -2101,14 +2110,38 @@ const FeeManagement = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
               <div className="flex items-center">
                 <div className="p-2 bg-orange-100 rounded-lg">
-                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+                  <ExclamationTriangleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
                 </div>
                 <div className="ml-2 sm:ml-3">
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Concession</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
-                  <p className="text-xs text-gray-500 hidden sm:block">
-                    {stats.totalFeeAmount > 0 ? Math.round(((stats.totalConcessionAmount || 0) / stats.totalFeeAmount) * 100) : 0}% of total fees
-                  </p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Term 1 Due</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term1Due || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">First term pending</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <ClockIcon className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Term 2 Due</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term2Due || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Second term pending</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <CurrencyDollarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Term 3 Due</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.term3Due || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Third term pending</p>
                 </div>
               </div>
             </div>
@@ -2197,11 +2230,11 @@ const FeeManagement = () => {
             </div>
           </div>
 
-          {/* Students Table */}
+          {/* Dues Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                <h3 className="text-base sm:text-lg font-medium text-gray-900">Student Fee Management</h3>
+                <h3 className="text-base sm:text-lg font-medium text-gray-900">Student Dues Management</h3>
                 <div className="text-xs sm:text-sm text-gray-600">
                   Showing {students.length} of {stats.totalStudents} students
                   {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
