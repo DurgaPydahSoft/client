@@ -130,6 +130,8 @@ const PaymentStatus = () => {
       if (response.data.success) {
         const payment = response.data.data;
         console.log('Payment data received:', payment);
+        console.log('Payment status received:', payment.status);
+        console.log('Status type:', typeof payment.status);
         
         setPaymentData(payment);
         setStatus(payment.status);
