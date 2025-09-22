@@ -29,6 +29,9 @@ const ElectricityPayment = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    console.log('🔧 ElectricityPayment useEffect - billId:', billId);
+    console.log('🔧 ElectricityPayment useEffect - user:', user);
+    
     if (!user) {
       navigate('/login');
       return;
@@ -106,6 +109,7 @@ const ElectricityPayment = () => {
 
   const initiatePayment = async () => {
     try {
+      console.log('🔧 initiatePayment called with billId:', billId);
       setPaymentStatus('processing');
       setError(null);
 
@@ -126,6 +130,11 @@ const ElectricityPayment = () => {
       if (!userRoom) {
         throw new Error('Room information not found');
       }
+
+      console.log('🔧 Sending payment initiation request with:', {
+        billId: billId,
+        roomId: userRoom._id
+      });
 
       const response = await api.post('/api/payments/initiate', {
         billId: billId,

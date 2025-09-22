@@ -18,7 +18,7 @@ import {
 import SEO from '../../components/SEO';
 
 const PaymentStatus = () => {
-  const { paymentId } = useParams();
+  const { billId } = useParams(); // Changed from paymentId to billId
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -36,13 +36,15 @@ const PaymentStatus = () => {
     
     // Check for payment status in URL parameters (callback from Cashfree)
     const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('order_id');
+    const orderId = urlParams.get('order_id'); // Cashfree sends 'order_id'
     const status = urlParams.get('status');
     const paymentStatus = urlParams.get('payment_status');
     
     console.log('URL Parameters:', { orderId, status, paymentStatus });
     console.log('Current URL:', window.location.href);
-    console.log('Payment ID from params:', paymentId);
+    console.log('Bill ID from params:', billId);
+    console.log('Full URL search params:', window.location.search);
+    console.log('All URL params:', Object.fromEntries(urlParams.entries()));
     
     // If we have an order_id (Cashfree callback), handle it
     if (orderId) {
@@ -103,27 +105,27 @@ const PaymentStatus = () => {
         setError('Order not found');
         setStatus('failed');
       }
-    } else if (paymentId && paymentId !== 'undefined') {
-      // If we have a paymentId, check payment status from backend
-      console.log('Checking payment status for paymentId:', paymentId);
+    } else if (billId && billId !== 'undefined') {
+      // If we have a billId, check payment status from backend
+      console.log('Checking payment status for billId:', billId);
       checkPaymentStatus();
     } else {
-      // No callback parameters and no paymentId
-      console.log('No order_id or paymentId found');
+      // No callback parameters and no billId
+      console.log('No order_id or billId found');
       setError('Invalid payment callback');
       setStatus('failed');
       setLoading(false);
     }
-  }, [paymentId, user, navigate]);
+  }, [billId, user, navigate]);
 
   const checkPaymentStatus = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      console.log('Checking payment status for paymentId:', paymentId);
+      console.log('Checking payment status for billId:', billId);
 
-      const response = await api.get(`/api/payments/status/${paymentId}`);
+      const response = await api.get(`/api/payments/status/${billId}`);
       
       if (response.data.success) {
         const payment = response.data.data;

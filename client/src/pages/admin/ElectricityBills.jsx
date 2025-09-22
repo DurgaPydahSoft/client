@@ -50,6 +50,8 @@ const ElectricityBills = () => {
   const [bulkRate, setBulkRate] = useState('');
   const [isSavingBulk, setIsSavingBulk] = useState(false);
   const [savingRoomId, setSavingRoomId] = useState(null);
+  const [editingBills, setEditingBills] = useState(new Set()); // Track which bills are being edited
+  const [editModeData, setEditModeData] = useState({}); // Store original values for edit mode
 
   const fetchRooms = async () => {
     try {
@@ -98,6 +100,149 @@ const ElectricityBills = () => {
         return bill;
       })
     );
+  };
+
+  // Handle edit mode for saved bills
+  const handleEditBill = (roomId) => {
+    const room = rooms.find(r => r._id === roomId);
+    const existingBill = bulkMonth ? room?.electricityBills.find(b => b.month === bulkMonth) : null;
+    
+    if (existingBill) {
+      // Store original values for cancel functionality
+      setEditModeData(prev => ({
+        ...prev,
+        [roomId]: {
+          startUnits: existingBill.startUnits,
+          endUnits: existingBill.endUnits,
+          rate: existingBill.rate
+        }
+      }));
+      
+      // Enable edit mode
+      setEditingBills(prev => new Set([...prev, roomId]));
+      
+      // Update bulk bill data with existing bill values for editing
+      setBulkBillData(prevData =>
+        prevData.map(bill => {
+          if (bill.roomId === roomId) {
+            return {
+              ...bill,
+              startUnits: existingBill.startUnits,
+              endUnits: existingBill.endUnits,
+              rate: existingBill.rate,
+              isEdited: false // Reset edited flag
+            };
+          }
+          return bill;
+        })
+      );
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = (roomId) => {
+    // Restore original values
+    const originalData = editModeData[roomId];
+    if (originalData) {
+      setBulkBillData(prevData =>
+        prevData.map(bill => {
+          if (bill.roomId === roomId) {
+            return {
+              ...bill,
+              startUnits: originalData.startUnits,
+              endUnits: originalData.endUnits,
+              rate: originalData.rate,
+              isEdited: false
+            };
+          }
+          return bill;
+        })
+      );
+    }
+    
+    // Remove from editing set
+    setEditingBills(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(roomId);
+      return newSet;
+    });
+    
+    // Clean up edit mode data
+    setEditModeData(prev => {
+      const newData = { ...prev };
+      delete newData[roomId];
+      return newData;
+    });
+  };
+
+  // Handle save edited bill
+  const handleSaveEditedBill = async (roomId) => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to manage electricity bills');
+      return;
+    }
+
+    if (!bulkMonth) {
+      toast.error('Please select a billing month.');
+      return;
+    }
+
+    const billData = bulkBillData.find(bill => bill.roomId === roomId);
+    if (!billData) {
+      toast.error('Bill data not found');
+      return;
+    }
+
+    const startUnits = Number(billData.startUnits) || 0;
+    const endUnits = Number(billData.endUnits) || 0;
+    const rate = billData.rate !== '' ? Number(billData.rate) : Number(bulkRate) || 5;
+
+    if (endUnits < startUnits) {
+      toast.error('End units must be greater than or equal to start units');
+      return;
+    }
+
+    setSavingRoomId(roomId);
+    try {
+      const payload = {
+        month: bulkMonth,
+        startUnits: startUnits,
+        endUnits: endUnits,
+        rate: rate
+      };
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/rooms/${roomId}/electricity-bill`, payload, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      toast.success(`Bill updated for Room ${rooms.find(r => r._id === roomId)?.roomNumber}!`);
+
+      // Exit edit mode
+      setEditingBills(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(roomId);
+        return newSet;
+      });
+
+      // Clean up edit mode data
+      setEditModeData(prev => {
+        const newData = { ...prev };
+        delete newData[roomId];
+        return newData;
+      });
+
+      // Refetch rooms to update last bill info
+      fetchRooms();
+
+    } catch (error) {
+      console.error('Error updating bill:', error);
+      toast.error(error.response?.data?.message || 'Failed to update bill.');
+    } finally {
+      setSavingRoomId(null);
+    }
   };
 
   useEffect(() => {
@@ -371,7 +516,8 @@ const ElectricityBills = () => {
 
             let startUnits, endUnits, rate, consumption, total, isValid;
 
-            if (isAlreadyBilled) {
+            if (isAlreadyBilled && !editingBills.has(bill.roomId)) {
+              // Show existing bill values when not editing
               startUnits = existingBill.startUnits;
               endUnits = existingBill.endUnits;
               rate = existingBill.rate;
@@ -379,6 +525,7 @@ const ElectricityBills = () => {
               total = existingBill.total;
               isValid = true;
             } else {
+              // Use bulk bill data for new bills or when editing
               startUnits = Number(bill.startUnits) || 0;
               endUnits = Number(bill.endUnits) || 0;
               rate = Number(bill.rate) || Number(bulkRate) || 5;
@@ -415,12 +562,17 @@ const ElectricityBills = () => {
                       <p className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</p>
                     </div>
                   </div>
-                  {isAlreadyBilled && (
+                  {isAlreadyBilled && !editingBills.has(bill.roomId) && (
                     <span className="px-2 py-1 text-xs text-white bg-green-600 rounded-full font-medium shadow-sm">
                       ✓ Billed
                     </span>
                   )}
-                  {bill.isEdited && !isAlreadyBilled && (
+                  {editingBills.has(bill.roomId) && (
+                    <span className="px-2 py-1 text-xs text-white bg-orange-600 rounded-full font-medium shadow-sm">
+                      ✏️ Editing
+                    </span>
+                  )}
+                  {bill.isEdited && !isAlreadyBilled && !editingBills.has(bill.roomId) && (
                     <span className="px-2 py-1 text-xs text-white bg-blue-600 rounded-full font-medium shadow-sm">
                       ✏️ Edited
                     </span>
@@ -434,9 +586,14 @@ const ElectricityBills = () => {
                     <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
                     <input
                       type="number"
-                      value={isAlreadyBilled ? startUnits : bill.startUnits}
+                      value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
                       onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                        isAlreadyBilled && !editingBills.has(bill.roomId) 
+                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                          : 'border-gray-300'
+                      }`}
                       placeholder="Enter start units"
                     />
                   </div>
@@ -447,10 +604,15 @@ const ElectricityBills = () => {
                     <input
                       type="number"
                       placeholder="Enter new reading"
-                      value={isAlreadyBilled ? endUnits : bill.endUnits}
+                      value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
                       onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${!isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 'border-gray-300'
-                        }`}
+                      disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                        !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
+                        isAlreadyBilled && !editingBills.has(bill.roomId) 
+                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                          : 'border-gray-300'
+                      }`}
                     />
                     {!isValid && !isAlreadyBilled && (
                       <p className="text-xs text-red-600 mt-1">End units must be greater than start units</p>
@@ -463,9 +625,14 @@ const ElectricityBills = () => {
                     <input
                       type="number"
                       placeholder={bulkRate || 'Default rate'}
-                      value={isAlreadyBilled ? rate : bill.rate}
+                      value={editingBills.has(bill.roomId) ? bill.rate : (isAlreadyBilled ? rate : bill.rate)}
                       onChange={(e) => handleBulkBillChange(bill.roomId, 'rate', e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
+                      disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                        isAlreadyBilled && !editingBills.has(bill.roomId) 
+                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                          : 'border-gray-300'
+                      }`}
                     />
                   </div>
 
@@ -486,27 +653,70 @@ const ElectricityBills = () => {
                       </div>
                     </div>
 
-                    {/* Individual Save Button for Mobile */}
-                    <button
-                      onClick={() => handleSaveSingleBill(bill.roomId, {
-                        month: bulkMonth,
-                        startUnits: Number(bill.startUnits) || 0,
-                        endUnits: Number(bill.endUnits) || 0,
-                        rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
-                      })}
-                      disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
-                      className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills && savingRoomId !== bill.roomId && isValid
-                        ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                    >
-                      {savingRoomId === bill.roomId ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          <span>Saving...</span>
-                        </div>
-                      ) : (isValid ? '💾 Save This Bill' : '❌ Invalid Data')}
-                    </button>
+                    {/* Action Buttons for Mobile */}
+                    <div className="flex gap-2">
+                      {isAlreadyBilled && !editingBills.has(bill.roomId) ? (
+                        // Edit button for saved bills
+                        <button
+                          onClick={() => handleEditBill(bill.roomId)}
+                          disabled={!canManageBills}
+                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                          ✏️ Edit Bill
+                        </button>
+                      ) : editingBills.has(bill.roomId) ? (
+                        // Save and Cancel buttons when editing
+                        <>
+                          <button
+                            onClick={() => handleSaveEditedBill(bill.roomId)}
+                            disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills && savingRoomId !== bill.roomId && isValid
+                              ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                          >
+                            {savingRoomId === bill.roomId ? (
+                              <div className="flex items-center justify-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>Saving...</span>
+                              </div>
+                            ) : (isValid ? '💾 Save Changes' : '❌ Invalid Data')}
+                          </button>
+                          <button
+                            onClick={() => handleCancelEdit(bill.roomId)}
+                            disabled={savingRoomId === bill.roomId}
+                            className="flex-1 py-2 px-3 rounded-lg text-sm font-medium bg-gray-600 text-white hover:bg-gray-700 active:bg-gray-800 shadow-sm transition-all duration-200 disabled:opacity-50"
+                          >
+                            ❌ Cancel
+                          </button>
+                        </>
+                      ) : (
+                        // Save button for new bills
+                        <button
+                          onClick={() => handleSaveSingleBill(bill.roomId, {
+                            month: bulkMonth,
+                            startUnits: Number(bill.startUnits) || 0,
+                            endUnits: Number(bill.endUnits) || 0,
+                            rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
+                          })}
+                          disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
+                          className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills && savingRoomId !== bill.roomId && isValid
+                            ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-sm'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                        >
+                          {savingRoomId === bill.roomId ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <span>Saving...</span>
+                            </div>
+                          ) : (isValid ? '💾 Save This Bill' : '❌ Invalid Data')}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -546,7 +756,8 @@ const ElectricityBills = () => {
 
                   let startUnits, endUnits, rate, consumption, total, isValid;
 
-                  if (isAlreadyBilled) {
+                  if (isAlreadyBilled && !editingBills.has(bill.roomId)) {
+                    // Show existing bill values when not editing
                     startUnits = existingBill.startUnits;
                     endUnits = existingBill.endUnits;
                     rate = existingBill.rate;
@@ -554,6 +765,7 @@ const ElectricityBills = () => {
                     total = existingBill.total;
                     isValid = true;
                   } else {
+                    // Use bulk bill data for new bills or when editing
                     startUnits = Number(bill.startUnits) || 0;
                     endUnits = Number(bill.endUnits) || 0;
                     rate = Number(bill.rate) || Number(bulkRate) || 5;
@@ -570,40 +782,63 @@ const ElectricityBills = () => {
                   }
 
                   return (
-                    <tr key={bill.roomId} className={`${isAlreadyBilled ? 'bg-green-100' : (bill.isEdited ? 'bg-blue-50' : '')}`}>
+                    <tr key={bill.roomId} className={`${
+                      isAlreadyBilled && !editingBills.has(bill.roomId) ? 'bg-green-100' : 
+                      editingBills.has(bill.roomId) ? 'bg-orange-50' :
+                      bill.isEdited ? 'bg-blue-50' : ''
+                    }`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {bill.roomNumber}
                         <div className="flex items-center mt-1">
                           <span className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</span>
-                          {isAlreadyBilled && (
+                          {isAlreadyBilled && !editingBills.has(bill.roomId) && (
                             <span className="ml-2 px-2 py-0.5 text-xs text-white bg-green-600 rounded-full">Billed</span>
+                          )}
+                          {editingBills.has(bill.roomId) && (
+                            <span className="ml-2 px-2 py-0.5 text-xs text-white bg-orange-600 rounded-full">Editing</span>
                           )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="number"
-                          value={isAlreadyBilled ? startUnits : bill.startUnits}
+                          value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
                           onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
-                          className="w-24 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                          className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                            isAlreadyBilled && !editingBills.has(bill.roomId) 
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                              : 'border-gray-300'
+                          }`}
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="number"
                           placeholder="New reading"
-                          value={isAlreadyBilled ? endUnits : bill.endUnits}
+                          value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
                           onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                          className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${!isValid && !isAlreadyBilled ? 'border-red-500' : 'border-gray-300'}`}
+                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                          className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                            !isValid && !isAlreadyBilled ? 'border-red-500' : 
+                            isAlreadyBilled && !editingBills.has(bill.roomId) 
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                              : 'border-gray-300'
+                          }`}
                         />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="number"
                           placeholder={bulkRate || 'Default'}
-                          value={isAlreadyBilled ? rate : bill.rate}
+                          value={editingBills.has(bill.roomId) ? bill.rate : (isAlreadyBilled ? rate : bill.rate)}
                           onChange={(e) => handleBulkBillChange(bill.roomId, 'rate', e.target.value)}
-                          className="w-20 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                          className={`w-20 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                            isAlreadyBilled && !editingBills.has(bill.roomId) 
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                              : 'border-gray-300'
+                          }`}
                         />
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm ${!isValid && !isAlreadyBilled ? 'text-red-500' : 'text-gray-900'}`}>
@@ -613,21 +848,59 @@ const ElectricityBills = () => {
                         ₹{isValid ? total.toFixed(2) : '0.00'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button
-                          onClick={() => handleSaveSingleBill(bill.roomId, {
-                            month: bulkMonth,
-                            startUnits: Number(bill.startUnits) || 0,
-                            endUnits: Number(bill.endUnits) || 0,
-                            rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
-                          })}
-                          disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
-                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills && savingRoomId !== bill.roomId && isValid
-                            ? 'bg-green-600 text-white hover:bg-green-700'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            }`}
-                        >
-                          {savingRoomId === bill.roomId ? 'Saving...' : 'Save'}
-                        </button>
+                        <div className="flex gap-1">
+                          {isAlreadyBilled && !editingBills.has(bill.roomId) ? (
+                            // Edit button for saved bills
+                            <button
+                              onClick={() => handleEditBill(bill.roomId)}
+                              disabled={!canManageBills}
+                              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills
+                                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                            >
+                              Edit
+                            </button>
+                          ) : editingBills.has(bill.roomId) ? (
+                            // Save and Cancel buttons when editing
+                            <>
+                              <button
+                                onClick={() => handleSaveEditedBill(bill.roomId)}
+                                disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
+                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills && savingRoomId !== bill.roomId && isValid
+                                  ? 'bg-green-600 text-white hover:bg-green-700'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                              >
+                                {savingRoomId === bill.roomId ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => handleCancelEdit(bill.roomId)}
+                                disabled={savingRoomId === bill.roomId}
+                                className="px-3 py-1 rounded text-xs font-medium bg-gray-600 text-white hover:bg-gray-700 transition-colors disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            // Save button for new bills
+                            <button
+                              onClick={() => handleSaveSingleBill(bill.roomId, {
+                                month: bulkMonth,
+                                startUnits: Number(bill.startUnits) || 0,
+                                endUnits: Number(bill.endUnits) || 0,
+                                rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
+                              })}
+                              disabled={savingRoomId === bill.roomId || !canManageBills || !isValid}
+                              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills && savingRoomId !== bill.roomId && isValid
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                            >
+                              {savingRoomId === bill.roomId ? 'Saving...' : 'Save'}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

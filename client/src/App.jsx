@@ -348,7 +348,7 @@ function App() {
                   }
                 />
                 <Route
-                  path="/student/payment-status/:paymentId?"
+                  path="/student/payment-status/:billId?"
                   element={
                     <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
                       <PaymentStatus />
