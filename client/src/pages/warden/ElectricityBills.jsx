@@ -142,7 +142,7 @@ const ElectricityBills = () => {
         }))
       };
 
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/rooms/warden/bulk-electricity-bills`, payload, {
+      await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/warden/bulk-electricity-bills`, payload, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -181,7 +181,7 @@ const ElectricityBills = () => {
         rate: billData.rate
       };
 
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/rooms/warden/${roomId}/electricity-bill`, payload, {
+      await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/warden/${roomId}/electricity-bill`, payload, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`

@@ -62,6 +62,7 @@ const ElectricityPayment = () => {
   }, [billData]);
 
   const fetchBillData = async () => {
+    
     try {
       setLoading(true);
       setError(null);

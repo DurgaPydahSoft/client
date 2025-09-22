@@ -13,7 +13,8 @@ import {
   ArrowLeftIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
-  HomeIcon
+  HomeIcon,
+  ReceiptIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 

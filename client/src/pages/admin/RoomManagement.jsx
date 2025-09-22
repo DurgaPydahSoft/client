@@ -293,7 +293,7 @@ const RoomManagement = () => {
       setBillForm(prev => ({ ...prev, rate: defaultRate }));
 
       const billsResponse = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${room._id}/electricity-bill`,
+        `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${room._id}/electricity-bill`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -421,7 +421,7 @@ const RoomManagement = () => {
 
     try {
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
+        `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
         {
           month: billPreview.month,
           startUnits: billPreview.startUnits,
@@ -439,7 +439,7 @@ const RoomManagement = () => {
       if (response.data.success) {
         // Refresh bill history
         const billsResponse = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
+          `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -553,7 +553,7 @@ const RoomManagement = () => {
       };
 
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
+        `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
         payload,
         {
           headers: {
@@ -566,7 +566,7 @@ const RoomManagement = () => {
       if (response.data.success) {
         // Refresh bill history
         const billsResponse = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
+          `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${selectedRoom._id}/electricity-bill`,
           {
             headers: {
               Authorization: `Bearer ${localStorage.getItem('token')}`
