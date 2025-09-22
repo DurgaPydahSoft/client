@@ -306,7 +306,7 @@ const PaymentStatus = () => {
                 
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600">Room Number:</span>
-                  <span className="font-medium">{paymentData.roomId?.roomNumber || 'N/A'}</span>
+                  <span className="font-medium">{paymentData.roomNumber || 'N/A'}</span>
                 </div>
                 
                 <div className="flex justify-between items-center">
