@@ -7,17 +7,20 @@ import ReceiptGenerator from '../../components/ReceiptGenerator';
 import { 
   CurrencyDollarIcon, 
   ExclamationTriangleIcon, 
-  CheckCircleIcon, 
-  ClockIcon,
+  CheckCircleIcon,
   CalendarIcon,
   DocumentTextIcon,
   BellIcon,
+  ClockIcon,
   ChartBarIcon,
   InformationCircleIcon,
   CogIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  CreditCardIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const HostelFee = () => {
   const { user } = useAuth();
@@ -28,6 +31,11 @@ const HostelFee = () => {
   const [error, setError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  
+  // Payment states
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     fetchFeeData();
@@ -38,10 +46,19 @@ const HostelFee = () => {
       setLoading(true);
       setError(null);
       
+      // Debug user data
+      console.log('🔍 User data for fee structure:', {
+        academicYear: user.academicYear,
+        course: user.course,
+        courseId: user.course?._id || user.course,
+        year: user.year,
+        category: user.category
+      });
+      
       // Fetch fee reminder data, fee structure, and payment history in parallel
       const [feeResponse, structureResponse, paymentResponse] = await Promise.all([
         api.get(`/api/fee-reminders/student/${user._id}`),
-        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course}&year=${user.year}`),
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course?._id || user.course}&year=${user.year}`),
         api.get(`/api/payments/hostel-fee/history/${user._id}`)
       ]);
       
@@ -293,6 +310,87 @@ const HostelFee = () => {
       toast.error('Failed to generate receipt');
     }
   };
+
+  // Payment functions
+  const openPaymentModal = (amount = '') => {
+    setPaymentAmount(amount.toString());
+    setShowPaymentModal(true);
+  };
+
+  const closePaymentModal = () => {
+    setShowPaymentModal(false);
+    setPaymentAmount('');
+    setPaymentLoading(false);
+  };
+
+  const initiatePayment = async () => {
+    if (!paymentAmount || paymentAmount <= 0) {
+      toast.error('Please enter a valid payment amount');
+      return;
+    }
+
+    const { pendingAmount } = calculateFeeAmounts();
+    if (parseFloat(paymentAmount) > pendingAmount) {
+      toast.error(`Payment amount cannot exceed remaining balance (₹${pendingAmount})`);
+      return;
+    }
+
+    try {
+      setPaymentLoading(true);
+
+      const response = await api.post('/api/payments/hostel-fee/initiate', {
+        amount: parseFloat(paymentAmount),
+        academicYear: user.academicYear || '2024-2025'
+      });
+
+      if (response.data.success) {
+        
+        // Initialize Cashfree SDK and open checkout
+        if (window.Cashfree && response.data.data.paymentSessionId) {
+          const cashfree = window.Cashfree({
+            mode: "production" // using production credentials
+          });
+          
+          // Open Cashfree Checkout
+          const checkoutOptions = {
+            paymentSessionId: response.data.data.paymentSessionId,
+            redirectTarget: "_self"
+          };
+          
+          console.log('Opening Cashfree checkout for hostel fee with:', checkoutOptions);
+          cashfree.checkout(checkoutOptions);
+        } else if (response.data.data.paymentUrl) {
+          // Fallback to direct URL redirect
+          console.log('Fallback: Opening payment URL:', response.data.data.paymentUrl);
+          window.open(response.data.data.paymentUrl, '_blank');
+          toast.success('Payment page opened in new tab. Please complete the payment.');
+        } else {
+          toast.error('Payment URL not received');
+        }
+      } else {
+        throw new Error(response.data.message || 'Failed to initiate payment');
+      }
+    } catch (err) {
+      console.error('Error initiating hostel fee payment:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to initiate payment');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // Check for payment success on page load
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('payment_success') === 'true') {
+      toast.success('Payment completed successfully!');
+      // Refresh fee data
+      fetchFeeData();
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+
 
   if (loading) {
     return (
@@ -552,6 +650,51 @@ const HostelFee = () => {
         </div>
       </div>
 
+
+      {/* Payment Section - Only show if there's pending amount */}
+      {pendingAmount > 0 && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl shadow-sm border border-green-200 p-3 sm:p-6 mb-3 sm:mb-6">
+          <div className="flex items-center mb-2 sm:mb-4">
+            <CreditCardIcon className="w-4 h-4 sm:w-6 sm:h-6 text-green-600 mr-2" />
+            <h2 className="text-sm sm:text-lg font-semibold text-gray-900">Pay Hostel Fee Online</h2>
+          </div>
+          
+          <div className="bg-white rounded-lg p-3 sm:p-4 border border-green-100">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 mb-1">Remaining Balance</p>
+                <p className="text-lg sm:text-2xl font-bold text-green-600">₹{pendingAmount.toLocaleString()}</p>
+                <p className="text-xs text-gray-500">Pay securely using UPI, cards, net banking, or digital wallets</p>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => openPaymentModal(pendingAmount)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm sm:text-base flex items-center justify-center"
+                >
+                  <CreditCardIcon className="w-4 h-4 mr-2" />
+                  Pay Full Amount
+                </button>
+                
+                <button
+                  onClick={() => openPaymentModal(Math.round(pendingAmount / 2))}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm sm:text-base"
+                >
+                  Pay Half (₹{Math.round(pendingAmount / 2).toLocaleString()})
+                </button>
+                
+                <button
+                  onClick={() => openPaymentModal()}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium text-sm sm:text-base"
+                >
+                  Custom Amount
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overall Status Card - Mobile Optimized */}
       <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-3 sm:mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-4 gap-2">
@@ -794,6 +937,89 @@ const HostelFee = () => {
           </div>
         </div>
       )} */}
+
+      {/* Payment Modal */}
+      <AnimatePresence>
+        {showPaymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-xl p-4 sm:p-6 max-w-md w-full mx-4"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Pay Hostel Fee</h3>
+                <button
+                  onClick={closePaymentModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XCircleIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Payment Amount (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    min="1"
+                    max={pendingAmount}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximum: ₹{pendingAmount.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <h4 className="font-medium text-blue-900 mb-2 text-sm">Payment Methods</h4>
+                  <p className="text-xs text-blue-700">
+                    You can pay using UPI, credit/debit cards, net banking, or digital wallets through Cashfree.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={closePaymentModal}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={initiatePayment}
+                    disabled={paymentLoading || !paymentAmount || paymentAmount <= 0}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  >
+                    {paymentLoading ? (
+                      <>
+                        <LoadingSpinner size="sm" />
+                        <span className="ml-2">Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCardIcon className="w-4 h-4 mr-2" />
+                        Pay ₹{paymentAmount || 0}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 };
