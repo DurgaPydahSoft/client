@@ -489,11 +489,9 @@ const DashboardHome = () => {
       if (showLoading) {
         setRefreshingBills(true);
       }
-      console.log('🔄 Refreshing electricity bills data...');
       const billsRes = await api.get('/api/rooms/student/electricity-bills');
       if (billsRes.data.success) {
         setElectricityBills(billsRes.data.data);
-        console.log('✅ Electricity bills data refreshed:', billsRes.data.data);
       }
     } catch (err) {
       console.error('❌ Error refreshing electricity bills:', err);
@@ -514,7 +512,6 @@ const DashboardHome = () => {
   // Electricity payment function - directly initiate payment and navigate
   const initiateElectricityPayment = async (bill) => {
     try {
-      console.log('🔧 initiateElectricityPayment called with billId:', bill._id);
       setPaymentLoading(prev => ({ ...prev, [bill._id]: true }));
 
       // Get room ID from user data
@@ -535,10 +532,6 @@ const DashboardHome = () => {
         throw new Error('Room information not found');
       }
 
-      console.log('🔧 Sending payment initiation request with:', {
-        billId: bill._id,
-        roomId: userRoom._id
-      });
 
       const response = await api.post('/api/payments/initiate', {
         billId: bill._id,
@@ -568,11 +561,9 @@ const DashboardHome = () => {
             redirectTarget: "_self"
           };
           
-          console.log('Opening Cashfree checkout with:', checkoutOptions);
           cashfree.checkout(checkoutOptions);
         } else if (response.data.data.paymentUrl) {
           // Fallback to direct URL redirect
-          console.log('Fallback: Opening payment URL:', response.data.data.paymentUrl);
           window.open(response.data.data.paymentUrl, '_blank');
           toast.success('Payment page opened in new tab. Please complete the payment.');
         } else {
@@ -629,7 +620,6 @@ const DashboardHome = () => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
         // User returned to the tab, refresh bills data
-        console.log('👁️ Tab became visible, refreshing bills data...');
         refreshElectricityBills();
       }
     };
@@ -656,7 +646,7 @@ const DashboardHome = () => {
     const fetchMenu = async () => {
       setLoadingMenu(true);
       try {
-        const res = await api.get('/api/cafeteria/menu/today/with-ratings');
+        const res = await api.get('/api/cafeteria/menu/today');
         setTodaysMenu(res.data.data);
       } catch (err) {
         setTodaysMenu(null);
@@ -672,7 +662,7 @@ const DashboardHome = () => {
     setShowMenuModal(true);
     setModalLoading(true);
     try {
-      const res = await api.get('/api/cafeteria/menu/today/with-ratings');
+      const res = await api.get('/api/cafeteria/menu/today');
       setModalMenu(res.data.data);
     } catch (err) {
       setModalMenu(null);
@@ -891,7 +881,7 @@ const DashboardHome = () => {
           </div>
 
           {/* Smooth scroll animation */}
-          <style jsx>{`
+          <style>{`
     @keyframes scroll-left-smooth {
       0% {
         transform: translateX(0);

@@ -80,7 +80,16 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   response => response,
   error => {
-    // Enhanced iOS error logging
+    // Skip logging 404 errors for menu endpoints (normal when no menu is set)
+    const isMenu404 = error.response?.status === 404 && 
+                     error.config?.url?.includes('/api/cafeteria/menu/today');
+    
+    if (isMenu404) {
+      // Silently handle menu 404s - this is expected when no menu is set
+      return Promise.reject(error);
+    }
+
+    // Enhanced iOS error logging for other errors
     const errorDetails = {
       message: error.response?.data || error.message,
       url: error.config?.url,
