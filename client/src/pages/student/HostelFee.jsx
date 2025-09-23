@@ -58,7 +58,7 @@ const HostelFee = () => {
       // Fetch fee reminder data, fee structure, and payment history in parallel
       const [feeResponse, structureResponse, paymentResponse] = await Promise.all([
         api.get(`/api/fee-reminders/student/${user._id}`),
-        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course?._id || user.course}&year=${user.year}`),
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course?._id || (typeof user.course === 'string' ? user.course : '')}&year=${user.year}`),
         api.get(`/api/payments/hostel-fee/history/${user._id}`)
       ]);
       
@@ -874,69 +874,6 @@ const HostelFee = () => {
           </div>
         </div>
       </div>
-
-      {/* Payment History Section */}
-      {/* {paymentHistory.length > 0 && (
-        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-600" />
-              Payment History
-            </h3>
-          </div>
-          <div className="p-4">
-            <div className="space-y-3">
-              {paymentHistory.slice(0, 5).map((payment) => (
-                <div key={payment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {payment.paymentType === 'electricity' ? 'Electricity Bill' : 'Hostel Fee'}
-                          {payment.term && ` - Term ${payment.term}`}
-                          {payment.billMonth && ` - ${payment.billMonth}`}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(payment.paymentDate || payment.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-green-600">
-                          ₹{payment.amount.toLocaleString()}
-                        </p>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          payment.status === 'success' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {payment.status === 'success' ? 'Paid' : 'Pending'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => downloadReceipt(payment)}
-                    className="ml-3 p-2 text-gray-400 hover:text-blue-600 transition-colors"
-                    title="Download Receipt"
-                  >
-                    <ArrowDownTrayIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {paymentHistory.length > 5 && (
-              <div className="mt-3 text-center">
-                <button
-                  onClick={() => window.location.href = '/student/payment-history'}
-                  className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                >
-                  View All Payments ({paymentHistory.length})
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )} */}
 
       {/* Payment Modal */}
       <AnimatePresence>
