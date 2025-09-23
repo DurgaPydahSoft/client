@@ -25,7 +25,6 @@ import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const RoomManagement = () => {
-  console.log('🏠 RoomManagement component loaded');
 
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -81,12 +80,10 @@ const RoomManagement = () => {
 
   const fetchRooms = async () => {
     try {
-      console.log('🏠 Fetching rooms with filters:', filters);
       const params = {
         ...filters
       };
       const response = await api.get('/api/admin/rooms', { params });
-      console.log('🏠 Rooms response:', response.data);
       if (response.data.success) {
         const fetchedRooms = response.data.data.rooms || [];
         setRooms(fetchedRooms);
@@ -107,9 +104,7 @@ const RoomManagement = () => {
 
   const fetchRoomStats = async () => {
     try {
-      console.log('📊 Fetching room stats');
       const response = await api.get('/api/admin/rooms/stats');
-      console.log('📊 Room stats response:', response.data);
       if (response.data.success) {
         setRoomStats(response.data.data);
       } else {

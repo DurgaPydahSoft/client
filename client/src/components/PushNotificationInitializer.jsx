@@ -53,11 +53,11 @@ const PushNotificationInitializer = () => {
       };
 
       try {
-        console.log('🔔 PushNotificationInitializer: Setting up for user');
+      //  console.log('🔔 PushNotificationInitializer: Setting up for user');
         
         // Get user ID
         const userId = user.id || user._id || user.email;
-        console.log('🔔 PushNotificationInitializer: Using user ID:', userId);
+      //  console.log('🔔 PushNotificationInitializer: Using user ID:', userId);
 
         // Initialize OneSignal with error handling
         let oneSignalInitialized = false;
@@ -69,7 +69,7 @@ const PushNotificationInitializer = () => {
           } else {
             // Set user ID for OneSignal (External User ID)
             if (userId && typeof userId === 'string' && userId.trim() !== '') {
-              console.log('🔔 PushNotificationInitializer: Setting external user ID:', userId);
+            //  console.log('🔔 PushNotificationInitializer: Setting external user ID:', userId);
               
               // Wrap OneSignal login in additional error handling
               try {
@@ -80,44 +80,44 @@ const PushNotificationInitializer = () => {
                 );
                 
                 await Promise.race([loginPromise, timeoutPromise]);
-                console.log('🔔 PushNotificationInitializer: External user ID set successfully');
+              //  console.log('🔔 PushNotificationInitializer: External user ID set successfully');
                 oneSignalInitialized = true;
               } catch (loginError) {
                 // This is a known OneSignal SDK v16 internal error that doesn't break functionality
                 if (loginError.message && loginError.message.includes('forceDeltaQueueProcessingOnAllExecutors')) {
                   console.warn('🔔 PushNotificationInitializer: OneSignal SDK internal error (non-critical):', loginError.message);
-                  console.log('🔔 PushNotificationInitializer: This error is known and doesn\'t affect functionality');
+                //  console.log('🔔 PushNotificationInitializer: This error is known and doesn\'t affect functionality');
                   oneSignalInitialized = true; // Consider it initialized even with this error
                 } else {
-                  console.warn('🔔 PushNotificationInitializer: OneSignal login error:', loginError);
+                 // console.warn('🔔 PushNotificationInitializer: OneSignal login error:', loginError);
                   oneSignalInitialized = false;
                 }
               }
             } else {
               console.warn('🔔 PushNotificationInitializer: Invalid user ID for OneSignal:', userId);
-              console.log('🔔 PushNotificationInitializer: User ID type:', typeof userId);
-              console.log('🔔 PushNotificationInitializer: User ID value:', userId);
+             // console.log('🔔 PushNotificationInitializer: User ID type:', typeof userId);
+             // console.log('🔔 PushNotificationInitializer: User ID value:', userId);
               oneSignalInitialized = false;
             }
           }
         } catch (error) {
-          console.warn('🔔 PushNotificationInitializer: Could not set external user ID:', error);
+         // console.warn('🔔 PushNotificationInitializer: Could not set external user ID:', error);
           oneSignalInitialized = false;
         }
 
         // Initialize notification manager
         try {
           await notificationManager.initialize(userId);
-          console.log('🔔 PushNotificationInitializer: Notification manager initialized');
+         // console.log('🔔 PushNotificationInitializer: Notification manager initialized');
           
           // Initialize menu notifications for students
           if (user.role === 'student') {
-            console.log('🔔 PushNotificationInitializer: Initializing menu notifications for student');
+          //  console.log('🔔 PushNotificationInitializer: Initializing menu notifications for student');
             notificationManager.initializeMenuNotifications();
           }
         } catch (error) {
           console.warn('🔔 PushNotificationInitializer: Could not initialize notification manager:', error);
-          console.log('🔔 PushNotificationInitializer: Using database notifications only');
+         // console.log('🔔 PushNotificationInitializer: Using database notifications only');
         }
 
         // Set up notification listeners only if OneSignal was initialized successfully
@@ -125,7 +125,7 @@ const PushNotificationInitializer = () => {
           try {
             // Notification click handler
             OneSignal.Notifications.addEventListener('click', (event) => {
-              console.log('🔔 Notification clicked:', event);
+            //  console.log('🔔 Notification clicked:', event);
               const url = event.notification?.additionalData?.url;
               if (url) {
                 // Check if user is authenticated
@@ -134,7 +134,7 @@ const PushNotificationInitializer = () => {
                 
                 if (!token || !user) {
                   // User not authenticated, redirect to login page
-                  console.log('🔔 User not authenticated, redirecting to login page');
+                //  console.log('🔔 User not authenticated, redirecting to login page');
                   window.location.href = '/login';
                 } else {
                   // User is authenticated, redirect to the intended URL
@@ -165,20 +165,20 @@ const PushNotificationInitializer = () => {
               window.dispatchEvent(new CustomEvent('refresh-notifications'));
             });
 
-            console.log('🔔 PushNotificationInitializer: Notification listeners set up successfully');
+           // console.log('🔔 PushNotificationInitializer: Notification listeners set up successfully');
           } catch (error) {
             console.warn('🔔 PushNotificationInitializer: Could not set up listeners:', error);
-            console.log('🔔 PushNotificationInitializer: Using database notifications only');
+         //   console.log('🔔 PushNotificationInitializer: Using database notifications only');
           }
         } else {
-          console.log('🔔 PushNotificationInitializer: OneSignal not initialized, using database notifications only');
+         // console.log('🔔 PushNotificationInitializer: OneSignal not initialized, using database notifications only');
         }
 
         setIsInitialized(true);
-        console.log('🔔 PushNotificationInitializer: Initialization completed successfully');
+       // console.log('🔔 PushNotificationInitializer: Initialization completed successfully');
       } catch (error) {
         console.error('🔔 PushNotificationInitializer: Initialization failed:', error);
-        console.log('🔔 PushNotificationInitializer: Falling back to database notifications only');
+        // console.log('🔔 PushNotificationInitializer: Falling back to database notifications only');
         setIsInitialized(true);
       } finally {
         // Restore original console.error

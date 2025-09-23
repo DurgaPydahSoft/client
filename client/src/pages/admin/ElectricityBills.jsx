@@ -24,7 +24,6 @@ import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 
 const ElectricityBills = () => {
-  console.log('⚡ ElectricityBills component loaded');
 
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -55,13 +54,11 @@ const ElectricityBills = () => {
 
   const fetchRooms = async () => {
     try {
-      console.log('⚡ Fetching rooms with filters:', filters);
       const params = {
         ...filters,
         includeLastBill: true // Always fetch last bill for bulk mode
       };
       const response = await api.get('/api/admin/rooms', { params });
-      console.log('⚡ Rooms response:', response.data);
       if (response.data.success) {
         const fetchedRooms = response.data.data.rooms || [];
         setRooms(fetchedRooms);

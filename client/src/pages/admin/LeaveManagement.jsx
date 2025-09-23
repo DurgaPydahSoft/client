@@ -48,17 +48,14 @@ const LeaveManagement = () => {
 
   const fetchLeaves = async () => {
     try {
-      console.log('Fetching leaves with filters:', filters);
       const params = { ...filters };
       if (!params.status) delete params.status;
       if (!params.applicationType) delete params.applicationType;
       if (!params.fromDate) delete params.fromDate;
       if (!params.toDate) delete params.toDate;
       const response = await api.get('/api/admin/leave/all', { params });
-      console.log('Leave response:', response.data);
       if (response.data.success) {
         setLeaves(response.data.data.leaves);
-        console.log('Set leaves:', response.data.data.leaves);
       }
     } catch (error) {
       console.error('Error fetching leaves:', error);

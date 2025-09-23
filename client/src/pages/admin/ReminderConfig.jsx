@@ -92,7 +92,6 @@ const ReminderConfig = () => {
         const data = await response.json();
         if (data.success) {
           setConfig(data.data);
-          console.log('✅ Reminder configuration loaded:', data.data);
         } else {
           setError(data.message || 'Failed to load reminder configuration');
         }
@@ -146,7 +145,6 @@ const ReminderConfig = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log('✅ Reminder configuration saved successfully');
           setError(null);
           // Show success message (you can add a toast notification here)
         } else {
@@ -182,7 +180,6 @@ const ReminderConfig = () => {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          console.log(`✅ ${section} ${type} reminder test completed successfully`);
           setError(null);
           // Show success message (you can add a toast notification here)
         } else {
@@ -282,7 +279,6 @@ const ReminderConfig = () => {
       });
 
       if (response.ok) {
-        console.log('✅ Term due date configuration saved successfully');
         setError(null);
         fetchTermConfigs();
         setShowTermConfigForm(false);
@@ -347,7 +343,6 @@ const ReminderConfig = () => {
       });
 
       if (response.ok) {
-        console.log('✅ Configuration deleted successfully');
         setError(null);
         fetchTermConfigs();
       } else {
@@ -379,7 +374,6 @@ const ReminderConfig = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Reminder dates recalculated successfully');
         setError(null);
         // Show success message (you can add a toast notification here)
       } else {

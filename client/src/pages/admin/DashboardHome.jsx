@@ -1084,10 +1084,6 @@ const DashboardHome = () => {
       setLoading(true);
       try {
         
-        // Safari-specific logging
-        if (isSafari) {
-          console.log('🦁 Safari detected - applying Safari-specific error handling');
-        }
         
         // Fetch all data in parallel with Safari-specific error handling
         const apiCalls = [
@@ -1155,10 +1151,6 @@ const DashboardHome = () => {
       } catch (err) {
         console.error('📊 Error in fetchData:', err);
         
-        // Safari-specific error handling
-        if (isSafari) {
-          console.log('🦁 Safari error detected - setting default values');
-        }
         
         // Set default values on error
         setComplaints([]);

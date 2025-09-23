@@ -130,7 +130,6 @@ const generateAcademicYears = () => {
 };
 
 const Students = () => {
-  console.log('👥 Students component loaded');
 
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -140,23 +139,10 @@ const Students = () => {
   const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
   const canAddStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'create');
 
-  console.log('🔐 Student Management Permissions:', {
-    user: user?.username,
-    role: user?.role,
-    isSuperAdmin,
-    canEditStudent,
-    canDeleteStudent,
-    canAddStudent,
-    permissions: user?.permissions,
-    accessLevels: user?.permissionAccessLevels
-  });
 
   const [tab, setTab] = useState('list');
   const [form, setForm] = useState(initialForm);
 
-  // Debug log to verify initial state
-  console.log('🔍 Initial form state:', initialForm);
-  console.log('🔍 Current form state:', form);
   const [adding, setAdding] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -310,10 +296,8 @@ const Students = () => {
   // Handle video element setup when camera is shown
   useEffect(() => {
     if (showCamera && stream && videoRef) {
-      console.log('📸 Setting up video element');
       videoRef.srcObject = stream;
       videoRef.onloadedmetadata = () => {
-        console.log('📸 Video metadata loaded in useEffect');
         videoRef.play();
         setCameraReady(true);
       };
@@ -321,7 +305,6 @@ const Students = () => {
       // Fallback: if video doesn't load within 3 seconds, try to set ready anyway
       const timeout = setTimeout(() => {
         if (!cameraReady && videoRef) {
-          console.log('📸 Fallback: setting camera ready after timeout');
           setCameraReady(true);
         }
       }, 3000);
@@ -335,7 +318,6 @@ const Students = () => {
     try {
       const res = await api.get('/api/admin/students/temp-summary');
       if (res.data.success) {
-        console.log('Temp students data:', res.data.data);
         setTempStudentsSummary(res.data.data);
       } else {
         toast.error('Failed to fetch temporary students summary.');
@@ -389,14 +371,11 @@ const Students = () => {
 
   // Fetch courses from backend
   const fetchCourses = async () => {
-    console.log('🔍 Fetching courses...');
     setLoadingCourses(true);
     try {
       const res = await api.get('/api/course-management/courses');
-      console.log('📡 Course API response:', res.data);
       if (res.data.success) {
         setCourses(res.data.data);
-        console.log('✅ Courses loaded:', res.data.data.length);
       } else {
         console.error('❌ Failed to fetch courses:', res.data.message);
         toast.error('Failed to fetch courses');
@@ -413,21 +392,16 @@ const Students = () => {
   // Fetch branches for a specific course
   const fetchBranches = async (courseId) => {
     if (!courseId) {
-      console.log('🔍 No course ID provided, clearing branches');
       setBranches([]);
       return;
     }
 
-    console.log('🔍 Fetching branches for course ID:', courseId);
-    console.log('🔍 Available courses:', courses.map(c => ({ id: c._id, name: c.name })));
 
     setLoadingBranches(true);
     try {
       const res = await api.get(`/api/course-management/branches/${courseId}`);
-      console.log('📡 Branch API response:', res.data);
       if (res.data.success) {
         setBranches(res.data.data);
-        console.log('✅ Branches loaded:', res.data.data.length);
       } else {
         console.error('❌ Failed to fetch branches:', res.data.message);
         toast.error('Failed to fetch branches');
@@ -539,40 +513,31 @@ const Students = () => {
 
   // Auto-select first available bed and corresponding locker
   const autoSelectBedAndLocker = (availabilityData) => {
-    console.log('🔄 Auto-selecting bed and locker...', availabilityData);
 
     if (!availabilityData || !availabilityData.availableBeds || !availabilityData.availableLockers) {
-      console.log('❌ No availability data or missing beds/lockers');
       return;
     }
 
-    console.log('📊 Available beds:', availabilityData.availableBeds);
-    console.log('📊 Available lockers:', availabilityData.availableLockers);
 
     // Find first available bed
     const firstAvailableBed = availabilityData.availableBeds[0];
     if (!firstAvailableBed) {
-      console.log('❌ No available beds found');
       return;
     }
 
-    console.log('🛏️ First available bed:', firstAvailableBed);
 
     // Extract bed number from bed value (e.g., "320 Bed 1" -> "1")
     const bedNumber = firstAvailableBed.value.match(/Bed (\d+)$/)?.[1];
     if (!bedNumber) {
-      console.log('❌ Could not extract bed number from:', firstAvailableBed.value);
       return;
     }
 
-    console.log('🔢 Extracted bed number:', bedNumber);
 
     // Find corresponding locker (same number)
     const correspondingLocker = availabilityData.availableLockers.find(locker =>
       locker.value.includes(`Locker ${bedNumber}`)
     );
 
-    console.log('🔒 Corresponding locker:', correspondingLocker);
 
     // Update form with auto-selected values
     setForm(prev => {
@@ -581,14 +546,9 @@ const Students = () => {
         bedNumber: firstAvailableBed.value,
         lockerNumber: correspondingLocker ? correspondingLocker.value : ''
       };
-      console.log('✅ Updated form with auto-selected values:', updatedForm);
       return updatedForm;
     });
 
-    console.log('🎉 Auto-selected:', {
-      bed: firstAvailableBed.value,
-      locker: correspondingLocker ? correspondingLocker.value : 'No corresponding locker available'
-    });
   };
 
   // Fetch fee structure when course, year, category and academic year are selected

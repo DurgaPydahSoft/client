@@ -210,12 +210,6 @@ const AdminDashboard = () => {
   // 
   // Only users WITHOUT dashboard_home permission will be redirected to their first available section.
   useEffect(() => {
-    console.log('🔄 Auto-redirect useEffect triggered');
-    console.log('🔄 Current pathname:', pathname);
-    console.log('🔄 Is super admin:', isSuperAdmin);
-    console.log('🔄 User permissions:', user?.permissions);
-    console.log('🔄 Has dashboard_home permission:', hasPermission(user, 'dashboard_home'));
-
     if (!isSuperAdmin && pathname === '/admin/dashboard') {
       console.log('🔄 Processing auto-redirect logic for sub-admin on dashboard home');
 
@@ -297,11 +291,6 @@ const AdminDashboard = () => {
         }
       } catch (err) {
         console.error('🔔 Failed to fetch notification count:', err);
-
-        // Safari-specific error handling
-        if (isSafari) {
-          console.log('🦁 Safari notification error - setting defaults');
-        }
 
         // Don't let notification errors cause logout - just set defaults
         setNotificationCount(0);
