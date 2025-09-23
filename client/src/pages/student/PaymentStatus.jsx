@@ -13,8 +13,7 @@ import {
   ArrowLeftIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
-  HomeIcon,
-  ReceiptIcon
+  HomeIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 
@@ -355,7 +354,7 @@ const PaymentStatus = () => {
                 }}
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
               >
-                <ReceiptIcon className="w-4 h-4" />
+                <DocumentTextIcon className="w-4 h-4" />
                 Download Receipt
               </button>
             )}
