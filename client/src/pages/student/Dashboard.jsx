@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, useOutletContext, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {
   Bars3Icon,
@@ -19,7 +20,7 @@ import {
   BoltIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ClockIcon
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import RaiseComplaint from './RaiseComplaint';
 import MyComplaints from './MyComplaints';
@@ -478,6 +479,9 @@ const DashboardHome = () => {
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [refreshingBills, setRefreshingBills] = useState(false);
+  
+  // Electricity payment states
+  const [paymentLoading, setPaymentLoading] = useState({});
 
   // Function to refresh electricity bills data
   const refreshElectricityBills = async (showLoading = false) => {
@@ -507,6 +511,84 @@ const DashboardHome = () => {
     await refreshElectricityBills();
   };
 
+  // Electricity payment function - directly initiate payment and navigate
+  const initiateElectricityPayment = async (bill) => {
+    try {
+      console.log('🔧 initiateElectricityPayment called with billId:', bill._id);
+      setPaymentLoading(prev => ({ ...prev, [bill._id]: true }));
+
+      // Get room ID from user data
+      const roomResponse = await api.get('/api/rooms/student/electricity-bills');
+      if (!roomResponse.data.success) {
+        throw new Error('Failed to get room information');
+      }
+
+      // Find the room that matches user's room number
+      const room = await api.get('/api/rooms');
+      const userRoom = room.data.data.rooms.find(r => 
+        r.roomNumber === user.roomNumber && 
+        r.gender === user.gender && 
+        r.category === user.category
+      );
+
+      if (!userRoom) {
+        throw new Error('Room information not found');
+      }
+
+      console.log('🔧 Sending payment initiation request with:', {
+        billId: bill._id,
+        roomId: userRoom._id
+      });
+
+      const response = await api.post('/api/payments/initiate', {
+        billId: bill._id,
+        roomId: userRoom._id
+      });
+
+      if (response.data.success) {
+        // Store order data for later use
+        localStorage.setItem('currentOrder', JSON.stringify({
+          orderId: response.data.data.orderId,
+          amount: response.data.data.amount,
+          paymentSessionId: response.data.data.paymentSessionId
+        }));
+        
+        // Navigate to payment status page
+        navigate(`/student/payment-status/${bill._id}`);
+        
+        // Initialize Cashfree SDK and open checkout
+        if (window.Cashfree && response.data.data.paymentSessionId) {
+          const cashfree = window.Cashfree({
+            mode: "production" // using production credentials
+          });
+          
+          // Open Cashfree Checkout
+          const checkoutOptions = {
+            paymentSessionId: response.data.data.paymentSessionId,
+            redirectTarget: "_self"
+          };
+          
+          console.log('Opening Cashfree checkout with:', checkoutOptions);
+          cashfree.checkout(checkoutOptions);
+        } else if (response.data.data.paymentUrl) {
+          // Fallback to direct URL redirect
+          console.log('Fallback: Opening payment URL:', response.data.data.paymentUrl);
+          window.open(response.data.data.paymentUrl, '_blank');
+          toast.success('Payment page opened in new tab. Please complete the payment.');
+        } else {
+          toast.error('Payment URL not received');
+        }
+      } else {
+        throw new Error(response.data.message || 'Failed to initiate payment');
+      }
+    } catch (err) {
+      console.error('Error initiating payment:', err);
+      toast.error(err.response?.data?.message || err.message || 'Failed to initiate payment');
+    } finally {
+      setPaymentLoading(prev => ({ ...prev, [bill._id]: false }));
+    }
+  };
+
   // Add interval to refresh bills data when modal is open
   useEffect(() => {
     let interval;
@@ -520,6 +602,7 @@ const DashboardHome = () => {
       }
     };
   }, [showBillModal]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -1114,10 +1197,18 @@ const DashboardHome = () => {
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => window.location.href = `/student/electricity-payment/${bill._id}`}
-                              className="px-3 sm:px-4 lg:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-xs sm:text-sm lg:text-base touch-manipulation"
+                              onClick={() => initiateElectricityPayment(bill)}
+                              disabled={paymentLoading[bill._id]}
+                              className="px-3 sm:px-4 lg:px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl text-xs sm:text-sm lg:text-base touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Pay ₹{bill.studentShare}
+                              {paymentLoading[bill._id] ? (
+                                <div className="flex items-center gap-2">
+                                  <LoadingSpinner size="sm" />
+                                  <span>Processing...</span>
+                                </div>
+                              ) : (
+                                `Pay ₹${bill.studentShare}`
+                              )}
                             </motion.button>
                           )}
                         </div>
@@ -1130,6 +1221,7 @@ const DashboardHome = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
 
       {/* Today's Menu Modal */}
       {showMenuModal && (

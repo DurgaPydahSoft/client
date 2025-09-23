@@ -53,7 +53,6 @@ const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManage
 const GlobalSettings = lazy(() => import('./pages/admin/GlobalSettings'));
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
-const ElectricityPayment = lazy(() => import('./pages/student/ElectricityPayment'));
 const PaymentHistory = lazy(() => import('./pages/student/PaymentHistory'));
 const PaymentStatus = lazy(() => import('./pages/student/PaymentStatus'));
 
@@ -338,15 +337,6 @@ function App() {
                   }
                 />
 
-                {/* Student payment routes */}
-                <Route
-                  path="/student/electricity-payment/:billId?"
-                  element={
-                    <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
-                      <ElectricityPayment />
-                    </ProtectedRoute>
-                  }
-                />
                 <Route
                   path="/student/payment-status/:billId?"
                   element={
