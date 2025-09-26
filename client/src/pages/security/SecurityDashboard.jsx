@@ -337,7 +337,7 @@ const SecurityDashboard = () => {
       return leave;
     });
     
-    // Sort: unverified first, then verified, then completed
+    // Sort: unverified first, then warden verified, then verified, then completed
     return enhanced.sort((a, b) => {
       const aStart = getRequestDate(a);
       const bStart = getRequestDate(b);
@@ -348,13 +348,19 @@ const SecurityDashboard = () => {
       if (aToday && !bToday) return -1;
       if (!aToday && bToday) return 1;
       
-      // Second priority: Verification status (unverified first, verified last)
+      // Second priority: Verification status (unverified first, warden verified last in outgoing)
       if (a.verificationStatus === 'Not Verified' && b.verificationStatus !== 'Not Verified') return -1;
       if (a.verificationStatus !== 'Not Verified' && b.verificationStatus === 'Not Verified') return 1;
+      
+      // Third priority: For outgoing section, prioritize unverified over warden verified
+      if (a.verificationStatus === 'Not Verified' && b.status === 'Warden Verified') return -1;
+      if (a.status === 'Warden Verified' && b.verificationStatus === 'Not Verified') return 1;
+      
+      // Fourth priority: Other statuses
       if (a.verificationStatus === 'Verified' && b.verificationStatus === 'Completed') return -1;
       if (a.verificationStatus === 'Completed' && b.verificationStatus === 'Verified') return 1;
       
-      // Third priority: Start time (earliest first)
+      // Fifth priority: Start time (earliest first)
       return aStart - bStart;
     });
   };
@@ -439,8 +445,9 @@ const SecurityDashboard = () => {
     const start = getRequestDate(leave);
     const isTodayOrYesterdayResult = isTodayOrYesterday(start);
     const isNotVerified = leave.verificationStatus === 'Not Verified';
+    const isWardenVerified = leave.status === 'Warden Verified';
     const isNotExpired = !leave._frontendExpired;
-    const shouldInclude = isTodayOrYesterdayResult && isNotVerified && isNotExpired;
+    const shouldInclude = isTodayOrYesterdayResult && (isNotVerified || isWardenVerified) && isNotExpired;
     
     // Debug logging for yesterday's leaves
     if (isTodayOrYesterdayResult && !isToday(start)) {
@@ -449,7 +456,9 @@ const SecurityDashboard = () => {
         rollNumber: leave.student?.rollNumber,
         startDate: start,
         verificationStatus: leave.verificationStatus,
+        status: leave.status,
         isNotVerified,
+        isWardenVerified,
         isNotExpired,
         shouldInclude
       });
