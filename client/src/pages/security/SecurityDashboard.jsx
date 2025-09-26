@@ -195,7 +195,12 @@ const SecurityDashboard = () => {
     }
   };
 
-  const getVerificationStatusColor = (status) => {
+  const getVerificationStatusColor = (status, leaveStatus) => {
+    // Handle special case for warden verified but not principal approved
+    if (leaveStatus === 'Warden Verified') {
+      return 'text-orange-600 bg-orange-50 border-orange-200';
+    }
+    
     switch (status) {
       case 'Verified':
         return 'text-green-600 bg-green-50 border-green-200';
@@ -221,7 +226,12 @@ const SecurityDashboard = () => {
     }
   };
 
-  const getVerificationStatusIcon = (status) => {
+  const getVerificationStatusIcon = (status, leaveStatus) => {
+    // Handle special case for warden verified but not principal approved
+    if (leaveStatus === 'Warden Verified') {
+      return <ExclamationCircleIcon className="w-4 h-4" />;
+    }
+    
     switch (status) {
       case 'Verified':
         return <CheckCircleIcon className="w-4 h-4" />;
@@ -235,6 +245,14 @@ const SecurityDashboard = () => {
       default:
         return null;
     }
+  };
+
+  // Helper function to get display status text
+  const getDisplayStatus = (leave) => {
+    if (leave.status === 'Warden Verified') {
+      return 'Principal Not Yet Approved';
+    }
+    return leave._frontendExpired ? 'Expired' : leave.verificationStatus;
   };
 
   const getRequestDate = (leave) => leave.applicationType === 'Leave' ? new Date(leave.startDate) : new Date(leave.permissionDate);
@@ -578,6 +596,7 @@ const SecurityDashboard = () => {
                 getVerificationStatusColor={getVerificationStatusColor}
                 getApplicationTypeColor={getApplicationTypeColor}
                 getVerificationStatusIcon={getVerificationStatusIcon}
+                getDisplayStatus={getDisplayStatus}
                 setSelectedLeave={setSelectedLeave}
                 setShowVerificationModal={setShowVerificationModal}
                 getRequestDate={getRequestDate}
@@ -600,6 +619,7 @@ const SecurityDashboard = () => {
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
+                  getDisplayStatus={getDisplayStatus}
                   setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
@@ -623,6 +643,7 @@ const SecurityDashboard = () => {
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
+                  getDisplayStatus={getDisplayStatus}
                   setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
@@ -646,6 +667,7 @@ const SecurityDashboard = () => {
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
+                  getDisplayStatus={getDisplayStatus}
                   setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
@@ -669,6 +691,7 @@ const SecurityDashboard = () => {
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
+                  getDisplayStatus={getDisplayStatus}
                   setSelectedLeave={setSelectedLeave}
                   setShowVerificationModal={setShowVerificationModal}
                   getRequestDate={getRequestDate}
@@ -724,6 +747,21 @@ const SecurityDashboard = () => {
                   </>
                 )}
                 <p className="text-gray-600">Reason: {selectedLeave.reason}</p>
+                
+                {/* Show warden verification status if applicable */}
+                {selectedLeave.status === 'Warden Verified' && (
+                  <div className="mt-2 p-2 bg-orange-50 rounded border border-orange-200">
+                    <p className="text-orange-700 text-xs font-medium">Warden Verified</p>
+                    <p className="text-orange-600 text-xs">Waiting for Principal Approval</p>
+                    {selectedLeave.verifiedBy?.name && (
+                      <p className="text-orange-600 text-xs">Verified by: {selectedLeave.verifiedBy.name}</p>
+                    )}
+                    {selectedLeave.verifiedAt && (
+                      <p className="text-orange-600 text-xs">Verified at: {new Date(selectedLeave.verifiedAt).toLocaleString()}</p>
+                    )}
+                  </div>
+                )}
+                
                 {selectedLeave.incomingQrGenerated && (
                   <div className="mt-2 p-2 bg-blue-50 rounded">
                     <p className="text-blue-700 text-xs font-medium">Incoming QR Available</p>
@@ -734,15 +772,21 @@ const SecurityDashboard = () => {
             </div>
 
             <div className="flex flex-col gap-2 sm:gap-3">
-              <button
-                onClick={handleVerification}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                {selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated 
-                  ? 'Scan Incoming QR' 
-                  : 'Update Status'
-                }
-              </button>
+              {selectedLeave?.status === 'Warden Verified' ? (
+                <div className="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium text-center border border-orange-200">
+                  Cannot verify - Waiting for Principal Approval
+                </div>
+              ) : (
+                <button
+                  onClick={handleVerification}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  {selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated 
+                    ? 'Scan Incoming QR' 
+                    : 'Update Status'
+                  }
+                </button>
+              )}
               <button
                 onClick={() => {
                   setShowVerificationModal(false);
@@ -768,6 +812,7 @@ const SectionTable = ({
   getVerificationStatusColor,
   getApplicationTypeColor,
   getVerificationStatusIcon,
+  getDisplayStatus,
   setSelectedLeave,
   setShowVerificationModal,
   getRequestDate,
@@ -923,16 +968,21 @@ const SectionTable = ({
 
                     {/* Status */}
                     <div className="col-span-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus, leave.status)}`}
                         style={{ minWidth: '90px' }}>
-                        {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
-                        <span className="ml-1 truncate">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
+                        {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus, leave.status)}
+                        <span className="ml-1 truncate">{getDisplayStatus(leave)}</span>
                       </span>
                     </div>
 
                     {/* Action */}
                     <div className="col-span-1 text-center">
-                      {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                      {leave.status === 'Warden Verified' ? (
+                        <div className="flex items-center justify-center gap-1 text-orange-600 text-xs">
+                          <ExclamationCircleIcon className="w-4 h-4" />
+                          <span>Waiting Principal</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
                         <div className="flex items-center justify-center gap-1 text-blue-600 text-xs">
                           <CheckCircleIcon className="w-4 h-4" />
                           <span>Outgoing Verified</span>
@@ -998,9 +1048,9 @@ const SectionTable = ({
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                           {leave.applicationType}
                         </span>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}`}>
-                          {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus)}
-                          <span className="ml-1">{leave._frontendExpired ? 'Expired' : leave.verificationStatus}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${getVerificationStatusColor(leave._frontendExpired ? 'Expired' : leave.verificationStatus, leave.status)}`}>
+                          {getVerificationStatusIcon(leave._frontendExpired ? 'Expired' : leave.verificationStatus, leave.status)}
+                          <span className="ml-1">{getDisplayStatus(leave)}</span>
                         </span>
                       </div>
                       <div className="flex-shrink-0">
@@ -1091,7 +1141,12 @@ const SectionTable = ({
 
                     {/* Action Button */}
                     <div className="flex justify-center">
-                      {leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
+                      {leave.status === 'Warden Verified' ? (
+                        <div className="flex items-center gap-1 text-orange-600 text-xs font-medium px-3 py-2 bg-orange-50 rounded w-full justify-center border border-orange-200">
+                          <ExclamationCircleIcon className="w-3 h-3" />
+                          <span>Waiting Principal Approval</span>
+                        </div>
+                      ) : leave.verificationStatus === 'Verified' && !leave.incomingQrGenerated ? (
                         <div className="flex items-center gap-1 text-green-600 text-xs font-medium px-3 py-2 bg-green-50 rounded w-full justify-center border border-green-200">
                           <CheckCircleIcon className="w-3 h-3" />
                           <span>Outgoing Verified</span>
