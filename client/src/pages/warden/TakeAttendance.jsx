@@ -969,7 +969,7 @@ const TakeAttendance = () => {
                     <div className="mb-3 sm:mb-4">
                       <div className="flex items-start justify-between mb-2 sm:mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{student.name}</h3>
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 ">{student.name}</h3>
                           {/* Mobile: Show only course and room */}
                           <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:hidden">
                             {getCourseName(student.course)} {student.year} • Room {student.roomNumber}
