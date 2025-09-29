@@ -51,6 +51,7 @@ const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
 const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManagement'));
 const GlobalSettings = lazy(() => import('./pages/admin/GlobalSettings'));
+const NOCManagement = lazy(() => import('./pages/admin/NOCManagement'));
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const PaymentHistory = lazy(() => import('./pages/student/PaymentHistory'));
@@ -69,6 +70,7 @@ const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
 const WardenLeaveManagement = lazy(() => import('./pages/warden/LeaveManagement'));
 const WardenElectricityBills = lazy(() => import('./pages/warden/ElectricityBills'));
 const WardenTakeStaffAttendance = lazy(() => import('./pages/warden/TakeStaffAttendance'));
+const WardenNOCManagement = lazy(() => import('./pages/warden/NOCManagement'));
 
 // Principal components
 const PrincipalDashboard = lazy(() => import('./pages/principal/Dashboard'));
@@ -267,6 +269,11 @@ function App() {
                       <GlobalSettings />
                     </ProtectedSection>
                   } />
+                  <Route path="noc-management" element={
+                    <ProtectedSection permission="super_admin" sectionName="NOC Management">
+                      <NOCManagement />
+                    </ProtectedSection>
+                  } />
                 </Route>
 
                 {/* Protected warden routes */}
@@ -294,6 +301,7 @@ function App() {
                   <Route path="fee-management" element={<WardenFeeManagement />} />
                   <Route path="electricity-bills" element={<WardenElectricityBills />} />
                   <Route path="take-staff-attendance" element={<WardenTakeStaffAttendance />} />
+                  <Route path="noc-management" element={<WardenNOCManagement />} />
                 </Route>
 
                 {/* Protected principal routes */}

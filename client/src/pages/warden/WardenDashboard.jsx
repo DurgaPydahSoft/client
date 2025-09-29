@@ -150,19 +150,19 @@ const WardenDashboardLayout = () => {
       ]
     },
     {
-      name: 'Leave & Stay Requests',
+      name: 'Leaves & Stays',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       path: '/warden/dashboard/leave-management',
       show: true,
       locked: false,
       subItems: [
         {
-          name: 'Leave Management',
+          name: 'Leaves',
           path: '/warden/dashboard/leave-management',
           icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
         },
         {
-          name: 'Stay in Hostel Requests',
+          name: "Stay In's",
           path: '/warden/dashboard/stay-in-hostel-requests',
           icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2 M12 12v3 M12 12a2 2 0 100-4 2 2 0 000 4z'
         }
@@ -186,6 +186,13 @@ const WardenDashboardLayout = () => {
       name: 'Electricity Bills',
       icon: 'M13 10V3L4 14h7v7l9-11h-7z',
       path: '/warden/dashboard/electricity-bills',
+      show: true,
+      locked: false
+    },
+    {
+      name: 'NOC Management',
+      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      path: '/warden/dashboard/noc-management',
       show: true,
       locked: false
     },

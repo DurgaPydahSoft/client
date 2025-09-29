@@ -36,6 +36,8 @@ import MyAttendance from './MyAttendance';
 import FoundLost from './FoundLost';
 import HostelFee from './HostelFee';
 import PaymentHistory from './PaymentHistory';
+import NOCRequests from './NOCRequests';
+import NOCRequestDetails from './NOCRequestDetails';
 import FAQ from './FAQ';
 import useFeatureToggles from '../../hooks/useFeatureToggles';
 import FeatureProtectedRoute from '../../components/FeatureProtectedRoute';
@@ -95,6 +97,13 @@ const navItems = [
     name: "Payment History",
     path: "payment-history",
     feature: "paymentHistory",
+    icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+    notificationType: null
+  },
+  {
+    name: "NOC Requests",
+    path: "noc-requests",
+    feature: "nocRequests",
     icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
     notificationType: null
   },
@@ -1412,6 +1421,16 @@ const StudentDashboard = () => (
         <Route path="payment-history" element={
           <FeatureProtectedRoute feature="paymentHistory">
             <PaymentHistory />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="noc-requests" element={
+          <FeatureProtectedRoute feature="nocRequests">
+            <NOCRequests />
+          </FeatureProtectedRoute>
+        } />
+        <Route path="noc-request/:id" element={
+          <FeatureProtectedRoute feature="nocRequests">
+            <NOCRequestDetails />
           </FeatureProtectedRoute>
         } />
         <Route path="announcements" element={

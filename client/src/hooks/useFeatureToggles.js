@@ -13,6 +13,7 @@ const useFeatureToggles = () => {
     foundLost: true,
     hostelFee: true,
     paymentHistory: true,
+    nocRequests: true,
     announcements: true,
     polls: true,
     profile: true
@@ -51,6 +52,7 @@ const useFeatureToggles = () => {
         foundLost: true,
         hostelFee: true,
         paymentHistory: true,
+        nocRequests: true,
         announcements: true,
         polls: true,
         profile: true

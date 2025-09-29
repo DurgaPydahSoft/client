@@ -21,6 +21,7 @@ const FeatureControls = () => {
     foundLost: true,
     hostelFee: true,
     paymentHistory: true,
+    nocRequests: true,
     announcements: true,
     polls: true,
     profile: true
@@ -69,6 +70,11 @@ const FeatureControls = () => {
       name: "Payment History",
       description: "Allow students to view their payment records",
       icon: "📄"
+    },
+    nocRequests: {
+      name: "NOC Requests",
+      description: "Allow students to submit and track NOC (No Objection Certificate) requests",
+      icon: "📋"
     },
     announcements: {
       name: "Announcements",
@@ -122,7 +128,7 @@ const FeatureControls = () => {
       const validFeatures = [
         'overview', 'raiseComplaint', 'myComplaints', 'attendance',
         'leave', 'foundLost', 'hostelFee', 'paymentHistory',
-        'announcements', 'polls', 'profile'
+        'nocRequests', 'announcements', 'polls', 'profile'
       ];
 
       const updates = {};
