@@ -255,7 +255,7 @@ const FeatureControls = () => {
             </div>
             <div>
               <div className="text-lg sm:text-xl font-bold text-blue-600">
-                {Object.keys(featureToggles).length}
+                {Object.keys(featureDescriptions).length}
               </div>
               <div className="text-xs text-gray-600">Total Features</div>
             </div>
