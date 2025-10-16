@@ -539,5 +539,4 @@ const LeaveManagement = () => {
     </div>
   );
 };
-
-export default LeaveManagement; 
+export default LeaveManagement;

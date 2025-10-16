@@ -38,6 +38,38 @@ const LeaveManagement = () => {
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
 
+
+  const [visibleOtps, setVisibleOtps] = useState({});
+  const [otpValues, setOtpValues] = useState({});
+  const [otpLoading, setOtpLoading] = useState({});
+
+  const handleToggleOtp = async (leaveId) => {
+    setVisibleOtps((prev) => ({
+      ...prev,
+      [leaveId]: !prev[leaveId]
+    }));
+
+    // If showing OTP and not already fetched, fetch it
+    if (!visibleOtps[leaveId]) {
+      setOtpLoading((prev) => ({ ...prev, [leaveId]: true }));
+      try {
+        const response = await api.post('/api/leave/getOtp', { leaveId });
+        if (response.data.success) {
+          setOtpValues((prev) => ({
+            ...prev,
+            [leaveId]: response.data.data.otp
+          }));
+        } else {
+          toast.error('Failed to fetch OTP');
+        }
+      } catch (error) {
+        toast.error('Error fetching OTP');
+      } finally {
+        setOtpLoading((prev) => ({ ...prev, [leaveId]: false }));
+      }
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'leaves') {
       fetchLeaves();
@@ -94,13 +126,13 @@ const LeaveManagement = () => {
   const fetchBulkOutingStudents = async (outingId) => {
     // Set loading state for this specific outing
     setLoadingStudentDetails(prev => new Set(prev).add(outingId));
-    
+
     try {
       const response = await api.get(`/api/bulk-outing/admin/${outingId}/students`);
       if (response.data.success) {
         // Update the specific bulk outing with student details
-        setBulkOutings(prev => prev.map(outing => 
-          outing._id === outingId 
+        setBulkOutings(prev => prev.map(outing =>
+          outing._id === outingId
             ? { ...outing, students: response.data.data.students }
             : outing
         ));
@@ -277,7 +309,7 @@ const LeaveManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
-        <SEO 
+        <SEO
           title="Leave & Permission Management"
           description="Manage student leave and permission requests"
           keywords="leave management, permission management, student permissions, hostel leave"
@@ -312,7 +344,7 @@ const LeaveManagement = () => {
                 />
               </div>
             </div>
-            
+
             {/* Dropdown Filters */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <select
@@ -344,22 +376,20 @@ const LeaveManagement = () => {
         <div className="flex border-b border-gray-200 mb-4 sm:mb-6">
           <button
             onClick={() => handleTabSwitch('leaves')}
-            className={`px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${
-              activeTab === 'leaves'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${activeTab === 'leaves'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <span className="hidden sm:inline">Individual Requests</span>
             <span className="sm:hidden">Individual</span>
           </button>
           <button
             onClick={() => handleTabSwitch('bulk-outings')}
-            className={`px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${
-              activeTab === 'bulk-outings'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`px-2 sm:px-4 py-2 font-medium text-xs sm:text-sm border-b-2 transition-colors ${activeTab === 'bulk-outings'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <span className="hidden sm:inline">Bulk Outing Requests</span>
             <span className="sm:hidden">Bulk Outings</span>
@@ -411,9 +441,8 @@ const LeaveManagement = () => {
                               <UserIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                               <button
                                 onClick={() => leave.student && openStudentDetailsModal(leave.student)}
-                                className={`hover:text-blue-600 hover:underline transition-colors ${
-                                  leave.student ? 'cursor-pointer' : 'cursor-default'
-                                }`}
+                                className={`hover:text-blue-600 hover:underline transition-colors ${leave.student ? 'cursor-pointer' : 'cursor-default'
+                                  }`}
                                 disabled={!leave.student}
                               >
                                 {leave.student?.name || 'N/A'}
@@ -427,7 +456,7 @@ const LeaveManagement = () => {
                               <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                               <span>{leave.parentPhone || 'N/A'}</span>
                             </div>
-                            
+
                             {leave.student?.course && (
                               <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
                                 <span>Course: {leave.student.course?.name || leave.student.course}</span>
@@ -508,8 +537,27 @@ const LeaveManagement = () => {
                               >
                                 Reject
                               </button>
+                              <button
+                                onClick={() => handleToggleOtp(leave._id)}
+                                className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
+                              >
+
+                                {visibleOtps[leave._id] ? 'Hide OTP' : 'Show OTP'}
+                              </button>
                             </div>
                           )}
+                          {/* Display OTP if visible */}
+                          {visibleOtps[leave._id] && (
+                            <div className="mt-2 text-xs sm:text-sm text-blue-700 bg-blue-50 rounded p-2">
+                              {otpLoading[leave._id]
+                                ? 'Loading OTP...'
+                                : otpValues[leave._id]
+                                  ? <>OTP: <strong>{otpValues[leave._id]}</strong></>
+                                  : 'No OTP available'}
+                            </div>
+                          )}
+
+
                         </div>
                       </div>
                     </motion.div>
@@ -597,7 +645,7 @@ const LeaveManagement = () => {
                           {expandedBulkOutings.has(outing._id) && (
                             <div className="mt-2 sm:mt-3 p-3 sm:p-4 bg-gray-50 rounded-lg">
                               <h5 className="text-xs sm:text-sm font-medium text-gray-900 mb-2 sm:mb-3">Students in this outing:</h5>
-                              
+
                               {loadingStudentDetails.has(outing._id) ? (
                                 <div className="flex justify-center py-3 sm:py-4">
                                   <div className="animate-spin rounded-full h-5 w-5 sm:h-6 sm:w-6 border-b-2 border-purple-600"></div>
@@ -608,35 +656,35 @@ const LeaveManagement = () => {
                                   return validStudents.length > 0 ? (
                                     <div className="space-y-2 max-h-60 overflow-y-auto">
                                       {validStudents.map((student, index) => (
-                                      <div key={student._id || index} className="flex items-center justify-between p-2 bg-white rounded border">
-                                        <div className="flex items-center gap-2 sm:gap-3">
-                                          <div className="flex-shrink-0 h-6 w-6 sm:h-8 sm:w-8">
-                                            {student.studentPhoto ? (
-                                              <img
-                                                className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover"
-                                                src={student.studentPhoto}
-                                                alt={student.name || 'Student'}
-                                              />
-                                            ) : (
-                                              <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                                                <span className="text-xs font-medium text-gray-700">
-                                                  {(student.name || '?').charAt(0).toUpperCase()}
-                                                </span>
-                                              </div>
-                                            )}
+                                        <div key={student._id || index} className="flex items-center justify-between p-2 bg-white rounded border">
+                                          <div className="flex items-center gap-2 sm:gap-3">
+                                            <div className="flex-shrink-0 h-6 w-6 sm:h-8 sm:w-8">
+                                              {student.studentPhoto ? (
+                                                <img
+                                                  className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover"
+                                                  src={student.studentPhoto}
+                                                  alt={student.name || 'Student'}
+                                                />
+                                              ) : (
+                                                <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                                                  <span className="text-xs font-medium text-gray-700">
+                                                    {(student.name || '?').charAt(0).toUpperCase()}
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div>
+                                              <p className="text-xs sm:text-sm font-medium text-gray-900">{student.name || 'N/A'}</p>
+                                              <p className="text-xs text-gray-500">{student.rollNumber || 'N/A'}</p>
+                                            </div>
                                           </div>
-                                          <div>
-                                            <p className="text-xs sm:text-sm font-medium text-gray-900">{student.name || 'N/A'}</p>
-                                            <p className="text-xs text-gray-500">{student.rollNumber || 'N/A'}</p>
+                                          <div className="text-right">
+                                            <p className="text-xs text-gray-600">{(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}</p>
+                                            <p className="text-xs text-gray-500">Room {student.roomNumber || 'N/A'}</p>
                                           </div>
                                         </div>
-                                        <div className="text-right">
-                                          <p className="text-xs text-gray-600">{(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}</p>
-                                          <p className="text-xs text-gray-500">Room {student.roomNumber || 'N/A'}</p>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
+                                      ))}
+                                    </div>
                                   ) : (
                                     <div className="text-center py-3 sm:py-4 text-gray-500">
                                       <p className="text-xs sm:text-sm">No valid student data available</p>
@@ -949,23 +997,21 @@ const LeaveManagement = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.hostelStatus === 'Active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}>
                             {selectedStudent.hostelStatus}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.graduationStatus === 'Graduated' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : selectedStudent.graduationStatus === 'Dropped'
+                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                            ? 'bg-blue-100 text-blue-800'
+                            : selectedStudent.graduationStatus === 'Dropped'
                               ? 'bg-gray-100 text-gray-800'
                               : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                            }`}>
                             {selectedStudent.graduationStatus}
                           </span>
                         </div>
@@ -995,4 +1041,4 @@ const LeaveManagement = () => {
   );
 };
 
-export default LeaveManagement; 
+export default LeaveManagement;
