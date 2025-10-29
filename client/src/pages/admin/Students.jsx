@@ -664,14 +664,27 @@ const Students = () => {
     }
   }, [currentPage, filters.search, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
-  // Fetch students when tab, currentPage, or filters change
+  // Fetch students:
+  // - On tab change to 'list' (or initial mount) do a full initial load (shows the outer loading state)
+  // - On filter / page / search changes only update the table (use tableLoading)
   useEffect(() => {
     if (tab === 'list') {
-      fetchStudents(true); // Pass true for initialLoad to use setLoading
+      // initial/full load when tab becomes 'list'
+      fetchStudents(true); // show global `loading` spinner for first load
       fetchCourseCounts(); // Fetch course counts
     } else if (tab === 'bulkUpload') {
       fetchTempStudentsSummary();
     }
+    // We only want this effect to re-run when the tab itself changes
+  }, [tab]);
+
+  // Only update students table when filters, pagination or search changes while on the list tab.
+  useEffect(() => {
+    if (tab !== 'list') return;
+    // use non-initial load so only the table shows a loading overlay
+    fetchStudents(false);
+    // update course counts as filters change
+    fetchCourseCounts();
   }, [tab, currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
   // Check email service status and fetch courses on component mount
