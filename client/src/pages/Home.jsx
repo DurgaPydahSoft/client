@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, useAnimation } from 'framer-motion';
+import Silk from './Silk';
 import { useInView } from 'react-intersection-observer';
 import { useAuth } from '../context/AuthContext';
 import { useGlobalSettings } from '../context/GlobalSettingsContext';
@@ -351,35 +352,20 @@ const Home = () => {
   return (
     <div className="w-full overflow-hidden">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-deepsea-900 via-deepsea-800 to-primary-700 text-white pb-24 pt-20 px-4">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute w-full h-full bg-[url('/images/pattern-grid.svg')] opacity-5"></div>
-          {[...Array(10)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full bg-white bg-opacity-10"
-              initial={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 10 + 5}px`,
-                height: `${Math.random() * 10 + 5}px`,
-                opacity: 0
-              }}
-              animate={{
-                opacity: [0, 0.3, 0],
-                y: [`${Math.random() * 100 - 50}px`, `${Math.random() * 100 - 50}px`]
-              }}
-              transition={{
-                duration: Math.random() * 10 + 10,
-                repeat: Infinity,
-                repeatType: "reverse",
-                ease: "linear"
-              }}
-            />
-          ))}
-        </div>
+      <section className="relative min-h-screen flex items-center justify-center text-white pb-24 pt-20 px-4">
+  {/* Silk Background for hero only */}
+  <div className="absolute inset-0 -z-10">
+    <Silk
+      speed={8}
+      scale={1}
+      color="#7B7481"
+      noiseIntensity={1.5}
+      rotation={0}
+    />
+    <div className="absolute inset-0 bg-deepsea-900/80"></div>
+  </div>
 
+       
         <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center z-10 relative px-4">
           <div className="text-left">
             <motion.div
@@ -511,6 +497,7 @@ const Home = () => {
 
       {/* Features Section */}
       <section className="w-full bg-gradient-to-b from-blue-50 via-cyan-50 to-white py-32 px-4">
+        
         <div className="max-w-6xl mx-auto">
           <motion.div
             ref={ref}
