@@ -527,17 +527,17 @@ const StaffGuestsManagement = () => {
 
         doc.setFont('helvetica', 'normal'); // Set to normal for list items
         doc.setFontSize(7);
-        doc.text(`• Daily Rate: ₹${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
-        doc.text(`• Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
-        doc.text(`• Base Amount: ₹${totalCharges}`, chargesSummaryX, emergencyY + 15);
+        doc.text(`Daily Rate: Rs.${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
+        doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
+        doc.text(`Base Amount: Rs.${totalCharges}`, chargesSummaryX, emergencyY + 15);
 
         if (actualCharges !== totalCharges) {
-          doc.text(`• Adjustment: ₹${totalCharges - actualCharges}`, chargesSummaryX, emergencyY + 20);
+          doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, emergencyY + 20);
           doc.setFont('helvetica', 'bold');
-          doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 25);
+          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, emergencyY + 25);
         } else {
           doc.setFont('helvetica', 'bold');
-          doc.text(`• Total Payable: ₹${actualCharges}`, chargesSummaryX, emergencyY + 20);
+          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, emergencyY + 20);
         }
 
         // Reset to normal font for subsequent text
