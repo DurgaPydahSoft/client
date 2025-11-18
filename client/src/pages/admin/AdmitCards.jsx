@@ -1099,14 +1099,22 @@ const AdmitCards = () => {
                               <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                               <span className="text-xs sm:text-sm">Preview</span>
                             </button>
-                            <button
-                              onClick={() => handleGenerateAdmitCard(student)}
-                              disabled={!student.studentPhoto || generating || isDisabled}
-                              className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
-                            >
-                              <DocumentArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                              <span className="text-xs sm:text-sm">Generate</span>
-                            </button>
+                            <div className="relative group">
+                              <button
+                                onClick={() => handleGenerateAdmitCard(student)}
+                                disabled={!student.studentPhoto || generating || isDisabled || (student.concession > 0 && !student.concessionApproved)}
+                                className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
+                              >
+                                <DocumentArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                <span className="text-xs sm:text-sm">Generate</span>
+                              </button>
+                              {student.concession > 0 && !student.concessionApproved && (
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                  Concession pending approval. Please approve in Concession Approvals tab.
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1324,10 +1332,15 @@ const AdmitCards = () => {
                 {previewModal.student && (
                   <button
                     onClick={async () => {
+                      if (previewModal.student.concession > 0 && !previewModal.student.concessionApproved) {
+                        toast.error('Cannot generate admit card. Concession is pending approval.');
+                        return;
+                      }
                       await generateAdmitCardPDF(previewModal.student);
                       setPreviewModal({ open: false, student: null, loading: false, feeStructure: null });
                     }}
-                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm sm:text-base"
+                    disabled={previewModal.student.concession > 0 && !previewModal.student.concessionApproved}
+                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                   >
                     Generate PDF
                   </button>

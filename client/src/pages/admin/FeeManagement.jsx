@@ -44,7 +44,10 @@ const FeeManagement = () => {
     totalDue: 0,
     term1Due: 0,
     term2Due: 0,
-    term3Due: 0
+    term3Due: 0,
+    totalConcessionAmount: 0,
+    studentsWithConcession: 0,
+    totalCalculatedFeeAmount: 0
   });
   const [studentFilteredBalances, setStudentFilteredBalances] = useState({}); // Store date-filtered balances for each student
   
@@ -103,7 +106,6 @@ const FeeManagement = () => {
       'A': { totalFee: 0, exists: false },
       'B+': { totalFee: 0, exists: false },
       'B': { totalFee: 0, exists: false },
-      'C': { totalFee: 0, exists: false }
     }
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
@@ -113,6 +115,8 @@ const FeeManagement = () => {
     course: '',
     year: ''
   });
+  const [selectedYearsToApply, setSelectedYearsToApply] = useState([]); // Years selected to apply the same fee values
+  const [isEditMode, setIsEditMode] = useState(false); // Track if we're in edit mode
 
   // Payment Tracking State
   const [payments, setPayments] = useState([]);
@@ -189,14 +193,14 @@ const FeeManagement = () => {
   // Get available categories based on gender (dynamic room mapping)
   const getAvailableCategories = (gender = null) => {
     // Base categories available
-    const baseCategories = ['A+', 'A', 'B+', 'B', 'C'];
+    const baseCategories = ['A+', 'A', 'B+', 'B'];
 
     // If gender is specified, filter based on available room categories
     if (gender) {
       if (gender === 'Male') {
         return ['A+', 'A', 'B+', 'B']; // Male categories
       } else if (gender === 'Female') {
-        return ['A+', 'A', 'B', 'C']; // Female categories
+        return ['A+', 'A', 'B']; // Female categories
       }
     }
 
@@ -326,7 +330,7 @@ const FeeManagement = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [currentPage, filters]);
+  }, [currentPage, filters.search, filters.academicYear, filters.category, filters.gender, filters.course]);
 
   // Fetch courses on component mount
   useEffect(() => {
@@ -338,20 +342,20 @@ const FeeManagement = () => {
     if (feeStructureForm.course) {
       fetchCourseYears(feeStructureForm.course);
       // Only reset year and category when course changes if we're not editing an existing structure
-      if (!selectedFeeStructure) {
+      if (!selectedFeeStructure && !isEditMode) {
         setFeeStructureForm(prev => ({ ...prev, year: '', category: '' }));
       }
     } else {
       setCourseYears([]);
     }
-  }, [feeStructureForm.course, selectedFeeStructure]);
+  }, [feeStructureForm.course, selectedFeeStructure, isEditMode]);
 
-  // Reset category when year changes
+  // Reset category when year changes (but not when editing)
   useEffect(() => {
-    if (feeStructureForm.year && !selectedFeeStructure) {
+    if (feeStructureForm.year && !selectedFeeStructure && !isEditMode) {
       setFeeStructureForm(prev => ({ ...prev, category: '' }));
     }
-  }, [feeStructureForm.year, selectedFeeStructure]);
+  }, [feeStructureForm.year, selectedFeeStructure, isEditMode]);
 
   // Fetch course years when course filter changes
   useEffect(() => {
@@ -374,12 +378,22 @@ const FeeManagement = () => {
     }
   }, [students, feeStructures]);
 
+  // Debounce search filter for stats to avoid excessive API calls
+  const [debouncedSearchForStats, setDebouncedSearchForStats] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchForStats(filters.search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
   // Fetch all students for accurate statistics when filters change
   useEffect(() => {
     if (activeTab === 'dues') {
       fetchAllStudentsForStats();
     }
-  }, [filters.academicYear, filters.category, filters.gender, activeTab]);
+  }, [filters.academicYear, filters.category, filters.gender, filters.course, debouncedSearchForStats, activeTab]);
 
   const fetchStats = async () => {
     try {
@@ -401,11 +415,11 @@ const FeeManagement = () => {
         limit: 20
       });
 
-      if (filters.search) params.append('search', filters.search);
-      if (filters.academicYear) params.append('academicYear', filters.academicYear);
-      if (filters.category) params.append('category', filters.category);
-      if (filters.gender) params.append('gender', filters.gender);
-      if (filters.course) params.append('course', filters.course);
+      if (filters.search && filters.search.trim()) params.append('search', filters.search.trim());
+      if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
+      if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
+      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
+      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
 
       console.log('🔍 Frontend: Fetching students with params:', params.toString());
       console.log('🔍 Frontend: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
@@ -493,10 +507,12 @@ const FeeManagement = () => {
         limit: 1000 // Fetch a large number to get all students
       });
 
-      if (filters.academicYear) params.append('academicYear', filters.academicYear);
-      if (filters.category) params.append('category', filters.category);
-      if (filters.gender) params.append('gender', filters.gender);
-      if (filters.course) params.append('course', filters.course);
+      // Apply all filters including search to match the displayed data
+      if (debouncedSearchForStats && debouncedSearchForStats.trim()) params.append('search', debouncedSearchForStats.trim());
+      if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
+      if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
+      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
+      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
 
       const response = await api.get(`/api/admin/students?${params}`);
 
@@ -524,13 +540,22 @@ const FeeManagement = () => {
         let totalConcessionAmount = 0;
         let studentsWithConcession = 0;
 
+        // First, calculate concession stats for ALL students (not just those with fee structures)
+        for (const student of allStudentsData) {
+          const concession = Number(student.concession) || 0;
+          if (concession > 0) {
+            totalConcessionAmount += concession;
+            studentsWithConcession++;
+          }
+        }
+
         // Calculate dues
         let totalDue = 0;
         let term1Due = 0;
         let term2Due = 0;
         let term3Due = 0;
 
-        // Process students with date-based filtering
+        // Process students with date-based filtering for dues calculation
         const currentDate = new Date();
         const filteredBalances = {};
         
@@ -539,15 +564,9 @@ const FeeManagement = () => {
           if (feeStructure) {
             const originalFee = feeStructure.totalFee;
             const calculatedFee = student.totalCalculatedFee || originalFee;
-            const concession = student.concession || 0;
 
             totalFeeAmount += originalFee;
             totalCalculatedFeeAmount += calculatedFee;
-            totalConcessionAmount += concession;
-
-            if (concession > 0) {
-              studentsWithConcession++;
-            }
 
             // Fetch student's payments directly from API (like the balance modal does)
             console.log('🔍 Processing student:', student.name, 'ID:', student._id);
@@ -769,33 +788,56 @@ const FeeManagement = () => {
       // Calculate term fees on frontend for validation
       const termFees = calculateTermFees(feeStructureForm.totalFee);
 
-      // Send complete fee data to backend
-      const feeData = {
-        academicYear: feeStructureForm.academicYear,
-        course: feeStructureForm.course,
-        year: parseInt(feeStructureForm.year),
-        category: feeStructureForm.category,
-        totalFee: feeStructureForm.totalFee,
-        term1Fee: termFees.term1Fee,
-        term2Fee: termFees.term2Fee,
-        term3Fee: termFees.term3Fee
-      };
+      // Get the course to know its duration
+      const course = courses.find(c => c._id === feeStructureForm.course);
+      if (!course) {
+        toast.error('Course not found');
+        return;
+      }
 
-      console.log('🔍 Frontend: Sending fee data to backend:', feeData);
-      console.log('🔍 Frontend: Term fees calculated:', termFees);
+      // Determine which years to save (current year + selected years)
+      const currentYear = parseInt(feeStructureForm.year);
+      const yearsToSave = [currentYear, ...selectedYearsToApply].filter((year, index, self) => self.indexOf(year) === index); // Remove duplicates
 
-      // Use the same endpoint for both creating and updating
-      console.log('🔍 Frontend: Creating/updating fee structure');
-      const response = await api.post('/api/fee-structures', feeData);
+      console.log('🔍 Frontend: Years to save:', yearsToSave);
 
-      console.log('🔍 Frontend: Response from backend:', response.data);
+      // Save fee structure for each selected year
+      const savePromises = yearsToSave.map(async (year) => {
+        const feeData = {
+          academicYear: feeStructureForm.academicYear,
+          course: feeStructureForm.course,
+          year: year,
+          category: feeStructureForm.category,
+          totalFee: feeStructureForm.totalFee,
+          term1Fee: termFees.term1Fee,
+          term2Fee: termFees.term2Fee,
+          term3Fee: termFees.term3Fee
+        };
 
-      if (response.data.success) {
-        const courseName = courses.find(c => c._id === feeData.course)?.name || 'Unknown Course';
+        console.log(`🔍 Frontend: Saving fee structure for Year ${year}:`, feeData);
+        return api.post('/api/fee-structures', feeData);
+      });
+
+      // Wait for all saves to complete
+      const responses = await Promise.allSettled(savePromises);
+      
+      // Check results
+      const successful = responses.filter(r => r.status === 'fulfilled' && r.value.data.success).length;
+      const failed = responses.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.data.success)).length;
+
+      if (successful > 0) {
+        const courseName = course.name || 'Unknown Course';
         const action = selectedFeeStructure ? 'updated' : 'saved';
-        toast.success(`Fee structure for ${courseName} Year ${feeData.year} ${feeData.category} category (${feeData.academicYear}) ${action} successfully!`);
+        if (yearsToSave.length === 1) {
+          toast.success(`Fee structure for ${courseName} Year ${currentYear} ${feeStructureForm.category} category (${feeStructureForm.academicYear}) ${action} successfully!`);
+        } else {
+          toast.success(`Fee structure ${action} successfully for ${successful} year(s)!${failed > 0 ? ` ${failed} failed.` : ''}`);
+        }
+        
         setShowFeeStructureModal(false);
         setSelectedFeeStructure(null);
+        setIsEditMode(false);
+        setSelectedYearsToApply([]);
         setFeeStructureForm({
           academicYear: '',
           course: '',
@@ -815,12 +857,14 @@ const FeeManagement = () => {
           fetchStats();
         }, 500);
       } else {
-        console.error('🔍 Frontend: Backend returned error:', response.data);
-        setError(response.data.message || 'Failed to save fee structure');
+        console.error('🔍 Frontend: All saves failed');
+        setError('Failed to save fee structure(s)');
+        toast.error('Failed to save fee structure(s). Please try again.');
       }
     } catch (err) {
       console.error('Error saving fee structure:', err);
       setError(err.response?.data?.message || 'Failed to save fee structure');
+      toast.error(err.response?.data?.message || 'Failed to save fee structure');
     } finally {
       setFeeStructureLoading(false);
     }
@@ -861,6 +905,7 @@ const FeeManagement = () => {
         
         setShowFeeStructureModal(false);
         setSelectedFeeStructure(null);
+        setIsEditMode(false);
         
         // Reset forms
         setFeeStructureForm({
@@ -879,7 +924,6 @@ const FeeManagement = () => {
             'A': { totalFee: 0, exists: false },
             'B+': { totalFee: 0, exists: false },
             'B': { totalFee: 0, exists: false },
-            'C': { totalFee: 0, exists: false }
           }
         });
 
@@ -976,19 +1020,44 @@ const FeeManagement = () => {
     if (structure) {
       console.log('🔍 Opening edit modal for structure:', structure);
       setSelectedFeeStructure(structure);
+      setIsEditMode(false); // Not in edit mode yet, showing details view
+      
+      // Extract course ID properly - handle both populated and non-populated references
+      const courseId = structure.course?._id || structure.course || '';
+      // Convert year to string to match dropdown format
+      const yearValue = structure.year ? String(structure.year) : '';
       
       const formData = {
-        academicYear: structure.academicYear,
-        course: structure.course?._id || structure.course,
-        year: structure.year,
-        category: structure.category,
+        academicYear: structure.academicYear || '',
+        course: String(courseId || ''),
+        year: yearValue,
+        category: structure.category || '',
         totalFee: (structure.totalFee || 0) || ((structure.term1Fee || 0) + (structure.term2Fee || 0) + (structure.term3Fee || 0))
       };
       
       console.log('🔍 Setting form data:', formData);
+      console.log('🔍 Course ID extracted:', courseId, 'Type:', typeof courseId);
+      console.log('🔍 Year value:', yearValue, 'Type:', typeof yearValue);
       setFeeStructureForm(formData);
+      
+      // Reset bulk form to ensure single edit mode is shown
+      setBulkFeeForm({
+        academicYear: '',
+        course: '',
+        year: '',
+        categories: {
+          'A+': { totalFee: 0, exists: false },
+          'A': { totalFee: 0, exists: false },
+          'B+': { totalFee: 0, exists: false },
+          'B': { totalFee: 0, exists: false },
+        }
+      });
+      
+      // Reset selected years when opening edit modal
+      setSelectedYearsToApply([]);
     } else {
       setSelectedFeeStructure(null);
+      setIsEditMode(false); // Not in edit mode, adding new
       setFeeStructureForm({
         academicYear: feeStructureFilter.academicYear || '2024-2025',
         course: '',
@@ -1007,9 +1076,11 @@ const FeeManagement = () => {
           'A': { totalFee: 0, exists: false },
           'B+': { totalFee: 0, exists: false },
           'B': { totalFee: 0, exists: false },
-          'C': { totalFee: 0, exists: false }
         }
       });
+      
+      // Reset selected years
+      setSelectedYearsToApply([]);
     }
 
     setShowFeeStructureModal(true);
@@ -2319,6 +2390,52 @@ const FeeManagement = () => {
             </div>
           </div>
 
+          {/* Concession Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <ReceiptRefundIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Total Concession</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{(stats.totalConcessionAmount || 0).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Total concession amount</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Students with Concession</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">{stats.studentsWithConcession || 0}</p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Students having concession</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+              <div className="flex items-center">
+                <div className="p-2 bg-teal-100 rounded-lg">
+                  <ChartBarIcon className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" />
+                </div>
+                <div className="ml-2 sm:ml-3">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">Avg Concession</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">
+                    ₹{stats.studentsWithConcession > 0 
+                      ? Math.round((stats.totalConcessionAmount || 0) / stats.studentsWithConcession).toLocaleString() 
+                      : '0'}
+                  </p>
+                  <p className="text-xs text-gray-500 hidden sm:block">Per student average</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Filters */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 mb-4 sm:mb-6">
             {/* Search Bar */}
@@ -2369,7 +2486,6 @@ const FeeManagement = () => {
                 <option value="A">A</option>
                 <option value="B+">B+</option>
                 <option value="B">B</option>
-                <option value="C">C</option>
               </select>
 
               <select
@@ -3068,7 +3184,7 @@ const FeeManagement = () => {
                   return acc;
                 }, {});
 
-                const categories = ['A+', 'A', 'B+', 'B', 'C'];
+                const categories = ['A+', 'A', 'B+', 'B'];
 
                 return (
                   <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -3779,10 +3895,13 @@ const FeeManagement = () => {
           <div className={`bg-white rounded-lg p-6 w-full ${selectedFeeStructure ? 'max-w-4xl max-h-[90vh] overflow-y-auto' : 'max-w-4xl max-h-[90vh] overflow-y-auto'}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium text-gray-900">
-                {selectedFeeStructure ? 'Fee Structure Details' : 'Add Fee Structure'}
+                {selectedFeeStructure ? 'Fee Structure Details' : (isEditMode ? 'Edit Fee Structure' : 'Add Fee Structure')}
               </h3>
               <button
-                onClick={() => setShowFeeStructureModal(false)}
+                onClick={() => {
+                  setShowFeeStructureModal(false);
+                  setIsEditMode(false);
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600"
                 aria-label="Close modal"
               >
@@ -3864,14 +3983,53 @@ const FeeManagement = () => {
                   <button
                     onClick={() => {
                       // Switch to edit mode
-                      setFeeStructureForm({
+                      // Extract course ID properly - handle both populated and non-populated references
+                      const courseId = selectedFeeStructure.course?._id || selectedFeeStructure.course || '';
+                      // Convert year to string to match dropdown format
+                      const yearValue = selectedFeeStructure.year ? String(selectedFeeStructure.year) : '';
+                      const totalFeeValue = selectedFeeStructure.totalFee || 0;
+                      
+                      // Verify course exists in courses array
+                      const courseExists = courses.find(c => c._id === courseId || String(c._id) === String(courseId));
+                      if (!courseExists && courseId) {
+                        console.warn('⚠️ Course not found in courses array:', courseId);
+                      }
+                      
+                      console.log('🔍 Setting edit form:', {
                         academicYear: selectedFeeStructure.academicYear,
-                        course: selectedFeeStructure.course?._id || selectedFeeStructure.course,
-                        year: selectedFeeStructure.year.toString(),
+                        course: courseId,
+                        year: yearValue,
                         category: selectedFeeStructure.category,
-                        totalFee: selectedFeeStructure.totalFee
+                        totalFee: totalFeeValue,
+                        courseExists: !!courseExists
                       });
-                      setSelectedFeeStructure(null); // Switch to add mode
+                      
+                      setFeeStructureForm({
+                        academicYear: selectedFeeStructure.academicYear || '',
+                        course: String(courseId || ''),
+                        year: yearValue,
+                        category: selectedFeeStructure.category || '',
+                        totalFee: totalFeeValue
+                      });
+                      // Reset bulk form to ensure single edit mode is detected
+                      setBulkFeeForm({
+                        academicYear: '',
+                        course: '',
+                        year: '',
+                        categories: {
+                          'A+': { totalFee: 0, exists: false },
+                          'A': { totalFee: 0, exists: false },
+                          'B+': { totalFee: 0, exists: false },
+                          'B': { totalFee: 0, exists: false },
+                        }
+                      });
+                      // Reset selected years when switching to edit mode
+                      setSelectedYearsToApply([]);
+                      // Set edit mode flag
+                      setIsEditMode(true);
+                      // Set selectedFeeStructure to null to switch to form view
+                      // The category dropdown will use isEditMode to show all categories
+                      setSelectedFeeStructure(null);
                     }}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
                   >
@@ -3886,29 +4044,216 @@ const FeeManagement = () => {
                 </div>
               </div>
             ) : (
-              // Add Fee Structure Mode - Bulk Creation
+              // Add/Edit Fee Structure Mode
               <form onSubmit={handleFeeStructureSubmit}>
                 <div className="space-y-4">
-                  {/* First row - Academic Year, Course, Year of Study */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Academic Year
-                      </label>
-                      <select
-                        value={bulkFeeForm.academicYear}
-                        onChange={(e) => {
-                          setBulkFeeForm(prev => ({ ...prev, academicYear: e.target.value }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Academic Year</option>
-                        {generateAcademicYears().map(year => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                    </div>
+                  {/* Check if we're in single edit mode (isEditMode is true OR feeStructureForm has values) or bulk mode (bulkFeeForm has course and year) */}
+                  {(isEditMode || (feeStructureForm.course && feeStructureForm.year && String(feeStructureForm.year).trim() !== '')) && (!bulkFeeForm.course || bulkFeeForm.course === '') ? (
+                    // Single Fee Structure Edit Mode
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Academic Year
+                          </label>
+                          <select
+                            value={feeStructureForm.academicYear}
+                            onChange={(e) => {
+                              setFeeStructureForm(prev => ({ ...prev, academicYear: e.target.value }));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select Academic Year</option>
+                            {generateAcademicYears().map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Course
+                          </label>
+                          <select
+                            value={String(feeStructureForm.course || '')}
+                            onChange={(e) => {
+                              setFeeStructureForm(prev => ({ ...prev, course: e.target.value, year: '' }));
+                              setSelectedYearsToApply([]);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select Course</option>
+                            {courses.map(course => (
+                              <option key={course._id} value={String(course._id)}>{course.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Year of Study
+                          </label>
+                          <select
+                            value={feeStructureForm.year}
+                            onChange={(e) => {
+                              setFeeStructureForm(prev => ({ ...prev, year: e.target.value }));
+                              setSelectedYearsToApply([]);
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                            disabled={!feeStructureForm.course}
+                          >
+                            <option value="">
+                              {!feeStructureForm.course 
+                                ? 'Select Course first'
+                                : 'Select Year'
+                              }
+                            </option>
+                            {(() => {
+                              // Normalize course ID comparison (handle both ObjectId and string)
+                              const selectedCourse = courses.find(c => 
+                                String(c._id) === String(feeStructureForm.course) || 
+                                c._id === feeStructureForm.course
+                              );
+                              return selectedCourse && Array.from({ length: selectedCourse.duration }, (_, i) => i + 1).map(year => (
+                                <option key={year} value={String(year)}>Year {year}</option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Category
+                          </label>
+                          <select
+                            value={feeStructureForm.category}
+                            onChange={(e) => {
+                              setFeeStructureForm(prev => ({ ...prev, category: e.target.value }));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select Category</option>
+                            {(() => {
+                              // When editing, show all categories (including current one)
+                              // When creating new, filter out existing categories
+                              const categories = isEditMode || selectedFeeStructure 
+                                ? getAvailableCategories() 
+                                : getAvailableCategoriesForCreation();
+                              return categories.map(category => (
+                                <option key={category} value={category}>{category}</option>
+                              ));
+                            })()}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Total Fee (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={feeStructureForm.totalFee || ''}
+                            onChange={(e) => {
+                              setFeeStructureForm(prev => ({ ...prev, totalFee: parseFloat(e.target.value) || 0 }));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter total fee"
+                            min="0"
+                            required
+                          />
+                          {feeStructureForm.totalFee > 0 && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              <div className="flex justify-between">
+                                <span>T1: ₹{Math.round(feeStructureForm.totalFee * 0.4).toLocaleString()}</span>
+                                <span>T2: ₹{Math.round(feeStructureForm.totalFee * 0.3).toLocaleString()}</span>
+                              </div>
+                              <div className="text-center mt-1">
+                                T3: ₹{Math.round(feeStructureForm.totalFee * 0.3).toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Apply to Other Years Section - Only show when editing and course/year are selected */}
+                      {(() => {
+                        // Normalize course ID comparison
+                        const selectedCourse = courses.find(c => 
+                          String(c._id) === String(feeStructureForm.course) || 
+                          c._id === feeStructureForm.course
+                        );
+                        return feeStructureForm.course && feeStructureForm.year && selectedCourse && (
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
+                            <AcademicCapIcon className="w-4 h-4 text-blue-600 mr-2" />
+                            Apply Same Values to Other Years
+                          </h4>
+                          <p className="text-xs text-gray-600 mb-3">
+                            Select additional years to apply the same fee structure values. The current year (Year {feeStructureForm.year}) will always be saved.
+                          </p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {Array.from({ length: selectedCourse.duration }, (_, i) => i + 1)
+                              .filter(year => {
+                                const currentYear = parseInt(feeStructureForm.year) || 0;
+                                return year !== currentYear;
+                              })
+                              .map(year => (
+                                <label key={year} className="flex items-center space-x-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedYearsToApply.includes(year)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedYearsToApply(prev => [...prev, year]);
+                                      } else {
+                                        setSelectedYearsToApply(prev => prev.filter(y => y !== year));
+                                      }
+                                    }}
+                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                  />
+                                  <span className="text-sm text-gray-700">Year {year}</span>
+                                </label>
+                              ))
+                            }
+                          </div>
+                          {selectedYearsToApply.length > 0 && (
+                            <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
+                              Will apply to: Year {feeStructureForm.year} (current) {selectedYearsToApply.length > 0 && `+ ${selectedYearsToApply.length} other year(s)`}
+                            </div>
+                          )}
+                        </div>
+                      );
+                      })()}
+                    </>
+                  ) : (
+                    // Bulk Creation Mode
+                    <>
+                      {/* First row - Academic Year, Course, Year of Study */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Academic Year
+                          </label>
+                          <select
+                            value={bulkFeeForm.academicYear}
+                            onChange={(e) => {
+                              setBulkFeeForm(prev => ({ ...prev, academicYear: e.target.value }));
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Select Academic Year</option>
+                            {generateAcademicYears().map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                        </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -4026,12 +4371,17 @@ const FeeManagement = () => {
                       <p>Please select Course and Year to set fees for all categories</p>
                     </div>
                   )}
+                    </>
+                  )}
                 </div>
 
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
                     type="button"
-                    onClick={() => setShowFeeStructureModal(false)}
+                    onClick={() => {
+                      setShowFeeStructureModal(false);
+                      setIsEditMode(false);
+                    }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
                     Cancel
