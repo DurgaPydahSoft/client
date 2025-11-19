@@ -111,7 +111,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
-      <div className="flex flex-col md:flex-row w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
         {/* Left Side - Always visible, stacks on mobile */}
         <div className="w-full md:w-1/2 bg-blue-600 p-8 flex flex-col justify-center text-white space-y-6">
@@ -160,7 +160,9 @@ const Login = () => {
               transition={{ duration: 0.5 }}
             >
               <div className="text-center mb-6 hidden lg:block">
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Student Login</h1>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  {role === 'admin' ? 'Admin Login' : 'Student Login'}
+                </h1>
                 <p className="text-gray-500 text-sm">Sign in to your account to continue</p>
               </div>
 
