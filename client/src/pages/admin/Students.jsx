@@ -2204,7 +2204,7 @@ const Students = () => {
   };
 
   const renderAddStudentForm = () => (
-    <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
+    <div className="smx-auto bg-white rounded-xl shadow-md p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-6 text-blue-800">Add New Student</h2>
       <form onSubmit={handleAddStudent} className="space-y-8">
 

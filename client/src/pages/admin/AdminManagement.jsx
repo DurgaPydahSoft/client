@@ -753,7 +753,7 @@ const AdminManagement = () => {
   const isPrincipalTab = activeTab === 'principals';
 
   return (
-    <div className="max-w-7xl mx-auto mt-12 px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+    <div className="mx-auto mt-12 px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
       <SEO title="Admin Management" />
 
       {/* Header */}

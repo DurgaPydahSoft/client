@@ -505,7 +505,7 @@ const SecurityDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-t">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-6">
+      <div className="mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 lg:py-6">
         <SEO 
           title="Security Dashboard"
           description="Security guard dashboard for leave and permission verification"

@@ -730,7 +730,7 @@ const MenuManagement = () => {
 
 
   return (
-    <div className="max-w-7xl mx-auto p-4 space-y-6  mt-8">
+    <div className="mx-auto p-4 space-y-6  mt-8">
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
