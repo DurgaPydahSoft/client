@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, NavLink, Outlet, Routes, Route, Link, useLocation } from 'react-router-dom';
 import api from '../../utils/axios';
@@ -95,241 +95,15 @@ const AdminDashboard = () => {
   const isIOSChrome = useMemo(() => /CriOS/.test(navigator.userAgent), []);
 
   // Define these variables before useEffect hooks that use them
-  const isSuperAdmin = user?.role === 'super_admin';
-  const checkPermission = (permission) => {
-    console.log('🔐 Permission check:', {
-      permission,
-      userRole: user?.role,
-      userPermissions: user?.permissions,
-      isSuperAdmin,
-      hasPermission: isSuperAdmin || hasPermission(user, permission)
-    });
+  const isSuperAdmin = useMemo(() => user?.role === 'super_admin', [user?.role]);
+  
+  // Memoize permission check function
+  const checkPermission = useCallback((permission) => {
     return isSuperAdmin || hasPermission(user, permission);
-  };
+  }, [isSuperAdmin, user]);
 
-  // Helper function to get first available section for sub-admins
-  const getFirstAvailableSection = () => {
-    console.log('🔍 getFirstAvailableSection called');
-    console.log('🔍 All menu items:', menuItems);
-
-    const availableSections = menuItems.filter(item => {
-      const isAvailable = item.show && !item.locked && item.path !== '/admin/dashboard';
-      console.log(`🔍 Menu item "${item.name}": show=${item.show}, locked=${item.locked}, path=${item.path}, isAvailable=${isAvailable}`);
-      return isAvailable;
-    });
-
-    console.log('🔍 Available sections:', availableSections);
-    const firstSection = availableSections.length > 0 ? availableSections[0] : null;
-    console.log('🔍 First available section:', firstSection);
-
-    return firstSection;
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
-  const toggleSubmenu = (menuName) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [menuName]: !prev[menuName]
-    }));
-  };
-
-  // Close sidebar when route changes and auto-expand submenus
-  useEffect(() => {
-    setIsSidebarOpen(false);
-
-    // Auto-expand Rooms submenu if on rooms-related pages
-    if (pathname.startsWith('/admin/dashboard/rooms')) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Rooms': true
-      }));
-    }
-
-    // Auto-expand Students submenu if on students-related pages
-    if (pathname.startsWith('/admin/dashboard/students')) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Students': true
-      }));
-    }
-
-    // Auto-expand Maintenance Ticket Management submenu if on complaints or members pages
-    if (pathname.startsWith('/admin/dashboard/complaints') || pathname.startsWith('/admin/dashboard/members')) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Maintenance Ticket Management': true
-      }));
-    }
-
-    // Auto-expand Cafeteria submenu if on cafeteria-related pages
-    if (pathname.startsWith('/admin/dashboard/cafeteria')) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Cafeteria ': true
-      }));
-    }
-
-    // Auto-expand Security submenu if on security-related pages
-    if (pathname.startsWith('/admin/dashboard/security')) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Security': true
-      }));
-    }
-  }, [pathname]);
-
-  // Auto-expand Cafeteria submenu for users with menu management permission
-  useEffect(() => {
-    if (hasPermission(user, 'menu_management') && !isSuperAdmin) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Cafeteria ': true
-      }));
-    }
-  }, [user?.permissions, isSuperAdmin]);
-
-  // Auto-expand Security submenu for users with security management permission
-  useEffect(() => {
-    if (hasPermission(user, 'security_management') && !isSuperAdmin) {
-      setExpandedMenus(prev => ({
-        ...prev,
-        'Security': true
-      }));
-    }
-  }, [user?.permissions, isSuperAdmin]);
-
-  // Auto-redirect sub-admins without dashboard_home permission to their first available section
-  // 
-  // IMPORTANT: This logic prioritizes dashboard_home permission over other permissions.
-  // Users with dashboard_home permission will stay on the dashboard home page,
-  // regardless of whether they have menu_management, security_management, or other permissions.
-  // 
-  // Only users WITHOUT dashboard_home permission will be redirected to their first available section.
-  useEffect(() => {
-    if (!isSuperAdmin && pathname === '/admin/dashboard') {
-      console.log('🔄 Processing auto-redirect logic for sub-admin on dashboard home');
-
-      // PRIORITY 1: If user has dashboard_home permission, stay on dashboard home
-      // This prevents redirects for users who should see the dashboard home page
-      if (hasPermission(user, 'dashboard_home')) {
-        console.log('🔄 User has dashboard_home permission - staying on dashboard home');
-        return;
-      }
-
-      // PRIORITY 2: If no dashboard_home permission, redirect to first available section
-      // This only happens for users who don't have access to dashboard home
-      console.log('🔄 User lacks dashboard_home permission - redirecting to first available section');
-      const firstSection = getFirstAvailableSection();
-
-      if (firstSection) {
-        console.log('🔄 Auto-redirecting to first available section:', firstSection.path);
-        navigate(firstSection.path, { replace: true });
-      } else {
-        console.log('🔄 No available sections found for redirect');
-      }
-    } else {
-      console.log('🔄 Auto-redirect conditions not met - skipping');
-    }
-  }, [pathname, isSuperAdmin, user?.permissions, navigate]);
-
-  useEffect(() => {
-    const fetchNotificationCount = async () => {
-      try {
-        console.log('🔔 Fetching admin notification count...');
-
-        // Safari-specific timeout handling
-        const timeoutDuration = isSafari ? 45000 : 30000;
-
-        const [countRes, unreadRes] = await Promise.allSettled([
-          Promise.race([
-            api.get('/api/notifications/admin/count'),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
-            )
-          ]),
-          Promise.race([
-            api.get('/api/notifications/admin/unread'),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
-            )
-          ])
-        ]);
-
-        if (countRes.status === 'fulfilled' && countRes.value.data.success) {
-          const newCount = countRes.value.data.count;
-          setNotificationCount(newCount);
-          console.log('🔔 Admin notification count:', newCount);
-        } else {
-          console.error('Failed to fetch notification count:', countRes.status === 'fulfilled' ? countRes.value.data : countRes.reason);
-        }
-
-        if (unreadRes.status === 'fulfilled' && unreadRes.value.data.success) {
-          const unreadNotifications = unreadRes.value.data.data;
-
-          // Check for specific notification types
-          const hasComplaints = unreadNotifications.some(n => n.type === 'complaint');
-          const hasAnnouncements = unreadNotifications.some(n => n.type === 'announcement');
-          const hasPolls = unreadNotifications.some(n => n.type === 'poll');
-
-          setNotificationStates({
-            complaint: hasComplaints,
-            announcement: hasAnnouncements,
-            poll: hasPolls
-          });
-
-          console.log('🔔 Notification states:', {
-            complaint: hasComplaints,
-            announcement: hasAnnouncements,
-            poll: hasPolls
-          });
-        } else {
-          console.error('Failed to fetch unread notifications:', unreadRes.status === 'fulfilled' ? unreadRes.value.data : unreadRes.reason);
-        }
-      } catch (err) {
-        console.error('🔔 Failed to fetch notification count:', err);
-
-        // Don't let notification errors cause logout - just set defaults
-        setNotificationCount(0);
-        setNotificationStates({
-          complaint: false,
-          announcement: false,
-          poll: false
-        });
-      }
-    };
-
-    fetchNotificationCount();
-
-    // Refresh count when new notification arrives
-    const refreshHandler = () => fetchNotificationCount();
-    window.addEventListener('refresh-notifications', refreshHandler);
-
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotificationCount, 30000);
-
-    return () => {
-      window.removeEventListener('refresh-notifications', refreshHandler);
-      clearInterval(interval);
-    };
-  }, [pathname]);
-
-  // Initialize scroll indicators
-  useEffect(() => {
-    const nav = document.querySelector('nav.overflow-y-auto');
-    const bottomFade = document.getElementById('bottom-fade');
-
-    if (nav && bottomFade) {
-      // Check if content is scrollable
-      const isScrollable = nav.scrollHeight > nav.clientHeight;
-      bottomFade.style.opacity = isScrollable ? '1' : '0';
-    }
-  }, []);
-
-  const menuItems = [
+  // Memoize menu items to avoid recalculating on every render
+  const menuItems = useMemo(() => [
     {
       name: 'Home',
       icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z',
@@ -451,18 +225,16 @@ const AdminDashboard = () => {
           name: 'Security Dashboard',
           path: '/admin/dashboard/security',
           icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
-          show: true // Always show for view access
+          show: true
         },
         {
           name: 'Security Settings',
           path: '/admin/dashboard/security/settings',
           icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
-          show: isSuperAdmin || hasFullAccess(user, 'security_management') // Only show for full access
+          show: isSuperAdmin || hasFullAccess(user, 'security_management')
         }
       ]
     },
-
-
     {
       name: 'Course Management',
       icon: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253',
@@ -515,7 +287,6 @@ const AdminDashboard = () => {
         }
       ]
     },
-
     {
       name: 'Student Controls',
       icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z',
@@ -530,7 +301,203 @@ const AdminDashboard = () => {
       show: true,
       locked: !isSuperAdmin
     }
-  ];
+  ], [isSuperAdmin, user]);
+
+  // Memoize filtered menu items
+  const filteredMenuItems = useMemo(() => {
+    return menuItems.filter(item => {
+      if (isSuperAdmin) return item.show;
+      return item.show && !item.locked;
+    });
+  }, [menuItems, isSuperAdmin]);
+
+  // Helper function to get first available section for sub-admins - memoized
+  const getFirstAvailableSection = useCallback(() => {
+    const availableSections = menuItems.filter(item => {
+      return item.show && !item.locked && item.path !== '/admin/dashboard';
+    });
+    return availableSections.length > 0 ? availableSections[0] : null;
+  }, [menuItems]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const toggleSubmenu = (menuName) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuName]: !prev[menuName]
+    }));
+  };
+
+  // Close sidebar when route changes and auto-expand submenus
+  useEffect(() => {
+    setIsSidebarOpen(false);
+
+    // Auto-expand Rooms submenu if on rooms-related pages
+    if (pathname.startsWith('/admin/dashboard/rooms')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Rooms': true
+      }));
+    }
+
+    // Auto-expand Students submenu if on students-related pages
+    if (pathname.startsWith('/admin/dashboard/students')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Students': true
+      }));
+    }
+
+    // Auto-expand Maintenance Ticket Management submenu if on complaints or members pages
+    if (pathname.startsWith('/admin/dashboard/complaints') || pathname.startsWith('/admin/dashboard/members')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Maintenance Ticket Management': true
+      }));
+    }
+
+    // Auto-expand Cafeteria submenu if on cafeteria-related pages
+    if (pathname.startsWith('/admin/dashboard/cafeteria')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Cafeteria ': true
+      }));
+    }
+
+    // Auto-expand Security submenu if on security-related pages
+    if (pathname.startsWith('/admin/dashboard/security')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Security': true
+      }));
+    }
+  }, [pathname]);
+
+  // Auto-expand Cafeteria submenu for users with menu management permission
+  useEffect(() => {
+    if (hasPermission(user, 'menu_management') && !isSuperAdmin) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Cafeteria ': true
+      }));
+    }
+  }, [user?.permissions, isSuperAdmin]);
+
+  // Auto-expand Security submenu for users with security management permission
+  useEffect(() => {
+    if (hasPermission(user, 'security_management') && !isSuperAdmin) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Security': true
+      }));
+    }
+  }, [user?.permissions, isSuperAdmin]);
+
+  // Auto-redirect sub-admins without dashboard_home permission to their first available section
+  // 
+  // IMPORTANT: This logic prioritizes dashboard_home permission over other permissions.
+  // Users with dashboard_home permission will stay on the dashboard home page,
+  // regardless of whether they have menu_management, security_management, or other permissions.
+  // 
+  // Only users WITHOUT dashboard_home permission will be redirected to their first available section.
+  useEffect(() => {
+    if (!isSuperAdmin && pathname === '/admin/dashboard') {
+      // PRIORITY 1: If user has dashboard_home permission, stay on dashboard home
+      // This prevents redirects for users who should see the dashboard home page
+      if (hasPermission(user, 'dashboard_home')) {
+        return;
+      }
+
+      // PRIORITY 2: If no dashboard_home permission, redirect to first available section
+      // This only happens for users who don't have access to dashboard home
+      const firstSection = getFirstAvailableSection();
+
+      if (firstSection) {
+        navigate(firstSection.path, { replace: true });
+      }
+    }
+  }, [pathname, isSuperAdmin, user?.permissions, navigate, getFirstAvailableSection]);
+
+  useEffect(() => {
+    const fetchNotificationCount = async () => {
+      try {
+        // Safari-specific timeout handling
+        const timeoutDuration = isSafari ? 45000 : 30000;
+
+        const [countRes, unreadRes] = await Promise.allSettled([
+          Promise.race([
+            api.get('/api/notifications/admin/count'),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+            )
+          ]),
+          Promise.race([
+            api.get('/api/notifications/admin/unread'),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
+            )
+          ])
+        ]);
+
+        if (countRes.status === 'fulfilled' && countRes.value.data.success) {
+          const newCount = countRes.value.data.count;
+          setNotificationCount(newCount);
+        }
+
+        if (unreadRes.status === 'fulfilled' && unreadRes.value.data.success) {
+          const unreadNotifications = unreadRes.value.data.data;
+
+          // Check for specific notification types
+          const hasComplaints = unreadNotifications.some(n => n.type === 'complaint');
+          const hasAnnouncements = unreadNotifications.some(n => n.type === 'announcement');
+          const hasPolls = unreadNotifications.some(n => n.type === 'poll');
+
+          setNotificationStates({
+            complaint: hasComplaints,
+            announcement: hasAnnouncements,
+            poll: hasPolls
+          });
+        }
+      } catch (err) {
+        // Don't let notification errors cause logout - just set defaults
+        setNotificationCount(0);
+        setNotificationStates({
+          complaint: false,
+          announcement: false,
+          poll: false
+        });
+      }
+    };
+
+    fetchNotificationCount();
+
+    // Refresh count when new notification arrives
+    const refreshHandler = () => fetchNotificationCount();
+    window.addEventListener('refresh-notifications', refreshHandler);
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotificationCount, 30000);
+
+    return () => {
+      window.removeEventListener('refresh-notifications', refreshHandler);
+      clearInterval(interval);
+    };
+  }, [pathname, isSafari]);
+
+  // Initialize scroll indicators
+  useEffect(() => {
+    const nav = document.querySelector('nav.overflow-y-auto');
+    const bottomFade = document.getElementById('bottom-fade');
+
+    if (nav && bottomFade) {
+      // Check if content is scrollable
+      const isScrollable = nav.scrollHeight > nav.clientHeight;
+      bottomFade.style.opacity = isScrollable ? '1' : '0';
+    }
+  }, []);
 
   return (
     <div className="h-screen flex bg-gradient-to-br from-blue-50 via-white to-blue-50">
@@ -617,13 +584,7 @@ const AdminDashboard = () => {
                 bottomFade.style.opacity = isAtBottom ? '0' : '1';
               }
             }}>
-            {menuItems.filter(item => {
-              // For super admin, show all items
-              if (isSuperAdmin) return item.show;
-
-              // For sub-admins, only show items they have access to (not locked)
-              return item.show && !item.locked;
-            }).map((item, index) => (
+            {filteredMenuItems.map((item, index) => (
               <motion.div
                 key={item.name}
                 initial={{ x: -20, opacity: 0 }}

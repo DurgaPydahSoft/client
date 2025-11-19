@@ -20,6 +20,14 @@ export const AuthProvider = ({ children }) => {
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [skipValidation, setSkipValidation] = useState(false);
   const socketRef = useSocket(token);
+  
+  // Token validation cache - stores last validation timestamp and result
+  const validationCacheRef = React.useRef({
+    timestamp: null,
+    user: null,
+    token: null
+  });
+  const VALIDATION_CACHE_TTL = 60 * 1000; // 60 seconds cache
 
   // iOS/Safari-specific initialization
   useEffect(() => {
@@ -34,7 +42,7 @@ export const AuthProvider = ({ children }) => {
       
       // Ensure localStorage is available and working
       try {
-        const testKey = '__ios_test__';
+        const testKey = '_ios_test_';
         localStorage.setItem(testKey, 'test');
         localStorage.removeItem(testKey);
         console.log('🦁 iOS localStorage is working');
@@ -128,6 +136,22 @@ export const AuthProvider = ({ children }) => {
       if (!token) {
         setLoading(false);
         setUser(null);
+        validationCacheRef.current = { timestamp: null, user: null, token: null };
+        return;
+      }
+
+      // Check cache first - if token matches and cache is still valid, use cached result
+      const cache = validationCacheRef.current;
+      const now = Date.now();
+      if (
+        cache.token === token &&
+        cache.timestamp &&
+        (now - cache.timestamp) < VALIDATION_CACHE_TTL &&
+        cache.user
+      ) {
+        // Use cached validation result
+        setUser(cache.user);
+        setLoading(false);
         return;
       }
 
@@ -138,22 +162,25 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        console.log('🔍 Starting token validation...');
         const userRole = safeLocalStorage.getItem('userRole');
         
         let res;
         if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal' || userRole === 'custom') {
-          console.log('🔍 Validating admin/warden/principal/custom token...');
           res = await api.get('/api/admin-management/validate');
         } else {
-          console.log('🔍 Validating student token...');
           res = await api.get('/api/auth/validate');
         }
         
         if (res.data.success && res.data.data?.user) {
           const freshUser = res.data.data.user;
-          console.log('🔍 Token validation successful:', freshUser);
           setUser(freshUser);
+          
+          // Update cache
+          validationCacheRef.current = {
+            timestamp: Date.now(),
+            user: freshUser,
+            token: token
+          };
           
           // Update local storage to match validated data using safe localStorage
           safeLocalStorage.setItem('user', JSON.stringify(freshUser));
@@ -165,6 +192,11 @@ export const AuthProvider = ({ children }) => {
         console.error('🔍 Token validation failed:', error.response?.data || error.message);
         
         // Enhanced iOS error logging for authentication
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        const isIOSSafari = isSafari && isIOS;
+        const isIOSChrome = /CriOS/.test(navigator.userAgent);
+        
         if (isIOS || isIOSSafari || isIOSChrome) {
           console.error('🦁 iOS Authentication Error:', {
             error: error.message,
@@ -179,6 +211,7 @@ export const AuthProvider = ({ children }) => {
         // Clear invalid token and user data using safe localStorage
         setToken(null);
         setUser(null);
+        validationCacheRef.current = { timestamp: null, user: null, token: null };
         safeLocalStorage.removeItem('token');
         safeLocalStorage.removeItem('user');
         safeLocalStorage.removeItem('userRole');
@@ -189,7 +222,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     validateToken();
-  }, [token]); // Removed skipValidation dependency
+  }, [token, skipValidation]); // Added skipValidation back for proper handling
 
   // Listen for real-time notifications
   useEffect(() => {
@@ -333,6 +366,9 @@ export const AuthProvider = ({ children }) => {
       }
     }
     
+    // Clear validation cache on logout
+    validationCacheRef.current = { timestamp: null, user: null, token: null };
+    
     safeLocalStorage.removeItem('token');
     safeLocalStorage.removeItem('user');
     safeLocalStorage.removeItem('userRole');
@@ -402,4 +438,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   );
-}; 
+};
