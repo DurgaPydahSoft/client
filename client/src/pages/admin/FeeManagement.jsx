@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalSettings } from '../../context/GlobalSettingsContext';
+import { useCoursesBranches } from '../../context/CoursesBranchesContext';
+import { useDebounce } from '../../hooks/useDebounce';
+import { useQuery } from '@tanstack/react-query';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import ReceiptGenerator from '../../components/ReceiptGenerator';
@@ -33,6 +36,7 @@ import autoTable from 'jspdf-autotable';
 const FeeManagement = () => {
   const { user } = useAuth();
   const { settings } = useGlobalSettings();
+  const { courses: coursesFromContext } = useCoursesBranches();
   const [students, setStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]); // Store all students for KPI calculations
   const [stats, setStats] = useState({
@@ -51,8 +55,8 @@ const FeeManagement = () => {
   });
   const [studentFilteredBalances, setStudentFilteredBalances] = useState({}); // Store date-filtered balances for each student
   
-  // Calculate real-time KPI stats for ALL students (not just current page)
-  const calculateRealTimeStats = () => {
+  // Memoize real-time KPI stats calculation
+  const calculateRealTimeStats = useMemo(() => {
     let totalDue = 0;
     let term1Due = 0;
     let term2Due = 0;
@@ -70,7 +74,7 @@ const FeeManagement = () => {
     });
     
     return { totalDue, term1Due, term2Due, term3Due };
-  };
+  }, [allStudents, payments, feeStructures, calculateStudentBalance]);
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -83,11 +87,21 @@ const FeeManagement = () => {
     gender: '',
     course: ''
   });
+  
+  // Debounce search to reduce API calls
+  const debouncedSearch = useDebounce(filters.search, 500);
 
   // Fee Structure Management
   const [feeStructures, setFeeStructures] = useState([]);
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState(coursesFromContext || []); // Use from context if available
   const [courseYears, setCourseYears] = useState([]);
+  
+  // Update courses when context updates
+  useEffect(() => {
+    if (coursesFromContext && coursesFromContext.length > 0) {
+      setCourses(coursesFromContext);
+    }
+  }, [coursesFromContext]);
   const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
   const [selectedFeeStructure, setSelectedFeeStructure] = useState(null);
   const [feeStructureForm, setFeeStructureForm] = useState({
@@ -161,7 +175,7 @@ const FeeManagement = () => {
     status: '',
     reminderType: ''
   });
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedReminderSearch, setDebouncedReminderSearch] = useState('');
   const [selectedReminders, setSelectedReminders] = useState([]);
   const [showReminderModal, setShowReminderModal] = useState(false);
   const [reminderModalType, setReminderModalType] = useState(''); // 'send', 'bulk'
@@ -330,12 +344,14 @@ const FeeManagement = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [currentPage, filters.search, filters.academicYear, filters.category, filters.gender, filters.course]);
+  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course]);
 
-  // Fetch courses on component mount
+  // Fetch courses on component mount (only if not in context)
   useEffect(() => {
-    fetchCourses();
-  }, []);
+    if (!coursesFromContext || coursesFromContext.length === 0) {
+      fetchCourses();
+    }
+  }, [fetchCourses, coursesFromContext]);
 
   // Fetch course years when course changes
   useEffect(() => {
@@ -366,10 +382,7 @@ const FeeManagement = () => {
     }
   }, [feeStructureFilter.course]);
 
-  // Fetch fee structures when filters change
-  useEffect(() => {
-    fetchFeeStructures();
-  }, [feeStructureFilter]);
+  // Fee structures are now fetched via React Query, no need for separate useEffect
 
   // Calculate stats whenever students or fee structures change
   useEffect(() => {
@@ -378,15 +391,8 @@ const FeeManagement = () => {
     }
   }, [students, feeStructures]);
 
-  // Debounce search filter for stats to avoid excessive API calls
-  const [debouncedSearchForStats, setDebouncedSearchForStats] = useState('');
-  
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearchForStats(filters.search);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [filters.search]);
+  // Use debounced search for stats (reuse the same debounced value)
+  const debouncedSearchForStats = debouncedSearch;
 
   // Fetch all students for accurate statistics when filters change
   useEffect(() => {
@@ -415,7 +421,7 @@ const FeeManagement = () => {
         limit: 20
       });
 
-      if (filters.search && filters.search.trim()) params.append('search', filters.search.trim());
+      if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
       if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
       if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
@@ -474,9 +480,8 @@ const FeeManagement = () => {
     }
   };
 
-  // Fetch all students for statistics (without pagination)
-  // Fetch all payments for all students to ensure accurate balance calculations
-  const fetchAllPaymentsForStats = async (allStudentsData) => {
+  // Fetch all payments for statistics - OPTIMIZED: Single API call instead of N+1
+  const fetchAllPaymentsForStats = useCallback(async () => {
     try {
       console.log('🔍 Frontend: Fetching all payments for statistics...');
       
@@ -497,9 +502,26 @@ const FeeManagement = () => {
       console.error('Error details:', error.response?.data);
     }
     return [];
-  };
+  }, []);
+  
+  // Use React Query to cache payments
+  const { data: cachedPayments, refetch: refetchPayments } = useQuery({
+    queryKey: ['all-payments', 'hostel_fee'],
+    queryFn: fetchAllPaymentsForStats,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    enabled: activeTab === 'dues', // Only fetch when dues tab is active
+  });
+  
+  // Update payments when cached data changes
+  useEffect(() => {
+    if (cachedPayments) {
+      setPayments(cachedPayments);
+    }
+  }, [cachedPayments]);
 
-  const fetchAllStudentsForStats = async () => {
+  // OPTIMIZED: Fetch all students for stats - uses cached payments instead of N+1 queries
+  const fetchAllStudentsForStats = useCallback(async () => {
     try {
       console.log('🔍 Frontend: Fetching all students for statistics...');
 
@@ -523,11 +545,17 @@ const FeeManagement = () => {
         // Store all students for KPI calculations
         setAllStudents(allStudentsData);
 
-        // Payments will be fetched individually for each student during processing
+        // OPTIMIZATION: Use cached payments instead of fetching individually
+        // Payments should already be loaded via React Query
+        if (payments.length === 0) {
+          // If payments not loaded yet, fetch them once
+          await refetchPayments();
+        }
 
         // Update stats with all students data
         const totalStudents = allStudentsData.length;
         
+        // Memoize fee structure lookups
         const studentsWithFees = allStudentsData.filter(student => {
           const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
           return feeStructure !== undefined;
@@ -549,7 +577,7 @@ const FeeManagement = () => {
           }
         }
 
-        // Calculate dues
+        // Calculate dues - OPTIMIZED: Use cached payments, batch process
         let totalDue = 0;
         let term1Due = 0;
         let term2Due = 0;
@@ -559,6 +587,7 @@ const FeeManagement = () => {
         const currentDate = new Date();
         const filteredBalances = {};
         
+        // Batch process students - use existing payments from state
         for (const student of allStudentsData) {
           const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
           if (feeStructure) {
@@ -568,49 +597,25 @@ const FeeManagement = () => {
             totalFeeAmount += originalFee;
             totalCalculatedFeeAmount += calculatedFee;
 
-            // Fetch student's payments directly from API (like the balance modal does)
-            console.log('🔍 Processing student:', student.name, 'ID:', student._id);
-            try {
-              const response = await api.get(`/api/payments/hostel-fee/${student._id}?academicYear=${student.academicYear}`);
-              let studentPayments = [];
+            // OPTIMIZATION: Use payments from state instead of individual API calls
+            // Payments are already loaded via React Query
+            const studentBalance = calculateStudentBalance(student);
               
-              if (response.data.success) {
-                studentPayments = response.data.data.payments || [];
-                console.log('🔍 Fetched payments for student:', student.name, studentPayments.length);
-              }
+            if (studentBalance) {
+              // Get term due dates for this student (cache this if possible)
+              const termDueDates = await getStudentTermDueDates(student);
               
-              // Update global payments state with this student's payments
-              setPayments(prev => {
-                const existingPayments = prev.filter(p => p.studentId !== student._id);
-                return [...existingPayments, ...studentPayments];
-              });
+              // Apply date-based filtering
+              const filteredBalance = getDateFilteredBalance(studentBalance, termDueDates, currentDate);
               
-              // Calculate balance with the fetched payments
-              const studentBalance = calculateStudentBalance(student);
-              console.log('🔍 Student balance calculated:', studentBalance);
+              // Store filtered balance for this student
+              filteredBalances[student._id] = filteredBalance;
               
-              if (studentBalance) {
-                // Get term due dates for this student
-                const termDueDates = await getStudentTermDueDates(student);
-                console.log('🔍 Term due dates for student:', student.name, termDueDates);
-                
-                // Apply date-based filtering
-                const filteredBalance = getDateFilteredBalance(studentBalance, termDueDates, currentDate);
-                console.log('🔍 Final filtered balance for student:', student.name, filteredBalance);
-                
-                // Store filtered balance for this student
-                filteredBalances[student._id] = filteredBalance;
-                
-                // Add filtered amounts to totals
-                totalDue += filteredBalance.totalDue;
-                term1Due += filteredBalance.term1Due;
-                term2Due += filteredBalance.term2Due;
-                term3Due += filteredBalance.term3Due;
-              } else {
-                console.log('🔍 No balance calculated for student:', student.name);
-              }
-            } catch (error) {
-              console.error('Error fetching payments for student:', student.name, error);
+              // Add filtered amounts to totals
+              totalDue += filteredBalance.totalDue;
+              term1Due += filteredBalance.term1Due;
+              term2Due += filteredBalance.term2Due;
+              term3Due += filteredBalance.term3Due;
             }
           }
         }
@@ -646,7 +651,7 @@ const FeeManagement = () => {
     } catch (err) {
       console.error('Error fetching all students for stats:', err);
     }
-  };
+  }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, payments, refetchPayments]);
 
 
 
@@ -694,7 +699,14 @@ const FeeManagement = () => {
   };
 
   // Fee Structure Management Functions
-  const fetchCourses = async () => {
+  // OPTIMIZED: Use courses from context, only fetch if not available
+  const fetchCourses = useCallback(async () => {
+    // If courses already available from context, skip API call
+    if (coursesFromContext && coursesFromContext.length > 0) {
+      setCourses(coursesFromContext);
+      return;
+    }
+    
     try {
       const response = await api.get('/api/fee-structures/courses');
       if (response.data.success) {
@@ -703,7 +715,7 @@ const FeeManagement = () => {
     } catch (err) {
       console.error('Error fetching courses:', err);
     }
-  };
+  }, [coursesFromContext]);
 
   const fetchCourseYears = async (courseId) => {
     if (!courseId) {
@@ -722,46 +734,53 @@ const FeeManagement = () => {
     }
   };
 
-  const fetchFeeStructures = async () => {
-    try {
-      console.log('🔍 Fetching fee structures...');
-      setFeeStructureLoading(true);
+  // OPTIMIZED: Use React Query to cache fee structures
+  const fetchFeeStructures = useCallback(async () => {
+    // Build query parameters
+    const queryParams = new URLSearchParams();
+    if (feeStructureFilter.academicYear) {
+      queryParams.append('academicYear', feeStructureFilter.academicYear);
+    }
+    if (feeStructureFilter.course) {
+      queryParams.append('course', feeStructureFilter.course);
+    }
+    if (feeStructureFilter.year) {
+      queryParams.append('year', feeStructureFilter.year);
+    }
 
-      // Build query parameters
-      const queryParams = new URLSearchParams();
-      if (feeStructureFilter.academicYear) {
-        queryParams.append('academicYear', feeStructureFilter.academicYear);
-      }
-      if (feeStructureFilter.course) {
-        queryParams.append('course', feeStructureFilter.course);
-      }
-      if (feeStructureFilter.year) {
-        queryParams.append('year', feeStructureFilter.year);
-      }
+    const queryString = queryParams.toString();
+    const url = `/api/fee-structures${queryString ? `?${queryString}` : ''}`;
+    
+    const response = await api.get(url);
 
-      const queryString = queryParams.toString();
-      const url = `/api/fee-structures${queryString ? `?${queryString}` : ''}`;
-      
-      console.log('🔍 Fetching fee structures from:', url);
-      const response = await api.get(url);
+    if (response.data.success && Array.isArray(response.data.data)) {
+      return response.data.data;
+    } else {
+      return [];
+    }
+  }, [feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year]);
 
-      if (response.data.success && Array.isArray(response.data.data)) {
-        console.log('🔍 Found fee structures:', response.data.data.length);
-        setFeeStructures(response.data.data);
-        setError(null);
-      } else {
-        console.log('🔍 No fee structures found');
-        setFeeStructures([]);
-        setError('No fee structures found');
-      }
+  // Use React Query for fee structures
+  const { data: cachedFeeStructures, isLoading: feeStructuresQueryLoading } = useQuery({
+    queryKey: ['fee-structures', feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year],
+    queryFn: fetchFeeStructures,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    cacheTime: 10 * 60 * 1000, // 10 minutes
+    enabled: activeTab === 'structure' || activeTab === 'dues', // Only fetch when needed
+  });
 
-    } catch (err) {
-      console.error('Error fetching fee structures:', err);
-        setError(err.response?.data?.message || 'Failed to fetch fee structures');
-    } finally {
+  // Update fee structures when cached data changes
+  useEffect(() => {
+    if (cachedFeeStructures) {
+      setFeeStructures(cachedFeeStructures);
       setFeeStructureLoading(false);
     }
-  };
+  }, [cachedFeeStructures]);
+
+  // Update loading state
+  useEffect(() => {
+    setFeeStructureLoading(feeStructuresQueryLoading);
+  }, [feeStructuresQueryLoading]);
 
   const handleFeeStructureSubmit = async (e) => {
     e.preventDefault();
@@ -1623,8 +1642,8 @@ const FeeManagement = () => {
     }
   };
 
-  // Calculate student's current balance with partial payment handling
-  const calculateStudentBalance = (student) => {
+  // Memoize calculateStudentBalance to avoid recalculating for same student
+  const calculateStudentBalance = useCallback((student) => {
     const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
     if (!feeStructure) return null;
 
@@ -1764,7 +1783,7 @@ const FeeManagement = () => {
       hasConcession,
       remainingExcess // Add this for debugging
     };
-  };
+  }, [payments, feeStructures]);
 
   // Get available terms for payment (terms with remaining balance)
   const getAvailableTermsForPayment = (student) => {
@@ -1795,18 +1814,7 @@ const FeeManagement = () => {
     return availableTerms;
   };
 
-  useEffect(() => {
-    console.log('🔍 useEffect triggered - activeTab:', activeTab);
-    if (activeTab === 'structure') {
-      console.log('🔍 Structure tab active, fetching fee structures...');
-      fetchFeeStructures();
-    }
-  }, [activeTab, feeStructureFilter.academicYear]);
-
-  // Always fetch fee structures for student linking, regardless of active tab
-  useEffect(() => {
-    fetchFeeStructures();
-  }, []);
+  // Fee structures are fetched via React Query based on activeTab
 
   // Fetch hostel fee payments when component mounts
   useEffect(() => {
@@ -1818,14 +1826,12 @@ const FeeManagement = () => {
     checkEmailServiceStatus();
   }, []);
 
-  // Debounce search input
+  // Debounce search input for reminders
+  const debouncedReminderSearchValue = useDebounce(reminderFilters.search, 300);
+  
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(reminderFilters.search);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [reminderFilters.search]);
+    setDebouncedReminderSearch(debouncedReminderSearchValue);
+  }, [debouncedReminderSearchValue]);
 
   // Refresh fee structures when filters change
   useEffect(() => {
@@ -1856,8 +1862,8 @@ const FeeManagement = () => {
       if (reminderFilters.status) {
         queryParams.append('status', reminderFilters.status);
       }
-      if (debouncedSearch) {
-        queryParams.append('search', debouncedSearch);
+      if (debouncedReminderSearch) {
+        queryParams.append('search', debouncedReminderSearch);
       }
 
       const queryString = queryParams.toString();
@@ -2107,7 +2113,7 @@ const FeeManagement = () => {
     let filtered = [...feeReminders];
 
     // Client-side search (since we're using debounced search for API calls)
-    if (reminderFilters.search && !debouncedSearch) {
+    if (reminderFilters.search && !debouncedReminderSearch) {
       const searchTerm = reminderFilters.search.toLowerCase();
       filtered = filtered.filter(reminder => 
         reminder.student?.name?.toLowerCase().includes(searchTerm) ||
@@ -2146,7 +2152,7 @@ const FeeManagement = () => {
     }
 
     return filtered;
-  }, [feeReminders, reminderFilters, debouncedSearch]);
+  }, [feeReminders, reminderFilters, debouncedReminderSearch]);
 
   // Create fee reminders for all students
   const createAllFeeReminders = async () => {
@@ -2196,14 +2202,7 @@ const FeeManagement = () => {
     }
   };
 
-  // Initial load - fetch fee structures if structure tab is active
-  useEffect(() => {
-    console.log('🔍 Initial load useEffect - activeTab:', activeTab);
-    if (activeTab === 'structure') {
-      console.log('🔍 Initial load - fetching fee structures...');
-      fetchFeeStructures();
-    }
-  }, []);
+  // Fee structures are fetched via React Query
 
   // Fetch payments when payments tab is active
   useEffect(() => {
@@ -2233,7 +2232,7 @@ const FeeManagement = () => {
     if (activeTab === 'reminders') {
       fetchFeeReminders();
     }
-  }, [debouncedSearch]);
+  }, [debouncedReminderSearch]);
 
   // Fetch reminders when page changes
   useEffect(() => {
@@ -2344,7 +2343,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().totalDue.toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.totalDue.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">Overall outstanding</p>
                 </div>
               </div>
@@ -2357,7 +2356,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 1 Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term1Due.toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term1Due.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">First term pending</p>
                 </div>
               </div>
@@ -2370,7 +2369,7 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 2 Due</p>
-                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term2Due.toLocaleString()}</p>
+                  <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term2Due.toLocaleString()}</p>
                   <p className="text-xs text-gray-500 hidden sm:block">Second term pending</p>
                 </div>
               </div>
@@ -2383,7 +2382,7 @@ const FeeManagement = () => {
                 </div>
                   <div className="ml-2 sm:ml-3">
                     <p className="text-xs sm:text-sm font-medium text-gray-600">Term 3 Due</p>
-                    <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats().term3Due.toLocaleString()}</p>
+                    <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term3Due.toLocaleString()}</p>
                     <p className="text-xs text-gray-500 hidden sm:block">Third term pending</p>
                   </div>
               </div>
@@ -2577,7 +2576,11 @@ const FeeManagement = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {students.map((student) => (
+                      {students.map((student) => {
+                        // Memoize balance calculation for each student to avoid multiple calls
+                        const studentBalance = calculateStudentBalance(student);
+                        
+                        return (
                         <tr
                           key={student._id}
                           className="hover:bg-gray-50 cursor-pointer transition-colors duration-200"
@@ -2689,60 +2692,40 @@ const FeeManagement = () => {
                             })()}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              if (studentBalance) {
-                                const term1Due = studentBalance.termBalances.term1.balance || 0;
-                                return (
-                                  <div className={`font-medium ${term1Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term1Due.toLocaleString()}
-                                  </div>
-                                );
-                              }
-                              return <div className="text-gray-400">-</div>;
-                            })()}
+                            {studentBalance ? (
+                              <div className={`font-medium ${studentBalance.termBalances.term1.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{(studentBalance.termBalances.term1.balance || 0).toLocaleString()}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              if (studentBalance) {
-                                const term2Due = studentBalance.termBalances.term2.balance || 0;
-                                return (
-                                  <div className={`font-medium ${term2Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term2Due.toLocaleString()}
-                                  </div>
-                                );
-                              }
-                              return <div className="text-gray-400">-</div>;
-                            })()}
+                            {studentBalance ? (
+                              <div className={`font-medium ${studentBalance.termBalances.term2.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{(studentBalance.termBalances.term2.balance || 0).toLocaleString()}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              if (studentBalance) {
-                                const term3Due = studentBalance.termBalances.term3.balance || 0;
-                                return (
-                                  <div className={`font-medium ${term3Due === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{term3Due.toLocaleString()}
-                                  </div>
-                                );
-                              }
-                              return <div className="text-gray-400">-</div>;
-                            })()}
+                            {studentBalance ? (
+                              <div className={`font-medium ${studentBalance.termBalances.term3.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{(studentBalance.termBalances.term3.balance || 0).toLocaleString()}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              if (studentBalance) {
-                                const totalDue = studentBalance.totalBalance || 0;
-                                return (
-                                  <div className={`font-bold ${totalDue === 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    ₹{totalDue.toLocaleString()}
-                                  </div>
-                                );
-                              }
-                              return <div className="text-gray-400">-</div>;
-                            })()}
+                            {studentBalance ? (
+                              <div className={`font-bold ${studentBalance.totalBalance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{(studentBalance.totalBalance || 0).toLocaleString()}
+                              </div>
+                            ) : (
+                              <div className="text-gray-400">-</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
@@ -2767,14 +2750,19 @@ const FeeManagement = () => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 {/* Mobile Card View */}
                 <div className="lg:hidden space-y-3 p-4">
-                  {students.map((student) => (
+                  {students.map((student) => {
+                    // Memoize balance calculation for each student
+                    const studentBalance = calculateStudentBalance(student);
+                    
+                    return (
                     <div
                       key={student._id}
                       className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
@@ -2835,54 +2823,26 @@ const FeeManagement = () => {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="flex justify-between">
                             <span>Term 1:</span>
-                            <span className={`font-medium ${(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              const term1Due = studentBalance?.termBalances.term1.balance || 0;
-                              return term1Due === 0 ? 'text-green-600' : 'text-red-600';
-                            })()}`}>
-                              ₹{(() => {
-                                const studentBalance = calculateStudentBalance(student);
-                                return (studentBalance?.termBalances.term1.balance || 0).toLocaleString();
-                              })()}
+                            <span className={`font-medium ${studentBalance?.termBalances.term1.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ₹{(studentBalance?.termBalances.term1.balance || 0).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span>Term 2:</span>
-                            <span className={`font-medium ${(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              const term2Due = studentBalance?.termBalances.term2.balance || 0;
-                              return term2Due === 0 ? 'text-green-600' : 'text-red-600';
-                            })()}`}>
-                              ₹{(() => {
-                                const studentBalance = calculateStudentBalance(student);
-                                return (studentBalance?.termBalances.term2.balance || 0).toLocaleString();
-                              })()}
+                            <span className={`font-medium ${studentBalance?.termBalances.term2.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ₹{(studentBalance?.termBalances.term2.balance || 0).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span>Term 3:</span>
-                            <span className={`font-medium ${(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              const term3Due = studentBalance?.termBalances.term3.balance || 0;
-                              return term3Due === 0 ? 'text-green-600' : 'text-red-600';
-                            })()}`}>
-                              ₹{(() => {
-                                const studentBalance = calculateStudentBalance(student);
-                                return (studentBalance?.termBalances.term3.balance || 0).toLocaleString();
-                              })()}
+                            <span className={`font-medium ${studentBalance?.termBalances.term3.balance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ₹{(studentBalance?.termBalances.term3.balance || 0).toLocaleString()}
                             </span>
                           </div>
                           <div className="flex justify-between font-bold">
                             <span>Total:</span>
-                            <span className={`font-bold ${(() => {
-                              const studentBalance = calculateStudentBalance(student);
-                              const totalDue = studentBalance?.totalBalance || 0;
-                              return totalDue === 0 ? 'text-green-600' : 'text-red-600';
-                            })()}`}>
-                              ₹{(() => {
-                                const studentBalance = calculateStudentBalance(student);
-                                return (studentBalance?.totalBalance || 0).toLocaleString();
-                              })()}
+                            <span className={`font-bold ${studentBalance?.totalBalance === 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ₹{(studentBalance?.totalBalance || 0).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -2964,7 +2924,8 @@ const FeeManagement = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </>
             )}

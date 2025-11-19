@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   CalendarIcon,
@@ -15,9 +15,12 @@ import {
 import api from '../../utils/axios';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
+import { useCoursesBranches } from '../../context/CoursesBranchesContext';
+import { useDebounce } from '../../hooks/useDebounce';
 import SEO from '../../components/SEO';
 
 const TakeAttendance = () => {
+  const { courses, branches, getBranchesByCourse } = useCoursesBranches();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [students, setStudents] = useState([]);
@@ -35,21 +38,26 @@ const TakeAttendance = () => {
     totalStudents: 0,
     attendanceTaken: 0
   });
-  const [courses, setCourses] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [filteredBranches, setFilteredBranches] = useState([]);
+  
+  // Debounce filters to reduce API calls
+  const debouncedFilters = useDebounce(filters, 500);
+  const debouncedDate = useDebounce(selectedDate, 300);
+  
+  // Memoize filtered branches
+  const filteredBranches = useMemo(() => {
+    return getBranchesByCourse(filters.course);
+  }, [filters.course, getBranchesByCourse]);
 
   useEffect(() => {
     fetchStudents();
-    fetchFilters();
-  }, [selectedDate, filters]);
+  }, [debouncedDate, debouncedFilters]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        date: selectedDate,
-        ...filters
+        date: debouncedDate,
+        ...debouncedFilters
       });
 
       const response = await api.get(`/api/attendance/students?${params}`);
@@ -77,31 +85,6 @@ const TakeAttendance = () => {
       setLoading(false);
     }
   };
-
-  const fetchFilters = async () => {
-    try {
-      const [coursesRes, branchesRes] = await Promise.all([
-        api.get('/api/course-management/courses'),
-        api.get('/api/course-management/branches')
-      ]);
-      if (coursesRes.data.success) setCourses(coursesRes.data.data);
-      if (branchesRes.data.success) setBranches(branchesRes.data.data);
-    } catch (err) {
-      toast.error('Failed to fetch filter options');
-      setCourses([]);
-      setBranches([]);
-    }
-  };
-
-  useEffect(() => {
-    if (!filters.course) {
-      setFilteredBranches(branches);
-    } else {
-      setFilteredBranches(branches.filter(b =>
-        b.course === filters.course || (typeof b.course === 'object' && b.course._id === filters.course)
-      ));
-    }
-  }, [filters.course, branches]);
 
   const handleAttendanceChange = (studentId, session, value) => {
     setAttendanceData(prev => ({

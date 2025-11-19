@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
+import { useDebounce } from '../../hooks/useDebounce';
 import {
   CalendarIcon,
   ClockIcon,
@@ -33,6 +34,9 @@ const LeaveManagement = () => {
     fromDate: '',
     toDate: ''
   });
+  
+  // Debounce filters to reduce API calls
+  const debouncedFilters = useDebounce(filters, 500);
   const [expandedBulkOutings, setExpandedBulkOutings] = useState(new Set());
   const [loadingStudentDetails, setLoadingStudentDetails] = useState(new Set());
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
@@ -76,11 +80,11 @@ const LeaveManagement = () => {
     } else {
       fetchBulkOutings();
     }
-  }, [filters, activeTab]);
+  }, [debouncedFilters, activeTab]);
 
   const fetchLeaves = async () => {
     try {
-      const params = { ...filters };
+      const params = { ...debouncedFilters };
       if (!params.status) delete params.status;
       if (!params.applicationType) delete params.applicationType;
       if (!params.fromDate) delete params.fromDate;
@@ -106,7 +110,7 @@ const LeaveManagement = () => {
   const fetchBulkOutings = async () => {
     setBulkOutingsLoading(true);
     try {
-      const params = { ...filters };
+      const params = { ...debouncedFilters };
       if (!params.status) delete params.status;
       if (!params.applicationType) delete params.applicationType;
       if (!params.fromDate) delete params.fromDate;
