@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useGlobalSettings } from '../../context/GlobalSettingsContext';
 import { useCoursesBranches } from '../../context/CoursesBranchesContext';
@@ -53,28 +53,8 @@ const FeeManagement = () => {
     studentsWithConcession: 0,
     totalCalculatedFeeAmount: 0
   });
+  const [statsLoading, setStatsLoading] = useState(false);
   const [studentFilteredBalances, setStudentFilteredBalances] = useState({}); // Store date-filtered balances for each student
-  
-  // Memoize real-time KPI stats calculation
-  const calculateRealTimeStats = useMemo(() => {
-    let totalDue = 0;
-    let term1Due = 0;
-    let term2Due = 0;
-    let term3Due = 0;
-    
-    // Use allStudents instead of students (which is paginated)
-    allStudents.forEach(student => {
-      const studentBalance = calculateStudentBalance(student);
-      if (studentBalance) {
-        totalDue += studentBalance.totalBalance;
-        term1Due += studentBalance.termBalances.term1.balance;
-        term2Due += studentBalance.termBalances.term2.balance;
-        term3Due += studentBalance.termBalances.term3.balance;
-      }
-    });
-    
-    return { totalDue, term1Due, term2Due, term3Due };
-  }, [allStudents, payments, feeStructures, calculateStudentBalance]);
   const [loading, setLoading] = useState(true);
   const [tableLoading, setTableLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -221,21 +201,49 @@ const FeeManagement = () => {
     return baseCategories;
   };
 
-  // Helper function to get student term due dates from backend
-  const getStudentTermDueDates = async (student) => {
+  // Cache for term due dates to avoid repeated API calls
+  const termDueDatesCache = useRef(new Map());
+  const CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache
+
+  // Helper function to get student term due dates from backend with caching
+  const getStudentTermDueDates = useCallback(async (student) => {
+    if (!student?.course?._id || !student?.academicYear || !student?.year) {
+      return null;
+    }
+
+    // Create cache key from course, academicYear, and year
+    const cacheKey = `${student.course._id}-${student.academicYear}-${student.year}`;
+    
+    // Check cache first
+    const cached = termDueDatesCache.current.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      return cached.data;
+    }
+
     try {
       const response = await api.get(`/api/reminder-config/calculate-term-due-dates/${student.course._id}/${student.academicYear}/${student.year}`, {
         params: { semesterStartDate: new Date().toISOString() }
       });
       
       if (response.data.success) {
-        return response.data.data; // Returns { term1: Date, term2: Date, term3: Date }
+        const dueDates = response.data.data; // Returns { term1: Date, term2: Date, term3: Date }
+        // Cache the result
+        termDueDatesCache.current.set(cacheKey, {
+          data: dueDates,
+          timestamp: Date.now()
+        });
+        return dueDates;
       }
     } catch (error) {
       console.log('No due dates configured for student:', student.name, error.message);
+      // Cache null result to avoid repeated failed calls
+      termDueDatesCache.current.set(cacheKey, {
+        data: null,
+        timestamp: Date.now()
+      });
     }
     return null; // No due dates configured
-  };
+  }, []);
 
   // Helper function to filter balances based on due dates
   const getDateFilteredBalance = (studentBalance, termDueDates, currentDate) => {
@@ -346,12 +354,23 @@ const FeeManagement = () => {
     fetchStudents();
   }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course]);
 
-  // Fetch courses on component mount (only if not in context)
-  useEffect(() => {
-    if (!coursesFromContext || coursesFromContext.length === 0) {
-      fetchCourses();
+  // Fetch course years function - defined before useEffects that use it
+  const fetchCourseYears = useCallback(async (courseId) => {
+    if (!courseId) {
+      setCourseYears([]);
+      return;
     }
-  }, [fetchCourses, coursesFromContext]);
+    
+    try {
+      const response = await api.get(`/api/fee-structures/courses/${courseId}/years`);
+      if (response.data.success) {
+        setCourseYears(response.data.data.years);
+      }
+    } catch (err) {
+      console.error('Error fetching course years:', err);
+      setCourseYears([]);
+    }
+  }, []);
 
   // Fetch course years when course changes
   useEffect(() => {
@@ -364,7 +383,7 @@ const FeeManagement = () => {
     } else {
       setCourseYears([]);
     }
-  }, [feeStructureForm.course, selectedFeeStructure, isEditMode]);
+  }, [feeStructureForm.course, selectedFeeStructure, isEditMode, fetchCourseYears]);
 
   // Reset category when year changes (but not when editing)
   useEffect(() => {
@@ -380,33 +399,61 @@ const FeeManagement = () => {
     } else {
       setCourseYears([]);
     }
-  }, [feeStructureFilter.course]);
+  }, [feeStructureFilter.course, fetchCourseYears]);
 
   // Fee structures are now fetched via React Query, no need for separate useEffect
 
-  // Calculate stats whenever students or fee structures change
-  useEffect(() => {
-    if (students.length > 0) {
-      fetchStats();
-    }
-  }, [students, feeStructures]);
+  // Stats are now calculated automatically when cachedStudentsForStats changes
+  // No need for separate useEffect here
 
   // Use debounced search for stats (reuse the same debounced value)
   const debouncedSearchForStats = debouncedSearch;
 
+  // OPTIMIZED: Use React Query to cache students data based on filters
+  const fetchStudentsForStats = useCallback(async () => {
+    const params = new URLSearchParams({
+      limit: 1000 // Fetch a large number to get all students
+    });
+
+    // Apply all filters including search to match the displayed data
+    if (debouncedSearchForStats && debouncedSearchForStats.trim()) params.append('search', debouncedSearchForStats.trim());
+    if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
+    if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
+    if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
+    if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+
+    const response = await api.get(`/api/admin/students?${params}`);
+    
+    if (response.data.success) {
+      return response.data.data.students || response.data.data || [];
+    }
+    return [];
+  }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course]);
+
+  // Use React Query to cache students for stats
+  const { data: cachedStudentsForStats, isLoading: studentsStatsLoading, refetch: refetchStudentsForStats } = useQuery({
+    queryKey: ['students-for-stats', debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course],
+    queryFn: fetchStudentsForStats,
+    staleTime: 1 * 60 * 1000, // 1 minute - stats should be relatively fresh
+    cacheTime: 5 * 60 * 1000, // 5 minutes cache
+    enabled: activeTab === 'dues', // Only fetch when dues tab is active
+  });
+
   // Fetch all students for accurate statistics when filters change
   useEffect(() => {
-    if (activeTab === 'dues') {
-      fetchAllStudentsForStats();
+    if (activeTab === 'dues' && cachedStudentsForStats) {
+      // Update allStudents when cached data is available
+      setAllStudents(cachedStudentsForStats);
     }
-  }, [filters.academicYear, filters.category, filters.gender, filters.course, debouncedSearchForStats, activeTab]);
+  }, [cachedStudentsForStats, activeTab]);
 
   const fetchStats = async () => {
     try {
-      console.log('🔍 FeeManagement: Calculating stats from students data...');
-
-      // Use the new function to get accurate stats
-      await fetchAllStudentsForStats();
+      console.log('🔍 FeeManagement: Recalculating stats...');
+      // Trigger refetch of students for stats
+      if (activeTab === 'dues') {
+        await refetchStudentsForStats();
+      }
     } catch (err) {
       console.error('Error calculating stats:', err);
       setError('Failed to calculate stats');
@@ -445,11 +492,7 @@ const FeeManagement = () => {
         setStudents(studentsData);
         setTotalPages(response.data.data.totalPages || 1);
 
-        // If we have total count from backend, use it for stats
-        if (totalCount && totalCount !== studentsData.length) {
-          console.log('🔍 Frontend: Backend reports different total count, fetching all students for stats...');
-          setTimeout(() => fetchAllStudentsForStats(), 100);
-        }
+        // Stats will be updated automatically when cachedStudentsForStats changes
       } else {
         setError('Failed to fetch students');
       }
@@ -520,30 +563,172 @@ const FeeManagement = () => {
     }
   }, [cachedPayments]);
 
-  // OPTIMIZED: Fetch all students for stats - uses cached payments instead of N+1 queries
-  const fetchAllStudentsForStats = useCallback(async () => {
+  // Memoize calculateStudentBalance to avoid recalculating for same student
+  const calculateStudentBalance = useCallback((student) => {
+    const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+    if (!feeStructure) return null;
+
+    const studentPaymentHistory = payments.filter(p => {
+      // Handle both string and object IDs
+      const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
+      const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
+      return paymentStudentId === studentId;
+    });
+    const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
+
+    // Debug logging
+    console.log('🔍 Balance calculation for student:', student.name);
+    console.log('🔍 Fee structure:', {
+      totalFee: feeStructure.totalFee,
+      term1Fee: feeStructure.term1Fee,
+      term2Fee: feeStructure.term2Fee,
+      term3Fee: feeStructure.term3Fee
+    });
+    console.log('🔍 Student calculated fees:', {
+      calculatedTerm1Fee: student.calculatedTerm1Fee,
+      calculatedTerm2Fee: student.calculatedTerm2Fee,
+      calculatedTerm3Fee: student.calculatedTerm3Fee,
+      totalCalculatedFee: student.totalCalculatedFee,
+      concession: student.concession
+    });
+    console.log('🔍 Student payment history:', studentPaymentHistory);
+    console.log('🔍 Total paid:', totalPaid);
+    console.log('🔍 All payments in state:', payments.length);
+    console.log('🔍 Student ID:', student._id, 'Type:', typeof student._id);
+    console.log('🔍 Sample payment studentId:', payments[0]?.studentId, 'Type:', typeof payments[0]?.studentId);
+
+    // Check if student has concession applied
+    const hasConcession = student.concession && student.concession > 0;
+
+    // Calculate term-wise balance using student's calculated fees (which already account for concessions)
+    const termBalances = {
+      term1: {
+        required: student.calculatedTerm1Fee || feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'term1')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      },
+      term2: {
+        required: student.calculatedTerm2Fee || feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'term2')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      },
+      term3: {
+        required: student.calculatedTerm3Fee || feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3),
+        paid: studentPaymentHistory
+          .filter(p => p.term === 'term3')
+          .reduce((sum, p) => sum + p.amount, 0),
+        balance: 0
+      }
+    };
+
+    // Debug logging for term balances
+    console.log('🔍 Term balances calculated:', termBalances);
+
+    // Handle partial payments and excess amounts
+    let remainingExcess = 0;
+
+    // Process term1 first
+    if (termBalances.term1.paid > termBalances.term1.required) {
+      // Excess payment in term1
+      remainingExcess = termBalances.term1.paid - termBalances.term1.required;
+      termBalances.term1.balance = 0;
+      termBalances.term1.paid = termBalances.term1.required; // Cap at required amount
+    } else {
+      termBalances.term1.balance = Math.max(0, termBalances.term1.required - termBalances.term1.paid);
+    }
+
+    // Process term2 with any excess from term1
+    if (remainingExcess > 0) {
+      const effectivePayment = termBalances.term2.paid + remainingExcess;
+      if (effectivePayment > termBalances.term2.required) {
+        // Still have excess after term2
+        remainingExcess = effectivePayment - termBalances.term2.required;
+        termBalances.term2.balance = 0;
+        termBalances.term2.paid = termBalances.term2.required;
+      } else {
+        // Excess used up in term2
+        termBalances.term2.balance = Math.max(0, termBalances.term2.required - effectivePayment);
+        remainingExcess = 0;
+      }
+    } else {
+      termBalances.term2.balance = Math.max(0, termBalances.term2.required - termBalances.term2.paid);
+    }
+
+    // Process term3 with any remaining excess
+    if (remainingExcess > 0) {
+      const effectivePayment = termBalances.term3.paid + remainingExcess;
+      if (effectivePayment > termBalances.term3.required) {
+        // Still have excess after term3
+        remainingExcess = effectivePayment - termBalances.term3.required;
+        termBalances.term3.balance = 0;
+        termBalances.term3.paid = termBalances.term3.required;
+      } else {
+        // Excess used up in term3
+        termBalances.term3.balance = Math.max(0, termBalances.term3.required - effectivePayment);
+        remainingExcess = 0;
+      }
+    } else {
+      termBalances.term3.balance = Math.max(0, termBalances.term3.required - termBalances.term3.paid);
+    }
+
+    const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
+    const isFullyPaid = totalBalance === 0;
+
+    // Debug logging for final balances
+    console.log('🔍 Final term balances for', student.name, ':', {
+      term1: { required: termBalances.term1.required, paid: termBalances.term1.paid, balance: termBalances.term1.balance },
+      term2: { required: termBalances.term2.required, paid: termBalances.term2.paid, balance: termBalances.term2.balance },
+      term3: { required: termBalances.term3.required, paid: termBalances.term3.paid, balance: termBalances.term3.balance },
+      totalBalance
+    });
+
+    // Calculate original vs calculated totals
+    const originalTotalFee = feeStructure.totalFee;
+    const calculatedTotalFee = student.totalCalculatedFee || originalTotalFee;
+    const concessionAmount = student.concession || 0;
+
+    return {
+      feeStructure,
+      totalPaid,
+      totalBalance,
+      isFullyPaid,
+      termBalances,
+      paymentHistory: studentPaymentHistory,
+      originalTotalFee,
+      calculatedTotalFee,
+      concessionAmount,
+      hasConcession,
+      remainingExcess // Add this for debugging
+    };
+  }, [payments, feeStructures]);
+
+  // OPTIMIZED: Calculate stats from cached students data - no API calls needed
+  const calculateStatsFromStudents = useCallback(async (allStudentsData) => {
+    setStatsLoading(true);
     try {
-      console.log('🔍 Frontend: Fetching all students for statistics...');
+      if (!allStudentsData || allStudentsData.length === 0) {
+        setStats({
+          totalStudents: 0,
+          studentsWithFees: 0,
+          studentsWithoutFees: 0,
+          totalFeeAmount: 0,
+          averageFeeAmount: 0,
+          totalCalculatedFeeAmount: 0,
+          totalConcessionAmount: 0,
+          studentsWithConcession: 0,
+          totalDue: 0,
+          term1Due: 0,
+          term2Due: 0,
+          term3Due: 0
+        });
+        return;
+      }
 
-      const params = new URLSearchParams({
-        limit: 1000 // Fetch a large number to get all students
-      });
-
-      // Apply all filters including search to match the displayed data
-      if (debouncedSearchForStats && debouncedSearchForStats.trim()) params.append('search', debouncedSearchForStats.trim());
-      if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
-      if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
-      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
-      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
-
-      const response = await api.get(`/api/admin/students?${params}`);
-
-      if (response.data.success) {
-        const allStudentsData = response.data.data.students || response.data.data || [];
-        console.log('🔍 Frontend: All students for stats:', allStudentsData.length);
-
-        // Store all students for KPI calculations
-        setAllStudents(allStudentsData);
+      console.log('🔍 Frontend: Calculating stats from', allStudentsData.length, 'students...');
 
         // OPTIMIZATION: Use cached payments instead of fetching individually
         // Payments should already be loaded via React Query
@@ -577,7 +762,7 @@ const FeeManagement = () => {
           }
         }
 
-        // Calculate dues - OPTIMIZED: Use cached payments, batch process
+    // Calculate dues - OPTIMIZED: Batch term due dates calls
         let totalDue = 0;
         let term1Due = 0;
         let term2Due = 0;
@@ -586,6 +771,34 @@ const FeeManagement = () => {
         // Process students with date-based filtering for dues calculation
         const currentDate = new Date();
         const filteredBalances = {};
+    
+    // OPTIMIZATION: Group students by course/year/academicYear to batch term due dates calls
+    const studentsByKey = new Map();
+    for (const student of allStudentsData) {
+      if (student.course?._id && student.academicYear && student.year) {
+        const key = `${student.course._id}-${student.academicYear}-${student.year}`;
+        if (!studentsByKey.has(key)) {
+          studentsByKey.set(key, []);
+        }
+        studentsByKey.get(key).push(student);
+      }
+    }
+
+    // Fetch term due dates for unique course/year/academicYear combinations (cached)
+    const termDueDatesPromises = Array.from(studentsByKey.keys()).map(async (key) => {
+      const students = studentsByKey.get(key);
+      if (students && students.length > 0) {
+        const dueDates = await getStudentTermDueDates(students[0]);
+        return { key, dueDates };
+      }
+      return { key, dueDates: null };
+    });
+
+    const termDueDatesMap = new Map();
+    const termDueDatesResults = await Promise.all(termDueDatesPromises);
+    termDueDatesResults.forEach(({ key, dueDates }) => {
+      termDueDatesMap.set(key, dueDates);
+    });
         
         // Batch process students - use existing payments from state
         for (const student of allStudentsData) {
@@ -602,8 +815,9 @@ const FeeManagement = () => {
             const studentBalance = calculateStudentBalance(student);
               
             if (studentBalance) {
-              // Get term due dates for this student (cache this if possible)
-              const termDueDates = await getStudentTermDueDates(student);
+          // Get term due dates from cache (already fetched above)
+          const cacheKey = `${student.course._id}-${student.academicYear}-${student.year}`;
+          const termDueDates = termDueDatesMap.get(cacheKey) || null;
               
               // Apply date-based filtering
               const filteredBalance = getDateFilteredBalance(studentBalance, termDueDates, currentDate);
@@ -647,11 +861,19 @@ const FeeManagement = () => {
           totalFeeAmount,
           averageFeeAmount
         });
-      }
     } catch (err) {
-      console.error('Error fetching all students for stats:', err);
+      console.error('Error calculating stats:', err);
+    } finally {
+      setStatsLoading(false);
     }
-  }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, payments, refetchPayments]);
+  }, [payments, refetchPayments, getStudentTermDueDates, calculateStudentBalance]);
+
+  // Calculate stats when cached students data changes
+  useEffect(() => {
+    if (activeTab === 'dues' && cachedStudentsForStats && cachedStudentsForStats.length >= 0) {
+      calculateStatsFromStudents(cachedStudentsForStats);
+    }
+  }, [cachedStudentsForStats, activeTab, calculateStatsFromStudents, feeStructures, payments]);
 
 
 
@@ -717,22 +939,12 @@ const FeeManagement = () => {
     }
   }, [coursesFromContext]);
 
-  const fetchCourseYears = async (courseId) => {
-    if (!courseId) {
-      setCourseYears([]);
-      return;
+  // Fetch courses on component mount (only if not in context)
+  useEffect(() => {
+    if (!coursesFromContext || coursesFromContext.length === 0) {
+      fetchCourses();
     }
-    
-    try {
-      const response = await api.get(`/api/fee-structures/courses/${courseId}/years`);
-      if (response.data.success) {
-        setCourseYears(response.data.data.years);
-      }
-    } catch (err) {
-      console.error('Error fetching course years:', err);
-      setCourseYears([]);
-    }
-  };
+  }, [fetchCourses, coursesFromContext]);
 
   // OPTIMIZED: Use React Query to cache fee structures
   const fetchFeeStructures = useCallback(async () => {
@@ -871,10 +1083,10 @@ const FeeManagement = () => {
           fetchStudents()
         ]);
 
-        // Recalculate stats
-        setTimeout(() => {
-          fetchStats();
-        }, 500);
+        // Recalculate stats - will trigger automatically via React Query cache invalidation
+        if (activeTab === 'dues') {
+          refetchStudentsForStats();
+        }
       } else {
         console.error('🔍 Frontend: All saves failed');
         setError('Failed to save fee structure(s)');
@@ -952,9 +1164,10 @@ const FeeManagement = () => {
           fetchStudents()
         ]);
 
-        setTimeout(() => {
-          fetchStats();
-        }, 500);
+        // Recalculate stats - will trigger automatically via React Query cache invalidation
+        if (activeTab === 'dues') {
+          refetchStudentsForStats();
+        }
       } else {
         console.error('🔍 Frontend: Backend returned error:', response.data);
         setError(response.data.message || 'Failed to save fee structures');
@@ -1642,148 +1855,26 @@ const FeeManagement = () => {
     }
   };
 
-  // Memoize calculateStudentBalance to avoid recalculating for same student
-  const calculateStudentBalance = useCallback((student) => {
-    const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
-    if (!feeStructure) return null;
-
-    const studentPaymentHistory = payments.filter(p => {
-      // Handle both string and object IDs
-      const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
-      const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
-      return paymentStudentId === studentId;
-    });
-    const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
-
-    // Debug logging
-    console.log('🔍 Balance calculation for student:', student.name);
-    console.log('🔍 Fee structure:', {
-      totalFee: feeStructure.totalFee,
-      term1Fee: feeStructure.term1Fee,
-      term2Fee: feeStructure.term2Fee,
-      term3Fee: feeStructure.term3Fee
-    });
-    console.log('🔍 Student calculated fees:', {
-      calculatedTerm1Fee: student.calculatedTerm1Fee,
-      calculatedTerm2Fee: student.calculatedTerm2Fee,
-      calculatedTerm3Fee: student.calculatedTerm3Fee,
-      totalCalculatedFee: student.totalCalculatedFee,
-      concession: student.concession
-    });
-    console.log('🔍 Student payment history:', studentPaymentHistory);
-    console.log('🔍 Total paid:', totalPaid);
-    console.log('🔍 All payments in state:', payments.length);
-    console.log('🔍 Student ID:', student._id, 'Type:', typeof student._id);
-    console.log('🔍 Sample payment studentId:', payments[0]?.studentId, 'Type:', typeof payments[0]?.studentId);
-
-    // Check if student has concession applied
-    const hasConcession = student.concession && student.concession > 0;
-
-    // Calculate term-wise balance using student's calculated fees (which already account for concessions)
-    const termBalances = {
-      term1: {
-        required: student.calculatedTerm1Fee || feeStructure.term1Fee || Math.round(feeStructure.totalFee * 0.4),
-        paid: studentPaymentHistory
-          .filter(p => p.term === 'term1')
-          .reduce((sum, p) => sum + p.amount, 0),
-        balance: 0
-      },
-      term2: {
-        required: student.calculatedTerm2Fee || feeStructure.term2Fee || Math.round(feeStructure.totalFee * 0.3),
-        paid: studentPaymentHistory
-          .filter(p => p.term === 'term2')
-          .reduce((sum, p) => sum + p.amount, 0),
-        balance: 0
-      },
-      term3: {
-        required: student.calculatedTerm3Fee || feeStructure.term3Fee || Math.round(feeStructure.totalFee * 0.3),
-        paid: studentPaymentHistory
-          .filter(p => p.term === 'term3')
-          .reduce((sum, p) => sum + p.amount, 0),
-        balance: 0
+  // Memoize real-time KPI stats calculation (moved here after calculateStudentBalance is defined)
+  const calculateRealTimeStats = useMemo(() => {
+    let totalDue = 0;
+    let term1Due = 0;
+    let term2Due = 0;
+    let term3Due = 0;
+    
+    // Use allStudents instead of students (which is paginated)
+    allStudents.forEach(student => {
+      const studentBalance = calculateStudentBalance(student);
+      if (studentBalance) {
+        totalDue += studentBalance.totalBalance;
+        term1Due += studentBalance.termBalances.term1.balance;
+        term2Due += studentBalance.termBalances.term2.balance;
+        term3Due += studentBalance.termBalances.term3.balance;
       }
-    };
-
-    // Debug logging for term balances
-    console.log('🔍 Term balances calculated:', termBalances);
-
-    // Handle partial payments and excess amounts
-    let remainingExcess = 0;
-
-    // Process term1 first
-    if (termBalances.term1.paid > termBalances.term1.required) {
-      // Excess payment in term1
-      remainingExcess = termBalances.term1.paid - termBalances.term1.required;
-      termBalances.term1.balance = 0;
-      termBalances.term1.paid = termBalances.term1.required; // Cap at required amount
-    } else {
-      termBalances.term1.balance = Math.max(0, termBalances.term1.required - termBalances.term1.paid);
-    }
-
-    // Process term2 with any excess from term1
-    if (remainingExcess > 0) {
-      const effectivePayment = termBalances.term2.paid + remainingExcess;
-      if (effectivePayment > termBalances.term2.required) {
-        // Still have excess after term2
-        remainingExcess = effectivePayment - termBalances.term2.required;
-        termBalances.term2.balance = 0;
-        termBalances.term2.paid = termBalances.term2.required;
-      } else {
-        // Excess used up in term2
-        termBalances.term2.balance = Math.max(0, termBalances.term2.required - effectivePayment);
-        remainingExcess = 0;
-      }
-    } else {
-      termBalances.term2.balance = Math.max(0, termBalances.term2.required - termBalances.term2.paid);
-    }
-
-    // Process term3 with any remaining excess
-    if (remainingExcess > 0) {
-      const effectivePayment = termBalances.term3.paid + remainingExcess;
-      if (effectivePayment > termBalances.term3.required) {
-        // Still have excess after term3
-        remainingExcess = effectivePayment - termBalances.term3.required;
-        termBalances.term3.balance = 0;
-        termBalances.term3.paid = termBalances.term3.required;
-      } else {
-        // Excess used up in term3
-        termBalances.term3.balance = Math.max(0, termBalances.term3.required - effectivePayment);
-        remainingExcess = 0;
-      }
-    } else {
-      termBalances.term3.balance = Math.max(0, termBalances.term3.required - termBalances.term3.paid);
-    }
-
-    const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
-    const isFullyPaid = totalBalance === 0;
-
-    // Debug logging for final balances
-    console.log('🔍 Final term balances for', student.name, ':', {
-      term1: { required: termBalances.term1.required, paid: termBalances.term1.paid, balance: termBalances.term1.balance },
-      term2: { required: termBalances.term2.required, paid: termBalances.term2.paid, balance: termBalances.term2.balance },
-      term3: { required: termBalances.term3.required, paid: termBalances.term3.paid, balance: termBalances.term3.balance },
-      totalBalance
     });
-
-    // Calculate original vs calculated totals
-    const originalTotalFee = feeStructure.totalFee;
-    const calculatedTotalFee = student.totalCalculatedFee || originalTotalFee;
-    const concessionAmount = student.concession || 0;
-
-    return {
-      feeStructure,
-      totalPaid,
-      totalBalance,
-      isFullyPaid,
-      termBalances,
-      paymentHistory: studentPaymentHistory,
-      originalTotalFee,
-      calculatedTotalFee,
-      concessionAmount,
-      hasConcession,
-      remainingExcess // Add this for debugging
-    };
-  }, [payments, feeStructures]);
+    
+    return { totalDue, term1Due, term2Due, term3Due };
+  }, [allStudents, calculateStudentBalance]);
 
   // Get available terms for payment (terms with remaining balance)
   const getAvailableTermsForPayment = (student) => {
@@ -2330,7 +2421,11 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Students</p>
+                  {statsLoading ? (
+                    <div className="h-5 w-12 bg-gray-200 animate-pulse rounded mt-1"></div>
+                  ) : (
                   <p className="text-base sm:text-lg font-semibold text-gray-900">{stats.totalStudents}</p>
+                  )}
                   <p className="text-xs text-gray-500 hidden sm:block">Displayed: {students.length} (Page {currentPage})</p>
                 </div>
               </div>
@@ -2343,7 +2438,11 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Total Due</p>
+                  {statsLoading ? (
+                    <div className="h-5 w-16 bg-gray-200 animate-pulse rounded mt-1"></div>
+                  ) : (
                   <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.totalDue.toLocaleString()}</p>
+                  )}
                   <p className="text-xs text-gray-500 hidden sm:block">Overall outstanding</p>
                 </div>
               </div>
@@ -2356,7 +2455,11 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 1 Due</p>
+                  {statsLoading ? (
+                    <div className="h-5 w-16 bg-gray-200 animate-pulse rounded mt-1"></div>
+                  ) : (
                   <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term1Due.toLocaleString()}</p>
+                  )}
                   <p className="text-xs text-gray-500 hidden sm:block">First term pending</p>
                 </div>
               </div>
@@ -2369,7 +2472,11 @@ const FeeManagement = () => {
                 </div>
                 <div className="ml-2 sm:ml-3">
                   <p className="text-xs sm:text-sm font-medium text-gray-600">Term 2 Due</p>
+                  {statsLoading ? (
+                    <div className="h-5 w-16 bg-gray-200 animate-pulse rounded mt-1"></div>
+                  ) : (
                   <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term2Due.toLocaleString()}</p>
+                  )}
                   <p className="text-xs text-gray-500 hidden sm:block">Second term pending</p>
                 </div>
               </div>
@@ -2382,7 +2489,11 @@ const FeeManagement = () => {
                 </div>
                   <div className="ml-2 sm:ml-3">
                     <p className="text-xs sm:text-sm font-medium text-gray-600">Term 3 Due</p>
+                    {statsLoading ? (
+                      <div className="h-5 w-16 bg-gray-200 animate-pulse rounded mt-1"></div>
+                    ) : (
                     <p className="text-base sm:text-lg font-semibold text-gray-900">₹{calculateRealTimeStats.term3Due.toLocaleString()}</p>
+                    )}
                     <p className="text-xs text-gray-500 hidden sm:block">Third term pending</p>
                   </div>
               </div>
