@@ -166,7 +166,7 @@ const PrincipalStudents = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto mt-16 sm:mt-0">
+    <div className="mx-auto mt-16 sm:mt-0">
       <SEO 
         title="Students - Principal Dashboard"
         description="View all students in your assigned course"
@@ -370,7 +370,7 @@ const PrincipalStudents = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="bg-white px-3 sm:px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="bg-white px-3 sm:px-4 py-3 flex items-center justify-between border-t border-gray-200">
             <div className="flex-1 flex justify-between sm:hidden">
               <button
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -626,7 +626,7 @@ const PrincipalStudents = () => {
             <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-              <div className="bg-white px-3 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 sm:p-6 sm:pb-4">
+              <div className="bg-white px-3 sm:px-4 pt-4 sm:pt-5 pb-3 sm:pb-4 sm:p-6">
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                     <h3 className="text-base sm:text-lg leading-6 font-medium text-gray-900 mb-3 sm:mb-4">
@@ -642,7 +642,7 @@ const PrincipalStudents = () => {
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-3 sm:px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <div className="bg-gray-50 px-3 sm:px-4 py-3 sm:flex sm:flex-row-reverse">
                 <button
                   type="button"
                   onClick={closePhotoModal}

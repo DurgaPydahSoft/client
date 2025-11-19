@@ -235,7 +235,7 @@ const PrincipalViewComplaints = () => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8 mt-12 sm:mt-0">
+    <div className="mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8 mt-12 sm:mt-0">
       <SEO title="View Complaints - Principal" />
       
       {/* Header */}

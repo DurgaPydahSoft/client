@@ -255,7 +255,7 @@ const LeaveManagement = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+      <div className="mx-auto px-3 sm:px-6 py-4 sm:py-8">
         <SEO 
           title="Leave & Permission Management - Principal"
           description="Final approval of student leave and permission requests"

@@ -143,7 +143,7 @@ const StayInHostelRequests = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 py-4 sm:py-8">
+      <div className="mx-auto px-2 sm:px-6 py-4 sm:py-8">
         <SEO 
           title="Stay in Hostel Requests - Principal"
           description="Review and decide on student stay in hostel requests"

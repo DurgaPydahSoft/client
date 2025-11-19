@@ -403,7 +403,7 @@ const PrincipalDashboard = () => {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-4 lg:p-8">
+        <div className="mx-auto p-4 lg:p-8">
           <div className="flex justify-end mb-4">
             <NotificationBell />
           </div>

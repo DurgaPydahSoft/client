@@ -245,7 +245,7 @@ const PollManagement = () => {
         <form onSubmit={handleCreatePoll} className="space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <QuestionMarkCircleIcon className="w-5 h-5 text-blue-600" />
                 Question
               </label>
@@ -272,7 +272,7 @@ const PollManagement = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <ListBulletIcon className="w-5 h-5 text-blue-600" />
                 Options
               </label>
@@ -332,7 +332,7 @@ const PollManagement = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <ClockOutlineIcon className="w-5 h-5 text-blue-600" />
                   Scheduled Time (Optional)
                 </label>
@@ -359,7 +359,7 @@ const PollManagement = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                   <CalendarDaysIcon className="w-5 h-5 text-blue-600" />
                   End Time
                 </label>

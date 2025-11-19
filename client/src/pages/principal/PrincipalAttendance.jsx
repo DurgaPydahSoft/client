@@ -41,7 +41,7 @@ const PrincipalAttendance = () => {
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
       <SEO title="Attendance Management - Principal Dashboard" />
       
-      <div className="max-w-7xl mx-auto p-3 sm:p-6">
+      <div className="mx-auto p-3 sm:p-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
