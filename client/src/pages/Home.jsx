@@ -353,20 +353,20 @@ const Home = () => {
     <div className="w-full overflow-hidden">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center text-white pb-24 pt-20 px-4">
-  {/* Silk Background for hero only */}
-  <div className="absolute inset-0 -z-10">
-    <Silk
-      speed={8}
-      scale={1}
-      color="#7B7481"
-      noiseIntensity={1.5}
-      rotation={0}
-    />
-    <div className="absolute inset-0 bg-deepsea-900/80"></div>
-  </div>
+        {/* Silk Background for hero only */}
+        <div className="absolute inset-0 -z-10">
+          <Silk
+            speed={8}
+            scale={1}
+            color="#7B7481"
+            noiseIntensity={1.5}
+            rotation={0}
+          />
+          <div className="absolute inset-0 bg-deepsea-900/80"></div>
+        </div>
 
-       
-        <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center z-10 relative px-4">
+
+        <div className="mx-auto grid md:grid-cols-2 gap-12 items-center z-10 relative px-4">
           <div className="text-left">
             <motion.div
               initial={{ opacity: 0, y: -50 }}
@@ -497,7 +497,7 @@ const Home = () => {
 
       {/* Features Section */}
       <section className="w-full bg-gradient-to-b from-blue-50 via-cyan-50 to-white py-32 px-4">
-        
+
         <div className="max-w-6xl mx-auto">
           <motion.div
             ref={ref}
