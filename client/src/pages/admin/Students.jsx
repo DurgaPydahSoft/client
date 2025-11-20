@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, ShareIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/24/outline';
+import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, ShareIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -275,7 +275,10 @@ const Students = () => {
 
   // Concession approvals state
   const [concessionApprovals, setConcessionApprovals] = useState([]);
+  const [approvedConcessions, setApprovedConcessions] = useState([]);
   const [loadingConcessionApprovals, setLoadingConcessionApprovals] = useState(false);
+  const [loadingApprovedConcessions, setLoadingApprovedConcessions] = useState(false);
+  const [concessionViewMode, setConcessionViewMode] = useState('pending'); // 'pending' or 'approved'
   const [concessionApprovalFilters, setConcessionApprovalFilters] = useState({
     search: '',
     course: ''
@@ -288,6 +291,7 @@ const Students = () => {
   });
   const [rejectModal, setRejectModal] = useState({ open: false, student: null, newAmount: '' });
   const [approveModal, setApproveModal] = useState({ open: false, student: null, newAmount: '', notes: '' });
+  const [expandedRows, setExpandedRows] = useState(new Set()); // Track expanded rows for approved concessions
 
   // Debounce search term
   useEffect(() => {
@@ -680,13 +684,17 @@ const Students = () => {
     }
   }, [currentPage, filters.search, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
-  // Fetch concession approvals
+  // Fetch concession approvals (pending)
   const fetchConcessionApprovals = async () => {
     setLoadingConcessionApprovals(true);
     try {
       const response = await api.get('/api/admin/students/concession-approvals');
+      console.log('🔍 Concession Approvals Response:', response.data);
+      
       if (response.data.success) {
-        let students = response.data.data.students || [];
+        let students = response.data.data?.students || response.data.data || [];
+        
+        console.log('🔍 Students fetched:', students.length);
         
         // Apply filters on frontend
         if (concessionApprovalFilters.search && concessionApprovalFilters.search.trim()) {
@@ -699,23 +707,75 @@ const Students = () => {
         }
         
         if (concessionApprovalFilters.course && concessionApprovalFilters.course.trim()) {
-          students = students.filter(s => 
-            s.course?.toLowerCase().includes(concessionApprovalFilters.course.trim().toLowerCase())
-          );
+          students = students.filter(s => {
+            const courseName = typeof s.course === 'string' ? s.course : s.course?.name || '';
+            return courseName.toLowerCase().includes(concessionApprovalFilters.course.trim().toLowerCase());
+          });
         }
         
+        console.log('🔍 Students after filtering:', students.length);
         setConcessionApprovals(students);
         setConcessionApprovalPagination({
           current: 1,
           total: 1,
           totalStudents: students.length
         });
+      } else {
+        console.error('❌ API returned success: false', response.data);
+        setConcessionApprovals([]);
       }
     } catch (error) {
       console.error('Error fetching concession approvals:', error);
+      console.error('Error response:', error.response?.data);
       toast.error(error.response?.data?.message || 'Failed to fetch concession approvals');
+      setConcessionApprovals([]);
     } finally {
       setLoadingConcessionApprovals(false);
+    }
+  };
+
+  // Fetch approved concessions
+  const fetchApprovedConcessions = async () => {
+    setLoadingApprovedConcessions(true);
+    try {
+      const response = await api.get('/api/admin/students/approved-concessions');
+      console.log('🔍 Approved Concessions Response:', response.data);
+      
+      if (response.data.success) {
+        let students = response.data.data?.students || response.data.data || [];
+        
+        console.log('🔍 Approved students fetched:', students.length);
+        
+        // Apply filters on frontend
+        if (concessionApprovalFilters.search && concessionApprovalFilters.search.trim()) {
+          const searchTerm = concessionApprovalFilters.search.trim().toLowerCase();
+          students = students.filter(s => 
+            s.name?.toLowerCase().includes(searchTerm) ||
+            s.rollNumber?.toLowerCase().includes(searchTerm) ||
+            s.hostelId?.toLowerCase().includes(searchTerm)
+          );
+        }
+        
+        if (concessionApprovalFilters.course && concessionApprovalFilters.course.trim()) {
+          students = students.filter(s => {
+            const courseName = typeof s.course === 'string' ? s.course : s.course?.name || '';
+            return courseName.toLowerCase().includes(concessionApprovalFilters.course.trim().toLowerCase());
+          });
+        }
+        
+        console.log('🔍 Approved students after filtering:', students.length);
+        setApprovedConcessions(students);
+      } else {
+        console.error('❌ API returned success: false', response.data);
+        setApprovedConcessions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching approved concessions:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.message || 'Failed to fetch approved concessions');
+      setApprovedConcessions([]);
+    } finally {
+      setLoadingApprovedConcessions(false);
     }
   };
 
@@ -765,7 +825,11 @@ const Students = () => {
     } else if (tab === 'bulkUpload') {
       fetchTempStudentsSummary();
     } else if (tab === 'concessionApprovals' && isSuperAdmin) {
-      fetchConcessionApprovals();
+      if (concessionViewMode === 'pending') {
+        fetchConcessionApprovals();
+      } else {
+        fetchApprovedConcessions();
+      }
     }
     // We only want this effect to re-run when the tab itself changes
   }, [tab]);
@@ -5584,6 +5648,38 @@ const Students = () => {
   const renderConcessionApprovals = () => {
     return (
       <div className="space-y-4">
+        {/* Tabs for Pending/Approved */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-1">
+          <div className="flex space-x-1">
+            <button
+              onClick={() => {
+                setConcessionViewMode('pending');
+                fetchConcessionApprovals();
+              }}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                concessionViewMode === 'pending'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Pending Approvals ({concessionApprovals.length})
+            </button>
+            <button
+              onClick={() => {
+                setConcessionViewMode('approved');
+                fetchApprovedConcessions();
+              }}
+              className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                concessionViewMode === 'approved'
+                  ? 'bg-green-600 text-white'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              Approved Concessions ({approvedConcessions.length})
+            </button>
+          </div>
+        </div>
+
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -5619,24 +5715,26 @@ const Students = () => {
 
         {/* Students List - Card View */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          {loadingConcessionApprovals ? (
-            <div className="flex justify-center items-center py-12">
-              <LoadingSpinner />
-            </div>
-          ) : concessionApprovals.length === 0 ? (
-            <div className="text-center py-12">
-              <CheckCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No pending concession approvals</p>
-            </div>
-          ) : (
-            <>
-              <div className="mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Pending Approvals ({concessionApprovals.length})
-                </h3>
+          {concessionViewMode === 'pending' ? (
+            // Pending Approvals View
+            loadingConcessionApprovals ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {concessionApprovals.map((student) => (
+            ) : concessionApprovals.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No pending concession approvals</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Pending Approvals ({concessionApprovals.length})
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {concessionApprovals.map((student) => (
                   <div key={student._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -5732,9 +5830,228 @@ const Students = () => {
                       </div>
                     )}
                   </div>
-                ))}
+                  ))}
+                </div>
+              </>
+            )
+          ) : (
+            // Approved Concessions View
+            loadingApprovedConcessions ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner />
               </div>
-            </>
+            ) : approvedConcessions.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">No approved concessions found</p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Approved Concessions ({approvedConcessions.length})
+                  </h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course & Year</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Original Fee</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concession</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">After Concession</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {approvedConcessions.map((student) => {
+                        const isExpanded = expandedRows.has(student._id);
+                        return (
+                          <React.Fragment key={student._id}>
+                            <tr 
+                              className="hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                const newExpanded = new Set(expandedRows);
+                                if (isExpanded) {
+                                  newExpanded.delete(student._id);
+                                } else {
+                                  newExpanded.add(student._id);
+                                }
+                                setExpandedRows(newExpanded);
+                              }}
+                            >
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                {isExpanded ? (
+                                  <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                  <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                                )}
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                                  <div className="text-sm text-gray-500">{student.rollNumber}</div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">
+                                  {typeof student.course === 'string' ? student.course : student.course?.name || 'N/A'}
+                                </div>
+                                <div className="text-sm text-gray-500">Year {student.year}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">₹{student.originalTotalFee?.toLocaleString() || 'N/A'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm font-semibold text-green-600">₹{student.concession?.toLocaleString() || 0}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900">₹{student.afterConcessionFee?.toLocaleString() || student.totalCalculatedFee?.toLocaleString() || 'N/A'}</div>
+                              </td>
+                              <td className="px-4 py-4 whitespace-nowrap">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  student.concessionApproved 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {student.concessionApproved ? 'Approved' : 'Pending'}
+                                </span>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan="7" className="px-4 py-4 bg-gray-50">
+                                  <div className="space-y-4">
+                                    {/* Additional Details */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                      <div>
+                                        <span className="font-medium text-gray-700">Hostel ID:</span>
+                                        <span className="ml-2 text-gray-900">{student.hostelId || 'N/A'}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-700">Category:</span>
+                                        <span className="ml-2 text-gray-900">{student.category || 'N/A'}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-700">Room Number:</span>
+                                        <span className="ml-2 text-gray-900">{student.roomNumber || 'N/A'}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-medium text-gray-700">Academic Year:</span>
+                                        <span className="ml-2 text-gray-900">{student.academicYear || 'N/A'}</span>
+                                      </div>
+                                      {student.concessionRequestedBy && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Requested By:</span>
+                                          <span className="ml-2 text-gray-900">
+                                            {student.concessionRequestedBy?.name || student.concessionRequestedBy?.username || 'N/A'}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {student.concessionRequestedAt && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Requested On:</span>
+                                          <span className="ml-2 text-gray-900">
+                                            {new Date(student.concessionRequestedAt).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {student.concessionApprovedBy && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Approved By:</span>
+                                          <span className="ml-2 text-gray-900">
+                                            {student.concessionApprovedBy?.name || student.concessionApprovedBy?.username || 'N/A'}
+                                          </span>
+                                        </div>
+                                      )}
+                                      {student.concessionApprovedAt && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Approved On:</span>
+                                          <span className="ml-2 text-gray-900">
+                                            {new Date(student.concessionApprovedAt).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Fee Breakdown */}
+                                    <div className="border-t border-gray-200 pt-4">
+                                      <h4 className="text-sm font-semibold text-gray-700 mb-2">Fee Breakdown</h4>
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                        <div>
+                                          <span className="text-gray-600">Term 1:</span>
+                                          <span className="ml-2 font-medium text-gray-900">
+                                            ₹{student.calculatedTerm1Fee?.toLocaleString() || student.originalTotalFee ? Math.round((student.originalTotalFee * 0.4)).toLocaleString() : 'N/A'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">Term 2:</span>
+                                          <span className="ml-2 font-medium text-gray-900">
+                                            ₹{student.calculatedTerm2Fee?.toLocaleString() || student.originalTotalFee ? Math.round((student.originalTotalFee * 0.3)).toLocaleString() : 'N/A'}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-gray-600">Term 3:</span>
+                                          <span className="ml-2 font-medium text-gray-900">
+                                            ₹{student.calculatedTerm3Fee?.toLocaleString() || student.originalTotalFee ? Math.round((student.originalTotalFee * 0.3)).toLocaleString() : 'N/A'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Approval History */}
+                                    {student.concessionHistory && student.concessionHistory.length > 0 && (
+                                      <div className="border-t border-gray-200 pt-4">
+                                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Approval History</h4>
+                                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                                          {student.concessionHistory.slice().reverse().map((history, idx) => (
+                                            <div key={idx} className="bg-gray-50 p-3 rounded-lg text-xs">
+                                              <div className="flex justify-between items-start mb-2">
+                                                <span className={`font-semibold ${
+                                                  history.action === 'approved' ? 'text-green-600' :
+                                                  history.action === 'rejected' ? 'text-red-600' :
+                                                  history.action === 'updated' ? 'text-blue-600' : 'text-gray-600'
+                                                }`}>
+                                                  {history.action.charAt(0).toUpperCase() + history.action.slice(1)}
+                                                </span>
+                                                <span className="text-gray-500">
+                                                  {new Date(history.performedAt).toLocaleDateString()}
+                                                </span>
+                                              </div>
+                                              {history.previousAmount !== null && history.previousAmount !== history.amount && (
+                                                <div className="text-gray-700 mb-1">
+                                                  <span className="font-medium">Amount Change:</span> ₹{history.previousAmount?.toLocaleString()} → ₹{history.amount?.toLocaleString()}
+                                                </div>
+                                              )}
+                                              {history.performedBy && (
+                                                <div className="text-gray-600 mb-1">
+                                                  <span className="font-medium">By:</span> {history.performedBy?.name || history.performedBy?.username || 'N/A'}
+                                                </div>
+                                              )}
+                                              {history.notes && (
+                                                <div className="text-gray-600 italic mt-1">
+                                                  <span className="font-medium">Note:</span> {history.notes}
+                                                </div>
+                                              )}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )
           )}
         </div>
 
@@ -5751,16 +6068,29 @@ const Students = () => {
                   Requested Concession: <strong>₹{approveModal.student?.concession?.toLocaleString()}</strong>
                 </p>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Concession Amount (₹) - Leave empty to approve as requested, or enter a different amount
+                  Concession Amount (₹) - Change amount or leave as requested
                 </label>
                 <input
                   type="number"
+                  min="0"
+                  step="1"
                   value={approveModal.newAmount}
-                  onChange={(e) => setApproveModal(prev => ({ ...prev, newAmount: e.target.value }))}
-                  placeholder="Enter amount or leave as requested"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setApproveModal(prev => ({ ...prev, newAmount: value }));
+                  }}
+                  placeholder={`Current: ₹${approveModal.student?.concession?.toLocaleString() || 0}`}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-2"
                 />
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                {approveModal.newAmount && Number(approveModal.newAmount) !== approveModal.student?.concession && (
+                  <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                    <span className="text-gray-600">Current: </span>
+                    <span className="font-medium">₹{approveModal.student?.concession?.toLocaleString() || 0}</span>
+                    <span className="text-gray-600"> → New: </span>
+                    <span className="font-medium text-blue-600">₹{Number(approveModal.newAmount).toLocaleString()}</span>
+                  </div>
+                )}
+                <label className="block text-sm font-medium text-gray-700 mb-2 mt-3">
                   Notes (Optional)
                 </label>
                 <textarea
@@ -5771,7 +6101,7 @@ const Students = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Leave amount empty to approve the requested amount, or enter a different amount to update it
+                  Leave empty to approve as requested (₹{approveModal.student?.concession?.toLocaleString() || 0}), or enter a different amount to change it
                 </p>
               </div>
               <div className="flex justify-end space-x-3">
@@ -5783,14 +6113,31 @@ const Students = () => {
                 </button>
                 <button
                   onClick={() => {
-                    const newAmount = approveModal.newAmount === '' || approveModal.newAmount === approveModal.student?.concession?.toString() 
-                      ? null 
-                      : Number(approveModal.newAmount);
+                    // If empty or same as current, approve with null (use current amount)
+                    // Otherwise, use the new amount
+                    let newAmount = null;
+                    
+                    if (approveModal.newAmount && approveModal.newAmount.trim() !== '') {
+                      const parsedAmount = Number(approveModal.newAmount);
+                      
+                      if (isNaN(parsedAmount) || parsedAmount < 0) {
+                        toast.error('Please enter a valid concession amount (must be 0 or greater)');
+                        return;
+                      }
+                      
+                      // Only set newAmount if it's different from current
+                      if (parsedAmount !== approveModal.student?.concession) {
+                        newAmount = parsedAmount;
+                      }
+                    }
+                    
                     handleApproveConcession(approveModal.student._id, newAmount, approveModal.notes);
                   }}
                   className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700"
                 >
-                  Approve
+                  {approveModal.newAmount && Number(approveModal.newAmount) !== approveModal.student?.concession
+                    ? 'Approve with New Amount'
+                    : 'Approve as Requested'}
                 </button>
               </div>
             </div>
@@ -5849,9 +6196,12 @@ const Students = () => {
 
   // Re-apply filters when filter values change (data is already loaded)
   useEffect(() => {
-    if (tab === 'concessionApprovals' && isSuperAdmin && concessionApprovals.length > 0) {
-      // Re-fetch to get fresh data and apply filters
-      fetchConcessionApprovals();
+    if (tab === 'concessionApprovals' && isSuperAdmin) {
+      if (concessionViewMode === 'pending') {
+        fetchConcessionApprovals();
+      } else {
+        fetchApprovedConcessions();
+      }
     }
   }, [concessionApprovalFilters.search, concessionApprovalFilters.course]);
 
