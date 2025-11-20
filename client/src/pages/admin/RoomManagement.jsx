@@ -226,7 +226,7 @@ const RoomManagement = () => {
   const getCategoryOptions = (gender) => {
     return gender === 'Male'
       ? ['A+', 'A', 'B+', 'B']
-      : ['A+', 'A', 'B', 'C'];
+      : ['A+', 'A', 'B'];
   };
 
   // Filter rooms based on selected filters

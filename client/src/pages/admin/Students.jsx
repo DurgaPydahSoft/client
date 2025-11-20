@@ -5911,12 +5911,8 @@ const Students = () => {
                                 <div className="text-sm text-gray-900">₹{student.afterConcessionFee?.toLocaleString() || student.totalCalculatedFee?.toLocaleString() || 'N/A'}</div>
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  student.concessionApproved 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {student.concessionApproved ? 'Approved' : 'Pending'}
+                                <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                  Approved
                                 </span>
                               </td>
                             </tr>
