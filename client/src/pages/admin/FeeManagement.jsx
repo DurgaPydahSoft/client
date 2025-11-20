@@ -65,7 +65,8 @@ const FeeManagement = () => {
     academicYear: '',
     category: '',
     gender: '',
-    course: ''
+    course: '',
+    year: ''
   });
   
   // Debounce search to reduce API calls
@@ -75,6 +76,7 @@ const FeeManagement = () => {
   const [feeStructures, setFeeStructures] = useState([]);
   const [courses, setCourses] = useState(coursesFromContext || []); // Use from context if available
   const [courseYears, setCourseYears] = useState([]);
+  const [duesCourseYears, setDuesCourseYears] = useState([]); // Separate state for dues tab course years
   
   // Update courses when context updates
   useEffect(() => {
@@ -183,6 +185,7 @@ const FeeManagement = () => {
 
     return years;
   };
+
 
   // Get available categories based on gender (dynamic room mapping)
   const getAvailableCategories = (gender = null) => {
@@ -352,7 +355,7 @@ const FeeManagement = () => {
 
   useEffect(() => {
     fetchStudents();
-  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course]);
+  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
 
   // Fetch course years function - defined before useEffects that use it
   const fetchCourseYears = useCallback(async (courseId) => {
@@ -401,6 +404,70 @@ const FeeManagement = () => {
     }
   }, [feeStructureFilter.course, fetchCourseYears]);
 
+  // Fetch course years for dues tab when course filter changes
+  useEffect(() => {
+    if (filters.course) {
+      // Find the selected course to get its duration
+      const selectedCourse = courses.find(c => 
+        String(c._id) === String(filters.course) || 
+        c._id === filters.course
+      );
+      
+      if (selectedCourse && selectedCourse.duration) {
+        // Generate years based on course duration (1 to duration)
+        const years = Array.from({ length: selectedCourse.duration }, (_, i) => i + 1);
+        setDuesCourseYears(years);
+      } else if (courses.length === 0) {
+        // If courses not loaded yet, fetch course details first
+        api.get(`/api/fee-structures/courses`)
+          .then(response => {
+            if (response.data.success) {
+              const allCourses = response.data.data || [];
+              const course = allCourses.find(c => 
+                String(c._id) === String(filters.course) || 
+                c._id === filters.course
+              );
+              if (course && course.duration) {
+                const years = Array.from({ length: course.duration }, (_, i) => i + 1);
+                setDuesCourseYears(years);
+              } else {
+                // Fallback: try to fetch years from API
+                return api.get(`/api/fee-structures/courses/${filters.course}/years`);
+              }
+            }
+          })
+          .then(response => {
+            if (response && response.data && response.data.success) {
+              setDuesCourseYears(response.data.data.years);
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching course years:', err);
+            setDuesCourseYears([]);
+          });
+      } else {
+        // Course not found in local state, try API
+        api.get(`/api/fee-structures/courses/${filters.course}/years`)
+          .then(response => {
+            if (response.data.success) {
+              setDuesCourseYears(response.data.data.years);
+            } else {
+              setDuesCourseYears([]);
+            }
+          })
+          .catch(err => {
+            console.error('Error fetching dues course years:', err);
+            setDuesCourseYears([]);
+          });
+      }
+      // Reset year when course changes
+      setFilters(prev => ({ ...prev, year: '' }));
+    } else {
+      setDuesCourseYears([]);
+      setFilters(prev => ({ ...prev, year: '' }));
+    }
+  }, [filters.course, courses]);
+
   // Fee structures are now fetched via React Query, no need for separate useEffect
 
   // Stats are now calculated automatically when cachedStudentsForStats changes
@@ -421,6 +488,7 @@ const FeeManagement = () => {
     if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
     if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
     if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+    if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
 
     const response = await api.get(`/api/admin/students?${params}`);
     
@@ -428,11 +496,11 @@ const FeeManagement = () => {
       return response.data.data.students || response.data.data || [];
     }
     return [];
-  }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course]);
+  }, [debouncedSearchForStats, filters.batch, filters.category, filters.gender, filters.course, filters.year]);
 
   // Use React Query to cache students for stats
   const { data: cachedStudentsForStats, isLoading: studentsStatsLoading, refetch: refetchStudentsForStats } = useQuery({
-    queryKey: ['students-for-stats', debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course],
+    queryKey: ['students-for-stats', debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, filters.year],
     queryFn: fetchStudentsForStats,
     staleTime: 1 * 60 * 1000, // 1 minute - stats should be relatively fresh
     cacheTime: 5 * 60 * 1000, // 5 minutes cache
@@ -473,6 +541,7 @@ const FeeManagement = () => {
       if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
       if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
       if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+      if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
 
       console.log('🔍 Frontend: Fetching students with params:', params.toString());
       console.log('🔍 Frontend: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
@@ -916,7 +985,7 @@ const FeeManagement = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ search: '', academicYear: '', category: '', gender: '', course: '' });
+    setFilters({ search: '', academicYear: '', category: '', gender: '', course: '', year: '' });
     setCurrentPage(1);
   };
 
@@ -1222,30 +1291,21 @@ const FeeManagement = () => {
     const courseId = feeStructureForm.course;
     const year = feeStructureForm.year;
 
-    if (!courseId || !year) {
+    // If no course selected, return all categories
+    if (!courseId) {
       return allCategories;
     }
 
-    // Get existing categories for the current academic year, course, and year
-    const existingCategories = feeStructures
-      .filter(structure => 
-        structure.academicYear === academicYear &&
-        (structure.course?._id === courseId || structure.course === courseId) &&
-        structure.year === parseInt(year)
-      )
-      .map(structure => structure.category);
-
-    // If editing, include the current category
-    if (selectedFeeStructure) {
+    // If editing, include all categories (including current one)
+    if (selectedFeeStructure || isEditMode) {
       return allCategories;
     }
 
-    // Filter out existing categories
-    const availableCategories = allCategories.filter(category => 
-      !existingCategories.includes(category)
-    );
-
-    return availableCategories;
+    // For add mode: Always show all categories regardless of year selection
+    // This prevents categories from disappearing when year is selected
+    // Backend will handle duplicate check if user tries to create existing structure
+    // Better UX - user can always see all available categories
+    return allCategories;
   };
 
   const openFeeStructureModal = (structure = null) => {
@@ -2563,16 +2623,16 @@ const FeeManagement = () => {
             </div>
 
             {/* Filters */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
               <select
                 value={filters.academicYear}
                 onChange={(e) => handleFilterChange('academicYear', e.target.value)}
                 className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               >
-                <option value="">All Years</option>
-                <option value="2023-2024">2023-2024</option>
-                <option value="2024-2025">2024-2025</option>
-                <option value="2025-2026">2025-2026</option>
+                <option value="">All Academic Years</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
               </select>
 
               <select
@@ -2583,6 +2643,20 @@ const FeeManagement = () => {
                 <option value="">All Courses</option>
                 {courses.map(course => (
                   <option key={course._id} value={course._id}>{course.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={filters.year}
+                onChange={(e) => handleFilterChange('year', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                disabled={!filters.course}
+              >
+                <option value="">
+                  {!filters.course ? 'Select Course first' : 'All Years'}
+                </option>
+                {duesCourseYears.map(year => (
+                  <option key={year} value={year}>Year {year}</option>
                 ))}
               </select>
 
@@ -4119,9 +4193,9 @@ const FeeManagement = () => {
               // Add/Edit Fee Structure Mode
               <form onSubmit={handleFeeStructureSubmit}>
                 <div className="space-y-4">
-                  {/* Check if we're in single edit mode (isEditMode is true OR feeStructureForm has values) or bulk mode (bulkFeeForm has course and year) */}
-                  {(isEditMode || (feeStructureForm.course && feeStructureForm.year && String(feeStructureForm.year).trim() !== '')) && (!bulkFeeForm.course || bulkFeeForm.course === '') ? (
-                    // Single Fee Structure Edit Mode
+                  {/* Check if we're in single mode (edit mode OR add mode with course/year OR bulk form is empty) or bulk mode (bulkFeeForm has course and year) */}
+                  {(!bulkFeeForm.course || bulkFeeForm.course === '') ? (
+                    // Single Fee Structure Add/Edit Mode
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
@@ -4253,7 +4327,7 @@ const FeeManagement = () => {
                         </div>
                       </div>
 
-                      {/* Apply to Other Years Section - Only show when editing and course/year are selected */}
+                      {/* Apply to Other Years Section - Show when course/year are selected (works for both add and edit) */}
                       {(() => {
                         // Normalize course ID comparison
                         const selectedCourse = courses.find(c => 
