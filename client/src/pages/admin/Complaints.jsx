@@ -134,13 +134,13 @@ const Complaints = () => {
   const [filterDateRange, setFilterDateRange] = useState({ from: '', to: '' });
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 500);
-  
+
   // Track if component has mounted to avoid initial double fetch
   const isInitialMount = useRef(true);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const complaintsPerPage = 10;
+  const complaintsPerPage = 1000;
 
   // Add pagination state
   const [pagination, setPagination] = useState({
@@ -189,7 +189,7 @@ const Complaints = () => {
     fetchMembers();
     fetchAIConfig();
     fetchAIStats();
-    
+
     // Mark as mounted after a short delay to allow initial fetch
     setTimeout(() => {
       isInitialMount.current = false;
@@ -227,7 +227,7 @@ const Complaints = () => {
       // Update complaints and pagination from the response
       setComplaints(res.data.data.complaints);
       setPagination(res.data.data.pagination);
-      
+
       // Update counts if provided by backend (always update for accurate stats)
       if (res.data.data.counts) {
         setComplaintCounts(res.data.data.counts);
@@ -744,7 +744,7 @@ const Complaints = () => {
   const renderComplaintCard = (complaint) => {
     const isLocked = complaint.isLockedForUpdates === true;
     const canDelete = complaint.currentStatus === 'Received' && !isLocked;
-    
+
     return (
       <div
         key={complaint._id || complaint.id}
@@ -1656,8 +1656,8 @@ const Complaints = () => {
 
                   <button
                     className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-white font-medium transition-all duration-200 text-xs sm:text-sm ${updating
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
                       }`}
                     type="submit"
                     disabled={updating || (status === 'In Progress' && !selectedMember)}
