@@ -284,7 +284,7 @@ const WardenViewComplaints = () => {
               className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
             >
               <option value="all">All Status</option>
-              <option value="pending">Pending</option>
+              <option value="received">Received</option>
               <option value="in-progress">In Progress</option>
               <option value="resolved">Resolved</option>
               <option value="rejected">Rejected</option>
@@ -330,7 +330,7 @@ const WardenViewComplaints = () => {
                       {/* Status Row */}
                       <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
                         <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(complaint.currentStatus || complaint.status)} shadow-sm`}>
-                          {complaint.currentStatus || complaint.status || 'Pending'}
+                          {complaint.currentStatus || complaint.status || 'Received'}
                         </span>
                       </div>
                       
@@ -454,7 +454,7 @@ const WardenViewComplaints = () => {
                 {/* Status */}
                 <div className="flex flex-wrap gap-1 sm:gap-2">
                   <span className={`inline-flex items-center px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium border ${getStatusColor(selected.currentStatus || selected.status)} shadow-sm`}>
-                    {selected.currentStatus || selected.status || 'Pending'}
+                    {selected.currentStatus || selected.status || 'Received'}
                   </span>
                 </div>
 

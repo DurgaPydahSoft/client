@@ -25,12 +25,11 @@ const STATUS_COLORS = {
   'In Progress': '#f59e42',   // Orange
   'Resolved': '#10b981',      // Green
   'Reopened': '#f43f5e',      // Red
-  'Pending': '#6366f1',       // Indigo
   'Unassigned': '#a78bfa',    // Purple
   'Uncategorized': '#64748b', // Gray
 };
 
-const STATUS_OPTIONS = ['Received','Pending', 'In Progress', 'Resolved', ];
+const STATUS_OPTIONS = ['Received', 'In Progress', 'Resolved'];
 
 // StatCard component (compact version)
 const StatCard = ({ icon: Icon, label, value, color, extra, animateDelay = 0 }) => {
@@ -170,7 +169,7 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
       // Calculate statistics for this member
       const resolved = assigned.filter(c => c.currentStatus === 'Resolved');
       const active = assigned.filter(c => c.currentStatus === 'In Progress');
-      const pending = assigned.filter(c => c.currentStatus === 'Pending');
+      const received = assigned.filter(c => c.currentStatus === 'Received');
       const rate = assigned.length ? ((resolved.length / assigned.length) * 100).toFixed(0) : '-';
       
       return {
@@ -180,7 +179,7 @@ const MemberAssignmentHeatmap = ({ members, complaints }) => {
         resolved: resolved.length,
         active: active.length,
         rate,
-        pending: pending.length,
+        pending: received.length,
         reopened: assigned.filter(c => c.isReopened).length
       };
     }).sort((a, b) => b.assigned - a.assigned); // Sort by number of assignments
@@ -520,7 +519,7 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedComplaint.currentStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                    selectedComplaint.currentStatus === 'Received' ? 'bg-blue-100 text-blue-800' :
                     selectedComplaint.currentStatus === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                     'bg-gray-100 text-gray-800'
                   }`}>
@@ -560,11 +559,6 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                           </svg>
                         )}
-                        {t.status === "Pending" && (
-                          <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        )}
                         {t.status === "In Progress" && (
                           <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -579,7 +573,7 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
                       <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                            t.status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                            t.status === 'Received' ? 'bg-blue-100 text-blue-800' :
                             t.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
@@ -720,7 +714,7 @@ const LongPendingPopup = ({ isOpen, onClose, complaints, days, onComplaintClick 
             </div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          complaint.currentStatus === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
+                          complaint.currentStatus === 'Received' ? 'bg-blue-100 text-blue-800' :
                           complaint.currentStatus === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>

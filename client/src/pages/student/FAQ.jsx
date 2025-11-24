@@ -102,7 +102,7 @@ const FAQ = () => {
     {
       id: 'complaint-status-flow',
       question: 'What are the different complaint statuses?',
-      answer: 'Complaints go through these statuses: 1) Received - when first submitted, 2) Pending - under review, 3) In Progress - assigned to staff and being worked on, 4) Resolved - issue has been fixed, and 5) Closed - final status after resolution.'
+      answer: 'Complaints go through these statuses: 1) Received - when first submitted, 2) In Progress - assigned to staff and being worked on, 3) Resolved - issue has been fixed, and 4) Closed - final status after resolution.'
     },
     {
       id: 'complaint-resolution-time',

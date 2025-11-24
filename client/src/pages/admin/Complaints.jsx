@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { FunnelIcon, XMarkIcon, ClockIcon, UserIcon, CheckCircleIcon, ExclamationCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon, CogIcon } from '@heroicons/react/24/outline';
@@ -6,31 +6,29 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { useLocation } from 'react-router-dom';
 import SEO from '../../components/SEO';
 import AIConfigPanel from '../../components/AIConfigPanel';
+import useDebounce from '../../hooks/useDebounce';
 
-const STATUS_OPTIONS = ['All', 'Received', 'Pending', 'In Progress', 'Resolved', 'Closed'];
+const STATUS_OPTIONS = ['All', 'Received', 'In Progress', 'Resolved', 'Closed'];
 
 // Function to get valid next statuses based on current status
 const getValidNextStatuses = (currentStatus, isReopened = false) => {
   switch (currentStatus) {
     case 'Received':
-      return ['Pending', 'In Progress', 'Resolved'];
-    case 'Pending':
       return ['In Progress', 'Resolved'];
     case 'In Progress':
       return ['Resolved'];
     case 'Resolved':
-      // If reopened, can go back to Pending, otherwise can be Closed
-      return isReopened ? ['Pending'] : ['Closed'];
+      // If reopened, can go back to Received, otherwise can be Closed
+      return isReopened ? ['Received'] : ['Closed'];
     case 'Closed':
       return []; // No further status changes allowed
     default:
-      return ['Pending', 'In Progress', 'Resolved'];
+      return ['In Progress', 'Resolved'];
   }
 };
 
 const STATUS_COLORS = {
   'Received': 'bg-blue-100 text-blue-800',
-  'Pending': 'bg-yellow-100 text-yellow-800',
   'In Progress': 'bg-purple-100 text-purple-800',
   'Resolved': 'bg-green-100 text-green-800',
   'Closed': 'bg-gray-100 text-gray-800'
@@ -118,6 +116,7 @@ const Complaints = () => {
   const location = useLocation();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [timeline, setTimeline] = useState([]);
@@ -134,6 +133,10 @@ const Complaints = () => {
   const [filterSubCategory, setFilterSubCategory] = useState('All');
   const [filterDateRange, setFilterDateRange] = useState({ from: '', to: '' });
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
+  
+  // Track if component has mounted to avoid initial double fetch
+  const isInitialMount = useRef(true);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -145,6 +148,15 @@ const Complaints = () => {
     page: 1,
     limit: 10,
     pages: 0
+  });
+
+  // Complaint counts/stats state
+  const [complaintCounts, setComplaintCounts] = useState({
+    total: 0,
+    active: 0,
+    inProgress: 0,
+    resolved: 0,
+    closed: 0
   });
 
   // AI configuration state
@@ -173,14 +185,24 @@ const Complaints = () => {
       if (dateRange) setFilterDateRange(dateRange);
     }
 
-    fetchComplaints();
+    fetchComplaints(true); // Initial load with full page loading
     fetchMembers();
     fetchAIConfig();
     fetchAIStats();
+    
+    // Mark as mounted after a short delay to allow initial fetch
+    setTimeout(() => {
+      isInitialMount.current = false;
+    }, 100);
   }, [location.state]);
 
-  const fetchComplaints = async () => {
-    setLoading(true);
+  const fetchComplaints = async (isInitialLoad = false) => {
+    // Use full page loading only on initial load
+    if (isInitialLoad) {
+      setLoading(true);
+    } else {
+      setContentLoading(true);
+    }
     setError(null);
     try {
       // Build query parameters
@@ -190,9 +212,11 @@ const Complaints = () => {
       if (filterSubCategory && filterSubCategory !== 'All' && filterCategory === 'Maintenance') params.append('subCategory', filterSubCategory);
       if (filterDateRange.from) params.append('fromDate', filterDateRange.from);
       if (filterDateRange.to) params.append('toDate', filterDateRange.to);
-      if (searchQuery) params.append('search', searchQuery);
+      if (debouncedSearchQuery && debouncedSearchQuery.trim()) params.append('search', debouncedSearchQuery.trim());
       params.append('page', currentPage);
       params.append('limit', complaintsPerPage);
+
+      console.log('🔍 Fetching complaints with params:', params.toString());
 
       const res = await api.get(`/api/complaints/admin/all?${params.toString()}`);
 
@@ -203,12 +227,18 @@ const Complaints = () => {
       // Update complaints and pagination from the response
       setComplaints(res.data.data.complaints);
       setPagination(res.data.data.pagination);
+      
+      // Update counts if provided by backend (always update for accurate stats)
+      if (res.data.data.counts) {
+        setComplaintCounts(res.data.data.counts);
+      }
     } catch (err) {
       console.error('Error fetching complaints:', err);
       setError(err.message || 'Failed to fetch complaints');
       toast.error(err.message || 'Failed to fetch complaints');
     } finally {
       setLoading(false);
+      setContentLoading(false);
     }
   };
 
@@ -501,19 +531,20 @@ const Complaints = () => {
     setFilterDateRange({ from: '', to: '' });
     setSearchQuery('');
     setCurrentPage(1);
+    // Fetch will be triggered by useEffect when state changes
   };
 
-  const handleFilterChange = () => {
-    setCurrentPage(1);
-    fetchComplaints();
-  };
 
 
 
   // Update useEffect to fetch complaints when filters or page changes
   useEffect(() => {
-    fetchComplaints();
-  }, [currentPage, filterStatus, filterCategory, filterSubCategory, filterDateRange, searchQuery]);
+    // Skip on initial mount (handled by location.state effect)
+    if (isInitialMount.current) {
+      return;
+    }
+    fetchComplaints(false); // Content-only loading
+  }, [currentPage, filterStatus, filterCategory, filterSubCategory, filterDateRange.from, filterDateRange.to, debouncedSearchQuery]);
 
   // Helper function to get complaints by status for each column
   const getComplaintsByStatus = (statuses) => {
@@ -870,16 +901,30 @@ const Complaints = () => {
                 <h1 className="text-lg sm:text-xl font-bold text-blue-900">Complaint Management</h1>
               </div>
               <div className="flex items-center gap-2 sm:gap-4">
-                <div className="hidden sm:flex items-center gap-4">
+                <div className="hidden sm:flex items-center gap-3">
                   <div className="bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                    <span className="text-sm text-gray-600">Total: </span>
-                    <span className="font-semibold text-blue-700">{complaints.length}</span>
+                    <span className="text-xs text-gray-600">Total: </span>
+                    <span className="font-semibold text-blue-700 text-sm">{complaintCounts.total}</span>
                   </div>
 
-                  <div className="bg-yellow-50 px-3 py-1.5 rounded-lg border border-yellow-100">
-                    <span className="text-sm text-gray-600">Active: </span>
-                    <span className="font-semibold text-yellow-700">
-                      {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length}
+                  <div className="bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                    <span className="text-xs text-gray-600">Resolved: </span>
+                    <span className="font-semibold text-green-700 text-sm">
+                      {complaintCounts.resolved}
+                    </span>
+                  </div>
+
+                  <div className="bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
+                    <span className="text-xs text-gray-600">In Progress: </span>
+                    <span className="font-semibold text-purple-700 text-sm">
+                      {complaintCounts.inProgress}
+                    </span>
+                  </div>
+
+                  <div className="bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <span className="text-xs text-gray-600">Closed: </span>
+                    <span className="font-semibold text-gray-700 text-sm">
+                      {complaintCounts.closed}
                     </span>
                   </div>
 
@@ -940,13 +985,25 @@ const Complaints = () => {
           <div className="px-3 py-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
-                <div className="text-xs text-gray-600 mb-1">Total Complaints</div>
-                <div className="font-semibold text-blue-700 text-lg">{complaints.length}</div>
+                <div className="text-xs text-gray-600 mb-1">Total</div>
+                <div className="font-semibold text-blue-700 text-lg">{complaintCounts.total}</div>
               </div>
-              <div className="bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-100">
-                <div className="text-xs text-gray-600 mb-1">Active</div>
-                <div className="font-semibold text-yellow-700 text-lg">
-                  {complaints.filter(c => c.currentStatus === 'Pending' || c.currentStatus === 'Received').length}
+              <div className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-100">
+                <div className="text-xs text-gray-600 mb-1">In Progress</div>
+                <div className="font-semibold text-purple-700 text-lg">
+                  {complaintCounts.inProgress}
+                </div>
+              </div>
+              <div className="bg-green-50 px-3 py-2 rounded-lg border border-green-100">
+                <div className="text-xs text-gray-600 mb-1">Resolved</div>
+                <div className="font-semibold text-green-700 text-lg">
+                  {complaintCounts.resolved}
+                </div>
+              </div>
+              <div className="bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+                <div className="text-xs text-gray-600 mb-1">Closed</div>
+                <div className="font-semibold text-gray-700 text-lg">
+                  {complaintCounts.closed}
                 </div>
               </div>
             </div>
@@ -1007,7 +1064,7 @@ const Complaints = () => {
                       value={filterStatus}
                       onChange={(e) => {
                         setFilterStatus(e.target.value);
-                        handleFilterChange();
+                        setCurrentPage(1); // Reset to first page when filter changes
                       }}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                     >
@@ -1025,7 +1082,7 @@ const Complaints = () => {
                       onChange={(e) => {
                         setFilterCategory(e.target.value);
                         setFilterSubCategory('All');
-                        handleFilterChange();
+                        setCurrentPage(1); // Reset to first page when filter changes
                       }}
                       className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                     >
@@ -1043,7 +1100,7 @@ const Complaints = () => {
                         value={filterSubCategory}
                         onChange={(e) => {
                           setFilterSubCategory(e.target.value);
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       >
@@ -1064,7 +1121,7 @@ const Complaints = () => {
                         value={filterDateRange.from}
                         onChange={(e) => {
                           setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       />
@@ -1076,7 +1133,7 @@ const Complaints = () => {
                         value={filterDateRange.to}
                         onChange={(e) => {
                           setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       />
@@ -1092,7 +1149,7 @@ const Complaints = () => {
                         value={searchQuery}
                         onChange={(e) => {
                           setSearchQuery(e.target.value);
-                          handleFilterChange();
+                          // Don't call handleFilterChange here - debounced search will trigger useEffect
                         }}
                         placeholder="Search by description or student..."
                         className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
@@ -1154,7 +1211,7 @@ const Complaints = () => {
                         value={filterStatus}
                         onChange={(e) => {
                           setFilterStatus(e.target.value);
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       >
@@ -1172,7 +1229,7 @@ const Complaints = () => {
                         onChange={(e) => {
                           setFilterCategory(e.target.value);
                           setFilterSubCategory('All');
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       >
@@ -1190,7 +1247,7 @@ const Complaints = () => {
                           value={filterSubCategory}
                           onChange={(e) => {
                             setFilterSubCategory(e.target.value);
-                            handleFilterChange();
+                            setCurrentPage(1); // Reset to first page when filter changes
                           }}
                           className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                         >
@@ -1212,7 +1269,7 @@ const Complaints = () => {
                         value={filterDateRange.from}
                         onChange={(e) => {
                           setFilterDateRange(prev => ({ ...prev, from: e.target.value }));
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       />
@@ -1225,7 +1282,7 @@ const Complaints = () => {
                         value={filterDateRange.to}
                         onChange={(e) => {
                           setFilterDateRange(prev => ({ ...prev, to: e.target.value }));
-                          handleFilterChange();
+                          setCurrentPage(1); // Reset to first page when filter changes
                         }}
                         className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
                       />
@@ -1242,7 +1299,7 @@ const Complaints = () => {
                           value={searchQuery}
                           onChange={(e) => {
                             setSearchQuery(e.target.value);
-                            handleFilterChange();
+                            // Don't call handleFilterChange here - debounced search will trigger useEffect
                           }}
                           placeholder="Search by description or student..."
                           className="w-full pl-10 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs"
@@ -1267,18 +1324,23 @@ const Complaints = () => {
           {/* Main Content - Full Width Kanban Board */}
           <div className="w-full">
             {/* Right Content - 4-Column Kanban Board */}
-            <div className="w-full">
-
+            <div className="w-full relative">
+              {/* Content Loading Overlay */}
+              {contentLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-20 rounded-lg">
+                  <LoadingSpinner size="md" />
+                </div>
+              )}
 
               {/* Kanban Board */}
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+              <div className={`grid grid-cols-1 xl:grid-cols-3 gap-3 ${contentLoading ? 'opacity-50' : ''}`}>
                 {Object.entries(COLUMN_CONFIG).map(([key, config]) =>
                   renderKanbanColumn(key, config)
                 )}
               </div>
 
               {/* Mobile View - Compact List */}
-              <div className="xl:hidden mt-6">
+              <div className={`xl:hidden mt-6 ${contentLoading ? 'opacity-50' : ''}`}>
                 <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">All Complaints</h3>
                   {renderComplaintsList()}

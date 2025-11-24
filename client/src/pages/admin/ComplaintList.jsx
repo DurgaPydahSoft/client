@@ -115,10 +115,10 @@ const ComplaintList = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "Pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "In Progress":
+      case "Received":
         return "bg-blue-100 text-blue-800";
+      case "In Progress":
+        return "bg-purple-100 text-purple-800";
       case "Resolved":
         return "bg-green-100 text-green-800";
       case "Rejected":
@@ -130,7 +130,7 @@ const ComplaintList = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "Pending":
+      case "Received":
         return <ClockIcon className="w-5 h-5" />;
       case "In Progress":
         return <ClockIcon className="w-5 h-5" />;
@@ -337,7 +337,7 @@ const ComplaintList = () => {
                                   Reject
                                 </button>
                               )}
-                              {complaint.currentStatus === "Pending" && (
+                              {complaint.currentStatus === "Received" && (
                                 <button
                                   onClick={() =>
                                     handleStatusChange(

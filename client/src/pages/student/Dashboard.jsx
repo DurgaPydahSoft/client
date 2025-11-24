@@ -196,7 +196,7 @@ const StudentDashboardLayout = () => {
 
         const resolved = complaints.filter(c => c.currentStatus === "Resolved").length;
         const inProgress = complaints.filter(c => c.currentStatus === "In Progress").length;
-        const pending = complaints.filter(c => ["Received", "Pending"].includes(c.currentStatus)).length;
+        const pending = complaints.filter(c => c.currentStatus === "Received").length;
 
         const resolvedComplaints = complaints.filter(c => c.currentStatus === "Resolved");
         const totalTime = resolvedComplaints.reduce((acc, c) => {
