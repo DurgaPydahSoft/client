@@ -697,6 +697,35 @@ const ReminderConfig = () => {
                     Recalculate
             </button>
             <button
+              onClick={async () => {
+                if (!window.confirm('This will process late fees for all students who have crossed their due dates. Continue?')) {
+                  return;
+                }
+                try {
+                  setLoading(true);
+                  const response = await api.post('/api/reminder-config/process-late-fees');
+                  if (response.data.success) {
+                    toast.success(`Late fee processing completed! Processed ${response.data.data.processedCount} students, Applied ${response.data.data.lateFeeAppliedCount} late fees.`);
+                    setError(null);
+                  } else {
+                    setError(response.data.message || 'Failed to process late fees');
+                    toast.error(response.data.message || 'Failed to process late fees');
+                  }
+                } catch (error) {
+                  console.error('Error processing late fees:', error);
+                  setError('Failed to process late fees');
+                  toast.error(error.response?.data?.message || 'Failed to process late fees');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+                    disabled={loading}
+                    className="px-3 sm:px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50"
+            >
+              <ExclamationTriangleIcon className="w-4 h-4" />
+                    Process Late Fees
+            </button>
+            <button
               onClick={() => setShowTermConfigForm(true)}
                     className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium"
             >
@@ -739,9 +768,17 @@ const ReminderConfig = () => {
                 </div>
                       <div className="space-y-1.5">
                         {['term1', 'term2', 'term3'].map((term, idx) => (
-                          <div key={term} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600 font-medium">Term {idx + 1}:</span>
-                            <span className="text-gray-900 font-semibold">{config.termDueDates[term].daysFromSemesterStart} days</span>
+                          <div key={term} className="space-y-1">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600 font-medium">Term {idx + 1}:</span>
+                              <span className="text-gray-900 font-semibold">{config.termDueDates[term].daysFromSemesterStart} days</span>
+                            </div>
+                            {config.termDueDates[term].lateFee > 0 && (
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-orange-600 font-medium">Late Fee:</span>
+                                <span className="text-orange-700 font-semibold">₹{config.termDueDates[term].lateFee}</span>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -812,9 +849,9 @@ const TermConfigForm = ({
     academicYear: selectedAcademicYear || '',
     yearOfStudy: selectedYearOfStudy || '',
     termDueDates: {
-      term1: { daysFromSemesterStart: 5, description: 'Term 1 Due Date' },
-      term2: { daysFromSemesterStart: 90, description: 'Term 2 Due Date' },
-      term3: { daysFromSemesterStart: 210, description: 'Term 3 Due Date' }
+      term1: { daysFromSemesterStart: 5, description: 'Term 1 Due Date', lateFee: 0 },
+      term2: { daysFromSemesterStart: 90, description: 'Term 2 Due Date', lateFee: 0 },
+      term3: { daysFromSemesterStart: 210, description: 'Term 3 Due Date', lateFee: 0 }
     },
     reminderDays: {
       term1: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
@@ -825,11 +862,27 @@ const TermConfigForm = ({
 
   useEffect(() => {
     if (editingConfig) {
+      // Ensure lateFee is included when editing
+      const termDueDates = {
+        term1: {
+          ...editingConfig.termDueDates.term1,
+          lateFee: editingConfig.termDueDates.term1.lateFee || 0
+        },
+        term2: {
+          ...editingConfig.termDueDates.term2,
+          lateFee: editingConfig.termDueDates.term2.lateFee || 0
+        },
+        term3: {
+          ...editingConfig.termDueDates.term3,
+          lateFee: editingConfig.termDueDates.term3.lateFee || 0
+        }
+      };
+      
       setFormData({
         courseId: editingConfig.course._id,
         academicYear: editingConfig.academicYear,
         yearOfStudy: editingConfig.yearOfStudy,
-        termDueDates: editingConfig.termDueDates,
+        termDueDates: termDueDates,
         reminderDays: editingConfig.reminderDays
       });
     }
@@ -972,6 +1025,21 @@ const TermConfigForm = ({
                           className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
                         required
                       />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                        Late Fee (₹)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.termDueDates[term].lateFee || 0}
+                          onChange={(e) => handleInputChange(`termDueDates.${term}.lateFee`, parseFloat(e.target.value) || 0)}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          placeholder="0"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Fixed amount charged once after due date passes</p>
                       </div>
                     </div>
                   </div>

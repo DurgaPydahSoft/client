@@ -783,10 +783,18 @@ const FeeManagement = () => {
     const calculatedTotalFee = student.totalCalculatedFee || originalTotalFee;
     const concessionAmount = student.concession || 0;
 
+    // Get late fees from student data (separate from balance, not included in totalBalance)
+    const lateFees = {
+      term1: student.term1LateFee || 0,
+      term2: student.term2LateFee || 0,
+      term3: student.term3LateFee || 0
+    };
+    const totalLateFee = lateFees.term1 + lateFees.term2 + lateFees.term3;
+
     return {
       feeStructure,
       totalPaid,
-      totalBalance,
+      totalBalance, // This does NOT include late fees (as per requirement)
       isFullyPaid,
       termBalances,
       paymentHistory: studentPaymentHistory,
@@ -794,7 +802,9 @@ const FeeManagement = () => {
       calculatedTotalFee,
       concessionAmount,
       hasConcession,
-      remainingExcess // Add this for debugging
+      remainingExcess, // Add this for debugging
+      lateFees, // Late fees per term
+      totalLateFee // Total late fee (for display purposes only, not in balance)
     };
   }, [payments, feeStructures]);
 
@@ -3628,6 +3638,12 @@ const FeeManagement = () => {
                               ₹{(studentBalance?.totalBalance || 0).toLocaleString()}
                             </span>
                           </div>
+                          {studentBalance?.totalLateFee > 0 && (
+                            <div className="flex justify-between col-span-2 pt-2 border-t border-gray-200">
+                              <span className="text-orange-600 font-medium text-xs">Late Fee:</span>
+                              <span className="text-orange-600 font-bold text-xs">₹{(studentBalance?.totalLateFee || 0).toLocaleString()}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -4633,6 +4649,9 @@ const FeeManagement = () => {
                           // Get original term fee for comparison
                           const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] ||
                             Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
+                          
+                          // Get late fee for this term
+                          const termLateFee = balance.lateFees?.[term] || 0;
 
                           return (
                             <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
@@ -4647,15 +4666,38 @@ const FeeManagement = () => {
                                 </div>
                                 
                                 <div className="flex justify-between">
+                                  <span>Paid:</span>
+                                  <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
+                                </div>
+                                
+                                <div className="flex justify-between">
                                   <span>Balance:</span>
                                   <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                                     ₹{termData.balance.toLocaleString()}
                                   </span>
                                 </div>
+                                
+                                {termLateFee > 0 && (
+                                  <div className="flex justify-between pt-2 border-t border-gray-200">
+                                    <span className="text-orange-600 font-medium">Late Fee:</span>
+                                    <span className="font-medium text-orange-600">₹{termLateFee.toLocaleString()}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
                         })}
+                        
+                        {/* Total Late Fee Summary */}
+                        {balance.totalLateFee > 0 && (
+                          <div className="col-span-full mt-4 bg-orange-50 rounded-lg p-4 border border-orange-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-orange-800">Total Late Fee:</span>
+                              <span className="text-lg font-bold text-orange-700">₹{balance.totalLateFee.toLocaleString()}</span>
+                            </div>
+                            <p className="text-xs text-orange-600 mt-1">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

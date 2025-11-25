@@ -171,17 +171,27 @@ const HostelFee = () => {
     // Calculate pending amounts based on actual payments vs required fees
     const pendingAmount = Math.max(0, totalCalculatedFee - paidAmount);
     
+    // Get late fees from user data (separate from balance, not included in pendingAmount)
+    const lateFees = {
+      term1: user.term1LateFee || 0,
+      term2: user.term2LateFee || 0,
+      term3: user.term3LateFee || 0
+    };
+    const totalLateFee = lateFees.term1 + lateFees.term2 + lateFees.term3;
+    
     return { 
       totalFee, 
       totalOriginalFee,
       totalCalculatedFee,
       concession,
       paidAmount, 
-      pendingAmount,
+      pendingAmount, // This does NOT include late fees (as per requirement)
       termPayments,
       calculatedTerm1Fee,
       calculatedTerm2Fee,
-      calculatedTerm3Fee
+      calculatedTerm3Fee,
+      lateFees, // Late fees per term
+      totalLateFee // Total late fee (for display purposes only)
     };
   };
 
@@ -481,7 +491,7 @@ const HostelFee = () => {
   }
 
   const { feeReminder, visibleReminders, allTermsPaid } = feeData;
-  const { totalFee, totalOriginalFee, totalCalculatedFee, concession, paidAmount, pendingAmount } = calculateFeeAmounts();
+  const { totalFee, totalOriginalFee, totalCalculatedFee, concession, paidAmount, pendingAmount, lateFees, totalLateFee } = calculateFeeAmounts();
   const paymentProgress = calculatePaymentProgress();
 
   return (
@@ -625,6 +635,11 @@ const HostelFee = () => {
                         Remaining: ₹{remainingAmount.toLocaleString()}
                       </p>
                     )}
+                    {lateFees?.[term] > 0 && (
+                      <p className="text-xs text-orange-700 font-medium mt-1">
+                        Late Fee: ₹{lateFees[term].toLocaleString()}
+                      </p>
+                    )}
                     {concession > 0 && amount !== originalTermFee && (
                       <span className="block text-green-600 mt-1 text-xs">
                         Original: ₹{originalTermFee.toLocaleString()}
@@ -647,6 +662,39 @@ const HostelFee = () => {
               );
             })}
           </div>
+          
+          {/* Late Fee Summary */}
+          {totalLateFee > 0 && (
+            <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-orange-200">
+              <div className="bg-orange-50 rounded-lg p-2 sm:p-3 border border-orange-200">
+                <div className="flex items-center justify-between mb-1 sm:mb-2">
+                  <span className="text-xs sm:text-sm font-medium text-orange-800">Total Late Fee</span>
+                  <span className="text-sm sm:text-lg font-bold text-orange-700">₹{totalLateFee.toLocaleString()}</span>
+                </div>
+                <p className="text-xs text-orange-600">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
+                <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                  {lateFees.term1 > 0 && (
+                    <div className="text-center">
+                      <span className="text-orange-600">Term 1:</span>
+                      <span className="block font-medium text-orange-700">₹{lateFees.term1.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {lateFees.term2 > 0 && (
+                    <div className="text-center">
+                      <span className="text-orange-600">Term 2:</span>
+                      <span className="block font-medium text-orange-700">₹{lateFees.term2.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {lateFees.term3 > 0 && (
+                    <div className="text-center">
+                      <span className="text-orange-600">Term 3:</span>
+                      <span className="block font-medium text-orange-700">₹{lateFees.term3.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -736,6 +784,12 @@ const HostelFee = () => {
                     Remaining: ₹{remainingAmount.toLocaleString()}
                   </p>
                 )}
+                {lateFees?.[term] > 0 && (
+                  <p className="text-xs text-orange-700 font-medium mt-1 flex items-center gap-1">
+                    <ExclamationTriangleIcon className="w-3 h-3" />
+                    Late Fee: ₹{lateFees[term].toLocaleString()}
+                  </p>
+                )}
                 {concession > 0 && amount !== originalTermFee && (
                   <p className="text-xs text-gray-500 mt-1">
                     <span className="line-through">₹{originalTermFee.toLocaleString()}</span>
@@ -750,6 +804,39 @@ const HostelFee = () => {
             );
           })}
         </div>
+        
+        {/* Late Fee Summary */}
+        {totalLateFee > 0 && (
+          <div className="mt-4 pt-4 border-t border-orange-200">
+            <div className="bg-orange-50 rounded-lg p-3 sm:p-4 border border-orange-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-orange-800">Total Late Fee</span>
+                <span className="text-lg font-bold text-orange-700">₹{totalLateFee.toLocaleString()}</span>
+              </div>
+              <p className="text-xs text-orange-600 mb-2">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                {lateFees.term1 > 0 && (
+                  <div className="text-center bg-white rounded p-2">
+                    <span className="text-orange-600 block">Term 1</span>
+                    <span className="font-medium text-orange-700">₹{lateFees.term1.toLocaleString()}</span>
+                  </div>
+                )}
+                {lateFees.term2 > 0 && (
+                  <div className="text-center bg-white rounded p-2">
+                    <span className="text-orange-600 block">Term 2</span>
+                    <span className="font-medium text-orange-700">₹{lateFees.term2.toLocaleString()}</span>
+                  </div>
+                )}
+                {lateFees.term3 > 0 && (
+                  <div className="text-center bg-white rounded p-2">
+                    <span className="text-orange-600 block">Term 3</span>
+                    <span className="font-medium text-orange-700">₹{lateFees.term3.toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Active Reminders - Mobile Optimized */}
