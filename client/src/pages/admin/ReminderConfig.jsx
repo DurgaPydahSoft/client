@@ -852,11 +852,6 @@ const TermConfigForm = ({
       term1: { daysFromSemesterStart: 5, description: 'Term 1 Due Date', lateFee: 0 },
       term2: { daysFromSemesterStart: 90, description: 'Term 2 Due Date', lateFee: 0 },
       term3: { daysFromSemesterStart: 210, description: 'Term 3 Due Date', lateFee: 0 }
-    },
-    reminderDays: {
-      term1: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
-      term2: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
-      term3: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] }
     }
   });
 
@@ -882,8 +877,7 @@ const TermConfigForm = ({
         courseId: editingConfig.course._id,
         academicYear: editingConfig.academicYear,
         yearOfStudy: editingConfig.yearOfStudy,
-        termDueDates: termDueDates,
-        reminderDays: editingConfig.reminderDays
+        termDueDates: termDueDates
       });
     }
   }, [editingConfig]);
@@ -1044,154 +1038,6 @@ const TermConfigForm = ({
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Reminder Days */}
-            <div>
-              <h4 className="text-base font-semibold text-gray-900 mb-4">Reminder Days Configuration</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {['term1', 'term2', 'term3'].map(term => {
-                  const handleDayChange = (reminderType, index, value) => {
-                    // Allow empty string for editing
-                    if (value === '') {
-                      const currentDays = [...formData.reminderDays[term][reminderType]];
-                      currentDays[index] = '';
-                      handleInputChange(`reminderDays.${term}.${reminderType}`, currentDays);
-                      return;
-                    }
-                    
-                    const numValue = parseInt(value);
-                    if (isNaN(numValue) || numValue < 1 || numValue > 365) {
-                      return;
-                    }
-                    const currentDays = [...formData.reminderDays[term][reminderType]];
-                    currentDays[index] = numValue;
-                    // Remove duplicates and sort (filter out empty strings)
-                    const validDays = currentDays.filter(d => d !== '' && !isNaN(d));
-                    const uniqueDays = [...new Set(validDays)].sort((a, b) => a - b);
-                    handleInputChange(`reminderDays.${term}.${reminderType}`, uniqueDays);
-                  };
-
-                  const handleAddDay = (reminderType) => {
-                    // Add empty string to allow user to type the value
-                    const currentDays = formData.reminderDays[term][reminderType];
-                    const newDays = [...currentDays, ''];
-                    handleInputChange(`reminderDays.${term}.${reminderType}`, newDays);
-                  };
-
-                  const handleRemoveDay = (reminderType, index) => {
-                    const currentDays = formData.reminderDays[term][reminderType];
-                    const newDays = currentDays.filter((_, i) => i !== index);
-                    // Filter out empty strings and sort
-                    const validDays = newDays.filter(d => d !== '' && !isNaN(d));
-                    handleInputChange(`reminderDays.${term}.${reminderType}`, validDays);
-                  };
-
-                  const handleDayBlur = (reminderType, index) => {
-                    const day = formData.reminderDays[term][reminderType][index];
-                    // If empty or invalid, remove it
-                    if (day === '' || isNaN(day) || day < 1 || day > 365) {
-                      handleRemoveDay(reminderType, index);
-                    }
-                  };
-
-                  return (
-                    <div key={term} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                      <h5 className="font-medium text-gray-900 mb-3 text-sm capitalize">{term.replace('term', 'Term ')}</h5>
-                      
-                      <div className="space-y-4">
-                        {/* Pre Reminders */}
-                      <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-xs font-medium text-gray-700">
-                              Pre Reminders (days before)
-                        </label>
-                            <button
-                              type="button"
-                              onClick={() => handleAddDay('preReminders')}
-                              className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200"
-                            >
-                              + Add
-                            </button>
-                          </div>
-                          {formData.reminderDays[term].preReminders.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {formData.reminderDays[term].preReminders.map((day, index) => (
-                                <div key={index} className="flex items-center gap-1 bg-white border border-gray-300 rounded px-2 py-1">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    value={day === '' ? '' : day}
-                                    placeholder="Enter days"
-                                    onChange={(e) => handleDayChange('preReminders', index, e.target.value)}
-                                    onBlur={() => handleDayBlur('preReminders', index)}
-                                    className="w-14 px-1 py-0.5 text-xs border-0 focus:ring-2 focus:ring-blue-500 rounded text-gray-900 font-medium placeholder:text-gray-400"
-                                  />
-                                  <span className="text-xs text-gray-500">d</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveDay('preReminders', index)}
-                                    className="ml-0.5 p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
-                                  >
-                                    <XMarkIcon className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">No pre reminders configured</p>
-                          )}
-                      </div>
-
-                        {/* Post Reminders */}
-                      <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <label className="block text-xs font-medium text-gray-700">
-                              Post Reminders (days after)
-                        </label>
-                            <button
-                              type="button"
-                              onClick={() => handleAddDay('postReminders')}
-                              className="px-2 py-0.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors duration-200"
-                            >
-                              + Add
-                            </button>
-                          </div>
-                          {formData.reminderDays[term].postReminders.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {formData.reminderDays[term].postReminders.map((day, index) => (
-                                <div key={index} className="flex items-center gap-1 bg-white border border-gray-300 rounded px-2 py-1">
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    max="365"
-                                    value={day === '' ? '' : day}
-                                    placeholder="Enter days"
-                                    onChange={(e) => handleDayChange('postReminders', index, e.target.value)}
-                                    onBlur={() => handleDayBlur('postReminders', index)}
-                                    className="w-14 px-1 py-0.5 text-xs border-0 focus:ring-2 focus:ring-blue-500 rounded text-gray-900 font-medium placeholder:text-gray-400"
-                                  />
-                                  <span className="text-xs text-gray-500">d</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveDay('postReminders', index)}
-                                    className="ml-0.5 p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
-                                  >
-                                    <XMarkIcon className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">No post reminders configured</p>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-                  );
-                })}
               </div>
             </div>
 

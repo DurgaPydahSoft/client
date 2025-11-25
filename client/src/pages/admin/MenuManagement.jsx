@@ -124,6 +124,9 @@ const MenuManagement = () => {
   const [showMenuPopup, setShowMenuPopup] = useState(false);
   const [selectedPopupMeal, setSelectedPopupMeal] = useState(null);
 
+  // Collapsible section state
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+
   // Food preparation count state
   const [foodCount, setFoodCount] = useState(null);
   const [loadingFoodCount, setLoadingFoodCount] = useState(false);
@@ -970,10 +973,40 @@ const MenuManagement = () => {
         )}
       </div>
 
-      {/* Detailed Rating Statistics Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
-        <div className="flex flex-col gap-3 mb-4">
-          <h2 className="text-base sm:text-lg font-semibold text-blue-900">Menu & Rating History</h2>
+      {/* Detailed Rating Statistics Section - Collapsible */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Collapsible Header */}
+        <button
+          onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+          className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg sm:text-xl">📊</span>
+            <h2 className="text-base sm:text-lg font-semibold text-blue-900">Menu & Rating History</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 hidden sm:inline">
+              {isHistoryExpanded ? 'Click to collapse' : 'Click to expand'}
+            </span>
+            <svg
+              className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isHistoryExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        {/* Collapsible Content */}
+        <div
+          className={`transition-all duration-300 ease-in-out overflow-hidden ${
+            isHistoryExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="p-3 sm:p-4 pt-0 border-t border-gray-200">
+        <div className="flex flex-col gap-3 mb-4 pt-3">
           <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-2">
               <label className="text-xs text-gray-600 font-medium">Select Date:</label>
@@ -1184,6 +1217,8 @@ const MenuManagement = () => {
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
 
