@@ -546,6 +546,27 @@ const Complaints = () => {
     fetchComplaints(false); // Content-only loading
   }, [currentPage, filterStatus, filterCategory, filterSubCategory, filterDateRange.from, filterDateRange.to, debouncedSearchQuery]);
 
+  // Prevent body scroll when modal is open (mobile optimization)
+  useEffect(() => {
+    if (selected) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      
+      return () => {
+        // Restore scroll position
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [selected]);
+
   // Helper function to get complaints by status for each column
   const getComplaintsByStatus = (statuses) => {
     return complaints.filter(complaint =>
@@ -640,16 +661,16 @@ const Complaints = () => {
 
   // Update the complaints list section to use pagination
   const renderComplaintsList = () => (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="space-y-2.5 sm:space-y-3 md:space-y-4">
       {complaints.length === 0 ? (
-        <div className="text-center py-8 sm:py-12">
-          <div className="flex flex-col items-center gap-2 sm:gap-3">
+        <div className="text-center py-10 sm:py-12 md:py-16">
+          <div className="flex flex-col items-center gap-2.5 sm:gap-3 md:gap-4">
             <div className="text-gray-400">
-              <svg className="w-8 h-8 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <p className="text-sm sm:text-base text-gray-500 font-medium">No complaints found</p>
+            <p className="text-sm sm:text-base md:text-lg text-gray-600 font-semibold">No complaints found</p>
             <p className="text-xs sm:text-sm text-gray-400">Try adjusting your filters</p>
           </div>
         </div>
@@ -658,63 +679,72 @@ const Complaints = () => {
           const complaintKey = `${c._id || c.student?._id || 'unknown'}-${index}`;
           const isLocked = c.isLockedForUpdates === true;
           return (
-            <div key={complaintKey} className={`flex flex-col p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition-colors duration-200 gap-3 sm:gap-4 ${isLocked ? 'opacity-70' : ''}`}>
-              <div className="flex items-start gap-3 sm:gap-4">
-                <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 bg-white rounded-full flex items-center justify-center border border-gray-200">
-                  <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+            <div 
+              key={complaintKey} 
+              className={`flex flex-col p-3 sm:p-4 md:p-5 bg-white rounded-lg sm:rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 gap-2.5 sm:gap-3 md:gap-4 active:scale-[0.98] touch-manipulation ${isLocked ? 'opacity-70' : ''}`}
+              onClick={() => openDetails(c)}
+            >
+              <div className="flex items-start gap-2.5 sm:gap-3 md:gap-4">
+                <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 md:h-14 md:w-14 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center border-2 border-blue-200">
+                  <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-blue-600" />
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 overflow-hidden">
                   <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 truncate block">
                       {c.raisedBy === 'warden' ? 'Warden' : (c.student?.name || 'Unknown')}
                     </span>
-                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
-                      {c.category || 'Uncategorized'}
-                    </span>
-                    {c.raisedBy === 'warden' && (
-                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
-                        Warden Raised
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                      <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-[10px] sm:text-xs font-semibold border border-blue-200 whitespace-nowrap">
+                        {c.category || 'Uncategorized'}
                       </span>
-                    )}
-                    {c.raisedBy === 'student' && (
-                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                        Student Complaint
-                      </span>
-                    )}
-                    {isLocked && (
-                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                        Locked
-                      </span>
-                    )}
+                      {c.raisedBy === 'warden' && (
+                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-purple-50 text-purple-700 rounded-full text-[10px] sm:text-xs font-semibold border border-purple-200 whitespace-nowrap">
+                          Warden
+                        </span>
+                      )}
+                      {c.raisedBy === 'student' && (
+                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-green-50 text-green-700 rounded-full text-[10px] sm:text-xs font-semibold border border-green-200 whitespace-nowrap">
+                          Student
+                        </span>
+                      )}
+                      {isLocked && (
+                        <span className="px-2 sm:px-2.5 py-0.5 sm:py-1 bg-gray-100 text-gray-600 rounded-full text-[10px] sm:text-xs font-semibold border border-gray-200 whitespace-nowrap">
+                          Locked
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {c.raisedBy === 'student' ? (
                     <>
-                      <div className="text-xs sm:text-sm text-gray-500 mb-1">Roll No: {c.student?.rollNumber || 'N/A'}</div>
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        <span className="text-xs text-gray-500">Room: {c.student?.roomNumber || 'N/A'}</span>
-                        <span className="text-xs text-gray-500">Category: {c.student?.category || 'N/A'}</span>
+                      <div className="text-xs sm:text-sm text-gray-600 mb-1.5 sm:mb-2 font-medium">Roll No: <span className="font-semibold">{c.student?.rollNumber || 'N/A'}</span></div>
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2 mb-2.5 sm:mb-3">
+                        <span className="text-[10px] sm:text-xs md:text-sm text-gray-600 bg-gray-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md border border-gray-200 whitespace-nowrap">Room: {c.student?.roomNumber || 'N/A'}</span>
+                        <span className="text-[10px] sm:text-xs md:text-sm text-gray-600 bg-gray-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-md border border-gray-200 whitespace-nowrap">Category: {c.student?.category || 'N/A'}</span>
                       </div>
                     </>
                   ) : (
-                    <div className="text-xs sm:text-sm text-purple-600 mb-2">
+                    <div className="text-xs sm:text-sm text-purple-600 mb-2 sm:mb-3 font-medium">
                       Raised by: {c.raisedBy === 'warden' ? 'Warden' : 'Student'}
                     </div>
                   )}
                   {c.assignedTo && (
-                    <div className="flex items-center gap-1 text-xs text-blue-600 mb-2">
-                      <UserIcon className="w-3 h-3" />
-                      <span className="truncate">Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-blue-600 mb-2.5 sm:mb-3 bg-blue-50 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-blue-200">
+                      <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                      <span className="truncate font-medium">Assigned to: {c.assignedTo.name} ({c.assignedTo.category})</span>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <span className={`inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2.5 pt-2 border-t border-gray-100">
+                    <span className={`inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs md:text-sm font-semibold w-fit ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
                       {c.currentStatus || 'Received'}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
                       {c.currentStatus === 'Received' && !isLocked && (
                         <button
-                          onClick={() => handleDeleteComplaint(c._id, c.description)}
-                          className="p-1.5 sm:p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteComplaint(c._id, c.description);
+                          }}
+                          className="p-1.5 sm:p-2 text-red-500 hover:text-red-700 hover:bg-red-50 active:bg-red-100 rounded-lg transition-all duration-200 touch-manipulation min-w-[36px] min-h-[36px] sm:min-w-[44px] sm:min-h-[44px] flex items-center justify-center flex-shrink-0"
                           title="Delete complaint"
                         >
                           <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -723,8 +753,11 @@ const Complaints = () => {
                         </button>
                       )}
                       <button
-                        className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50"
-                        onClick={() => openDetails(c)}
+                        className="px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 text-blue-600 hover:bg-blue-50 active:bg-blue-100 border border-blue-200 touch-manipulation min-h-[36px] sm:min-h-[44px] whitespace-nowrap flex-1 sm:flex-none"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDetails(c);
+                        }}
                       >
                         View Details
                       </button>
@@ -748,26 +781,27 @@ const Complaints = () => {
     return (
       <div
         key={complaint._id || complaint.id}
-        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 mb-2 group ${isLocked ? 'opacity-70' : ''}`}
+        className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 mb-3 group cursor-pointer ${isLocked ? 'opacity-70' : ''}`}
+        onClick={() => openDetails(complaint)}
       >
-        <div className="p-3">
+        <div className="p-3 sm:p-4">
           {/* Header */}
-          <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-2 flex-1 cursor-pointer" onClick={() => openDetails(complaint)}>
-              <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors duration-200">
-                <UserIcon className="w-4 h-4 text-gray-600 group-hover:text-blue-600" />
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-blue-50 transition-colors duration-200 flex-shrink-0">
+                <UserIcon className="w-4.5 h-4.5 text-gray-600 group-hover:text-blue-600" />
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors duration-200">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-700 transition-colors duration-200">
                   {complaint.raisedBy === 'warden' ? 'Warden' : (complaint.student?.name || 'Unknown')}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 truncate">
                   {complaint.raisedBy === 'student' ? `Room: ${complaint.student?.roomNumber || 'N/A'}` : 'Warden Raised'}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[complaint.currentStatus] || STATUS_COLORS['Received']} shadow-sm`}>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[complaint.currentStatus] || STATUS_COLORS['Received']} shadow-sm`}>
                 {complaint.currentStatus}
               </span>
               {canDelete && (
@@ -776,10 +810,10 @@ const Complaints = () => {
                     e.stopPropagation();
                     handleDeleteComplaint(complaint._id, complaint.description);
                   }}
-                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
+                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 active:bg-red-100 rounded-lg transition-all duration-200 touch-manipulation"
                   title="Delete complaint"
                 >
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </button>
@@ -788,47 +822,43 @@ const Complaints = () => {
           </div>
 
           {/* Category and Type */}
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium border border-gray-200">
               {complaint.category || 'Uncategorized'}
             </span>
             {complaint.subCategory && (
-              <span className="px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium border border-gray-200">
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs font-medium border border-gray-200">
                 {complaint.subCategory}
               </span>
             )}
             {complaint.raisedBy === 'warden' && (
-              <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium border border-purple-200">
+              <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-md text-xs font-medium border border-purple-200">
                 Warden
               </span>
             )}
           </div>
 
           {/* Description */}
-          <div className="cursor-pointer" onClick={() => openDetails(complaint)}>
-            <p className="text-xs text-gray-600 mb-2 overflow-hidden leading-relaxed" style={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical'
-            }}>
+          <div className="mb-3">
+            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed line-clamp-2">
               {complaint.description}
             </p>
           </div>
 
           {/* Assigned Member */}
           {complaint.assignedTo && (
-            <div className="flex items-center gap-1.5 text-xs text-blue-600 mb-2 p-1.5 bg-blue-50 rounded-lg border border-blue-100">
-              <UserIcon className="w-3 h-3" />
+            <div className="flex items-center gap-2 text-xs text-blue-600 mb-3 p-2 bg-blue-50 rounded-lg border border-blue-100">
+              <UserIcon className="w-3.5 h-3.5 flex-shrink-0" />
               <span className="truncate font-medium">{complaint.assignedTo.name} ({complaint.assignedTo.category})</span>
             </div>
           )}
 
           {/* Footer */}
-          <div className="flex items-center justify-between text-xs text-gray-500 pt-1.5 border-t border-gray-100">
+          <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
             <span className="font-medium">{new Date(complaint.createdAt).toLocaleDateString()}</span>
             {isLocked && (
               <span className="text-red-500 font-medium flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                 </svg>
                 Locked
@@ -846,14 +876,14 @@ const Complaints = () => {
     const count = columnComplaints.length;
 
     return (
-      <div key={columnKey} className={`${config.bgColor} ${config.borderColor} border-2 rounded-lg p-3 min-h-[500px] shadow-sm hover:shadow-md transition-all duration-200`}>
+      <div key={columnKey} className={`${config.bgColor} ${config.borderColor} border-2 rounded-lg p-4 min-h-[500px] shadow-sm hover:shadow-md transition-all duration-200`}>
         {/* Column Header */}
-        <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <div className={`w-2.5 h-2.5 rounded-full ${config.color === 'blue' ? 'bg-blue-500' : config.color === 'yellow' ? 'bg-yellow-500' : config.color === 'purple' ? 'bg-purple-500' : 'bg-green-500'}`}></div>
+            <div className={`w-3 h-3 rounded-full ${config.color === 'blue' ? 'bg-blue-500' : config.color === 'yellow' ? 'bg-yellow-500' : config.color === 'purple' ? 'bg-purple-500' : 'bg-green-500'}`}></div>
             <h3 className={`text-base font-semibold ${config.textColor}`}>{config.title}</h3>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-bold ${config.bgColor} ${config.textColor} border ${config.borderColor} shadow-sm`}>
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${config.bgColor} ${config.textColor} border ${config.borderColor} shadow-sm`}>
             {count}
           </span>
         </div>
@@ -861,13 +891,13 @@ const Complaints = () => {
         {/* Complaints List */}
         <div className="space-y-2">
           {count === 0 ? (
-            <div className="text-center py-6">
-              <div className={`w-10 h-10 mx-auto mb-2 rounded-full ${config.bgColor} flex items-center justify-center`}>
-                <svg className={`w-5 h-5 ${config.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="text-center py-8">
+              <div className={`w-12 h-12 mx-auto mb-3 rounded-full ${config.bgColor} flex items-center justify-center`}>
+                <svg className={`w-6 h-6 ${config.iconColor}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className={`text-xs ${config.textColor} font-medium`}>No complaints</p>
+              <p className={`text-sm ${config.textColor} font-medium`}>No complaints</p>
             </div>
           ) : (
             columnComplaints.map(complaint => renderComplaintCard(complaint))
@@ -1031,7 +1061,7 @@ const Complaints = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4">
+        <div className="max-w-[1400px] mx-auto px-2.5 sm:px-4 lg:px-8 py-2 sm:py-4">
 
           {/* Mobile Filter Toggle */}
           <div className="lg:hidden mb-3">
@@ -1332,17 +1362,17 @@ const Complaints = () => {
                 </div>
               )}
 
-              {/* Kanban Board */}
-              <div className={`grid grid-cols-1 xl:grid-cols-3 gap-3 ${contentLoading ? 'opacity-50' : ''}`}>
+              {/* Kanban Board - Desktop Only */}
+              <div className={`hidden xl:grid grid-cols-3 gap-3 ${contentLoading ? 'opacity-50' : ''}`}>
                 {Object.entries(COLUMN_CONFIG).map(([key, config]) =>
                   renderKanbanColumn(key, config)
                 )}
               </div>
 
               {/* Mobile View - Compact List */}
-              <div className={`xl:hidden mt-6 ${contentLoading ? 'opacity-50' : ''}`}>
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">All Complaints</h3>
+              <div className={`xl:hidden ${contentLoading ? 'opacity-50' : ''}`}>
+                <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-2.5 sm:p-3 md:p-4">
+                  <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-3 md:mb-4 px-1">All Complaints</h3>
                   {renderComplaintsList()}
                 </div>
               </div>
@@ -1352,327 +1382,356 @@ const Complaints = () => {
 
         {/* Details Modal */}
         {selected && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-6 w-full max-w-xs sm:max-w-2xl relative animate-fade-in-up max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
-              <button
-                className="absolute top-1.5 sm:top-2 right-1.5 sm:right-2 p-1 sm:p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200"
-                onClick={() => setSelected(null)}
-                disabled={updating}
-              >
-                <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelected(null);
+              }
+            }}
+            style={{ 
+              overscrollBehavior: 'contain',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <div 
+              className="bg-white rounded-t-3xl sm:rounded-xl shadow-2xl w-full h-[95vh] sm:h-auto sm:max-h-[90vh] sm:max-w-2xl relative flex flex-col animate-fade-in-up overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sticky Header with Close Button */}
+              <div className="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b border-gray-200 bg-white">
+                <h2 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 pr-10 sm:pr-8">Complaint Details</h2>
+                <button
+                  className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 rounded-full transition-colors duration-200 touch-manipulation z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  onClick={() => setSelected(null)}
+                  disabled={updating}
+                  aria-label="Close modal"
+                >
+                  <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
 
-              <div className="mb-3 sm:mb-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mb-2 sm:mb-3">
-                  <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900">Complaint Details</h2>
-                  {selected.currentStatus === 'Received' && !selected.aiProcessed && (
+              {/* Scrollable Content */}
+              <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 sm:py-6" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+                {/* AI Process Button */}
+                {selected.currentStatus === 'Received' && !selected.aiProcessed && (
+                  <div className="mb-4 sm:mb-5">
                     <button
                       onClick={() => handleManualAIProcessing(selected._id)}
-                      className="px-2 sm:px-3 lg:px-4 py-1.5 sm:py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm lg:text-base"
+                      className="w-full px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:bg-purple-800 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium touch-manipulation min-h-[44px] shadow-md"
                     >
-                      <CogIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      <span className="hidden xs:inline">Process with AI</span>
-                      <span className="xs:hidden">AI Process</span>
+                      <CogIcon className="w-5 h-5" />
+                      <span>Process with AI</span>
                     </button>
-                  )}
+                  </div>
+                )}
+
+                {/* Description */}
+                <div className="mb-4 sm:mb-6">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</h3>
+                  <p className="text-sm sm:text-base text-gray-700 leading-relaxed break-words">{selected.description}</p>
                 </div>
-                <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.description}</p>
+
                 {selected.imageUrl && (
-                  <div className="mt-2 sm:mt-3 lg:mt-4">
-                    <div className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200">
+                  <div className="mb-4 sm:mb-6">
+                    <div className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
                       <img
                         src={selected.imageUrl}
                         alt="Complaint"
-                        className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        className="absolute inset-0 w-full h-full object-cover"
                       />
                     </div>
-                    <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-500">Complaint Image</p>
+                    <p className="mt-2 text-xs text-gray-500 text-center">Complaint Image</p>
                   </div>
                 )}
-              </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
-                <div className="bg-gray-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
-                    <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-                    <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">
-                      {selected.raisedBy === 'warden' ? 'Complaint Details' : 'Student Details'}
-                    </span>
-                  </div>
-                  {selected.raisedBy === 'warden' ? (
-                    <div className="space-y-1">
-                      <p className="text-xs sm:text-sm lg:text-base text-gray-600 font-medium">Warden Raised</p>
-                      <p className="text-xs sm:text-sm text-gray-500">Raised by: Warden</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <span className="text-xs sm:text-sm text-gray-500">Category: {selected.category}</span>
-                        {selected.subCategory && (
-                          <span className="text-xs sm:text-sm text-gray-500">Type: {selected.subCategory}</span>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-xs sm:text-sm lg:text-base text-gray-600">{selected.student?.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber}</p>
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        <span className="text-xs sm:text-sm text-gray-500">Room: {selected.student?.roomNumber || 'N/A'}</span>
-                        <span className="text-xs sm:text-sm text-gray-500">Category: {selected.student?.category || 'N/A'}</span>
-                      </div>
-                      {selected.student?.studentPhone && (
-                        <p className="text-xs sm:text-sm text-gray-500">Phone: {selected.student.studentPhone}</p>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div className="bg-gray-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-gray-100">
-                  <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
-                    <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-                    <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Status Information</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className={`inline-flex items-center px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
-                      {selected.currentStatus}
-                    </span>
-                    {selected.isReopened && (
-                      <span className="inline-flex items-center px-1.5 sm:px-2 lg:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
-                        Reopened
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <UserIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                      <span className="text-sm sm:text-base font-semibold text-gray-700">
+                        {selected.raisedBy === 'warden' ? 'Complaint Details' : 'Student Details'}
                       </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Assigned Member Information */}
-              {selected.assignedTo && (
-                <div className="mb-3 sm:mb-4 lg:mb-6">
-                  <div className="bg-blue-50 p-2 sm:p-3 lg:p-4 rounded-lg border border-blue-100">
-                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
-                      <UserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-500" />
-                      <span className="text-xs sm:text-sm lg:text-base font-medium text-blue-700">Assigned Member</span>
                     </div>
-                    <div className="space-y-1.5 sm:space-y-2">
-                      <p className="text-xs sm:text-sm lg:text-base text-blue-600 font-medium">{selected.assignedTo.name}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 lg:gap-4 text-xs sm:text-sm text-blue-600">
-                        <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 rounded-full text-xs font-medium w-fit">
-                          {selected.assignedTo.category}
-                        </span>
-                        {selected.assignedTo.phone && (
-                          <div className="flex items-center gap-1">
-                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                            </svg>
-                            {selected.assignedTo.phone}
-                          </div>
-                        )}
-                        {selected.assignedTo.email && (
-                          <div className="flex items-center gap-1">
-                            <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            {selected.assignedTo.email}
-                          </div>
-                        )}
+                    {selected.raisedBy === 'warden' ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-gray-700 font-medium">Warden Raised</p>
+                        <div className="flex flex-wrap gap-2">
+                          <span className="text-xs sm:text-sm text-gray-600 bg-white px-2 py-1 rounded">Category: {selected.category}</span>
+                          {selected.subCategory && (
+                            <span className="text-xs sm:text-sm text-gray-600 bg-white px-2 py-1 rounded">Type: {selected.subCategory}</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mb-3 sm:mb-4 lg:mb-6">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
-                  <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Feedback</span>
-                </div>
-                {selected.feedback ? (
-                  <div className={`flex items-center gap-1.5 sm:gap-2 ${selected.feedback.isSatisfied ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                    {selected.feedback.isSatisfied ? (
-                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
                     ) : (
-                      <ExclamationCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
-                    )}
-                    <span className="text-xs sm:text-sm lg:text-base">{selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}</span>
-                  </div>
-                ) : (
-                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">No feedback provided yet</p>
-                )}
-              </div>
-
-              <div className="mb-3 sm:mb-4 lg:mb-6">
-                <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 lg:mb-3">
-                  <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-                  <span className="text-xs sm:text-sm lg:text-base font-medium text-gray-700">Timeline</span>
-                </div>
-                {timelineLoading ? (
-                  <div className="flex justify-center py-3 sm:py-4">
-                    <LoadingSpinner size="sm" />
-                  </div>
-                ) : (
-                  <div className="space-y-3 sm:space-y-4">
-                    {timeline.map((t, i) => (
-                      <div key={i} className="relative">
-                        {/* Mobile Timeline (simplified) */}
-                        <div className="sm:hidden">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 w-3 h-3 bg-indigo-600 rounded-full mt-1.5"></div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <time className="inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600">
-                                  {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
-                                </time>
-                              </div>
-                              <div className="text-sm font-bold text-slate-900 break-words mb-1">{t.status}</div>
-                              {t.note && t.note.trim() && (
-                                <div className="text-slate-500 text-xs break-words mb-1">{t.note}</div>
-                              )}
-                              {t.assignedTo && (
-                                <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600">
-                                  <span className="break-words">Assigned to: {t.assignedTo.name}</span>
-                                  {t.assignedTo.category && <span className="text-xs text-gray-500 break-words">({t.assignedTo.category})</span>}
-                                </div>
-                              )}
-                            </div>
+                      <div className="space-y-2">
+                        <p className="text-sm sm:text-base text-gray-700 font-medium">{selected.student?.name}</p>
+                        <div className="space-y-1.5">
+                          <p className="text-xs sm:text-sm text-gray-600">Roll No: <span className="font-medium">{selected.student?.rollNumber}</span></p>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="text-xs sm:text-sm text-gray-600 bg-white px-2 py-1 rounded">Room: {selected.student?.roomNumber || 'N/A'}</span>
+                            <span className="text-xs sm:text-sm text-gray-600 bg-white px-2 py-1 rounded">Category: {selected.student?.category || 'N/A'}</span>
                           </div>
-                        </div>
-
-                        {/* Desktop Timeline (original) */}
-                        <div className="hidden sm:block group relative py-2 lg:py-3 pl-6 lg:pl-8 xl:pl-32">
-                          <div className="mb-1 flex flex-col items-start before:absolute before:left-1 lg:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1 lg:after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 lg:flex-row xl:before:left-0 xl:before:ml-[6.5rem] xl:after:left-0 xl:after:ml-[6.5rem]">
-                            <time className="left-0 mb-2 lg:mb-3 inline-flex h-5 lg:h-6 w-20 lg:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase xl:absolute xl:mb-0">
-                              {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
-                            </time>
-                            <div className="text-sm lg:text-base xl:text-xl font-bold text-slate-900 break-words">{t.status}</div>
-                          </div>
-                          {t.note && t.note.trim() && (
-                            <div className="text-slate-500 text-sm mb-1 break-words">{t.note}</div>
-                          )}
-                          {t.assignedTo && (
-                            <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600 mt-1">
-                              <span className="break-words">Assigned to: {t.assignedTo.name}</span>
-                              {t.assignedTo.category && <span className="text-xs text-gray-500 break-words">({t.assignedTo.category})</span>}
-                            </div>
+                          {selected.student?.studentPhone && (
+                            <p className="text-xs sm:text-sm text-gray-600">Phone: <span className="font-medium">{selected.student.studentPhone}</span></p>
                           )}
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Update Form */}
-              {selected.currentStatus === 'Closed' && (
-                <div className="mt-3 sm:mt-4 lg:mt-6 border-t pt-3 sm:pt-4 lg:pt-6">
-                  <div className="p-2 sm:p-3 lg:p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <CheckCircleIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-600" />
-                      <span className="text-xs sm:text-sm font-medium text-gray-700">Complaint Closed</span>
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ClockIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                      <span className="text-sm sm:text-base font-semibold text-gray-700">Status Information</span>
                     </div>
-                    <p className="mt-1 text-xs sm:text-sm text-gray-600">
-                      This complaint has been closed and no further status updates are allowed.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
-                <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6 border-t pt-4 sm:pt-6" onSubmit={handleStatusUpdate}>
-                  <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                      <span className="text-xs sm:text-sm font-medium text-gray-700">Current Status:</span>
-                      <span className={`inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
                         {selected.currentStatus}
                       </span>
                       {selected.isReopened && (
-                        <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          🔄 Reopened
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
+                          Reopened
                         </span>
                       )}
                     </div>
-
                   </div>
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Update Status</label>
-                    <select
-                      className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-                      value={status}
-                      onChange={e => setStatus(e.target.value)}
-                      required
-                    >
-                      <option value="">Select status</option>
-                      {STATUS_OPTIONS.filter(opt => opt !== 'All').map(opt => (
-                        <option key={`status-${opt}`} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
+                </div>
 
-                  {status === 'In Progress' && (
-                    (() => {
-                      // Get all members from all categories
-                      const allMembers = Object.values(members).flat();
-                      console.log('All available members:', allMembers);
-
-                      return (
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Assign Member</label>
-                          <select
-                            className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-                            value={selectedMember}
-                            onChange={e => {
-                              console.log('Selected member value:', e.target.value);
-                              setSelectedMember(e.target.value);
-                            }}
-                            required={status === 'In Progress'}
-                          >
-                            <option key="default" value="">Select a member</option>
-                            {allMembers?.map(member => {
-                              const memberId = member._id || member.id;
-                              return (
-                                <option key={memberId} value={memberId}>
-                                  {member.name} ({member.category})
-                                </option>
-                              );
-                            })}
-                          </select>
-                          {(!allMembers || allMembers.length === 0) && (
-                            <p className="mt-1 text-xs sm:text-sm text-gray-500">
-                              No members available
-                            </p>
+                {/* Assigned Member Information */}
+                {selected.assignedTo && (
+                  <div className="mb-4 sm:mb-6">
+                    <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <UserIcon className="w-5 h-5 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                        <span className="text-sm sm:text-base font-semibold text-blue-700">Assigned Member</span>
+                      </div>
+                      <div className="space-y-2.5">
+                        <p className="text-sm sm:text-base text-blue-700 font-semibold">{selected.assignedTo.name}</p>
+                        <div className="flex flex-col gap-2 text-xs sm:text-sm text-blue-600">
+                          <span className="px-3 py-1.5 bg-blue-100 rounded-full text-xs font-medium w-fit">
+                            {selected.assignedTo.category}
+                          </span>
+                          {selected.assignedTo.phone && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                              </svg>
+                              <a href={`tel:${selected.assignedTo.phone}`} className="text-blue-600 hover:text-blue-700 break-all">{selected.assignedTo.phone}</a>
+                            </div>
+                          )}
+                          {selected.assignedTo.email && (
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              <a href={`mailto:${selected.assignedTo.email}`} className="text-blue-600 hover:text-blue-700 break-all text-xs sm:text-sm">{selected.assignedTo.email}</a>
+                            </div>
                           )}
                         </div>
-                      );
-                    })()
-                  )}
-
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">Add Note (Optional)</label>
-                    <input
-                      className="w-full px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
-                      placeholder="Enter a note about this status update"
-                      value={note}
-                      onChange={e => setNote(e.target.value)}
-                    />
-                  </div>
-
-                  <button
-                    className={`w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-white font-medium transition-all duration-200 text-xs sm:text-sm ${updating
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
-                      }`}
-                    type="submit"
-                    disabled={updating || (status === 'In Progress' && !selectedMember)}
-                  >
-                    {updating ? (
-                      <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                        <LoadingSpinner size="sm" className="border-white" />
-                        <span>Updating...</span>
                       </div>
-                    ) : (
-                      'Update Status'
+                    </div>
+                  </div>
+                )}
+
+                {/* Feedback */}
+                <div className="mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <CheckCircleIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                    <span className="text-sm sm:text-base font-semibold text-gray-700">Feedback</span>
+                  </div>
+                  {selected.feedback ? (
+                    <div className={`flex items-center gap-2.5 ${selected.feedback.isSatisfied ? 'text-green-600' : 'text-red-600'}`}>
+                      {selected.feedback.isSatisfied ? (
+                        <CheckCircleIcon className="w-6 h-6 flex-shrink-0" />
+                      ) : (
+                        <ExclamationCircleIcon className="w-6 h-6 flex-shrink-0" />
+                      )}
+                      <span className="text-sm sm:text-base font-semibold">{selected.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">No feedback provided yet</p>
+                  )}
+                </div>
+
+                {/* Timeline */}
+                <div className="mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ClockIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                    <span className="text-sm sm:text-base font-semibold text-gray-700">Timeline</span>
+                  </div>
+                  {timelineLoading ? (
+                    <div className="flex justify-center py-8">
+                      <LoadingSpinner size="sm" />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {timeline.map((t, i) => (
+                        <div key={i} className="relative">
+                          {/* Mobile Timeline */}
+                          <div className="sm:hidden">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-5 h-5 bg-indigo-600 rounded-full mt-0.5 border-2 border-white shadow-sm"></div>
+                              <div className="flex-1 min-w-0 pb-3 border-b border-gray-100 last:border-0">
+                                <div className="mb-2">
+                                  <time className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-100 text-xs font-semibold text-emerald-700">
+                                    {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+                                  </time>
+                                </div>
+                                <div className="text-sm font-bold text-gray-900 break-words mb-2">{t.status}</div>
+                                {t.note && t.note.trim() && (
+                                  <div className="text-sm text-gray-700 break-words mb-2 bg-white p-3 rounded-lg border border-gray-200">{t.note}</div>
+                                )}
+                                {t.assignedTo && (
+                                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-600 mt-2">
+                                    <span className="break-words font-medium">Assigned to: {t.assignedTo.name}</span>
+                                    {t.assignedTo.category && <span className="text-gray-500 break-words">({t.assignedTo.category})</span>}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Desktop Timeline */}
+                          <div className="hidden sm:block group relative py-2 lg:py-3 pl-6 lg:pl-8 xl:pl-32">
+                            <div className="mb-1 flex flex-col items-start before:absolute before:left-1 lg:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1 lg:after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 lg:flex-row xl:before:left-0 xl:before:ml-[6.5rem] xl:after:left-0 xl:after:ml-[6.5rem]">
+                              <time className="left-0 mb-2 lg:mb-3 inline-flex h-5 lg:h-6 w-20 lg:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase xl:absolute xl:mb-0">
+                                {new Date(t.timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
+                              </time>
+                              <div className="text-sm lg:text-base xl:text-xl font-bold text-slate-900 break-words">{t.status}</div>
+                            </div>
+                            {t.note && t.note.trim() && (
+                              <div className="text-slate-500 text-sm mb-1 break-words">{t.note}</div>
+                            )}
+                            {t.assignedTo && (
+                              <div className="flex flex-wrap items-center gap-1 text-xs text-gray-600 mt-1">
+                                <span className="break-words">Assigned to: {t.assignedTo.name}</span>
+                                {t.assignedTo.category && <span className="text-xs text-gray-500 break-words">({t.assignedTo.category})</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Update Form */}
+                {selected.currentStatus === 'Closed' && (
+                  <div className="mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center gap-2 sm:gap-2.5 mb-1.5 sm:mb-2">
+                        <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm font-semibold text-gray-700">Complaint Closed</span>
+                      </div>
+                      <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                        This complaint has been closed and no further status updates are allowed.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
+                  <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6" onSubmit={handleStatusUpdate}>
+                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs sm:text-sm font-medium text-gray-700">Current Status:</span>
+                        <span className={`inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                          {selected.currentStatus}
+                        </span>
+                        {selected.isReopened && (
+                          <span className="inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-orange-100 text-orange-800">
+                            🔄 Reopened
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Update Status</label>
+                      <select
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                        value={status}
+                        onChange={e => setStatus(e.target.value)}
+                        required
+                      >
+                        <option value="">Select status</option>
+                        {STATUS_OPTIONS.filter(opt => opt !== 'All').map(opt => (
+                          <option key={`status-${opt}`} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {status === 'In Progress' && (
+                      (() => {
+                        // Get all members from all categories
+                        const allMembers = Object.values(members).flat();
+                        console.log('All available members:', allMembers);
+
+                        return (
+                          <div>
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Assign Member</label>
+                            <select
+                              className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                              value={selectedMember}
+                              onChange={e => {
+                                console.log('Selected member value:', e.target.value);
+                                setSelectedMember(e.target.value);
+                              }}
+                              required={status === 'In Progress'}
+                            >
+                              <option key="default" value="">Select a member</option>
+                              {allMembers?.map(member => {
+                                const memberId = member._id || member.id;
+                                return (
+                                  <option key={memberId} value={memberId}>
+                                    {member.name} ({member.category})
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            {(!allMembers || allMembers.length === 0) && (
+                              <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-500">
+                                No members available
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()
                     )}
-                  </button>
-                </form>
-              )}
+
+                    <div>
+                      <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Add Note (Optional)</label>
+                      <input
+                        className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                        placeholder="Enter a note about this status update"
+                        value={note}
+                        onChange={e => setNote(e.target.value)}
+                      />
+                    </div>
+
+                    <button
+                      className={`w-full py-2.5 sm:py-3 md:py-3.5 px-3 sm:px-4 rounded-lg text-white font-semibold transition-all duration-200 text-sm sm:text-base touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px] shadow-md sm:shadow-lg ${updating
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                        }`}
+                      type="submit"
+                      disabled={updating || (status === 'In Progress' && !selectedMember)}
+                    >
+                      {updating ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="sm" className="border-white" />
+                          <span className="text-sm sm:text-base">Updating...</span>
+                        </div>
+                      ) : (
+                        'Update Status'
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         )}
