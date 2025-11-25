@@ -432,9 +432,9 @@ const PollManagement = () => {
               animate={{ opacity: 1, y: 0 }}
               className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border border-blue-100"
             >
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-3">
-                <h3 className="text-lg font-semibold text-blue-900 line-clamp-2">{poll.question}</h3>
-                <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex flex-col gap-3 mb-3">
+                <h3 className="text-lg font-semibold text-blue-900 break-words">{poll.question}</h3>
+                <div className="flex gap-2 w-full">
                   {poll.status === 'active' && (
                     <button
                       onClick={() => handleEndPoll(poll._id)}
