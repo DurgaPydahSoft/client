@@ -944,6 +944,13 @@ const Complaints = () => {
                     </span>
                   </div>
 
+                  <div className="bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+                    <span className="text-xs text-gray-600">Active: </span>
+                    <span className="font-semibold text-orange-700 text-sm">
+                      {complaintCounts.active}
+                    </span>
+                  </div>
+
                   <div className="bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
                     <span className="text-xs text-gray-600">In Progress: </span>
                     <span className="font-semibold text-purple-700 text-sm">
@@ -1017,6 +1024,12 @@ const Complaints = () => {
               <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-100">
                 <div className="text-xs text-gray-600 mb-1">Total</div>
                 <div className="font-semibold text-blue-700 text-lg">{complaintCounts.total}</div>
+              </div>
+              <div className="bg-orange-50 px-3 py-2 rounded-lg border border-orange-100">
+                <div className="text-xs text-gray-600 mb-1">Active</div>
+                <div className="font-semibold text-orange-700 text-lg">
+                  {complaintCounts.inProgress}
+                </div>
               </div>
               <div className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-100">
                 <div className="text-xs text-gray-600 mb-1">In Progress</div>
