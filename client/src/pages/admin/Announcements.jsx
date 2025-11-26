@@ -10,7 +10,6 @@ import {
   PhotoIcon,
   DocumentTextIcon,
   PencilSquareIcon,
-  ArrowUpTrayIcon,
   ChevronDownIcon,
   ChevronUpIcon
 } from '@heroicons/react/24/outline';
@@ -25,7 +24,14 @@ const Announcements = () => {
   const [imagePreview, setImagePreview] = useState(null);
   const [adding, setAdding] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  const [expandedIds, setExpandedIds] = useState([]);
+  const [expandedAnnouncementIds, setExpandedAnnouncementIds] = useState([]);
+  const [showCreateForm, setShowCreateForm] = useState(false); // For mobile collapsible form
+
+  const toggleAnnouncementExpand = (id) => {
+    setExpandedAnnouncementIds(prev =>
+      prev.includes(id) ? prev.filter(expId => expId !== id) : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     fetchAnnouncements();
@@ -133,13 +139,13 @@ const Announcements = () => {
   };
 
   return (
-    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-4 sm:py-6 mt-16 sm:mt-0">
+    <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 mt-16 sm:mt-0">
       {/* Header Section */}
-      <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-blue-900">Announcements</h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Manage and track all announcements</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white">Announcements</h2>
+            <p className="text-xs sm:text-sm text-gray-100 mt-1">Manage and track all announcements</p>
           </div>
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg">
@@ -153,14 +159,38 @@ const Announcements = () => {
       <div className="lg:grid lg:grid-cols-2 lg:gap-6">
         {/* Left Column - Create Announcement Form */}
         <div className="lg:sticky lg:top-6 lg:self-start">
-          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-6 lg:mb-0">
-            <div className="flex items-center gap-3 mb-6">
+          <div className="bg-white rounded-xl shadow-sm mb-6 lg:mb-0 overflow-hidden">
+            {/* Mobile Toggle Header */}
+            <div 
+              className="lg:hidden p-4 flex items-center justify-between cursor-pointer bg-blue-600 hover:bg-blue-700 transition-colors"
+              onClick={() => setShowCreateForm(!showCreateForm)}
+            >
+              <div className="flex items-center gap-3 ">
+                <div className="p-2 bg-white rounded-lg">
+                  <PencilSquareIcon className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-base font-semibold text-gray-100">Create New Announcement</h3>
+              </div>
+              <button className={`p-1.5 rounded-lg transition-all duration-200 ${showCreateForm ? 'bg-blue-100 text-blue-600' : 'text-gray-400'}`}>
+                {showCreateForm ? (
+                  <ChevronUpIcon className="w-5 h-5" />
+                ) : (
+                  <ChevronDownIcon className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {/* Desktop Header - Always Visible */}
+            <div className="hidden lg:flex items-center gap-3 p-4 sm:p-6 pb-0 bg-blue-600">
               <div className="p-2 bg-blue-50 rounded-lg">
                 <PencilSquareIcon className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="text-lg font-semibold text-blue-900">Create New Announcement</h3>
+              <h3 className="text-lg font-semibold text-white">Create New Announcement</h3>
             </div>
-            <form className="space-y-4" onSubmit={handleAdd}>
+
+            {/* Form - Collapsible on Mobile, Always Visible on Desktop */}
+            <div className={`${showCreateForm ? 'block' : 'hidden'} lg:block p-4 sm:p-6 pt-4`}>
+              <form className="space-y-4" onSubmit={handleAdd}>
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
                   <DocumentTextIcon className="w-4 h-4 text-gray-500" />
@@ -252,7 +282,8 @@ const Announcements = () => {
                   </>
                 )}
               </button>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
 
@@ -269,83 +300,125 @@ const Announcements = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {announcements.filter(a => a.isActive !== false).length === 0 ? (
-                <div className="bg-gray-50 p-8 rounded-lg border border-gray-200 text-center">
-                  <MegaphoneIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600">No announcements posted yet.</p>
+              {/* Announcements List */}
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="p-4 border-b bg-blue-600 border-gray-100">
+                  <h3 className="font-semibold text-gray-100 flex items-center gap-2">
+                    <MegaphoneIcon className="w-5 h-5 text-gray-100" />
+                    All Announcements
+                    <span className="text-sm font-normal text-gray-100">({announcements.length})</span>
+                  </h3>
                 </div>
-              ) : (
-                announcements
-                  .filter(a => a.isActive !== false)
-                  .map(a => {
-                    const isExpanded = expandedIds.includes(a._id);
-                    const isLongDescription = a.description.length > 150;
-                    return (
-                      <div
-                        key={a._id}
-                        className="bg-white rounded-xl shadow-sm p-4 sm:p-5 transition-all duration-200 hover:shadow-lg h-full flex flex-col"
-                      >
-                        <div className="flex flex-col h-full">
-                          {a.imageUrl && (
-                            <div className="relative w-full pt-[56.25%] mb-4 overflow-hidden rounded-lg">
-                              <img
-                                src={a.imageUrl}
-                                alt={a.title}
-                                className="absolute inset-0 w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 flex flex-col">
-                            <div className="flex flex-wrap items-start gap-2 mb-2">
-                              <h3 className="font-bold text-base sm:text-lg text-gray-800 break-words flex-1">{a.title}</h3>
-                            </div>
-                            <p className={`text-sm sm:text-base text-gray-600 mb-3 whitespace-pre-wrap break-words ${!isExpanded && isLongDescription ? 'line-clamp-3' : ''}`}>
-                              {a.description}
-                            </p>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 mt-auto">
-                              <ClockIcon className="w-4 h-4 flex-shrink-0" />
-                              <time className="break-words">{new Date(a.createdAt).toLocaleString()}</time>
-                            </div>
-                          </div>
-                          <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between items-center gap-2">
-                            <button
-                              className="w-full sm:w-auto p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
-                              onClick={() => handleDelete(a._id)}
-                              disabled={deletingId === a._id}
+                
+                {announcements.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <MegaphoneIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-gray-100">No announcements posted yet.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                    {announcements.map(a => {
+                        const isExpanded = expandedAnnouncementIds.includes(a._id);
+                        return (
+                          <div
+                            key={a._id}
+                            className="transition-all duration-200"
+                          >
+                            {/* Announcement Header - Always Visible */}
+                            <div
+                              className={`p-4 hover:bg-blue-50 cursor-pointer transition-colors ${
+                                isExpanded ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                              }`}
+                              onClick={() => toggleAnnouncementExpand(a._id)}
                             >
-                              {deletingId === a._id ? (
-                                <div className="w-5 h-5 border-t-2 border-red-600 rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  <TrashIcon className="w-5 h-5" />
-                                  <span className="text-sm font-medium whitespace-nowrap">Delete</span>
-                                </>
-                              )}
-                            </button>
-                            {isLongDescription && (
-                              <button
-                                className="w-full sm:w-auto p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex items-center justify-center gap-1 sm:gap-1.5 text-sm whitespace-nowrap"
-                                onClick={() => toggleExpand(a._id)}
-                              >
-                                {isExpanded ? (
-                                  <>
-                                    <DocumentTextIcon className="w-5 h-5" />
-                                    <span className="font-medium">Read Less</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <DocumentTextIcon className="w-5 h-5" />
-                                    <span className="font-medium">Read More</span>
-                                  </>
-                                )}
-                              </button>
+                              <div className="flex items-start gap-3">
+                                <div className="w-2 h-2 rounded-full mt-2 flex-shrink-0 bg-blue-500"></div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h4 className={`font-medium text-gray-900 ${isExpanded ? '' : 'truncate'}`}>{a.title}</h4>
+                                    {a.imageUrl && (
+                                      <PhotoIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <ClockIcon className="w-3.5 h-3.5" />
+                                    <span>{new Date(a.createdAt).toLocaleDateString('en-IN', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}</span>
+                                  </div>
+                                </div>
+                                <button
+                                  className={`p-1.5 rounded-lg transition-all duration-200 ${
+                                    isExpanded 
+                                      ? 'bg-blue-100 text-blue-600' 
+                                      : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                                  }`}
+                                >
+                                  {isExpanded ? (
+                                    <ChevronUpIcon className="w-5 h-5" />
+                                  ) : (
+                                    <ChevronDownIcon className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Expanded Details */}
+                            {isExpanded && (
+                              <div className="px-4 pb-4 bg-blue-50 border-l-4 border-blue-500">
+                                <div className="pl-5">
+                                  {/* Image */}
+                                  {a.imageUrl && (
+                                    <div className="relative w-full max-w-md pt-[40%] mb-4 overflow-hidden rounded-lg">
+                                      <img
+                                        src={a.imageUrl}
+                                        alt={a.title}
+                                        className="absolute inset-0 w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Description */}
+                                  <div className="mb-4">
+                                    <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Description</h5>
+                                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-white p-3 rounded-lg border border-gray-200">
+                                      {a.description}
+                                    </p>
+                                  </div>
+
+                                  {/* Actions */}
+                                  <div className="flex items-center gap-3 pt-3 border-t border-blue-200">
+                                    <button
+                                      className="px-3 py-1.5 text-red-600 hover:bg-red-100 rounded-lg transition-colors duration-200 flex items-center gap-2 text-sm font-medium"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(a._id);
+                                      }}
+                                      disabled={deletingId === a._id}
+                                    >
+                                      {deletingId === a._id ? (
+                                        <div className="w-4 h-4 border-t-2 border-red-600 rounded-full animate-spin" />
+                                      ) : (
+                                        <>
+                                          <TrashIcon className="w-4 h-4" />
+                                          Delete
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })
-              )}
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

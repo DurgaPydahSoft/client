@@ -13,7 +13,7 @@ import {
 import { hasPermission, hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
 import ComplaintList from './ComplaintList';
 import MemberManagement from './MemberManagement';
-import AnnouncementManagement from './AnnouncementManagement';
+import Announcements from './Announcements';
 import DashboardHome from './DashboardHome';
 import NotificationBell from '../../components/NotificationBell';
 import PollManagement from './PollManagement';
@@ -878,7 +878,7 @@ const AdminDashboardLayout = () => (
     <Route path="complaints" element={<ComplaintList />} />
     <Route path="leave" element={<LeaveManagement />} />
     <Route path="members" element={<MemberManagement />} />
-    <Route path="announcements" element={<AnnouncementManagement />} />
+    <Route path="announcements" element={<Announcements />} />
     <Route path="polls" element={<PollManagement />} />
     <Route path="cafeteria/menu" element={<MenuManagement />} />
     <Route path="attendance" element={<Attendance />} />
