@@ -153,6 +153,12 @@ const AdminDashboard = () => {
           name: 'Admit Cards',
           path: '/admin/dashboard/students/admit-cards',
           icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+        },
+        {
+          name: 'NOC Management',
+          path: '/admin/dashboard/noc-management',
+          icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+          locked: !isSuperAdmin
         }
       ]
     },
@@ -205,13 +211,6 @@ const AdminDashboard = () => {
       path: '/admin/dashboard/staff-guests',
       show: true,
       locked: !isSuperAdmin && !hasPermission(user, 'staff_guests_management')
-    },
-    {
-      name: 'NOC Management',
-      icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-      path: '/admin/dashboard/noc-management',
-      show: true,
-      locked: !isSuperAdmin
     },
     {
       name: 'Campus Security',
@@ -343,11 +342,11 @@ const AdminDashboard = () => {
       }));
     }
 
-    // Auto-expand Students submenu if on students-related pages
-    if (pathname.startsWith('/admin/dashboard/students')) {
+    // Auto-expand Students submenu if on students-related pages or NOC management
+    if (pathname.startsWith('/admin/dashboard/students') || pathname.startsWith('/admin/dashboard/noc-management')) {
       setExpandedMenus(prev => ({
         ...prev,
-        'Students': true
+        'Student Portal': true
       }));
     }
 
