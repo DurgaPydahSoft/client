@@ -7,6 +7,7 @@ import { useLocation } from 'react-router-dom';
 import SEO from '../../components/SEO';
 import AIConfigPanel from '../../components/AIConfigPanel';
 import useDebounce from '../../hooks/useDebounce';
+import { useAuth } from '../../context/AuthContext';
 
 const STATUS_OPTIONS = ['All', 'Received', 'In Progress', 'Resolved', 'Closed'];
 
@@ -114,6 +115,7 @@ const CATEGORIES = ['A+', 'A', 'B+', 'B'];
 
 const Complaints = () => {
   const location = useLocation();
+  const { user } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [contentLoading, setContentLoading] = useState(false);
@@ -126,6 +128,12 @@ const Complaints = () => {
   const [updating, setUpdating] = useState(false);
   const [members, setMembers] = useState({});
   const [selectedMember, setSelectedMember] = useState('');
+  
+  // Mobile status tab
+  const [mobileStatusTab, setMobileStatusTab] = useState('All');
+  
+  // Check if user is super_admin
+  const isSuperAdmin = user?.role === 'super_admin';
 
   // Simplified filters
   const [filterStatus, setFilterStatus] = useState('All');
@@ -773,6 +781,139 @@ const Complaints = () => {
     </div>
   );
 
+  // Render mobile complaints list with tab filtering
+  const renderMobileComplaintsList = () => {
+    const filteredComplaints = mobileStatusTab === 'All' 
+      ? complaints 
+      : complaints.filter(c => c.currentStatus === mobileStatusTab);
+
+    if (filteredComplaints.length === 0) {
+      return (
+        <div className="text-center py-10">
+          <div className="flex flex-col items-center gap-2.5">
+            <div className="text-gray-400">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-600 font-semibold">No {mobileStatusTab !== 'All' ? mobileStatusTab.toLowerCase() : ''} complaints found</p>
+            <p className="text-xs text-gray-400">Try selecting a different status</p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2.5">
+        {filteredComplaints.map((c, index) => {
+          const complaintKey = `mobile-${c._id || c.student?._id || 'unknown'}-${index}`;
+          const isLocked = c.isLockedForUpdates === true;
+          const canDelete = c.currentStatus === 'Received' && !isLocked;
+
+          return (
+            <div 
+              key={complaintKey} 
+              className={`bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 overflow-hidden active:scale-[0.98] touch-manipulation ${isLocked ? 'opacity-70' : ''}`}
+              onClick={() => openDetails(c)}
+            >
+              {/* Status Color Bar */}
+              <div className={`h-1 ${
+                c.currentStatus === 'Received' ? 'bg-blue-500' :
+                c.currentStatus === 'In Progress' ? 'bg-yellow-500' :
+                c.currentStatus === 'Resolved' ? 'bg-green-500' :
+                'bg-gray-400'
+              }`}></div>
+              
+              <div className="p-3">
+                {/* Header Row */}
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div className="w-8 h-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center border border-blue-200 flex-shrink-0">
+                      <UserIcon className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 truncate">
+                        {c.raisedBy === 'warden' ? 'Warden' : (c.student?.name || 'Unknown')}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        {c.raisedBy === 'student' ? `Roll: ${c.student?.rollNumber || 'N/A'}` : 'Facility Issue'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {canDelete && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteComplaint(c._id, c.description);
+                        }}
+                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Delete"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tags Row */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-[10px] font-semibold border border-blue-200">
+                    {c.category || 'Uncategorized'}
+                  </span>
+                  {c.subCategory && (
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] font-medium">
+                      {c.subCategory}
+                    </span>
+                  )}
+                  {c.raisedBy === 'warden' && (
+                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-[10px] font-semibold border border-purple-200">
+                      Warden
+                    </span>
+                  )}
+                  {isLocked && (
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-[10px] font-semibold flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Locked
+                    </span>
+                  )}
+                </div>
+
+                {/* Description */}
+                <p className="text-xs text-gray-600 line-clamp-2 mb-2 leading-relaxed">
+                  {c.description}
+                </p>
+
+                {/* Assigned Member */}
+                {c.assignedTo && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-blue-600 mb-2 bg-blue-50 px-2 py-1 rounded-lg">
+                    <UserIcon className="w-3 h-3" />
+                    <span className="truncate font-medium">{c.assignedTo.name}</span>
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-[10px] font-semibold ${STATUS_COLORS[c.currentStatus] || STATUS_COLORS['Received']}`}>
+                    {c.currentStatus || 'Received'}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {new Date(c.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {renderPagination()}
+      </div>
+    );
+  };
+
   // Render individual complaint card for Kanban columns
   const renderComplaintCard = (complaint) => {
     const isLocked = complaint.isLockedForUpdates === true;
@@ -1382,11 +1523,59 @@ const Complaints = () => {
                 )}
               </div>
 
-              {/* Mobile View - Compact List */}
+              {/* Mobile View - With Status Tabs */}
               <div className={`xl:hidden ${contentLoading ? 'opacity-50' : ''}`}>
+                {/* Mobile Status Tabs */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-3 overflow-hidden">
+                  <div className="flex overflow-x-auto scrollbar-hide">
+                    {['All', 'Received', 'In Progress', 'Resolved', 'Closed'].map((tab) => {
+                      const tabCount = tab === 'All' 
+                        ? complaints.length 
+                        : complaints.filter(c => c.currentStatus === tab).length;
+                      
+                      const isActive = mobileStatusTab === tab;
+                      const tabColors = {
+                        'All': 'border-blue-500 text-blue-600 bg-blue-50',
+                        'Received': 'border-blue-500 text-blue-600 bg-blue-50',
+                        'In Progress': 'border-yellow-500 text-yellow-600 bg-yellow-50',
+                        'Resolved': 'border-green-500 text-green-600 bg-green-50',
+                        'Closed': 'border-gray-500 text-gray-600 bg-gray-50'
+                      };
+                      
+                      return (
+                        <button
+                          key={tab}
+                          onClick={() => setMobileStatusTab(tab)}
+                          className={`flex-shrink-0 px-4 py-3 text-xs font-semibold border-b-2 transition-all duration-200 flex items-center gap-2 ${
+                            isActive 
+                              ? tabColors[tab] 
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <span>{tab}</span>
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            isActive 
+                              ? 'bg-white shadow-sm' 
+                              : 'bg-gray-100'
+                          }`}>
+                            {tabCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-100 p-2.5 sm:p-3 md:p-4">
-                  <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-3 md:mb-4 px-1">All Complaints</h3>
-                  {renderComplaintsList()}
+                  <h3 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-2.5 sm:mb-3 md:mb-4 px-1 flex items-center justify-between">
+                    <span>{mobileStatusTab === 'All' ? 'All Complaints' : `${mobileStatusTab} Complaints`}</span>
+                    <span className="text-xs font-normal text-gray-500">
+                      {mobileStatusTab === 'All' 
+                        ? complaints.length 
+                        : complaints.filter(c => c.currentStatus === mobileStatusTab).length} items
+                    </span>
+                  </h3>
+                  {renderMobileComplaintsList()}
                 </div>
               </div>
             </div>
@@ -1671,10 +1860,18 @@ const Complaints = () => {
                         required
                       >
                         <option value="">Select status</option>
-                        {STATUS_OPTIONS.filter(opt => opt !== 'All').map(opt => (
-                          <option key={`status-${opt}`} value={opt}>{opt}</option>
-                        ))}
+                        {STATUS_OPTIONS
+                          .filter(opt => opt !== 'All')
+                          .filter(opt => opt !== 'Closed' || isSuperAdmin) // Only super_admin can set Closed
+                          .map(opt => (
+                            <option key={`status-${opt}`} value={opt}>{opt}</option>
+                          ))}
                       </select>
+                      {!isSuperAdmin && (
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          Note: Only Super Admin can directly close complaints
+                        </p>
+                      )}
                     </div>
 
                     {status === 'In Progress' && (
