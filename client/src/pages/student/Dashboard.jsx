@@ -29,6 +29,7 @@ import Polls from './Polls';
 import Profile from './Profile';
 import NotificationBell from '../../components/NotificationBell';
 import PollPopup from '../../components/PollPopup';
+import FeedbackPopup from '../../components/FeedbackPopup';
 import SEO from '../../components/SEO';
 import Leave from './Leave';
 import MealRating from '../../components/MealRating';
@@ -151,6 +152,8 @@ const StudentDashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [unvotedPolls, setUnvotedPolls] = useState([]);
   const [currentPollIndex, setCurrentPollIndex] = useState(0);
+  const [complaintsAwaitingFeedback, setComplaintsAwaitingFeedback] = useState([]);
+  const [currentFeedbackIndex, setCurrentFeedbackIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notificationStates, setNotificationStates] = useState({
     complaint: false,
@@ -221,6 +224,13 @@ const StudentDashboardLayout = () => {
           setUnvotedPolls(unvoted);
           setCurrentPollIndex(0);
         }
+
+        // Filter complaints that are resolved but don't have feedback
+        const awaitingFeedback = complaints.filter(
+          c => c.currentStatus === 'Resolved' && !c.feedback
+        );
+        setComplaintsAwaitingFeedback(awaitingFeedback);
+        setCurrentFeedbackIndex(0);
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -244,18 +254,40 @@ const StudentDashboardLayout = () => {
     }
   };
 
+  const handleFeedbackSubmit = () => {
+    if (currentFeedbackIndex < complaintsAwaitingFeedback.length - 1) {
+      // Move to next complaint awaiting feedback
+      setCurrentFeedbackIndex(prev => prev + 1);
+    } else {
+      // All feedbacks have been submitted
+      setComplaintsAwaitingFeedback([]);
+      setCurrentFeedbackIndex(0);
+    }
+  };
+
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  // If there are unvoted polls, show the current one in the popup
+  // If there are unvoted polls, show the current one in the popup first
   if (unvotedPolls.length > 0) {
     return (
       <PollPopup
         poll={unvotedPolls[currentPollIndex]}
         onVote={handlePollVote}
         remainingPolls={unvotedPolls.length - 1 - currentPollIndex}
+      />
+    );
+  }
+
+  // After polls, if there are complaints awaiting feedback, show feedback popup
+  if (complaintsAwaitingFeedback.length > 0) {
+    return (
+      <FeedbackPopup
+        complaint={complaintsAwaitingFeedback[currentFeedbackIndex]}
+        onFeedbackSubmit={handleFeedbackSubmit}
+        remainingComplaints={complaintsAwaitingFeedback.length - 1 - currentFeedbackIndex}
       />
     );
   }
