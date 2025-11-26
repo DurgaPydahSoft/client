@@ -411,3 +411,30 @@ const bulkResult = await sendBulkReminders(courseId, academicYear);
 5. **Template Management**: Enhanced email template management
 6. **Multi-language Support**: Support for multiple languages
 7. **Automated Testing**: Add automated testing for reminder system
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    ACADEMIC CALENDAR                            │
+│  Semester 1: Jul 1, 2024         Semester 2: Jan 1, 2025       │
+└─────────────────────────────────┬───────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                   TERM DUE DATE CONFIG                          │
+│  ┌────────────────────────────────────────────────────────┐    │
+│  │ Term 1:                                                 │    │
+│  │   - Reference Semester: Semester 1 ← (selectable)       │    │
+│  │   - Days from Semester Start: 5                         │    │
+│  │   - Due Date: Jul 6, 2024                              │    │
+│  │                                                         │    │
+│  │ Term 2:                                                 │    │
+│  │   - Reference Semester: Semester 1 ← (selectable)       │    │
+│  │   - Days from Semester Start: 90                        │    │
+│  │   - Due Date: Sep 29, 2024                             │    │
+│  │                                                         │    │
+│  │ Term 3:                                                 │    │
+│  │   - Reference Semester: Semester 2 ← (selectable)       │    │
+│  │   - Days from Semester Start: 30                        │    │
+│  │   - Due Date: Jan 31, 2025                             │    │
+│  └────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘

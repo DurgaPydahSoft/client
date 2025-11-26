@@ -766,12 +766,18 @@ const ReminderConfig = () => {
                     </button>
                   </div>
                 </div>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {['term1', 'term2', 'term3'].map((term, idx) => (
-                          <div key={term} className="space-y-1">
+                          <div key={term} className="space-y-1 pb-2 border-b border-gray-200 last:border-0 last:pb-0">
                             <div className="flex items-center justify-between text-xs">
                               <span className="text-gray-600 font-medium">Term {idx + 1}:</span>
                               <span className="text-gray-900 font-semibold">{config.termDueDates[term].daysFromSemesterStart} days</span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-blue-600 font-medium">From:</span>
+                              <span className="text-blue-700 font-semibold text-[10px]">
+                                {config.termDueDates[term].referenceSemester || 'Sem 1'}
+                              </span>
                             </div>
                             {config.termDueDates[term].lateFee > 0 && (
                               <div className="flex items-center justify-between text-xs">
@@ -849,35 +855,51 @@ const TermConfigForm = ({
     academicYear: selectedAcademicYear || '',
     yearOfStudy: selectedYearOfStudy || '',
     termDueDates: {
-      term1: { daysFromSemesterStart: 5, description: 'Term 1 Due Date', lateFee: 0 },
-      term2: { daysFromSemesterStart: 90, description: 'Term 2 Due Date', lateFee: 0 },
-      term3: { daysFromSemesterStart: 210, description: 'Term 3 Due Date', lateFee: 0 }
+      term1: { daysFromSemesterStart: 5, referenceSemester: 'Semester 1', description: 'Term 1 Due Date', lateFee: 0 },
+      term2: { daysFromSemesterStart: 90, referenceSemester: 'Semester 1', description: 'Term 2 Due Date', lateFee: 0 },
+      term3: { daysFromSemesterStart: 210, referenceSemester: 'Semester 2', description: 'Term 3 Due Date', lateFee: 0 }
+    },
+    reminderDays: {
+      term1: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
+      term2: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
+      term3: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] }
     }
   });
 
   useEffect(() => {
     if (editingConfig) {
-      // Ensure lateFee is included when editing
+      // Ensure lateFee and referenceSemester are included when editing
       const termDueDates = {
         term1: {
           ...editingConfig.termDueDates.term1,
+          referenceSemester: editingConfig.termDueDates.term1.referenceSemester || 'Semester 1',
           lateFee: editingConfig.termDueDates.term1.lateFee || 0
         },
         term2: {
           ...editingConfig.termDueDates.term2,
+          referenceSemester: editingConfig.termDueDates.term2.referenceSemester || 'Semester 1',
           lateFee: editingConfig.termDueDates.term2.lateFee || 0
         },
         term3: {
           ...editingConfig.termDueDates.term3,
+          referenceSemester: editingConfig.termDueDates.term3.referenceSemester || 'Semester 1',
           lateFee: editingConfig.termDueDates.term3.lateFee || 0
         }
+      };
+      
+      // Include reminderDays from existing config or use defaults
+      const reminderDays = editingConfig.reminderDays || {
+        term1: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
+        term2: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] },
+        term3: { preReminders: [7, 3, 1], postReminders: [1, 3, 7] }
       };
       
       setFormData({
         courseId: editingConfig.course._id,
         academicYear: editingConfig.academicYear,
         yearOfStudy: editingConfig.yearOfStudy,
-        termDueDates: termDueDates
+        termDueDates: termDueDates,
+        reminderDays: reminderDays
       });
     }
   }, [editingConfig]);
@@ -988,41 +1010,55 @@ const TermConfigForm = ({
 
             {/* Term Due Dates */}
             <div>
-              <h4 className="text-base font-semibold text-gray-900 mb-4">Term Due Dates (Days from Semester-1 Start)</h4>
+              <h4 className="text-base font-semibold text-gray-900 mb-4">Term Due Dates Configuration</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {['term1', 'term2', 'term3'].map(term => (
                   <div key={term} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h5 className="font-medium text-gray-900 mb-3 text-sm capitalize">{term.replace('term', 'Term ')}</h5>
                     <div className="space-y-3">
-                    <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                        Days from Semester Start
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="365"
-                        value={formData.termDueDates[term].daysFromSemesterStart}
-                        onChange={(e) => handleInputChange(`termDueDates.${term}.daysFromSemesterStart`, parseInt(e.target.value))}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        required
-                      />
-                    </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                        Description
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.termDueDates[term].description}
-                        onChange={(e) => handleInputChange(`termDueDates.${term}.description`, e.target.value)}
+                          Reference Semester
+                        </label>
+                        <select
+                          value={formData.termDueDates[term].referenceSemester || 'Semester 1'}
+                          onChange={(e) => handleInputChange(`termDueDates.${term}.referenceSemester`, e.target.value)}
                           className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        required
-                      />
+                        >
+                          <option value="Semester 1">Semester 1</option>
+                          <option value="Semester 2">Semester 2</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">Which semester start date to use as reference</p>
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                        Late Fee (₹)
+                          Days from Semester Start
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={formData.termDueDates[term].daysFromSemesterStart}
+                          onChange={(e) => handleInputChange(`termDueDates.${term}.daysFromSemesterStart`, parseInt(e.target.value))}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                          Description
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.termDueDates[term].description}
+                          onChange={(e) => handleInputChange(`termDueDates.${term}.description`, e.target.value)}
+                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                          Late Fee (₹)
                         </label>
                         <input
                           type="number"
