@@ -3050,8 +3050,8 @@ const FeeManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="p-3 sm:p-4 lg:p-6 mx-auto">
+    <div className="min-h-screen ">
+      <div className=" mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">

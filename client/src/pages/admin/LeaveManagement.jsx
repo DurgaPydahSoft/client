@@ -46,6 +46,7 @@ const LeaveManagement = () => {
   const [visibleOtps, setVisibleOtps] = useState({});
   const [otpValues, setOtpValues] = useState({});
   const [otpLoading, setOtpLoading] = useState({});
+  const [showFilters, setShowFilters] = useState(false);
 
   const handleToggleOtp = async (leaveId) => {
     setVisibleOtps((prev) => ({
@@ -322,56 +323,91 @@ const LeaveManagement = () => {
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1 hidden sm:block">
               Note: Leave and Permission requests now go through Warden/Admin OTP verification → Course-specific Principal approval workflow
             </p>
+            
+            {/* Mobile Filter Toggle - Below Heading */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="lg:hidden flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium mt-3"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              <span>Filters</span>
+              <svg className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
           </div>
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Date Range Filters */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <div className="flex items-center gap-2">
-                <label className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">From:</label>
-                <input
-                  type="date"
-                  value={filters.fromDate}
-                  onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value, page: 1 }))}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">To:</label>
-                <input
-                  type="date"
-                  value={filters.toDate}
-                  onChange={e => setFilters(f => ({ ...f, toDate: e.target.value, page: 1 }))}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                />
-              </div>
-            </div>
 
-            {/* Dropdown Filters */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <select
-                value={filters.applicationType}
-                onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
-                className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+          {/* Filters - Collapsible on Mobile */}
+          <div className={`${showFilters ? 'block' : 'hidden'} lg:block w-full lg:w-auto`}>
+            <div className="flex flex-col gap-3 sm:gap-4 bg-gray-50 lg:bg-transparent p-3 lg:p-0 rounded-lg lg:rounded-none mt-3 lg:mt-0">
+              {/* Date Range Filters */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">From:</label>
+                  <input
+                    type="date"
+                    value={filters.fromDate}
+                    onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value, page: 1 }))}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">To:</label>
+                  <input
+                    type="date"
+                    value={filters.toDate}
+                    onChange={e => setFilters(f => ({ ...f, toDate: e.target.value, page: 1 }))}
+                    className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Dropdown Filters */}
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                <select
+                  value={filters.applicationType}
+                  onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
+                  className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Types</option>
+                  <option value="Leave">Leave</option>
+                  <option value="Permission">Permission</option>
+                </select>
+                <select
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
+                  className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                >
+                  <option value="">All Status</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Pending OTP Verification">Pending OTP</option>
+                  <option value="Warden Verified">Warden Verified</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+
+              {/* Clear Filters Button - Mobile Only */}
+              <button
+                onClick={() => {
+                  setFilters({
+                    status: 'Pending OTP Verification',
+                    applicationType: '',
+                    page: 1,
+                    fromDate: '',
+                    toDate: ''
+                  });
+                  setShowFilters(false);
+                }}
+                className="lg:hidden px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-xs font-medium"
               >
-                <option value="">All Types</option>
-                <option value="Leave">Leave</option>
-                <option value="Permission">Permission</option>
-              </select>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-                className="flex-1 px-2 sm:px-3 py-1 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-              >
-                <option value="">All Status</option>
-                <option value="Pending">Pending</option>
-                <option value="Pending OTP Verification">Pending OTP</option>
-                <option value="Warden Verified">Warden Verified</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
