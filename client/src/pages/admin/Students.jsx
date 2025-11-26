@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -183,6 +183,8 @@ const Students = () => {
   const [tempStudentsSummary, setTempStudentsSummary] = useState([]);
   const [loadingTempSummary, setLoadingTempSummary] = useState(false);
   const [renewalModalOpen, setRenewalModalOpen] = useState(false);
+  const [renewalResultsModal, setRenewalResultsModal] = useState(false);
+  const [renewalResults, setRenewalResults] = useState(null);
 
   // Email service status
   const [emailServiceStatus, setEmailServiceStatus] = useState(null);
@@ -2906,7 +2908,7 @@ const Students = () => {
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">All Students</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">All Students ( {totalStudents} )</h2>
             <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <button
                 onClick={() => setRenewalModalOpen(true)}
@@ -4631,24 +4633,28 @@ const Students = () => {
     const academicYears = generateAcademicYears();
     const [fromAcademicYear, setFromAcademicYear] = useState('');
     const [toAcademicYear, setToAcademicYear] = useState('');
-    const [studentsToRenew, setStudentsToRenew] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState('');
+    const [allStudents, setAllStudents] = useState([]); // All active students from the year
+    const [filteredStudents, setFilteredStudents] = useState([]); // Filtered by course
     const [selectedStudents, setSelectedStudents] = useState(new Set());
     const [loadingStudents, setLoadingStudents] = useState(false);
     const [isRenewing, setIsRenewing] = useState(false);
 
+    // Fetch students when academic year changes
     useEffect(() => {
       if (fromAcademicYear) {
         const fetchStudentsForRenewal = async () => {
           setLoadingStudents(true);
           try {
             const res = await api.get('/api/admin/students', {
-              params: { academicYear: fromAcademicYear, limit: 1000 } // Fetch all for this year
+              params: { academicYear: fromAcademicYear, limit: 1000 }
             });
             if (res.data.success) {
               const activeStudents = res.data.data.students.filter(s => s.hostelStatus === 'Active');
-              setStudentsToRenew(activeStudents);
-              // Initially select all students
+              setAllStudents(activeStudents);
+              setFilteredStudents(activeStudents);
               setSelectedStudents(new Set(activeStudents.map(s => s._id)));
+              setSelectedCourse(''); // Reset course filter
             } else {
               toast.error('Failed to fetch students for renewal.');
             }
@@ -4660,14 +4666,43 @@ const Students = () => {
         };
         fetchStudentsForRenewal();
       } else {
-        setStudentsToRenew([]);
+        setAllStudents([]);
+        setFilteredStudents([]);
         setSelectedStudents(new Set());
+        setSelectedCourse('');
       }
     }, [fromAcademicYear]);
 
+    // Filter students when course changes
+    useEffect(() => {
+      if (selectedCourse) {
+        const filtered = allStudents.filter(s => 
+          s.course?._id === selectedCourse || s.courseId === selectedCourse
+        );
+        setFilteredStudents(filtered);
+        setSelectedStudents(new Set(filtered.map(s => s._id)));
+      } else {
+        setFilteredStudents(allStudents);
+        setSelectedStudents(new Set(allStudents.map(s => s._id)));
+      }
+    }, [selectedCourse, allStudents]);
+
+    // Get unique courses from all students
+    const availableCourses = useMemo(() => {
+      const courseMap = new Map();
+      allStudents.forEach(s => {
+        const courseId = s.course?._id || s.courseId;
+        const courseName = s.course?.name || getCourseName(s.course) || 'Unknown';
+        if (courseId && !courseMap.has(courseId)) {
+          courseMap.set(courseId, courseName);
+        }
+      });
+      return Array.from(courseMap.entries()).map(([id, name]) => ({ id, name }));
+    }, [allStudents]);
+
     const handleSelectAll = (e) => {
       if (e.target.checked) {
-        setSelectedStudents(new Set(studentsToRenew.map(s => s._id)));
+        setSelectedStudents(new Set(filteredStudents.map(s => s._id)));
       } else {
         setSelectedStudents(new Set());
       }
@@ -4688,14 +4723,29 @@ const Students = () => {
         toast.error('Please select both "From" and "To" academic years.');
         return;
       }
+      
+      // Only pass displayedStudentIds if a course filter is applied
+      // If no course filter, we don't deactivate anyone - just renew selected
+      const shouldDeactivateUnchecked = !!selectedCourse;
+      const displayedStudentIds = shouldDeactivateUnchecked ? filteredStudents.map(s => s._id) : null;
+      
       if (selectedStudents.size === 0) {
-        if (!confirm('You have not selected any students to renew. This will mark all students from this year as inactive. Do you want to proceed?')) {
+        toast.error('Please select at least one student to renew.');
+        return;
+      }
+      
+      // Warning only when course filter is applied and some students are unchecked
+      if (shouldDeactivateUnchecked && selectedStudents.size < filteredStudents.length) {
+        const uncheckedCount = filteredStudents.length - selectedStudents.size;
+        if (!confirm(`${uncheckedCount} student(s) are not selected and will be marked as INACTIVE. Do you want to proceed?`)) {
           return;
         }
       }
+      
       setIsRenewing(true);
       try {
-        await onRenew(fromAcademicYear, toAcademicYear, Array.from(selectedStudents));
+        // Pass displayedStudentIds only when course filter is applied
+        await onRenew(fromAcademicYear, toAcademicYear, Array.from(selectedStudents), displayedStudentIds);
         onClose();
       } finally {
         setIsRenewing(false);
@@ -4707,7 +4757,7 @@ const Students = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 flex flex-col max-h-[90vh]">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Renew Student Batches</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">From Academic Year</label>
                 <select
@@ -4730,25 +4780,64 @@ const Students = () => {
                   {academicYears.filter(y => y > fromAcademicYear).map(year => <option key={year} value={year}>{year}</option>)}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
+                <select
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  disabled={!fromAcademicYear || allStudents.length === 0}
+                >
+                  <option value="">All Courses ({allStudents.length})</option>
+                  {availableCourses.map(course => (
+                    <option key={course.id} value={course.id}>
+                      {course.name} ({allStudents.filter(s => (s.course?._id || s.courseId) === course.id).length})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
+            {/* Info banner based on course filter status */}
+            {selectedCourse ? (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 flex items-start">
+                <svg className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="text-sm text-orange-700">
+                  <span className="font-medium">Course Filter Active:</span> Unchecked students from this course will be <strong>DEACTIVATED</strong>. 
+                  Students from other courses will not be affected.
+                </div>
+              </div>
+            ) : fromAcademicYear && allStudents.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-start">
+                <svg className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-green-700">
+                  <span className="font-medium">Safe Mode:</span> Only selected students will be renewed. 
+                  Unchecked students will <strong>NOT</strong> be deactivated. Apply a course filter to enable deactivation.
+                </div>
+              </div>
+            )}
 
             <div className="flex-grow overflow-y-auto border rounded-lg p-2 bg-gray-50">
               {loadingStudents ? (
                 <div className="flex justify-center items-center h-full"><LoadingSpinner /></div>
-              ) : studentsToRenew.length > 0 ? (
+              ) : filteredStudents.length > 0 ? (
                 <div className="space-y-2">
                   <div className="flex items-center p-2 border-b">
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={selectedStudents.size === studentsToRenew.length}
+                      checked={selectedStudents.size === filteredStudents.length && filteredStudents.length > 0}
                       onChange={handleSelectAll}
                     />
                     <label className="ml-3 block text-sm font-medium text-gray-900">
-                      Select All ({selectedStudents.size} / {studentsToRenew.length})
+                      Select All ({selectedStudents.size} / {filteredStudents.length})
                     </label>
                   </div>
-                  {studentsToRenew.map(student => (
+                  {filteredStudents.map(student => (
                     <div key={student._id} className="flex items-center p-2 rounded-md hover:bg-gray-100">
                       <input
                         type="checkbox"
@@ -4758,14 +4847,14 @@ const Students = () => {
                       />
                       <div className="ml-3 text-sm">
                         <label className="font-medium text-gray-900">{student.name}</label>
-                        <p className="text-gray-500">{student.rollNumber} - {student.course?.name || getCourseName(student.course) || 'N/A'} • {getBranchName(student.branch)}</p>
+                        <p className="text-gray-500">{student.rollNumber} - {student.course?.name || getCourseName(student.course) || 'N/A'} • {getBranchName(student.branch)} • Year {student.year}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-10">
-                  {fromAcademicYear ? 'No active students found for this year.' : 'Select an academic year to see students.'}
+                  {fromAcademicYear ? (selectedCourse ? 'No active students found for this course.' : 'No active students found for this year.') : 'Select an academic year to see students.'}
                 </div>
               )}
             </div>
@@ -4790,21 +4879,33 @@ const Students = () => {
   };
 
   // Function to handle the renewal API call
-  const handleRenewBatches = async (fromAcademicYear, toAcademicYear, studentIds) => {
+  const handleRenewBatches = async (fromAcademicYear, toAcademicYear, studentIds, displayedStudentIds) => {
     try {
-      const res = await api.post('/api/admin/students/renew-batch', { fromAcademicYear, toAcademicYear, studentIds });
+      const res = await api.post('/api/admin/students/renew-batch', { 
+        fromAcademicYear, 
+        toAcademicYear, 
+        studentIds,
+        displayedStudentIds // Only deactivate from this list, not all students
+      });
       if (res.data.success) {
-        const { renewedCount, graduatedCount, deactivatedCount, graduationDetails } = res.data.data;
+        const { renewedCount, graduatedCount, deactivatedCount, graduationDetails, renewalDetails } = res.data.data;
 
-        let message = `Batch renewal completed: ${renewedCount} renewed, ${graduatedCount} graduated, ${deactivatedCount} deactivated.`;
-        if (graduationDetails && graduationDetails.length > 0) {
-          message += ` Graduated students: ${graduationDetails.map(g => g.name).join(', ')}`;
-        }
+        // Store the results for displaying in the modal
+        setRenewalResults({
+          renewedCount,
+          graduatedCount,
+          deactivatedCount,
+          graduationDetails: graduationDetails || [],
+          renewalDetails: renewalDetails || [],
+          fromAcademicYear,
+          toAcademicYear
+        });
+        setRenewalResultsModal(true);
 
-        toast.success(message);
+        toast.success(`Batch renewal completed: ${renewedCount} renewed, ${graduatedCount} graduated, ${deactivatedCount} deactivated.`);
         console.log('Renewal Results:', res.data.data);
 
-        // Optionally refresh data
+        // Refresh data
         if (tab === 'list') {
           fetchStudents(true);
         }
@@ -4814,6 +4915,210 @@ const Students = () => {
     } catch (err) {
       toast.error(err.response?.data?.message || 'An error occurred during batch renewal.');
     }
+  };
+
+  // Renewal Results Modal Component
+  const RenewalResultsModal = ({ isOpen, onClose, results }) => {
+    if (!isOpen || !results) return null;
+
+    const formatCurrency = (amount) => {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+      }).format(amount || 0);
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 flex flex-col max-h-[90vh]">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-gray-800">Batch Renewal Results</h3>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-green-600">{results.renewedCount}</div>
+              <div className="text-sm text-green-700">Renewed</div>
+            </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-blue-600">{results.graduatedCount}</div>
+              <div className="text-sm text-blue-700">Graduated</div>
+            </div>
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-orange-600">{results.deactivatedCount}</div>
+              <div className="text-sm text-orange-700">Deactivated</div>
+            </div>
+          </div>
+
+          {/* Academic Year Info */}
+          <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center">
+            <span className="text-gray-600">Renewal: </span>
+            <span className="font-semibold text-gray-800">{results.fromAcademicYear}</span>
+            <span className="mx-2 text-gray-400">→</span>
+            <span className="font-semibold text-gray-800">{results.toAcademicYear}</span>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-grow overflow-y-auto">
+            {/* Renewed Students with Fee Details */}
+            {results.renewalDetails && results.renewalDetails.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
+                  <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+                  Renewed Students - Fee Updates
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Student</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-600">Year</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-600">Previous Total</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-600">New Total</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-600">Prev. Concession</th>
+                        <th className="px-3 py-2 text-center font-medium text-gray-600">Renewals</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {results.renewalDetails.map((detail, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-gray-900">{detail.name}</div>
+                            <div className="text-xs text-gray-500">{detail.rollNumber}</div>
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="text-gray-500">{detail.previousYear}</span>
+                            <span className="mx-1 text-gray-400">→</span>
+                            <span className="font-medium text-gray-800">{detail.newYear}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right text-gray-600">
+                            {formatCurrency(detail.previousFees?.totalFee)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-green-600">
+                            {formatCurrency(detail.newFees?.totalFee)}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {detail.concessionAutoRequested ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-purple-600 font-medium text-xs">
+                                  {formatCurrency(detail.previousConcession)}
+                                </span>
+                                <span className="text-xs text-orange-500 font-medium">Pending</span>
+                              </div>
+                            ) : detail.previousConcession > 0 ? (
+                              <div className="flex flex-col items-center">
+                                <span className="text-gray-400 line-through text-xs">
+                                  {formatCurrency(detail.previousConcession)}
+                                </span>
+                                <span className="text-xs text-red-500 font-medium">Not Renewed</span>
+                              </div>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
+                              {detail.totalRenewals}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Concession Auto-Request Notice */}
+                {results.renewalDetails.some(d => d.concessionAutoRequested) && (
+                  <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-purple-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-sm text-purple-700">
+                        <span className="font-medium">Concession Requests Created:</span> Students with previously approved concessions have automatic requests created for {results.toAcademicYear}. 
+                        These requests are now in the <strong>Pending Approvals</strong> queue and need Super Admin approval before the concession is applied.
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Non-renewed concession notice */}
+                {results.renewalDetails.some(d => d.previousConcession > 0 && !d.concessionAutoRequested) && (
+                  <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-start">
+                      <svg className="w-5 h-5 text-gray-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-sm text-gray-600">
+                        <span className="font-medium">Note:</span> Some students had pending (unapproved) concessions that were not renewed. 
+                        To apply concession for these students, please create a new request through Fee Management.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Graduated Students */}
+            {results.graduationDetails && results.graduationDetails.length > 0 && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
+                  <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                  Graduated Students
+                </h4>
+                <div className="space-y-2">
+                  {results.graduationDetails.map((detail, idx) => (
+                    <div key={idx} className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex justify-between items-center">
+                      <div>
+                        <span className="font-medium text-gray-900">{detail.name}</span>
+                        <span className="text-gray-500 ml-2">({detail.rollNumber})</span>
+                      </div>
+                      <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
+                        Year {detail.year} - {detail.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No Fee Structure Warning */}
+            {results.renewalDetails && results.renewalDetails.some(d => d.newFees?.totalFee === 0) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <div>
+                    <h5 className="font-medium text-yellow-800">Fee Structure Missing</h5>
+                    <p className="text-sm text-yellow-700 mt-1">
+                      Some students show ₹0 for new fees because no fee structure exists for their course, year, and category in {results.toAcademicYear}. Please configure fee structures in the Fee Management section.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Close Button */}
+          <div className="flex justify-end mt-6 pt-4 border-t">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Photo Edit Modal
@@ -5564,6 +5869,14 @@ const Students = () => {
         isOpen={renewalModalOpen}
         onClose={() => setRenewalModalOpen(false)}
         onRenew={handleRenewBatches}
+      />
+      <RenewalResultsModal
+        isOpen={renewalResultsModal}
+        onClose={() => {
+          setRenewalResultsModal(false);
+          setRenewalResults(null);
+        }}
+        results={renewalResults}
       />
       {passwordResetModal && renderPasswordResetModal()}
       {renderShareModal()}
