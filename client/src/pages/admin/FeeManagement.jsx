@@ -6001,7 +6001,7 @@ const FeeManagement = () => {
               {reminderModalType === 'send' && selectedReminders.length > 0 && (
                 <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-sm font-medium text-gray-900">
                         Sending reminder to:
                       </p>
@@ -6011,6 +6011,7 @@ const FeeManagement = () => {
                           return student ? `${student.name} (${student.rollNumber})` : 'Loading...';
                         })()}
                       </p>
+                      {/* Email Info */}
                       {(() => {
                         const student = students.find(s => s._id === selectedReminders[0]);
                         return student?.email ? (
@@ -6023,14 +6024,34 @@ const FeeManagement = () => {
                           </p>
                         );
                       })()}
+                      {/* Phone Info */}
+                      {(() => {
+                        const student = students.find(s => s._id === selectedReminders[0]);
+                        return student?.studentPhone ? (
+                          <p className="text-xs text-green-600 mt-1">
+                            📱 {student.studentPhone}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-red-500 mt-1">
+                            ⚠️ No phone number available
+                          </p>
+                        );
+                      })()}
                     </div>
-                    <div className="text-right">
+                    <div className="text-right space-y-1">
                       <div className="text-xs text-gray-500">
                         {(() => {
                           const student = students.find(s => s._id === selectedReminders[0]);
-                          if (!student?.email) return 'Email disabled';
-                          if (!emailServiceStatus?.configured) return 'Email service inactive';
-                          return 'Email available';
+                          if (!student?.email) return '❌ Email unavailable';
+                          if (!emailServiceStatus?.configured) return '⚠️ Email service inactive';
+                          return '✅ Email available';
+                        })()}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {(() => {
+                          const student = students.find(s => s._id === selectedReminders[0]);
+                          if (!student?.studentPhone) return '❌ SMS unavailable';
+                          return '✅ SMS available';
                         })()}
                       </div>
                     </div>
