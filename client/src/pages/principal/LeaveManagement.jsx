@@ -74,6 +74,7 @@ const LeaveManagement = () => {
 
   const fetchLeaves = async () => {
     try {
+      setLoading(true);
       console.log('Fetching leaves with filters:', filters);
       const params = { ...filters };
       if (!params.status) delete params.status;
@@ -449,28 +450,47 @@ const LeaveManagement = () => {
                         )}
 
                         {/* Action Buttons */}
-                        {leave.status === 'Warden Verified' && (
-                          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
-                            <button
-                              onClick={() => {
-                                setSelectedLeave(leave);
-                                setShowApproveModal(true);
-                              }}
-                              className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedLeave(leave);
-                                setShowRejectModal(true);
-                              }}
-                              className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
+                          {/* View History Button - Always visible */}
+                          <button
+                            onClick={() => {
+                              if (leave.student) {
+                                setSelectedStudent(leave.student);
+                                setLeaveHistoryModal(true);
+                                fetchPreviousLeaves(leave.student._id);
+                              }
+                            }}
+                            disabled={!leave.student}
+                            className="px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <DocumentTextIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                            View History
+                          </button>
+                          
+                          {/* Approve/Reject Buttons - Only for Warden Verified */}
+                          {leave.status === 'Warden Verified' && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setSelectedLeave(leave);
+                                  setShowApproveModal(true);
+                                }}
+                                className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedLeave(leave);
+                                  setShowRejectModal(true);
+                                }}
+                                className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium touch-manipulation"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </motion.div>
@@ -736,30 +756,6 @@ const LeaveManagement = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Previous Leaves Section */}
-            <div className="border-t border-gray-200 p-4 sm:p-6 bg-gray-50">
-              <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center">
-                <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Leave History
-              </h4>
-              
-              <div className="text-center py-4">
-                <button
-                  onClick={() => {
-                    setLeaveHistoryModal(true);
-                    if (selectedStudent?._id) {
-                      fetchPreviousLeaves(selectedStudent._id);
-                    }
-                  }}
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center mx-auto text-sm font-medium"
-                >
-                  <DocumentTextIcon className="w-4 h-4 mr-2" />
-                  View Leave History
-                </button>
-                <p className="text-xs text-gray-500 mt-2">Click to view all previous leave records</p>
               </div>
             </div>
 
