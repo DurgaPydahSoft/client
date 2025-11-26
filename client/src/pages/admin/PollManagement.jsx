@@ -23,17 +23,21 @@ import {
   MinusIcon,
   QuestionMarkCircleIcon,
   CalendarDaysIcon,
-  ClockIcon as ClockOutlineIcon
+  ClockIcon as ClockOutlineIcon,
+  EyeSlashIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import api from '../../utils/axios';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import Modal from '../../components/Modal';
+import { useAuth } from '../../context/AuthContext';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const PollManagement = () => {
+  const { user } = useAuth();
   const [polls, setPolls] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
@@ -47,6 +51,8 @@ const PollManagement = () => {
   });
   const [errors, setErrors] = useState({});
   const [processing, setProcessing] = useState(false);
+  
+  const isSuperAdmin = user?.role === 'super_admin';
 
   useEffect(() => {
     fetchPolls();
@@ -435,24 +441,34 @@ const PollManagement = () => {
               <div className="flex flex-col gap-3 mb-3">
                 <h3 className="text-lg font-semibold text-blue-900 break-words">{poll.question}</h3>
                 <div className="flex gap-2 w-full">
-                  {poll.status === 'active' && (
-                    <button
-                      onClick={() => handleEndPoll(poll._id)}
-                      className="flex-1 sm:flex-none px-3 py-2 text-sm text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
-                    >
-                      <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                      <span className="hidden sm:inline">End Poll</span>
-                      <span className="sm:hidden">End</span>
-                    </button>
+                  {/* Only show End/Delete buttons if user can manage this poll */}
+                  {poll.canManage ? (
+                    <>
+                      {poll.status === 'active' && (
+                        <button
+                          onClick={() => handleEndPoll(poll._id)}
+                          className="flex-1 sm:flex-none px-3 py-2 text-sm text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
+                        >
+                          <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                          <span className="hidden sm:inline">End Poll</span>
+                          <span className="sm:hidden">End</span>
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeletePoll(poll._id)}
+                        className="flex-1 sm:flex-none px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
+                      >
+                        <XCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span className="hidden sm:inline">Delete</span>
+                        <span className="sm:hidden">Del</span>
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic flex items-center gap-1">
+                      <LockClosedIcon className="w-3 h-3" />
+                      View only
+                    </span>
                   )}
-                  <button
-                    onClick={() => handleDeletePoll(poll._id)}
-                    className="flex-1 sm:flex-none px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 flex items-center gap-1.5"
-                  >
-                    <XCircleIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    <span className="hidden sm:inline">Delete</span>
-                    <span className="sm:hidden">Del</span>
-                  </button>
                 </div>
               </div>
 
@@ -482,6 +498,13 @@ const PollManagement = () => {
                   )}
                 </span>
                 
+                {poll.canViewResults && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 flex items-center gap-1.5">
+                    <ChartPieIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                    Results Visible
+                  </span>
+                )}
+                
                 {poll.status === 'scheduled' ? (
                   <span className="text-xs text-gray-500 flex items-center gap-1.5">
                     <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -494,36 +517,66 @@ const PollManagement = () => {
                   </span>
                 )}
               </div>
+              
+              {/* Poll Creator Info */}
+              <div className="mb-3 text-xs text-gray-500 flex items-center gap-1.5">
+                <UserGroupIcon className="w-3 h-3" />
+                <span>Created by: <span className="font-medium text-gray-700">{poll.creatorName || poll.createdBy?.username || poll.createdBy?.name || 'Unknown'}</span></span>
+              </div>
 
               {poll.status !== 'scheduled' && (
                 <>
-                  <div className="h-48">
-                    <Pie data={getChartData(poll)} options={{
-                      plugins: {
-                        legend: {
-                          position: 'bottom',
-                          labels: {
-                            padding: 15,
-                            font: {
-                              size: 11
+                  {poll.canViewResults ? (
+                    <>
+                      <div className="h-48">
+                        <Pie data={getChartData(poll)} options={{
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                              labels: {
+                                padding: 15,
+                                font: {
+                                  size: 11
+                                }
+                              }
                             }
                           }
-                        }
-                      }
-                    }} />
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {poll.options.map((option, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm">
-                        <span className="text-gray-700 truncate">{option.text}</span>
-                        <span className="text-blue-600 font-medium ml-2 whitespace-nowrap flex items-center gap-1.5">
-                          <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          {option.votes} votes
-                        </span>
+                        }} />
                       </div>
-                    ))}
-                  </div>
+
+                      <div className="mt-3 space-y-2">
+                        {poll.options.map((option, index) => (
+                          <div key={index} className="flex justify-between items-center text-sm">
+                            <span className="text-gray-700 truncate">{option.text}</span>
+                            <span className="text-blue-600 font-medium ml-2 whitespace-nowrap flex items-center gap-1.5">
+                              <UserGroupIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                              {option.votes} votes
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div className="flex flex-col items-center justify-center text-center py-4">
+                        <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                          <LockClosedIcon className="w-6 h-6 text-gray-400" />
+                        </div>
+                        <p className="text-sm font-medium text-gray-700 mb-1">Results Hidden</p>
+                        <p className="text-xs text-gray-500">Only the poll creator and Super Admin can view results</p>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {poll.options.map((option, index) => (
+                          <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                            <span className="w-5 h-5 flex items-center justify-center bg-gray-100 text-gray-500 rounded-full text-xs font-medium">
+                              {index + 1}
+                            </span>
+                            <span className="truncate">{option.text}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

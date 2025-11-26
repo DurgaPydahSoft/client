@@ -256,20 +256,26 @@ const AdminDashboard = () => {
       locked: !isSuperAdmin && !hasPermission(user, 'found_lost_management')
     },
     {
-      name: 'Announcements',
+      name: 'Communication',
       icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
-      path: '/admin/dashboard/announcements',
+      path: '/admin/dashboard/communication',
       show: true,
-      locked: !isSuperAdmin && !hasPermission(user, 'announcement_management'),
-      notificationType: 'announcement'
-    },
-    {
-      name: 'Opinion Polls',
-      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-      path: '/admin/dashboard/polls',
-      show: true,
-      locked: !isSuperAdmin && !hasPermission(user, 'poll_management'),
-      notificationType: 'poll'
+      locked: !isSuperAdmin && !hasPermission(user, 'announcement_management') && !hasPermission(user, 'poll_management'),
+      hasSubmenu: true,
+      submenu: [
+        {
+          name: 'Announcements',
+          path: '/admin/dashboard/announcements',
+          icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z',
+          notificationType: 'announcement'
+        },
+        {
+          name: 'Opinion Polls',
+          path: '/admin/dashboard/polls',
+          icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+          notificationType: 'poll'
+        }
+      ]
     },
     {
       name: 'Cafeteria ',
@@ -373,6 +379,14 @@ const AdminDashboard = () => {
         'Security': true
       }));
     }
+
+    // Auto-expand Communication submenu if on announcements or polls pages
+    if (pathname.startsWith('/admin/dashboard/announcements') || pathname.startsWith('/admin/dashboard/polls')) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Communication': true
+      }));
+    }
   }, [pathname]);
 
   // Auto-expand Cafeteria submenu for users with menu management permission
@@ -391,6 +405,16 @@ const AdminDashboard = () => {
       setExpandedMenus(prev => ({
         ...prev,
         'Security': true
+      }));
+    }
+  }, [user?.permissions, isSuperAdmin]);
+
+  // Auto-expand Communication submenu for users with announcement or poll management permission
+  useEffect(() => {
+    if ((hasPermission(user, 'announcement_management') || hasPermission(user, 'poll_management')) && !isSuperAdmin) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        'Communication': true
       }));
     }
   }, [user?.permissions, isSuperAdmin]);
