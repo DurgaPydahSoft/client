@@ -8,6 +8,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
+import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 
 // Dynamic course and branch data will be fetched from backend
 // Room mappings based on gender and category
@@ -255,6 +256,9 @@ const Students = () => {
   const [shareStudent, setShareStudent] = useState(null);
   const [shareLoading, setShareLoading] = useState(false);
   const [customMessage, setCustomMessage] = useState('');
+
+  // Admit card download state
+  const [downloadingAdmitCard, setDownloadingAdmitCard] = useState(false);
 
   // Room availability states
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
@@ -3489,6 +3493,15 @@ const Students = () => {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
               <button
+                onClick={() => handleDownloadAdmitCard(selectedStudent)}
+                disabled={downloadingAdmitCard || !selectedStudent.studentPhoto || (selectedStudent.concession > 0 && !selectedStudent.concessionApproved)}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!selectedStudent.studentPhoto ? 'Student photo required' : selectedStudent.concession > 0 && !selectedStudent.concessionApproved ? 'Concession pending approval' : 'Download Admit Card'}
+              >
+                <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
+                {downloadingAdmitCard ? 'Downloading...' : 'Admit Card'}
+              </button>
+              <button
                 onClick={() => {
                   setStudentDetailsModal(false);
                   openEditModal(selectedStudent);
@@ -5434,6 +5447,30 @@ const Students = () => {
   const openStudentDetailsModal = (student) => {
     setSelectedStudent(student);
     setStudentDetailsModal(true);
+  };
+
+  // Download admit card function
+  const handleDownloadAdmitCard = async (student) => {
+    if (!student.studentPhoto) {
+      toast.error('Student photo is required to generate admit card');
+      return;
+    }
+
+    if (student.concession > 0 && !student.concessionApproved) {
+      toast.error('Cannot generate admit card. Concession is pending approval.');
+      return;
+    }
+
+    setDownloadingAdmitCard(true);
+    try {
+      await downloadAdmitCard(student);
+      toast.success('Admit card downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading admit card:', error);
+      toast.error(error.response?.data?.message || 'Failed to download admit card');
+    } finally {
+      setDownloadingAdmitCard(false);
+    }
   };
 
   // Share credentials functions
