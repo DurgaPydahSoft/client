@@ -146,7 +146,8 @@ const AdminManagement = () => {
     passwordDeliveryMethod: '', // New field for password delivery
     email: '', // New field for email
     phoneNumber: '', // New field for phone number
-    customRoleId: '' // New field for custom role assignment
+    customRoleId: '', // New field for custom role assignment
+    principalEmail: '' // Email for principal (for leave notifications)
   });
   const [roleType, setRoleType] = useState('sub_admin'); // Track selected role type
   const [roleFormData, setRoleFormData] = useState({
@@ -365,7 +366,12 @@ const AdminManagement = () => {
         requestData = { ...formData, hostelType: formData.hostelType };
       } else if (activeTab === 'principals') {
         endpoint = '/api/admin-management/principals';
-        requestData = { ...formData, course: formData.course };
+        requestData = { 
+          username: formData.username,
+          password: formData.password,
+          course: formData.course,
+          email: formData.principalEmail 
+        };
       }
 
       const response = await api.post(endpoint, requestData);
@@ -406,7 +412,8 @@ const AdminManagement = () => {
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
-          phoneNumber: ''
+          phoneNumber: '',
+          principalEmail: ''
         });
         fetchData();
       }
@@ -446,6 +453,8 @@ const AdminManagement = () => {
         if (formData.course) {
           updateData.course = formData.course;
         }
+        // Always include email for principals (can be empty to clear it)
+        updateData.email = formData.principalEmail;
       }
 
       console.log('🔧 Frontend: Final update data:', updateData);
@@ -484,7 +493,8 @@ const AdminManagement = () => {
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
-          phoneNumber: ''
+          phoneNumber: '',
+          principalEmail: ''
         });
         fetchData();
       }
@@ -548,7 +558,8 @@ const AdminManagement = () => {
       passwordDeliveryMethod: '',
       email: '',
       phoneNumber: '',
-      customRoleId: admin.customRoleId || ''
+      customRoleId: admin.customRoleId || '',
+      principalEmail: admin.email || '' // Load principal's email
     });
     setShowEditModal(true);
   };
@@ -610,7 +621,8 @@ const AdminManagement = () => {
       passwordDeliveryMethod: '',
       email: '',
       phoneNumber: '',
-      customRoleId: ''
+      customRoleId: '',
+      principalEmail: ''
     });
     setPasswordResetData({
       newPassword: '',
@@ -1007,6 +1019,23 @@ const AdminManagement = () => {
                             <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate">
                               {typeof admin.course === 'object' ? admin.course.name : admin.course}
                             </span>
+                          </div>
+                        )}
+
+                        {isPrincipalTab && (
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            {admin.email ? (
+                              <span className="text-xs text-gray-600 truncate max-w-[200px]" title={admin.email}>
+                                {admin.email}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium">
+                                No email configured
+                              </span>
+                            )}
                           </div>
                         )}
 
@@ -1602,29 +1631,61 @@ const AdminManagement = () => {
                 )}
 
                 {isPrincipalTab && (
-                  <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Course <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="course"
-                      value={formData.course}
-                      onChange={handleFormChange}
-                      required={isPrincipalTab}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Course ({courses.length} available)</option>
-                      {courses.length > 0 ? (
-                        courses.map(course => (
-                          <option key={course._id} value={course._id}>
-                            {course.name} ({course.code})
-                          </option>
-                        ))
-                      ) : (
-                        <option value="" disabled>Loading courses...</option>
-                      )}
-                    </select>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Course <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="course"
+                        value={formData.course}
+                        onChange={handleFormChange}
+                        required={isPrincipalTab}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select Course ({courses.length} available)</option>
+                        {courses.length > 0 ? (
+                          courses.map(course => (
+                            <option key={course._id} value={course._id}>
+                              {course.name} ({course.code})
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>Loading courses...</option>
+                        )}
+                      </select>
+                    </div>
+                    
+                    {/* Email field for principal */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          Email Address <span className="text-gray-500 text-xs">(for leave notifications)</span>
                         </div>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <input
+                          type="email"
+                          name="principalEmail"
+                          value={formData.principalEmail}
+                          onChange={handleFormChange}
+                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter principal's email address"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Principal will receive email notifications when leave requests are forwarded for approval
+                      </p>
+                    </div>
+                  </div>
                       )}
                     </div>
                   </div>
