@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import ReceiptGenerator from '../../components/ReceiptGenerator';
+import { hasPermission } from '../../utils/permissionUtils';
 import {
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
@@ -40,6 +41,9 @@ const FeeManagement = () => {
   const { user } = useAuth();
   const { settings } = useGlobalSettings();
   const { courses: coursesFromContext } = useCoursesBranches();
+  
+  // Check if user has concession management permission
+  const canManageConcessions = user?.role === 'super_admin' || hasPermission(user, 'concession_management');
   const [students, setStudents] = useState([]);
   const [allStudents, setAllStudents] = useState([]); // Store all students for KPI calculations
   const [stats, setStats] = useState({
@@ -2545,7 +2549,7 @@ const FeeManagement = () => {
 
   // Fetch concession approvals when concessions tab is active
   useEffect(() => {
-    if (activeTab === 'concessions' && user?.role === 'super_admin') {
+    if (activeTab === 'concessions' && canManageConcessions) {
       // Fetch both pending and approved to show counts immediately
       fetchConcessionApprovals();
       fetchApprovedConcessions();
@@ -2554,7 +2558,7 @@ const FeeManagement = () => {
 
   // Re-apply filters when filter values change (data is already loaded)
   useEffect(() => {
-    if (activeTab === 'concessions' && user?.role === 'super_admin') {
+    if (activeTab === 'concessions' && canManageConcessions) {
       if (concessionViewMode === 'pending') {
         fetchConcessionApprovals();
       } else {
@@ -3075,7 +3079,7 @@ const FeeManagement = () => {
               >
                 Dues
               </button>
-              {user?.role === 'super_admin' && (
+              {canManageConcessions && (
                 <button
                   onClick={() => setActiveTab('concessions')}
                   className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
@@ -5961,7 +5965,7 @@ const FeeManagement = () => {
       )}
 
       {/* Concessions Tab Content */}
-      {activeTab === 'concessions' && user?.role === 'super_admin' && renderConcessionApprovals()}
+      {activeTab === 'concessions' && canManageConcessions && renderConcessionApprovals()}
 
       {/* Reminder Modal */}
       {showReminderModal && (

@@ -32,6 +32,7 @@ const PERMISSIONS = [
   { id: 'attendance_management', label: 'Attendance Management' },
   { id: 'found_lost_management', label: 'Found & Lost Management' },
   { id: 'fee_management', label: 'Fee Management' },
+  { id: 'concession_management', label: 'Concession Management' },
   { id: 'security_management', label: 'Security Management' },
   { id: 'staff_guests_management', label: 'Staff/Guests Management' },
   { id: 'feature_controls', label: 'Feature Controls' }
@@ -1282,6 +1283,11 @@ const AdminManagement = () => {
                                 'fee_management': (
                                   <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                  </svg>
+                                ),
+                                'concession_management': (
+                                  <svg className="w-5 h-5 text-lime-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
                                   </svg>
                                 ),
                                 'security_management': (
