@@ -220,7 +220,7 @@ function App() {
                     </ProtectedSection>
                   } />
                   <Route path="course-management" element={
-                    <ProtectedSection permission="super_admin" sectionName="Course Management">
+                    <ProtectedSection permission="course_management" sectionName="Course Management">
                       <CourseManagement />
                     </ProtectedSection>
                   } />

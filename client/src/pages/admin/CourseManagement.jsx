@@ -16,8 +16,14 @@ import {
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { canPerformAction } from '../../utils/permissionUtils';
 
 const CourseManagement = () => {
+  const { user } = useAuth();
+  
+  // Check if user can perform write actions (create, edit, delete)
+  const canWrite = user?.role === 'super_admin' || canPerformAction(user, 'course_management', 'edit');
   const [activeTab, setActiveTab] = useState('courses');
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -462,6 +468,7 @@ const CourseManagement = () => {
                     <h2 className="text-base sm:text-xl font-semibold text-blue-900">Courses</h2>
                     <p className="text-xs sm:text-gray-600">Manage academic courses and their configurations</p>
                   </div>
+                  {canWrite && (
                   <button
                     onClick={() => openCourseModal()}
                     className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
@@ -469,6 +476,7 @@ const CourseManagement = () => {
                     <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                     Add Course
                   </button>
+                )}
                 </div>
 
                 {/* Courses Grid */}
@@ -484,20 +492,22 @@ const CourseManagement = () => {
                           <h3 className="text-base sm:text-lg font-semibold text-blue-900">{course.name}</h3>
                           <p className="text-xs sm:text-sm text-gray-500">Code: {course.code}</p>
                         </div>
-                        <div className="flex gap-1.5 sm:gap-2">
-                          <button
-                            onClick={() => openCourseModal(course)}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCourse(course._id)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                          </button>
-                        </div>
+                        {canWrite && (
+                          <div className="flex gap-1.5 sm:gap-2">
+                            <button
+                              onClick={() => openCourseModal(course)}
+                              className="text-blue-600 hover:text-blue-800"
+                            >
+                              <PencilIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCourse(course._id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <TrashIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <div className="space-y-1.5 sm:space-y-2">
@@ -537,13 +547,15 @@ const CourseManagement = () => {
                     <h2 className="text-base sm:text-xl font-semibold text-blue-900">Branches</h2>
                     <p className="text-xs sm:text-gray-600">Manage branches for each course</p>
                   </div>
-                  <button
-                    onClick={() => openBranchModal()}
-                    className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
-                  >
-                    <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Add Branch
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => openBranchModal()}
+                      className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
+                    >
+                      <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      Add Branch
+                    </button>
+                  )}
                 </div>
 
                 {/* Branches by Course */}
@@ -567,20 +579,22 @@ const CourseManagement = () => {
                               <h4 className="font-medium text-blue-900 text-sm sm:text-base">{branch.name}</h4>
                               <p className="text-xs sm:text-sm text-gray-500">Code: {branch.code}</p>
                             </div>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => openBranchModal(branch)}
-                                className="text-blue-600 hover:text-blue-800"
-                              >
-                                <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteBranch(branch._id)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
-                              </button>
-                            </div>
+                            {canWrite && (
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => openBranchModal(branch)}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  <PencilIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBranch(branch._id)}
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <TrashIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </button>
+                              </div>
+                            )}
                           </div>
 
                           {branch.description && (
@@ -614,13 +628,15 @@ const CourseManagement = () => {
                     <h2 className="text-base sm:text-xl font-semibold text-blue-900">Academic Calendar</h2>
                     <p className="text-xs sm:text-gray-600">Manage semester dates for each course</p>
                   </div>
-                  <button
-                    onClick={() => openCalendarModal()}
-                    className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
-                  >
-                    <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    Add Semester
-                  </button>
+                  {canWrite && (
+                    <button
+                      onClick={() => openCalendarModal()}
+                      className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-base"
+                    >
+                      <PlusIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                      Add Semester
+                    </button>
+                  )}
                 </div>
 
                 {/* Academic Calendar Filters */}
@@ -793,20 +809,24 @@ const CourseManagement = () => {
                                 {new Date(calendar.endDate).toLocaleDateString()}
                               </td>
                               <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm font-medium">
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => openCalendarModal(calendar)}
-                                    className="text-blue-600 hover:text-blue-900"
-                                  >
-                                    <PencilIcon className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteCalendar(calendar._id)}
-                                    className="text-red-600 hover:text-red-900"
-                                  >
-                                    <TrashIcon className="h-4 w-4" />
-                                  </button>
-                                </div>
+                                {canWrite ? (
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => openCalendarModal(calendar)}
+                                      className="text-blue-600 hover:text-blue-900"
+                                    >
+                                      <PencilIcon className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteCalendar(calendar._id)}
+                                      className="text-red-600 hover:text-red-900"
+                                    >
+                                      <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">View only</span>
+                                )}
                               </td>
                             </tr>
                           ))}
