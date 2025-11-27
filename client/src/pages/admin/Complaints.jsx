@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { FunnelIcon, XMarkIcon, ClockIcon, UserIcon, CheckCircleIcon, ExclamationCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon, CogIcon } from '@heroicons/react/24/outline';
@@ -35,8 +35,8 @@ const STATUS_COLORS = {
   'Closed': 'bg-gray-100 text-gray-800'
 };
 
-// Column configuration for the Kanban board
-const COLUMN_CONFIG = {
+// Function to get column configuration based on filter
+const getColumnConfig = (statusFilter) => ({
   'Received': {
     title: 'Received',
     color: 'blue',
@@ -56,15 +56,15 @@ const COLUMN_CONFIG = {
     statuses: ['In Progress']
   },
   'Resolved': {
-    title: 'Resolved & Closed',
+    title: statusFilter === 'Closed' ? 'Closed' : 'Resolved',
     color: 'green',
     bgColor: 'bg-green-50',
     borderColor: 'border-green-200',
     textColor: 'text-green-700',
     iconColor: 'text-green-600',
-    statuses: ['Resolved', 'Closed']
+    statuses: statusFilter === 'Closed' ? ['Closed'] : ['Resolved']
   }
-};
+});
 
 const CATEGORY_OPTIONS = [
   'All',
@@ -182,6 +182,9 @@ const Complaints = () => {
 
   // Desktop filters state
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
+
+  // Dynamic column config based on filter status (for Kanban board)
+  const columnConfig = useMemo(() => getColumnConfig(filterStatus), [filterStatus]);
 
   useEffect(() => {
     // Apply filters from navigation state if available
@@ -1518,7 +1521,7 @@ const Complaints = () => {
 
               {/* Kanban Board - Desktop Only */}
               <div className={`hidden xl:grid grid-cols-3 gap-3 ${contentLoading ? 'opacity-50' : ''}`}>
-                {Object.entries(COLUMN_CONFIG).map(([key, config]) =>
+                {Object.entries(columnConfig).map(([key, config]) =>
                   renderKanbanColumn(key, config)
                 )}
               </div>
