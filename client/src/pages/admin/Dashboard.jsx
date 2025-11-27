@@ -792,11 +792,11 @@ const AdminDashboard = () => {
         <div className="p-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md text-sm lg:text-base">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'A'}
+              {(user?.name || user?.username) ? (user?.name || user?.username).charAt(0).toUpperCase() : 'A'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs lg:text-sm font-semibold text-gray-900 truncate">
-                {user?.name || 'Admin'}
+                {user?.name || user?.username || 'Admin'}
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500 truncate">
