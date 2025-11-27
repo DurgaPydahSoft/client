@@ -270,7 +270,7 @@ function App() {
                     </ProtectedSection>
                   } />
                   <Route path="noc-management" element={
-                    <ProtectedSection permission="super_admin" sectionName="NOC Management">
+                    <ProtectedSection permission="noc_management" sectionName="NOC Management">
                       <NOCManagement />
                     </ProtectedSection>
                   } />
