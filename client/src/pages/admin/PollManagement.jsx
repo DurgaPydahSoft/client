@@ -224,7 +224,7 @@ const PollManagement = () => {
   }
 
   return (
-    <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 mt-16 sm:mt-0">
+    <div className="w-full mt-12 lg:mt-0">
       {/* Header Section */}
       <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6 mb-4 sm:mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
