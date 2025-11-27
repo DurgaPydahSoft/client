@@ -22,3 +22,28 @@
                                          │ • Back to    │
                                          │   In Progress│
                                          └──────────────┘
+
+
+
+
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    COMPLAINT LIFECYCLE                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Received → In Progress → Resolved                              │
+│                              │                                  │
+│                              ▼                                  │
+│                    Student Feedback                             │
+│                     /           \                               │
+│                    /             \                              │
+│              ✅ Satisfied     ❌ Not Satisfied                  │
+│                  │                   │                          │
+│                  ▼                   ▼                          │
+│              CLOSED              In Progress                    │
+│            (Locked)             (Reopened)                      │
+│                                      │                          │
+│                                      ▼                          │
+│                               Resolved again...                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘

@@ -1172,7 +1172,7 @@ const Complaints = () => {
               <div className="bg-orange-50 px-3 py-2 rounded-lg border border-orange-100">
                 <div className="text-xs text-gray-600 mb-1">Active</div>
                 <div className="font-semibold text-orange-700 text-lg">
-                  {complaintCounts.inProgress}
+                  {complaintCounts.active}
                 </div>
               </div>
               <div className="bg-purple-50 px-3 py-2 rounded-lg border border-purple-100">
