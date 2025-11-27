@@ -215,6 +215,12 @@ const NOCRequests = () => {
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </span>
+                          {request.raisedBy === 'warden' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Raised by Warden
+                            </span>
+                          )}
                           <span className="text-xs sm:text-sm text-gray-500">
                             {formatDate(request.createdAt)}
                           </span>

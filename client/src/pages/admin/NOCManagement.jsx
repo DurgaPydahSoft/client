@@ -147,7 +147,7 @@ const NOCManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -161,7 +161,7 @@ const NOCManagement = () => {
                 <div className="flex items-center">
                   <DocumentTextIcon className="h-8 w-8 text-blue-600 mr-3" />
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-900">NOC Management</h1>
+                    <h1 className="text-2xl font-bold text-blue-900">NOC Management</h1>
                     <p className="text-gray-600">Approve and manage NOC requests</p>
                   </div>
                 </div>
@@ -263,12 +263,18 @@ const NOCManagement = () => {
                   <div className="px-6 py-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center mb-2">
+                        <div className="flex items-center flex-wrap gap-2 mb-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </span>
-                          <span className="ml-3 text-sm text-gray-500">
+                          {request.raisedBy === 'warden' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Raised by Warden
+                            </span>
+                          )}
+                          <span className="text-sm text-gray-500">
                             Submitted on {formatDate(request.createdAt)}
                           </span>
                         </div>

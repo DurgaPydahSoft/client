@@ -10,7 +10,9 @@ import {
   EyeIcon,
   UserIcon,
   CalendarIcon,
-  FunnelIcon
+  FunnelIcon,
+  PlusIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -20,13 +22,80 @@ const NOCManagement = () => {
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [action, setAction] = useState(''); // 'verify' or 'reject'
+  const [action, setAction] = useState(''); // 'verify', 'reject', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Create NOC on behalf of student state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [nocReason, setNocReason] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   useEffect(() => {
     fetchNOCRequests();
   }, [filter]);
+
+  // Fetch students when create modal is open and search changes
+  useEffect(() => {
+    if (showCreateModal) {
+      fetchStudents();
+    }
+  }, [showCreateModal, studentSearch]);
+
+  const fetchStudents = async () => {
+    setLoadingStudents(true);
+    try {
+      const params = new URLSearchParams();
+      if (studentSearch) params.append('search', studentSearch);
+      
+      const response = await api.get(`/api/noc/warden/students?${params.toString()}`);
+      if (response.data.success) {
+        setStudents(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to fetch students');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleCreateNOC = async () => {
+    if (!selectedStudent) {
+      toast.error('Please select a student');
+      return;
+    }
+    if (!nocReason.trim() || nocReason.trim().length < 10) {
+      toast.error('Please enter a valid reason (at least 10 characters)');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await api.post('/api/noc/warden/create', {
+        studentId: selectedStudent._id,
+        reason: nocReason.trim()
+      });
+
+      if (response.data.success) {
+        toast.success('NOC request created successfully');
+        setShowCreateModal(false);
+        setSelectedStudent(null);
+        setNocReason('');
+        setStudentSearch('');
+        fetchNOCRequests();
+      }
+    } catch (error) {
+      console.error('Error creating NOC:', error);
+      toast.error(error.response?.data?.message || 'Failed to create NOC request');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const fetchNOCRequests = async () => {
     try {
@@ -150,6 +219,14 @@ const NOCManagement = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-2 sm:space-x-3">
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center px-3 py-1.5 sm:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 text-xs sm:text-sm"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    <span className="hidden sm:inline">Create NOC</span>
+                    <span className="sm:hidden">Create</span>
+                  </button>
                   <div className="flex items-center">
                     <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 mr-1 sm:mr-2" />
                     <select
@@ -199,6 +276,12 @@ const NOCManagement = () => {
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </span>
+                          {request.raisedBy === 'warden' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit mt-1 sm:mt-0">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Raised by Warden
+                            </span>
+                          )}
                           <span className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-0">
                             Submitted on {formatDate(request.createdAt)}
                           </span>
@@ -361,6 +444,141 @@ const NOCManagement = () => {
                       {isSubmitting ? 'Processing...' : (action === 'verify' ? 'Verify' : 'Reject')}
                     </button>
                   )}
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Create NOC Modal */}
+          {showCreateModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Create NOC Request for Student
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    Create a NOC request on behalf of a student who is unable to apply
+                  </p>
+                </div>
+
+                <div className="px-4 sm:px-6 py-4 space-y-4">
+                  {/* Student Search */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Search Student *
+                    </label>
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        placeholder="Search by name or roll number..."
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Student Selection */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Select Student *
+                    </label>
+                    {loadingStudents ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                        <span className="ml-2 text-sm text-gray-500">Loading students...</span>
+                      </div>
+                    ) : students.length === 0 ? (
+                      <div className="text-center py-4 bg-gray-50 rounded-md">
+                        <UserIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          {studentSearch ? 'No students found matching your search' : 'No eligible students found'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                        {students.map((student) => (
+                          <div
+                            key={student._id}
+                            onClick={() => setSelectedStudent(student)}
+                            className={`p-3 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0 ${
+                              selectedStudent?._id === student._id
+                                ? 'bg-green-50 border-l-4 border-l-green-500'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">{student.name}</p>
+                                <p className="text-xs text-gray-500">{student.rollNumber}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-gray-600">{student.course?.name}</p>
+                                <p className="text-xs text-gray-500">Year {student.year}</p>
+                              </div>
+                            </div>
+                            {student.roomNumber && (
+                              <p className="text-xs text-gray-400 mt-1">Room: {student.roomNumber}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Student Display */}
+                  {selectedStudent && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <p className="text-xs font-medium text-green-800">Selected Student:</p>
+                      <p className="text-sm font-semibold text-green-900">{selectedStudent.name} ({selectedStudent.rollNumber})</p>
+                      <p className="text-xs text-green-700">{selectedStudent.course?.name} - Year {selectedStudent.year}</p>
+                    </div>
+                  )}
+
+                  {/* NOC Reason */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Reason for NOC *
+                    </label>
+                    <textarea
+                      value={nocReason}
+                      onChange={(e) => setNocReason(e.target.value)}
+                      rows={4}
+                      maxLength={500}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                      placeholder="Enter the reason for requesting NOC (minimum 10 characters)..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-right">
+                      {nocReason.length}/500 characters
+                    </p>
+                  </div>
+                </div>
+
+                <div className="px-4 sm:px-6 py-4 bg-gray-50 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setSelectedStudent(null);
+                      setNocReason('');
+                      setStudentSearch('');
+                    }}
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateNOC}
+                    disabled={isCreating || !selectedStudent || nocReason.trim().length < 10}
+                    className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreating ? 'Creating...' : 'Create NOC Request'}
+                  </button>
                 </div>
               </motion.div>
             </div>
