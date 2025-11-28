@@ -44,7 +44,7 @@ const initialForm = {
   year: '',
   branch: '',
   category: '',
-  mealType: 'non-veg',
+  mealType: '',
   parentPermissionForOuting: true,
   roomNumber: '',
   bedNumber: '',
@@ -2352,12 +2352,13 @@ const Students = () => {
                 name="mealType"
                 value={form.mealType}
                 onChange={handleFormChange}
+                required
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
+                <option value="">Select Meal Type</option>
                 <option value="non-veg">Non-Veg</option>
                 <option value="veg">Veg</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">Default: Non-Veg</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
@@ -3866,8 +3867,10 @@ const Students = () => {
                   name="mealType"
                   value={editForm.mealType}
                   onChange={handleEditFormChange}
+                  required
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
+                  <option value="">Select Meal Type</option>
                   <option value="non-veg">Non-Veg</option>
                   <option value="veg">Veg</option>
                 </select>
@@ -4689,7 +4692,7 @@ const Students = () => {
     // Filter students when course changes
     useEffect(() => {
       if (selectedCourse) {
-        const filtered = allStudents.filter(s => 
+        const filtered = allStudents.filter(s =>
           s.course?._id === selectedCourse || s.courseId === selectedCourse
         );
         setFilteredStudents(filtered);
@@ -4736,17 +4739,17 @@ const Students = () => {
         toast.error('Please select both "From" and "To" academic years.');
         return;
       }
-      
+
       // Only pass displayedStudentIds if a course filter is applied
       // If no course filter, we don't deactivate anyone - just renew selected
       const shouldDeactivateUnchecked = !!selectedCourse;
       const displayedStudentIds = shouldDeactivateUnchecked ? filteredStudents.map(s => s._id) : null;
-      
+
       if (selectedStudents.size === 0) {
         toast.error('Please select at least one student to renew.');
         return;
       }
-      
+
       // Warning only when course filter is applied and some students are unchecked
       if (shouldDeactivateUnchecked && selectedStudents.size < filteredStudents.length) {
         const uncheckedCount = filteredStudents.length - selectedStudents.size;
@@ -4754,7 +4757,7 @@ const Students = () => {
           return;
         }
       }
-      
+
       setIsRenewing(true);
       try {
         // Pass displayedStudentIds only when course filter is applied
@@ -4818,7 +4821,7 @@ const Students = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <div className="text-sm text-orange-700">
-                  <span className="font-medium">Course Filter Active:</span> Unchecked students from this course will be <strong>DEACTIVATED</strong>. 
+                  <span className="font-medium">Course Filter Active:</span> Unchecked students from this course will be <strong>DEACTIVATED</strong>.
                   Students from other courses will not be affected.
                 </div>
               </div>
@@ -4828,7 +4831,7 @@ const Students = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="text-sm text-green-700">
-                  <span className="font-medium">Safe Mode:</span> Only selected students will be renewed. 
+                  <span className="font-medium">Safe Mode:</span> Only selected students will be renewed.
                   Unchecked students will <strong>NOT</strong> be deactivated. Apply a course filter to enable deactivation.
                 </div>
               </div>
@@ -4894,9 +4897,9 @@ const Students = () => {
   // Function to handle the renewal API call
   const handleRenewBatches = async (fromAcademicYear, toAcademicYear, studentIds, displayedStudentIds) => {
     try {
-      const res = await api.post('/api/admin/students/renew-batch', { 
-        fromAcademicYear, 
-        toAcademicYear, 
+      const res = await api.post('/api/admin/students/renew-batch', {
+        fromAcademicYear,
+        toAcademicYear,
         studentIds,
         displayedStudentIds // Only deactivate from this list, not all students
       });
@@ -5055,13 +5058,13 @@ const Students = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div className="text-sm text-purple-700">
-                        <span className="font-medium">Concession Requests Created:</span> Students with previously approved concessions have automatic requests created for {results.toAcademicYear}. 
+                        <span className="font-medium">Concession Requests Created:</span> Students with previously approved concessions have automatic requests created for {results.toAcademicYear}.
                         These requests are now in the <strong>Pending Approvals</strong> queue and need Super Admin approval before the concession is applied.
                       </div>
                     </div>
                   </div>
                 )}
-                
+
                 {/* Non-renewed concession notice */}
                 {results.renewalDetails.some(d => d.previousConcession > 0 && !d.concessionAutoRequested) && (
                   <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
@@ -5070,7 +5073,7 @@ const Students = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <div className="text-sm text-gray-600">
-                        <span className="font-medium">Note:</span> Some students had pending (unapproved) concessions that were not renewed. 
+                        <span className="font-medium">Note:</span> Some students had pending (unapproved) concessions that were not renewed.
                         To apply concession for these students, please create a new request through Fee Management.
                       </div>
                     </div>
@@ -5482,7 +5485,7 @@ const Students = () => {
 
   const handleShareCredentials = async (e) => {
     e.preventDefault();
-    
+
     if (!shareStudent?.studentPhone) {
       toast.error('Student mobile number not found');
       return;
