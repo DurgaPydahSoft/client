@@ -1651,8 +1651,9 @@ const Complaints = () => {
                   </div>
                 )}
 
-                {/* Details Grid */}
-                <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                {/* Details Grid - Two Column Layout on Large Screens */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                  {/* Left Column - Student Details */}
                   <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-2 mb-3">
                       <UserIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
@@ -1687,7 +1688,8 @@ const Complaints = () => {
                     )}
                   </div>
 
-                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
+                  {/* Right Column - Status Information (Large Screens Only) */}
+                  <div className="hidden lg:block bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100">
                     <div className="flex items-center gap-2 mb-3">
                       <ClockIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
                       <span className="text-sm sm:text-base font-semibold text-gray-700">Status Information</span>
@@ -1702,6 +1704,24 @@ const Complaints = () => {
                         </span>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                {/* Status Information - Mobile Only (shown below student details on small screens) */}
+                <div className="lg:hidden bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-100 mb-4 sm:mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ClockIcon className="w-5 h-5 sm:w-5 sm:h-5 text-gray-500 flex-shrink-0" />
+                    <span className="text-sm sm:text-base font-semibold text-gray-700">Status Information</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                      {selected.currentStatus}
+                    </span>
+                    {selected.isReopened && (
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-red-100 text-red-800">
+                        Reopened
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -1823,23 +1843,43 @@ const Complaints = () => {
                   )}
                 </div>
 
-                {/* Update Form */}
-                {selected.currentStatus === 'Closed' && (
-                  <div className="mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
-                    <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 sm:gap-2.5 mb-1.5 sm:mb-2">
-                        <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm font-semibold text-gray-700">Complaint Closed</span>
+                {/* Update Form - Two Column Layout on Large Screens */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
+                  {/* Left Column - Empty on large screens, contains closed message on mobile */}
+                  <div className="lg:hidden">
+                    {selected.currentStatus === 'Closed' && (
+                      <div className="mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
+                        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 sm:gap-2.5 mb-1.5 sm:mb-2">
+                            <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm font-semibold text-gray-700">Complaint Closed</span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                            This complaint has been closed and no further status updates are allowed.
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                        This complaint has been closed and no further status updates are allowed.
-                      </p>
-                    </div>
+                    )}
                   </div>
-                )}
 
-                {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
-                  <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6" onSubmit={handleStatusUpdate}>
+                  {/* Right Column - Status Update Form (Large Screens) */}
+                  <div className="lg:col-start-2">
+                    {selected.currentStatus === 'Closed' && (
+                      <div className="mb-4 sm:mb-6 border-b border-gray-200 pb-3 sm:pb-4 md:pb-6">
+                        <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-2 sm:gap-2.5 mb-1.5 sm:mb-2">
+                            <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm font-semibold text-gray-700">Complaint Closed</span>
+                          </div>
+                          <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                            This complaint has been closed and no further status updates are allowed.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
+                      <form className="space-y-3 sm:space-y-4" onSubmit={handleStatusUpdate}>
                     <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs sm:text-sm font-medium text-gray-700">Current Status:</span>
@@ -1941,8 +1981,120 @@ const Complaints = () => {
                       ) : (
                         'Update Status'
                       )}
-                    </button>
-                  </form>
+                      </button>
+                      </form>
+                    )}
+                  </div>
+                </div>
+
+                {/* Update Form - Mobile Only (shown below on small screens) */}
+                {!selected.isLockedForUpdates && selected.currentStatus !== 'Closed' && (
+                  <div className="lg:hidden">
+                    <form className="space-y-3 sm:space-y-4 mt-4 sm:mt-6 border-t border-gray-200 pt-3 sm:pt-4 md:pt-6" onSubmit={handleStatusUpdate}>
+                      <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs sm:text-sm font-medium text-gray-700">Current Status:</span>
+                          <span className={`inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ${STATUS_COLORS[selected.currentStatus]}`}>
+                            {selected.currentStatus}
+                          </span>
+                          {selected.isReopened && (
+                            <span className="inline-flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium bg-orange-100 text-orange-800">
+                              🔄 Reopened
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Update Status</label>
+                        <select
+                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                          value={status}
+                          onChange={e => setStatus(e.target.value)}
+                          required
+                        >
+                          <option value="">Select status</option>
+                          {STATUS_OPTIONS
+                            .filter(opt => opt !== 'All')
+                            .filter(opt => opt !== 'Closed' || isSuperAdmin) // Only super_admin can set Closed
+                            .map(opt => (
+                              <option key={`status-${opt}`} value={opt}>{opt}</option>
+                            ))}
+                        </select>
+                        {!isSuperAdmin && (
+                          <p className="mt-1.5 text-xs text-gray-500">
+                            Note: Only Super Admin can directly close complaints
+                          </p>
+                        )}
+                      </div>
+
+                      {status === 'In Progress' && (
+                        (() => {
+                          // Get all members from all categories
+                          const allMembers = Object.values(members).flat();
+                          console.log('All available members:', allMembers);
+
+                          return (
+                            <div>
+                              <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Assign Member</label>
+                              <select
+                                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base bg-white touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                                value={selectedMember}
+                                onChange={e => {
+                                  console.log('Selected member value:', e.target.value);
+                                  setSelectedMember(e.target.value);
+                                }}
+                                required={status === 'In Progress'}
+                              >
+                                <option key="default" value="">Select a member</option>
+                                {allMembers?.map(member => {
+                                  const memberId = member._id || member.id;
+                                  return (
+                                    <option key={memberId} value={memberId}>
+                                      {member.name} ({member.category})
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                              {(!allMembers || allMembers.length === 0) && (
+                                <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm text-gray-500">
+                                  No members available
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
+
+                      <div>
+                        <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-1.5 sm:mb-2">Add Note (Optional)</label>
+                        <input
+                          className="w-full px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg border border-gray-300 sm:border-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px]"
+                          placeholder="Enter a note about this status update"
+                          value={note}
+                          onChange={e => setNote(e.target.value)}
+                        />
+                      </div>
+
+                      <button
+                        className={`w-full py-2.5 sm:py-3 md:py-3.5 px-3 sm:px-4 rounded-lg text-white font-semibold transition-all duration-200 text-sm sm:text-base touch-manipulation min-h-[40px] sm:min-h-[44px] md:min-h-[48px] shadow-md sm:shadow-lg ${updating
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800'
+                          }`}
+                        type="submit"
+                        disabled={updating || (status === 'In Progress' && !selectedMember)}
+                      >
+                        {updating ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <LoadingSpinner size="sm" className="border-white" />
+                            <span className="text-sm sm:text-base">Updating...</span>
+                          </div>
+                        ) : (
+                          'Update Status'
+                        )}
+                      </button>
+                    </form>
+                  </div>
                 )}
               </div>
             </div>
