@@ -689,7 +689,7 @@ const MenuManagement = () => {
       const response = await api.post('/api/notifications/send-menu-all', {
         mealType,
         title: `${mealEmojis[mealType]} ${mealNames[mealType]} is Ready!`,
-        message: `🍽️ check out today's menu! Tap to see what's cooking.`, 
+        message: `🍽️ check out today's menu! Tap to see what's cooking.`,
         url: '/student'
       });
 
@@ -733,7 +733,7 @@ const MenuManagement = () => {
 
 
   return (
-    <div className="mx-auto p-4 space-y-6  mt-8">
+    <div className="mx-auto  space-y-6  lg:mt-0 mt-12">
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
@@ -824,45 +824,59 @@ const MenuManagement = () => {
             {/* Students and Staff Count - Two columns on mobile, three on desktop */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {/* Students Count */}
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 shadow-sm">
-                <div className="flex items-center justify-between">
+              <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-300 shadow-sm">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{foodCount.counts.students}</div>
+                    <div className="text-xl sm:text-2xl font-semibold text-gray-900">{foodCount.counts.students}</div>
+                    <div className="text-xs text-gray-600 font-medium mt-0.5">Total Students</div>
                   </div>
-                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍🎓</div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0 opacity-80">👨‍🎓</div>
+                </div>
+
+                {/* Veg/Non-Veg Breakdown */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                  <div className="flex-1 bg-gray-50 rounded px-2 py-1.5 border border-gray-200">
+                    <div className="text-xs text-gray-600 font-medium">Veg</div>
+                    <div className="text-sm font-semibold text-gray-800">{foodCount.counts.vegStudents || 0}</div>
+                  </div>
+                  <div className="flex-1 bg-gray-50 rounded px-2 py-1.5 border border-gray-200">
+                    <div className="text-xs text-gray-600 font-medium">Non-Veg</div>
+                    <div className="text-sm font-semibold text-gray-800">{foodCount.counts.nonVegStudents || 0}</div>
+                  </div>
                 </div>
               </div>
 
               {/* Staff Count */}
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border border-gray-200 shadow-sm">
+              <div className="bg-white rounded-lg p-3 sm:p-4 border border-gray-300 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="text-xl sm:text-2xl font-bold text-green-600">{foodCount.counts.staff}</div>
+                    <div className="text-xl sm:text-2xl font-semibold text-gray-900">{foodCount.counts.staff}</div>
+                    <div className="text-xs text-gray-600 font-medium mt-0.5">Total Staff</div>
                   </div>
-                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">👨‍💼</div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0 opacity-80">👨‍💼</div>
                 </div>
               </div>
 
               {/* Total Count - Hidden on mobile, shown on desktop */}
-              <div className="hidden sm:block bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 sm:p-4 text-white shadow-lg">
+              <div className="hidden sm:block bg-blue-800 rounded-lg p-3 sm:p-4 text-white shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
-                    <div className="text-2xl sm:text-3xl font-bold">{foodCount.counts.total}</div>
-                    <div className="text-xs sm:text-sm opacity-90 truncate">Total Count</div>
+                    <div className="text-2xl sm:text-3xl font-semibold">{foodCount.counts.total}</div>
+                    <div className="text-xs sm:text-sm text-gray-300 font-medium truncate mt-0.5">Total Count</div>
                   </div>
-                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0">🍽️</div>
+                  <div className="text-2xl sm:text-3xl ml-2 flex-shrink-0 opacity-80">🍽️</div>
                 </div>
               </div>
             </div>
 
             {/* Total Count - Full width on mobile, hidden on desktop */}
-            <div className="sm:hidden bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-lg">
+            <div className="sm:hidden bg-blue-800 rounded-lg p-3 text-white shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <div className="text-2xl font-bold">{foodCount.counts.total}</div>
-                  <div className="text-xs opacity-90 truncate">Total Count</div>
+                  <div className="text-2xl font-semibold">{foodCount.counts.total}</div>
+                  <div className="text-xs text-gray-300 font-medium truncate mt-0.5">Total Count</div>
                 </div>
-                <div className="text-2xl ml-2 flex-shrink-0">🍽️</div>
+                <div className="text-2xl ml-2 flex-shrink-0 opacity-80">🍽️</div>
               </div>
             </div>
           </div>
@@ -1001,222 +1015,221 @@ const MenuManagement = () => {
 
         {/* Collapsible Content */}
         <div
-          className={`transition-all duration-300 ease-in-out overflow-hidden ${
-            isHistoryExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
-          }`}
+          className={`transition-all duration-300 ease-in-out overflow-hidden ${isHistoryExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}
         >
           <div className="p-3 sm:p-4 pt-0 border-t border-gray-200">
-        <div className="flex flex-col gap-3 mb-4 pt-3">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-600 font-medium">Select Date:</label>
-              <input
-                type="date"
-                value={statsDate}
-                onChange={e => setStatsDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
-              />
-            </div>
-
-            {/* Navigation Buttons */}
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => {
-                  const currentDate = new Date(statsDate);
-                  currentDate.setDate(currentDate.getDate() - 1);
-                  setStatsDate(currentDate.toISOString().slice(0, 10));
-                }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                title="Previous Day"
-              >
-                ←
-              </button>
-              <button
-                onClick={() => {
-                  const today = new Date().toISOString().slice(0, 10);
-                  setStatsDate(today);
-                }}
-                className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-                title="Today"
-              >
-                Today
-              </button>
-              <button
-                onClick={() => {
-                  const currentDate = new Date(statsDate);
-                  currentDate.setDate(currentDate.getDate() + 1);
-                  setStatsDate(currentDate.toISOString().slice(0, 10));
-                }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                title="Next Day"
-              >
-                →
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Menu Items for Selected Date */}
-        {loadingSelectedDateMenu ? (
-          <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
-              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Loading menu items...
-            </div>
-          </div>
-        ) : selectedDateMenu ? (
-          <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Menu Items for {new Date(statsDate).toLocaleDateString()}</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
-                const mealItems = selectedDateMenu.meals?.[meal] || [];
-                const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
-                return (
-                  <div
-                    key={meal}
-                    className="bg-gray-50 rounded-lg p-3 border border-gray-200"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-gray-900 flex items-center gap-1 capitalize text-sm">
-                        {meal === 'breakfast' && '🥞'}
-                        {meal === 'lunch' && '🍛'}
-                        {meal === 'snacks' && '🍿'}
-                        {meal === 'dinner' && '🍽️'}
-                        {meal.charAt(0).toUpperCase() + meal.slice(1)}
-                      </h4>
-                      {stats && stats.totalRatings > 0 && (
-                        <div className="text-right">
-                          <span className="text-xs font-bold text-yellow-600">{stats.average}/5</span>
-                          <div className="text-xs text-gray-500">({stats.totalRatings})</div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Menu Items */}
-                    <div className="text-xs text-gray-700">
-                      {mealItems.length ? (
-                        <div className="space-y-1 max-h-32 overflow-y-auto">
-                          {mealItems.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
-                              <span className="truncate">{item.name || item}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 italic text-xs">No items</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-6">
-            <div className="text-center py-4">
-              <div className="text-gray-400 text-sm mb-2">No menu found for {new Date(statsDate).toLocaleDateString()}</div>
-            </div>
-          </div>
-        )}
-
-        {loadingStats ? (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
-              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Loading rating statistics...
-            </div>
-          </div>
-        ) : ratingStats && Object.values(ratingStats).some(stats => stats.totalRatings > 0) ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-            {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
-              const stats = ratingStats[meal];
-              if (!stats || stats.totalRatings === 0) return null;
-
-              return (
-                <div key={meal} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 shadow-sm">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl sm:text-3xl">
-                        {meal === 'breakfast' && '🥞'}
-                        {meal === 'lunch' && '🍛'}
-                        {meal === 'snacks' && '🍿'}
-                        {meal === 'dinner' && '🍽️'}
-                      </span>
-                      <h3 className="font-bold text-gray-900 capitalize text-base sm:text-lg">{meal}</h3>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl sm:text-3xl font-bold text-yellow-600">{stats.average}/5</div>
-                      <div className="text-xs text-gray-600">{stats.totalRatings} ratings</div>
-                    </div>
-                  </div>
-
-                  {/* Rating Distribution */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Rating Breakdown</h4>
-                    <div className="space-y-2">
-                      {[5, 4, 3, 2, 1].map(star => {
-                        const count = stats.ratingCounts[star] || 0;
-                        const percentage = stats.totalRatings > 0 ? (count / stats.totalRatings) * 100 : 0;
-                        return (
-                          <div key={star} className="flex items-center gap-3">
-                            <div className="flex items-center w-8">
-                              <span className="text-sm font-medium text-gray-700">{star}★</span>
-                            </div>
-                            <div className="flex-1 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${percentage}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-sm font-medium text-gray-700 w-8 text-right">{count}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Recent Comments */}
-                  {stats.comments && stats.comments.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">Recent Comments</h4>
-                      <div className="space-y-3 max-h-32 overflow-y-auto">
-                        {stats.comments.slice(0, 3).map((comment, idx) => (
-                          <div key={idx} className="bg-white rounded-lg p-3 border border-yellow-200 shadow-sm">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-yellow-500 text-sm font-medium">{'★'.repeat(comment.rating)}</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                  {new Date(comment.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-sm text-gray-700 leading-relaxed line-clamp-3">{comment.comment}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            <div className="flex flex-col gap-3 mb-4 pt-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-600 font-medium">Select Date:</label>
+                  <input
+                    type="date"
+                    value={statsDate}
+                    onChange={e => setStatsDate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full sm:w-auto"
+                  />
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="inline-flex flex-col items-center gap-3">
-              <div className="text-4xl">📊</div>
-              <div className="text-gray-400 text-sm font-medium">No rating data available</div>
-              <div className="text-xs text-gray-500 max-w-xs">
-                Students haven't rated any meals for {new Date(statsDate).toLocaleDateString()} yet.
+
+                {/* Navigation Buttons */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      const currentDate = new Date(statsDate);
+                      currentDate.setDate(currentDate.getDate() - 1);
+                      setStatsDate(currentDate.toISOString().slice(0, 10));
+                    }}
+                    className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    title="Previous Day"
+                  >
+                    ←
+                  </button>
+                  <button
+                    onClick={() => {
+                      const today = new Date().toISOString().slice(0, 10);
+                      setStatsDate(today);
+                    }}
+                    className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                    title="Today"
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      const currentDate = new Date(statsDate);
+                      currentDate.setDate(currentDate.getDate() + 1);
+                      setStatsDate(currentDate.toISOString().slice(0, 10));
+                    }}
+                    className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    title="Next Day"
+                  >
+                    →
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+
+            {/* Menu Items for Selected Date */}
+            {loadingSelectedDateMenu ? (
+              <div className="text-center py-4">
+                <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Loading menu items...
+                </div>
+              </div>
+            ) : selectedDateMenu ? (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-800 mb-3">Menu Items for {new Date(statsDate).toLocaleDateString()}</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
+                    const mealItems = selectedDateMenu.meals?.[meal] || [];
+                    const stats = ratingStats && ratingStats[meal] ? ratingStats[meal] : null;
+                    return (
+                      <div
+                        key={meal}
+                        className="bg-gray-50 rounded-lg p-3 border border-gray-200"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900 flex items-center gap-1 capitalize text-sm">
+                            {meal === 'breakfast' && '🥞'}
+                            {meal === 'lunch' && '🍛'}
+                            {meal === 'snacks' && '🍿'}
+                            {meal === 'dinner' && '🍽️'}
+                            {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                          </h4>
+                          {stats && stats.totalRatings > 0 && (
+                            <div className="text-right">
+                              <span className="text-xs font-bold text-yellow-600">{stats.average}/5</span>
+                              <div className="text-xs text-gray-500">({stats.totalRatings})</div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Menu Items */}
+                        <div className="text-xs text-gray-700">
+                          {mealItems.length ? (
+                            <div className="space-y-1 max-h-32 overflow-y-auto">
+                              {mealItems.map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
+                                  <span className="truncate">{item.name || item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic text-xs">No items</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="mb-6">
+                <div className="text-center py-4">
+                  <div className="text-gray-400 text-sm mb-2">No menu found for {new Date(statsDate).toLocaleDateString()}</div>
+                </div>
+              </div>
+            )}
+
+            {loadingStats ? (
+              <div className="text-center py-8">
+                <div className="inline-flex items-center gap-2 text-gray-500 text-sm">
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Loading rating statistics...
+                </div>
+              </div>
+            ) : ratingStats && Object.values(ratingStats).some(stats => stats.totalRatings > 0) ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+                {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
+                  const stats = ratingStats[meal];
+                  if (!stats || stats.totalRatings === 0) return null;
+
+                  return (
+                    <div key={meal} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 shadow-sm">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl sm:text-3xl">
+                            {meal === 'breakfast' && '🥞'}
+                            {meal === 'lunch' && '🍛'}
+                            {meal === 'snacks' && '🍿'}
+                            {meal === 'dinner' && '🍽️'}
+                          </span>
+                          <h3 className="font-bold text-gray-900 capitalize text-base sm:text-lg">{meal}</h3>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl sm:text-3xl font-bold text-yellow-600">{stats.average}/5</div>
+                          <div className="text-xs text-gray-600">{stats.totalRatings} ratings</div>
+                        </div>
+                      </div>
+
+                      {/* Rating Distribution */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Rating Breakdown</h4>
+                        <div className="space-y-2">
+                          {[5, 4, 3, 2, 1].map(star => {
+                            const count = stats.ratingCounts[star] || 0;
+                            const percentage = stats.totalRatings > 0 ? (count / stats.totalRatings) * 100 : 0;
+                            return (
+                              <div key={star} className="flex items-center gap-3">
+                                <div className="flex items-center w-8">
+                                  <span className="text-sm font-medium text-gray-700">{star}★</span>
+                                </div>
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-yellow-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentage}%` }}
+                                  ></div>
+                                </div>
+                                <div className="text-sm font-medium text-gray-700 w-8 text-right">{count}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Recent Comments */}
+                      {stats.comments && stats.comments.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Recent Comments</h4>
+                          <div className="space-y-3 max-h-32 overflow-y-auto">
+                            {stats.comments.slice(0, 3).map((comment, idx) => (
+                              <div key={idx} className="bg-white rounded-lg p-3 border border-yellow-200 shadow-sm">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-yellow-500 text-sm font-medium">{'★'.repeat(comment.rating)}</span>
+                                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                                      {new Date(comment.createdAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="text-sm text-gray-700 leading-relaxed line-clamp-3">{comment.comment}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="inline-flex flex-col items-center gap-3">
+                  <div className="text-4xl">📊</div>
+                  <div className="text-gray-400 text-sm font-medium">No rating data available</div>
+                  <div className="text-xs text-gray-500 max-w-xs">
+                    Students haven't rated any meals for {new Date(statsDate).toLocaleDateString()} yet.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
