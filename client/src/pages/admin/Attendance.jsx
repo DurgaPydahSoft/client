@@ -31,7 +31,7 @@ const Attendance = () => {
     <div className="min-h-screen bg-gray-50">
       <SEO title="Attendance Management - Admin Dashboard" />
 
-      <div className="mx-auto px-3 sm:px-4 lg:px-6">
+      <div className="mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
