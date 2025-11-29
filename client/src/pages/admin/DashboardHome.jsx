@@ -276,12 +276,83 @@ const DashboardHome = () => {
         // Process Attendance Date Data for session-specific stats
         if (attendanceDateRes.status === 'fulfilled' && attendanceDateRes.value.data.success) {
           const dateData = attendanceDateRes.value.data.data.statistics || {};
+          const totalStudents = dateData.totalStudents || 0;
+          
+          // Get current time in IST to determine active session
+          const getCurrentISTTime = () => {
+            const now = new Date();
+            return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+          };
+          
+          // Calculate percentage and present count based on the most recent/active session
+          const getCurrentSessionStats = () => {
+            const istTime = getCurrentISTTime();
+            const hour = istTime.getHours() + (istTime.getMinutes() / 60);
+            let sessionPresent = 0;
+            let sessionName = '';
+            
+            // Session time windows (IST) - matching TakeAttendance.jsx
+            // Morning: 7:30 AM - 9:30 AM (7.5 - 9.5)
+            // Evening: 5:00 PM - 7:00 PM (17 - 19)
+            // Night: 8:00 PM - 10:00 PM (20 - 22)
+            
+            if (hour >= 7.5 && hour < 9.5) {
+              // Morning session active
+              sessionPresent = dateData.morningPresent || 0;
+              sessionName = 'morning';
+            } else if (hour >= 17 && hour < 19) {
+              // Evening session active
+              sessionPresent = dateData.eveningPresent || 0;
+              sessionName = 'evening';
+            } else if (hour >= 20 && hour < 22) {
+              // Night session active
+              sessionPresent = dateData.nightPresent || 0;
+              sessionName = 'night';
+            } else {
+              // No active session - use the most recent completed session
+              // If before morning, show previous night; if after night, show night
+              if (hour < 7.5) {
+                sessionPresent = dateData.nightPresent || 0;
+                sessionName = 'night';
+              } else if (hour >= 9.5 && hour < 17) {
+                sessionPresent = dateData.morningPresent || 0;
+                sessionName = 'morning';
+              } else if (hour >= 19 && hour < 20) {
+                sessionPresent = dateData.eveningPresent || 0;
+                sessionName = 'evening';
+              } else {
+                // After 10 PM, show night session
+                sessionPresent = dateData.nightPresent || 0;
+                sessionName = 'night';
+              }
+            }
+            
+            // If no data for determined session, use the highest session attendance
+            if (sessionPresent === 0) {
+              const sessions = [
+                dateData.morningPresent || 0,
+                dateData.eveningPresent || 0,
+                dateData.nightPresent || 0
+              ];
+              sessionPresent = Math.max(...sessions);
+            }
+            
+            const percentage = totalStudents > 0 ? Math.round((sessionPresent / totalStudents) * 100) : 0;
+            
+            return { sessionPresent, percentage, sessionName };
+          };
+          
+          const sessionStats = getCurrentSessionStats();
+          
           setStats(prev => ({
             ...prev,
             attendance: {
               ...prev.attendance,
               today: {
                 ...prev.attendance.today,
+                total: totalStudents || prev.attendance.today.total,
+                present: sessionStats.sessionPresent || prev.attendance.today.present,
+                percentage: sessionStats.percentage || prev.attendance.today.percentage,
                 morningPresent: dateData.morningPresent || prev.attendance.today.morningPresent || 0,
                 eveningPresent: dateData.eveningPresent || prev.attendance.today.eveningPresent || 0,
                 nightPresent: dateData.nightPresent || prev.attendance.today.nightPresent || 0
@@ -496,7 +567,7 @@ const DashboardHome = () => {
         description="Comprehensive admin dashboard for hostel management system with real-time statistics and insights."
         keywords="Admin Dashboard, Hostel Management, Statistics, Analytics"
       />
-      <div className=" sm:p-4  mt-12 sm:mt-0 w-full space-y-4 sm:space-y-6">
+      <div className=" mx-auto mt-12 sm:mt-0 w-full space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
