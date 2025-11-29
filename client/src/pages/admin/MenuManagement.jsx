@@ -733,7 +733,7 @@ const MenuManagement = () => {
 
 
   return (
-    <div className="mx-auto  space-y-6  lg:mt-0 mt-12">
+    <div className="mx-auto flex flex-col space-y-6 lg:mt-0 mt-12">
       <style>{`
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
@@ -759,7 +759,7 @@ const MenuManagement = () => {
       </div>
 
       {/* Header Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 order-1">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3">
           <button
             onClick={openTodayModal}
@@ -774,8 +774,99 @@ const MenuManagement = () => {
         </div>
       </div>
 
+      {/* Today's Menu Overview - Desktop: shown after header */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 order-2 hidden lg:block">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base sm:text-lg font-semibold text-blue-900">Today's Menu</h2>
+          <div className="flex gap-1">
+            {todaysMenu && ['breakfast', 'lunch', 'snacks', 'dinner'].map(mealType => (
+              <button
+                key={mealType}
+                onClick={() => handleSendMenuNotification(mealType)}
+                disabled={notificationLoading}
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors disabled:opacity-50"
+                title={`Send ${mealType} notification`}
+              >
+                {mealType.charAt(0).toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loadingToday ? (
+          <div className="text-center py-4 text-gray-500 text-sm">Loading today's menu...</div>
+        ) : todaysMenu ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
+            {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
+              const mealItems = todaysMenu.meals?.[meal] || [];
+              const stats = todaysRatingStats && todaysRatingStats[meal] ? todaysRatingStats[meal] : null;
+              return (
+                <div
+                  key={meal}
+                  className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    setShowMenuPopup(false);
+                    setSelectedPopupMeal(null);
+                    setTimeout(() => {
+                      setSelectedPopupMeal({ type: meal, items: mealItems, stats });
+                      setShowMenuPopup(true);
+                    }, 0);
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-gray-900 flex items-center gap-1 capitalize text-xs sm:text-sm">
+                      {meal === 'breakfast' && '🥞'}
+                      {meal === 'lunch' && '🍛'}
+                      {meal === 'snacks' && '🍿'}
+                      {meal === 'dinner' && '🍽️'}
+                      {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                    </h3>
+                    {stats && stats.totalRatings > 0 && (
+                      <div className="text-right">
+                        <span className="text-xs font-bold text-yellow-600">{stats.average}/5</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="text-xs text-gray-700">
+                    {mealItems.length ? (
+                      <div className="space-y-1">
+                        {mealItems.slice(0, 3).map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0"></span>
+                            <span className="truncate">{item.name || item}</span>
+                          </div>
+                        ))}
+                        {mealItems.length > 3 && (
+                          <div className="text-gray-500 text-xs italic">
+                            +{mealItems.length - 3} more items
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic text-xs">No items</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-4">
+            <div className="text-gray-400 text-sm mb-2">No menu set for today</div>
+            <button
+              onClick={openTodayModal}
+              className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+            >
+              Create Today's Menu
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Food Preparation Count Section - Mobile Optimized */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 lg:p-6 order-3">
         {/* Header - Mobile Stack */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -891,8 +982,8 @@ const MenuManagement = () => {
         )}
       </div>
 
-      {/* Today's Menu Overview */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+      {/* Today's Menu Overview - Mobile: shown in original position */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 order-4 lg:hidden">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base sm:text-lg font-semibold text-blue-900">Today's Menu</h2>
           <div className="flex gap-1">
@@ -988,7 +1079,7 @@ const MenuManagement = () => {
       </div>
 
       {/* Detailed Rating Statistics Section - Collapsible */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden order-5">
         {/* Collapsible Header */}
         <button
           onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
