@@ -9,20 +9,20 @@ import jsPDF from 'jspdf';
 import { UserIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon, PhotoIcon } from '@heroicons/react/24/outline';
 
 const TimelineItem = ({ status, timestamp, note, assignedTo, isLast }) => (
-  <div className="group relative py-3 pl-8 sm:pl-32">
-    <div className="mb-1 flex flex-col items-start before:absolute before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-2 after:box-content after:h-2 after:w-2 after:-translate-x-1/2 after:translate-y-1.5 after:rounded-full after:border-4 after:border-slate-50 after:bg-indigo-600 sm:flex-row sm:before:left-0 sm:before:ml-[6.5rem] sm:after:left-0 sm:after:ml-[6.5rem]">
-      <time className="left-0 mb-3 inline-flex h-6 w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase sm:absolute sm:mb-0">
+  <div className="group relative py-2 sm:py-3 pl-6 sm:pl-8 lg:pl-32">
+    <div className="mb-1 flex flex-col items-start before:absolute before:left-1.5 sm:before:left-2 before:h-full before:-translate-x-1/2 before:translate-y-2 sm:before:translate-y-3 before:self-start before:bg-slate-300 before:px-px group-last:before:hidden after:absolute after:left-1.5 sm:after:left-2 after:box-content after:h-1.5 sm:after:h-2 after:w-1.5 sm:after:w-2 after:-translate-x-1/2 after:translate-y-1 sm:after:translate-y-1.5 after:rounded-full after:border-2 sm:after:border-4 after:border-slate-50 after:bg-indigo-600 sm:flex-row sm:before:left-0 sm:before:ml-[6.5rem] sm:after:left-0 sm:after:ml-[6.5rem]">
+      <time className="left-0 mb-2 sm:mb-3 inline-flex h-5 sm:h-6 w-20 sm:w-24 translate-y-0.5 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-600 uppercase sm:absolute sm:mb-0">
         {new Date(timestamp).toLocaleDateString(undefined, { month: 'short', year: 'numeric', day: 'numeric' })}
       </time>
-      <div className="text-base sm:text-xl font-bold text-slate-900">{status}</div>
+      <div className="text-sm sm:text-base lg:text-xl font-bold text-slate-900 break-words">{status}</div>
     </div>
     {note && note.trim() && (
-      <div className="text-slate-500 text-sm mb-1">{note}</div>
+      <div className="text-slate-500 text-xs sm:text-sm mb-1 break-words leading-relaxed">{note}</div>
     )}
         {assignedTo && (
-      <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
-            <span>Assigned to: {assignedTo.name}</span>
-        {assignedTo.category && <span className="text-xs text-gray-500">({assignedTo.category})</span>}
+      <div className="flex items-center gap-1 text-xs text-gray-600 mt-1 flex-wrap">
+            <span className="break-words">Assigned to: {assignedTo.name}</span>
+        {assignedTo.category && <span className="text-xs text-gray-500 flex-shrink-0">({assignedTo.category})</span>}
       </div>
     )}
   </div>
@@ -430,18 +430,18 @@ const MyComplaints = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6 mt-12 sm:mt-0">
-      <div className="flex items-center gap-4 mb-8">
-        <div className="p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl shadow-lg shadow-blue-100">
-          <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6 mt-12 sm:mt-0">
+      <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 mb-4 sm:mb-6 lg:mb-8">
+        <div className="p-2 sm:p-2.5 lg:p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-100 flex-shrink-0">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent truncate">
             My Complaints
           </h2>
-          <p className="text-gray-600 text-sm mt-1">Track and manage your submitted complaints</p>
+          <p className="text-gray-600 text-xs sm:text-sm mt-0.5 sm:mt-1 line-clamp-1">Track and manage your submitted complaints</p>
         </div>
         </div>
 
@@ -474,7 +474,7 @@ const MyComplaints = () => {
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6"
         >
           {complaints.map((c, index) => (
             <motion.div
@@ -483,24 +483,24 @@ const MyComplaints = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
               whileHover={{ y: -5 }}
-              className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
+              className="bg-white rounded-lg sm:rounded-xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
             >
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="space-y-1">
-                    <h3 className="font-semibold text-blue-900 text-lg line-clamp-2">{c.title}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+              <div className="p-3 sm:p-4 lg:p-6">
+                <div className="flex justify-between items-start mb-2 sm:mb-3 lg:mb-4 gap-2">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <h3 className="font-semibold text-blue-900 text-sm sm:text-base lg:text-lg line-clamp-2 leading-tight">{c.title}</h3>
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                      <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium truncate max-w-full">
                         {c.category}
                       </span>
                       {c.subCategory && (
-                        <span className="px-2 py-1 bg-cyan-50 text-cyan-700 rounded-full text-xs font-medium">
+                        <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-cyan-50 text-cyan-700 rounded-full text-xs font-medium truncate max-w-full">
                           {c.subCategory}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                  <span className={`px-1.5 sm:px-2 lg:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium flex-shrink-0 ${
                     c.currentStatus === 'Resolved' ? 'bg-green-100 text-green-800' :
                     c.currentStatus === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                     'bg-yellow-100 text-yellow-800'
@@ -509,57 +509,59 @@ const MyComplaints = () => {
                   </span>
                 </div>
                 
-                <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-500 mb-2 sm:mb-3 lg:mb-4">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  {new Date(c.createdAt).toLocaleDateString()}
+                  <span className="truncate">{new Date(c.createdAt).toLocaleDateString()}</span>
                 </div>
 
                 {c.assignedTo && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                    <UserIcon className="w-4 h-4" />
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-1">
-                        <span>Assigned to: {c.assignedTo.name}</span>
-                        <span className="text-xs text-gray-500">({c.assignedTo.category})</span>
+                  <div className="flex items-start gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 lg:mb-4">
+                    <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 mt-0.5" />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        <span className="truncate">Assigned to: {c.assignedTo.name}</span>
+                        {c.assignedTo.category && <span className="text-xs text-gray-500 flex-shrink-0">({c.assignedTo.category})</span>}
                       </div>
                       {c.assignedTo.phone && (
-                        <div className="text-xs text-gray-500 flex items-center gap-1">
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                          <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                           </svg>
-                          {c.assignedTo.phone}
+                          <span className="truncate">{c.assignedTo.phone}</span>
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                <p className="text-gray-600 text-sm line-clamp-3 mb-4">{c.description}</p>
+                <p className="text-gray-600 text-xs sm:text-sm line-clamp-3 mb-3 sm:mb-4 leading-relaxed">{c.description}</p>
 
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
-                  {c.feedback && (
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      c.feedback.isSatisfied ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {c.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}
-                    </span>
-                  )}
-                  {/* Show feedback required badge if resolved and feedback is missing */}
-                  {!c.feedback && c.currentStatus === 'Resolved' && (
-                    <span className="w-full sm:w-auto text-center px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse break-words sm:ml-2">
-                      Feedback required to close this complaint
-                    </span>
-                  )}
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {c.feedback && (
+                      <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
+                        c.feedback.isSatisfied ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                        {c.feedback.isSatisfied ? 'Satisfied' : 'Not Satisfied'}
+                      </span>
+                    )}
+                    {/* Show feedback required badge if resolved and feedback is missing */}
+                    {!c.feedback && c.currentStatus === 'Resolved' && (
+                      <span className="text-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse break-words">
+                        Feedback required
+                      </span>
+                    )}
+                  </div>
                   <motion.button 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={() => openDetails(c)}
-                    className="mt-2 sm:mt-0 text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    className="w-full sm:w-auto text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center justify-center gap-1.5 sm:gap-1 py-1.5 sm:py-2 px-3 sm:px-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                   >
-                    View Details
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span>View Details</span>
+                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
                     </svg>
                   </motion.button>
@@ -578,7 +580,7 @@ const MyComplaints = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4"
+            className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50 p-0 sm:p-2 lg:p-4"
           >
             <motion.div 
               initial={{ scale: 0.95, y: 20, opacity: 0 }}
@@ -589,55 +591,55 @@ const MyComplaints = () => {
                 ease: "easeOut",
                 opacity: { duration: 0.2 },
               }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-gray-100"
+              className="bg-white rounded-none sm:rounded-xl shadow-2xl w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] overflow-y-auto border-0 sm:border border-gray-100 overflow-x-hidden"
               style={{ 
                 boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" 
               }}
             >
               <div className="relative">
-                <div className="absolute right-0 top-0 flex items-center">
+                <div className="absolute right-0 top-0 flex items-center z-10 bg-white sm:bg-transparent rounded-bl-lg sm:rounded-none">
                   {/* Download Button */}
                   <button
-                    className="p-2 text-gray-400 hover:text-blue-600 transition-all duration-200"
+                    className="p-2 sm:p-2.5 text-gray-400 hover:text-blue-600 transition-all duration-200 active:bg-gray-100 sm:active:bg-transparent"
                     onClick={handleDownload}
                     title="Download Details as PDF"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                   </button>
                   {/* Close Button */}
                   <div className="border-l border-gray-200">
                     <button
-                      className="p-2 text-gray-400 hover:text-red-600 transition-all duration-200"
+                      className="p-2 sm:p-2.5 text-gray-400 hover:text-red-600 transition-all duration-200 active:bg-gray-100 sm:active:bg-transparent"
                       onClick={() => setSelected(null)}
                       disabled={submittingFeedback}
                       title="Close"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
                 </div>
 
-                <div className="p-4 sm:p-6">
-                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">{selected.title}</h3>
+                <div className="p-3 sm:p-4 lg:p-6">
+                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-2 sm:mb-3 lg:mb-4 pr-8 sm:pr-12 break-words leading-tight">{selected.title}</h3>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1 sm:mb-2">
-                        <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                        <span className="font-medium text-gray-700 text-sm sm:text-base">Student Details</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 lg:gap-4 mb-3 sm:mb-4 lg:mb-6">
+                    <div className="bg-gray-50 p-2.5 sm:p-3 lg:p-4 rounded-lg">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                        <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Student Details</span>
                       </div>
-                      <p className="text-gray-600 text-sm">{selected.student?.name}</p>
-                      <p className="text-xs sm:text-sm text-gray-500">Roll No: {selected.student?.rollNumber || selected.student?.roll || 'N/A'}</p>
+                      <p className="text-gray-600 text-xs sm:text-sm truncate">{selected.student?.name}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">Roll No: {selected.student?.rollNumber || selected.student?.roll || 'N/A'}</p>
                     </div>
 
-                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
-                      <div className="flex items-center gap-2 mb-1 sm:mb-2">
-                        <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                        <span className="font-medium text-gray-700 text-sm sm:text-base">Status Information</span>
+                    <div className="bg-gray-50 p-2.5 sm:p-3 lg:p-4 rounded-lg">
+                      <div className="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                        <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500 flex-shrink-0" />
+                        <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Status Information</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -658,10 +660,10 @@ const MyComplaints = () => {
 
                     {/* Add image display section */}
                     {selected.imageUrl && (
-                      <div className="col-span-1 sm:col-span-2 bg-gray-50 p-3 sm:p-4 rounded-lg">
-                        <div className="flex items-center gap-2 mb-1 sm:mb-2">
-                          <PhotoIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" />
-                          <span className="font-medium text-gray-700 text-sm sm:text-base">Complaint Image</span>
+                      <div className="col-span-1 sm:col-span-2 bg-gray-50 p-2.5 sm:p-3 lg:p-4 rounded-lg">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                          <PhotoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500 flex-shrink-0" />
+                          <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Complaint Image</span>
                         </div>
                         <div className="relative aspect-video w-full overflow-hidden rounded-lg">
                           <img
@@ -675,31 +677,31 @@ const MyComplaints = () => {
 
                     {/* Assigned Member Information */}
                     {selected.assignedTo && (
-                      <div className="col-span-1 sm:col-span-2 bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-100">
-                        <div className="flex items-center gap-2 mb-1 sm:mb-2">
-                          <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-                          <span className="font-medium text-blue-700 text-sm sm:text-base">Assigned Member</span>
+                      <div className="col-span-1 sm:col-span-2 bg-blue-50 p-2.5 sm:p-3 lg:p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                          <UserIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-blue-500 flex-shrink-0" />
+                          <span className="font-medium text-blue-700 text-xs sm:text-sm lg:text-base">Assigned Member</span>
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-blue-600 text-sm font-medium">{selected.assignedTo.name}</p>
-                          <div className="flex items-center gap-3 text-xs sm:text-sm text-blue-600">
-                            <span className="px-2 py-1 bg-blue-100 rounded-full text-xs font-medium">
+                        <div className="space-y-1.5 sm:space-y-2">
+                          <p className="text-blue-600 text-xs sm:text-sm font-medium break-words">{selected.assignedTo.name}</p>
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs sm:text-sm text-blue-600">
+                            <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 rounded-full text-xs font-medium">
                               {selected.assignedTo.category}
                             </span>
                             {selected.assignedTo.phone && (
-                              <div className="flex items-center gap-1">
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex items-center gap-1 min-w-0">
+                                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
-                                {selected.assignedTo.phone}
+                                <span className="truncate">{selected.assignedTo.phone}</span>
                               </div>
                             )}
                             {selected.assignedTo.email && (
-                              <div className="flex items-center gap-1">
-                                <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex items-center gap-1 min-w-0 flex-1">
+                                <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
-                                {selected.assignedTo.email}
+                                <span className="truncate text-xs">{selected.assignedTo.email}</span>
                               </div>
                             )}
                           </div>
@@ -710,7 +712,7 @@ const MyComplaints = () => {
                   
                   <div className="mb-4 sm:mb-6">
                     <h4 className="font-medium text-gray-900 text-sm sm:text-base mb-2">Description</h4>
-                    <p className="text-gray-600 bg-gray-50 p-3 sm:p-4 rounded-lg text-sm">{selected.description}</p>
+                    <p className="text-gray-600 bg-gray-50 p-3 sm:p-4 rounded-lg text-sm break-words whitespace-pre-wrap overflow-wrap-anywhere leading-relaxed">{selected.description}</p>
                   </div>
 
                   <div className="mb-4 sm:mb-6">

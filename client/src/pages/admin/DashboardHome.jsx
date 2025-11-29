@@ -62,7 +62,7 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className={`p-1.5 sm:p-1.5 lg:p-1 rounded-lg flex-shrink-0 ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
             <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-4 lg:h-4 ${color.replace('border-', 'text-')}`} />
-          </div>
+      </div>
           <div className="text-base sm:text-lg lg:text-lg xl:text-xl font-bold text-gray-900 leading-tight truncate">{formatValue(value)}</div>
         </div>
         {trend && (
@@ -71,7 +71,7 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
           }`}>
             {trend === 'up' ? <ArrowUpIcon className="w-3 h-3" /> : trend === 'down' ? <ArrowDownIcon className="w-3 h-3" /> : null}
             {trendValue && `${trendValue}%`}
-          </div>
+        </div>
         )}
       </div>
       <div className="text-xs sm:text-xs lg:text-xs xl:text-sm text-gray-600 font-medium leading-tight truncate">{label}</div>
@@ -87,11 +87,11 @@ const ModuleSection = ({ title, icon: Icon, iconColor, children, className = '' 
       <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">
         <div className={`p-1.5 sm:p-2 rounded-lg ${iconColor}`}>
           <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-        </div>
+      </div>
         <h2 className="text-lg sm:text-xl font-bold text-gray-900">{title}</h2>
         </div>
       {children}
-                    </div>
+    </div>
   );
 };
 
@@ -308,7 +308,7 @@ const DashboardHome = () => {
               // Night session active
               sessionPresent = dateData.nightPresent || 0;
               sessionName = 'night';
-            } else {
+      } else {
               // No active session - use the most recent completed session
               // If before morning, show previous night; if after night, show night
               if (hour < 7.5) {
@@ -693,16 +693,16 @@ const DashboardHome = () => {
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 sm:p-4 text-white">
                     <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
                     <div className="text-xs sm:text-sm opacity-90">Today's Attendance Rate</div>
-                  </div>
+                </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.fullyPresent}</div>
                       <div className="text-xs text-gray-500">Fully Present</div>
-                    </div>
+                </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.partiallyPresent}</div>
                       <div className="text-xs text-gray-500">Partial</div>
-                    </div>
+              </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.absent}</div>
                       <div className="text-xs text-gray-500">Absent</div>

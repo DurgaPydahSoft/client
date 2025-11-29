@@ -689,11 +689,11 @@ const Leave = () => {
         />
 
         {/* Mobile-optimized header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0 mt-4">
-          <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Leave & Permission Requests</h1>
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0 mt-2 sm:mt-4">
+          <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Leave & Permission Requests</h1>
           <button
             onClick={() => setShowRequestModal(true)}
-            className="w-full sm:w-auto px-4 py-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base touch-manipulation flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-sm sm:text-base touch-manipulation flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
           >
             <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />
             <span>New Request</span>
@@ -720,14 +720,14 @@ const Leave = () => {
                     key={leave._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 sm:p-6 hover:bg-gray-50 transition-colors relative flex flex-col"
+                    className="p-3 sm:p-6 hover:bg-gray-50 transition-colors relative flex flex-col"
                   >
                     {/* Mobile only: Download and Delete buttons at top-right */}
-                    <div className="absolute top-4 right-4 flex flex-col gap-2 sm:hidden">
+                    <div className="absolute top-3 right-3 flex flex-row gap-2 sm:hidden">
                       <button
                         onClick={() => downloadIndividualRequestPDF(leave)}
                         disabled={isDownloading}
-                        className={`p-1 rounded-full ${isDownloading ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600 hover:text-purple-700'}`}
+                        className={`p-1.5 rounded-full touch-manipulation ${isDownloading ? 'text-gray-400 cursor-not-allowed' : 'text-purple-600 hover:text-purple-700 active:text-purple-800'}`}
                       >
                         {isDownloading ? (
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
@@ -740,7 +740,7 @@ const Leave = () => {
                         <button
                           onClick={() => handleDeleteRequest(leave._id)}
                           disabled={isDeleting && deletingId === leave._id}
-                          className={`p-1 rounded-full ${isDeleting && deletingId === leave._id ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-700'}`}
+                          className={`p-1.5 rounded-full touch-manipulation ${isDeleting && deletingId === leave._id ? 'text-gray-400 cursor-not-allowed' : 'text-red-600 hover:text-red-700 active:text-red-800'}`}
                         >
                           {isDeleting && deletingId === leave._id ? (
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current"></div>
@@ -751,17 +751,17 @@ const Leave = () => {
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex-1 space-y-3">
+                    <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row sm:items-start sm:justify-between pr-16 sm:pr-0">
+                      <div className="flex-1 space-y-2 sm:space-y-3">
                         {/* Status and Type Tags */}
-                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                          <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
                             {getStatusIcon(leave.status)}
                             <span className="ml-1 text-xs">
                               {leave.status === 'Warden Verified' ? 'Warden Verified - Pending Principal Approval' : leave.status}
                             </span>
                           </span>
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
                             {leave.applicationType}
                           </span>
                           <span className="text-xs text-gray-500">
@@ -770,41 +770,41 @@ const Leave = () => {
                         </div>
 
                         {/* Date/Time Info */}
-                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-2">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-1.5 sm:gap-3 text-xs sm:text-sm text-gray-600 mb-2">
                           {leave.applicationType === 'Leave' ? (
                             <>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>From: {displayInfo.start}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>To: {displayInfo.end}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>{displayInfo.duration}</span>
                               </div>
                             </>
                           ) : leave.applicationType === 'Permission' ? (
                             <>
                               <div className="flex items-center gap-1">
-                                <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>Date: {displayInfo.date}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>Time: {displayInfo.time}</span>
                               </div>
                             </>
                           ) : (
                             <>
                               <div className="flex items-center gap-1">
-                                <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <HomeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>Date: {displayInfo.date}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+                                <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
                                 <span>{displayInfo.duration}</span>
                               </div>
                             </>
@@ -812,19 +812,19 @@ const Leave = () => {
                         </div>
 
                         {/* Reason */}
-                        <p className="text-gray-700 mb-2 text-sm sm:text-base break-words leading-relaxed">{leave.reason}</p>
+                        <p className="text-gray-700 mb-2 text-sm sm:text-base break-words whitespace-pre-wrap overflow-wrap-anywhere leading-relaxed">{leave.reason}</p>
 
                         {/* Rejection Reason */}
                         {leave.rejectionReason && (
-                          <p className="text-xs sm:text-sm text-red-600 leading-relaxed">
-                            Rejection Reason: {leave.rejectionReason}
+                          <p className="text-xs sm:text-sm text-red-600 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">
+                            <strong>Rejection Reason:</strong> {leave.rejectionReason}
                           </p>
                         )}
 
                         {/* Status Messages */}
                         {leave.applicationType !== 'Stay in Hostel' && leave.status === 'Warden Verified' && (
                           <div className="mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">
+                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed break-words">
                               <strong>Warden Verified:</strong> Your request has been verified by the warden and is now pending principal approval.
                             </p>
                           </div>
@@ -832,7 +832,7 @@ const Leave = () => {
 
                         {leave.applicationType === 'Stay in Hostel' && leave.wardenRecommendation && (
                           <div className="mt-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed">
+                            <p className="text-xs sm:text-sm text-blue-700 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">
                               <strong>Warden Recommendation:</strong> {leave.wardenRecommendation}
                               {leave.wardenComment && ` - ${leave.wardenComment}`}
                             </p>
@@ -841,7 +841,7 @@ const Leave = () => {
 
                         {leave.applicationType === 'Stay in Hostel' && leave.principalDecision && (
                           <div className="mt-2 p-2 sm:p-3 bg-green-50 rounded-lg">
-                            <p className="text-xs sm:text-sm text-green-700 leading-relaxed">
+                            <p className="text-xs sm:text-sm text-green-700 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">
                               <strong>Principal Decision:</strong> {leave.principalDecision}
                               {leave.principalComment && ` - ${leave.principalComment}`}
                             </p>
@@ -980,9 +980,9 @@ const Leave = () => {
                           <button
                             onClick={() => handleResendOTP(leave._id)}
                             disabled={isResendingOtp && resendingLeaveId === leave._id}
-                            className={`w-full px-3 py-2.5 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 ${isResendingOtp && resendingLeaveId === leave._id
+                            className={`w-full px-3 py-2.5 rounded transition-colors text-sm font-semibold flex items-center justify-center gap-2 touch-manipulation ${isResendingOtp && resendingLeaveId === leave._id
                               ? 'bg-gray-400 text-white cursor-not-allowed'
-                              : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800'
+                              : 'bg-orange-600 text-white hover:bg-orange-700 active:bg-orange-800 shadow-sm'
                               }`}
                           >
                             {isResendingOtp && resendingLeaveId === leave._id ? (
@@ -1020,22 +1020,22 @@ const Leave = () => {
 
       {/* QR Code Modal - Mobile optimized */}
       {qrModal.open && qrModal.leave && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center"
+            className="bg-white rounded-xl p-4 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center overflow-x-hidden"
           >
-            <h2 className="text-lg sm:text-xl font-bold mb-4 text-green-700 text-center">
+            <h2 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 text-green-700 text-center">
               {qrModal.leave.applicationType} Outgoing QR Code
             </h2>
             <QRCode
               value={`${window.location.origin}/leave/qr/${qrModal.leave._id}`}
-              size={180}
+              size={window.innerWidth < 640 ? 160 : 180}
               className="mx-auto"
             />
             <button
-              className="mt-6 sm:mt-8 px-4 py-2.5 sm:py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto"
+              className="mt-4 sm:mt-8 px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 active:bg-gray-900 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto shadow-sm"
               onClick={() => setQrModal({ open: false, leave: null })}
             >
               Close
@@ -1046,28 +1046,28 @@ const Leave = () => {
 
       {/* Incoming QR Code Modal - Mobile optimized */}
       {incomingQrModal.open && incomingQrModal.leave && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3 sm:p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-xl p-6 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center"
+            className="bg-white rounded-xl p-4 sm:p-8 w-full max-w-sm sm:max-w-md flex flex-col items-center overflow-x-hidden"
           >
-            <h2 className="text-lg sm:text-xl font-bold mb-4 text-blue-700 text-center">
+            <h2 className="text-base sm:text-xl font-bold mb-3 sm:mb-4 text-blue-700 text-center">
               {incomingQrModal.leave.applicationType} Incoming QR Code
             </h2>
             <QRCode
               value={`${window.location.origin}/leave/incoming-qr/${incomingQrModal.leave._id}`}
-              size={180}
+              size={window.innerWidth < 640 ? 160 : 180}
               className="mx-auto"
             />
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <p>Use this QR code to re-enter the hostel</p>
-              <p className="text-xs text-gray-500 mt-1">
+            <div className="mt-3 sm:mt-4 text-center text-xs sm:text-sm text-gray-600 px-2">
+              <p className="break-words">Use this QR code to re-enter the hostel</p>
+              <p className="text-xs text-gray-500 mt-1 break-words">
                 Expires: {new Date(incomingQrModal.leave.incomingQrExpiresAt).toLocaleString()}
               </p>
             </div>
             <button
-              className="mt-6 sm:mt-8 px-4 py-2.5 sm:py-2 bg-gray-700 text-white rounded hover:bg-gray-800 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto"
+              className="mt-4 sm:mt-8 px-4 py-2.5 bg-gray-700 text-white rounded-lg hover:bg-gray-800 active:bg-gray-900 transition-colors text-sm sm:text-base touch-manipulation w-full sm:w-auto shadow-sm"
               onClick={() => setIncomingQrModal({ open: false, leave: null })}
             >
               Close
@@ -1082,7 +1082,7 @@ const Leave = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto relative"
+            className="bg-white rounded-lg sm:rounded-xl p-3 sm:p-6 w-full max-w-sm sm:max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto overflow-x-hidden relative"
           >
             {/* Close X Button */}
             <button
@@ -1090,14 +1090,14 @@ const Leave = () => {
                 setShowRequestModal(false);
                 resetFormData();
               }}
-              className="absolute top-1.5 right-1.5 sm:top-3 sm:right-3 p-1 sm:p-1 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-1 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation z-10"
             >
-              <svg className="w-3 h-3 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
-            <h2 className="text-base sm:text-xl font-semibold mb-3 sm:mb-4 pr-6 sm:pr-10">New Request</h2>
+            <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4 pr-10 sm:pr-10">New Request</h2>
 
             {/* Application Type Selector - Dropdown for better mobile UX */}
             <div className="mb-4 sm:mb-6">
@@ -1163,7 +1163,7 @@ const Leave = () => {
                 <>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Start Date
                       </label>
                       <input
@@ -1172,11 +1172,11 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, startDate: e.target.value })}
                         min={todayStr}
                         required
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base touch-manipulation"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         End Date
                       </label>
                       <input
@@ -1185,14 +1185,14 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, endDate: e.target.value })}
                         min={leaveFormData.startDate}
                         required
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base touch-manipulation"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Gate Pass Date and Time
                       </label>
-                      <p className="text-xs text-gray-500 mb-1 sm:mb-2">
+                      <p className="text-xs text-gray-500 mb-1.5 sm:mb-2 break-words">
                         {leaveFormData.startDate === todayStr
                           ? 'Select current or future time for today.'
                           : 'Time must be after 4:30 PM for future dates.'
@@ -1204,11 +1204,11 @@ const Leave = () => {
                         onChange={(e) => setLeaveFormData({ ...leaveFormData, gatePassDateTime: e.target.value })}
                         min={leaveFormData.startDate === todayStr ? new Date().toISOString().slice(0, 16) : `${leaveFormData.startDate}T16:30`}
                         required
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base touch-manipulation"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Reason
                       </label>
                       <textarea
@@ -1217,10 +1217,10 @@ const Leave = () => {
                         required
                         maxLength={100}
                         rows="3"
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm resize-none"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none leading-relaxed"
                         placeholder="Enter your reason for leave (max 100 characters)"
                       />
-                      <div className="flex justify-between items-center mt-1 sm:mt-2">
+                      <div className="flex justify-between items-center mt-1.5 sm:mt-2">
                         <span className="text-xs text-gray-500">
                           Keep it brief and specific
                         </span>
@@ -1236,7 +1236,7 @@ const Leave = () => {
                 <>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Permission Date
                       </label>
                       <input
@@ -1244,12 +1244,12 @@ const Leave = () => {
                         value={permissionFormData.permissionDate}
                         onChange={(e) => setPermissionFormData({ ...permissionFormData, permissionDate: e.target.value })}
                         required
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm sm:text-base touch-manipulation"
                       />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                           Out Time
                         </label>
                         <input
@@ -1257,11 +1257,11 @@ const Leave = () => {
                           value={permissionFormData.outTime}
                           onChange={(e) => setPermissionFormData({ ...permissionFormData, outTime: e.target.value })}
                           required
-                          className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm sm:text-base touch-manipulation"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                           In Time
                         </label>
                         <input
@@ -1269,12 +1269,12 @@ const Leave = () => {
                           value={permissionFormData.inTime}
                           onChange={(e) => setPermissionFormData({ ...permissionFormData, inTime: e.target.value })}
                           required
-                          className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm sm:text-base touch-manipulation"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Reason
                       </label>
                       <textarea
@@ -1282,7 +1282,7 @@ const Leave = () => {
                         onChange={(e) => setPermissionFormData({ ...permissionFormData, reason: e.target.value })}
                         required
                         rows="3"
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm resize-none"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm resize-none leading-relaxed"
                         placeholder="Enter your reason for permission"
                       />
                     </div>
@@ -1293,7 +1293,7 @@ const Leave = () => {
                 <>
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Stay Date
                       </label>
                       <input
@@ -1303,11 +1303,11 @@ const Leave = () => {
                         required
                         min={todayStr}
                         max={tomorrowStr}
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm sm:text-base touch-manipulation"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                         Reason
                       </label>
                       <textarea
@@ -1315,7 +1315,7 @@ const Leave = () => {
                         onChange={(e) => setStayInHostelFormData({ ...stayInHostelFormData, reason: e.target.value })}
                         required
                         rows="3"
-                        className="w-full px-3 py-2.5 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm resize-none"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm resize-none leading-relaxed"
                         placeholder="Enter your reason for staying in hostel"
                       />
                     </div>
@@ -1328,19 +1328,19 @@ const Leave = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-white rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium ${isSubmitting
+                  className={`w-full sm:w-auto px-4 py-2.5 text-white rounded-lg transition-colors text-sm touch-manipulation font-medium ${isSubmitting
                     ? 'bg-gray-400 cursor-not-allowed'
                     : applicationType === 'Leave'
-                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm'
+                      ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-sm hover:shadow-md'
                       : applicationType === 'Permission'
-                        ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 shadow-sm'
-                        : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm'
+                        ? 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800 shadow-sm hover:shadow-md'
+                        : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm hover:shadow-md'
                     }`}
                 >
                   {isSubmitting ? (
                     <div className="flex items-center justify-center gap-2">
-                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
-                      <span className="text-xs sm:text-sm">Submitting...</span>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span className="text-sm">Submitting...</span>
                     </div>
                   ) : (
                     'Submit Request'
@@ -1352,7 +1352,7 @@ const Leave = () => {
                     setShowRequestModal(false);
                     resetFormData();
                   }}
-                  className="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-gray-700 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-xs sm:text-sm touch-manipulation font-medium"
+                  className="w-full sm:w-auto px-4 py-2.5 text-gray-700 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 rounded-lg transition-colors text-sm touch-manipulation font-medium border border-gray-200"
                 >
                   Cancel
                 </button>

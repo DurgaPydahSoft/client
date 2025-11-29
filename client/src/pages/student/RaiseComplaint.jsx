@@ -162,40 +162,42 @@ const RaiseComplaint = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-3 sm:py-6 mt-16 sm:mt-0">
+    <div className="min-h-screen ">
+      <div className=" mx-auto mt-12 sm:mt-16 lg:mt-0">
         {/* Mobile-optimized header */}
-        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
-          <div className="p-2 sm:p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl sm:rounded-2xl shadow-lg shadow-blue-100 flex-shrink-0">
-            <svg className="w-5 h-5 sm:w-7 sm:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent truncate">
-              Raise a Complaint
-            </h2>
-            <p className="text-gray-600 text-xs sm:text-sm mt-1 truncate">Submit your complaints and concerns</p>
+        <div className="max-w-2xl mb-4 sm:mb-6 lg:mb-8">
+          <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="p-2 sm:p-2.5 lg:p-3 bg-gradient-to-r from-blue-600 to-blue-800 rounded-lg sm:rounded-xl lg:rounded-2xl shadow-lg shadow-blue-100 flex-shrink-0">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent truncate">
+                Raise a Complaint
+              </h2>
+              <p className="text-gray-600 text-xs sm:text-sm mt-0.5 sm:mt-1 line-clamp-1">Submit your complaints and concerns</p>
+            </div>
           </div>
         </div>
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden"
+          className="max-w-2xl bg-white rounded-lg sm:rounded-xl shadow-lg overflow-hidden"
         >
-          <div className="p-4 sm:p-6">
-            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <div className="p-3 sm:p-4 lg:p-6">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 lg:space-y-6">
               {/* Category Selection - Mobile optimized */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Type of Issue
                 </label>
                 <select
                   name="category"
                   value={form.category}
                   onChange={e => setForm({ ...form, category: e.target.value, subCategory: '' })}
-                  className={`w-full px-3 sm:px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base sm:text-sm ${
+                  className={`w-full px-3 py-2.5 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base ${
                     errors.category ? 'border-red-500' : 'border-gray-300'
                   }`}
                   required
@@ -208,21 +210,21 @@ const RaiseComplaint = () => {
                   ))}
                 </select>
                 {errors.category && (
-                  <p className="mt-1 text-sm text-red-600">{errors.category}</p>
+                  <p className="mt-1 text-xs sm:text-sm text-red-600">{errors.category}</p>
                 )}
               </div>
 
               {/* Sub-category Selection (only for Maintenance) - Mobile optimized */}
               {form.category === 'Maintenance' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                     Maintenance Type
                   </label>
                   <select
                     name="subCategory"
                     value={form.subCategory}
                     onChange={e => setForm({ ...form, subCategory: e.target.value })}
-                    className={`w-full px-3 sm:px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base sm:text-sm ${
+                    className={`w-full px-3 py-2.5 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm sm:text-base ${
                       errors.subCategory ? 'border-red-500' : 'border-gray-300'
                     }`}
                     required
@@ -235,17 +237,17 @@ const RaiseComplaint = () => {
                     ))}
                   </select>
                   {errors.subCategory && (
-                    <p className="mt-1 text-sm text-red-600">{errors.subCategory}</p>
+                    <p className="mt-1 text-xs sm:text-sm text-red-600">{errors.subCategory}</p>
                   )}
                 </div>
               )}
 
               {/* Description - Mobile optimized */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Description
-                  <span className="text-gray-500 text-xs ml-2">
-                    ({form.description.length}/1000 characters)
+                  <span className="text-gray-500 text-xs ml-1.5 sm:ml-2">
+                    ({form.description.length}/1000)
                   </span>
                 </label>
                 <textarea
@@ -253,7 +255,7 @@ const RaiseComplaint = () => {
                   value={form.description}
                   onChange={e => setForm({ ...form, description: e.target.value })}
                   rows="5"
-                  className={`w-full px-3 sm:px-4 py-3 sm:py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-base sm:text-sm resize-none ${
+                  className={`w-full px-3 py-2.5 sm:py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-sm resize-none leading-relaxed ${
                     errors.description ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder="Please describe your issue in detail (minimum 10 characters)..."
@@ -261,23 +263,23 @@ const RaiseComplaint = () => {
                   maxLength={1000}
                 />
                 {errors.description && (
-                  <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+                  <p className="mt-1 text-xs sm:text-sm text-red-600 break-words">{errors.description}</p>
                 )}
               </div>
 
               {/* Image Upload - Mobile optimized */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Image (Optional)
                 </label>
-                <div className="mt-1 flex justify-center px-4 sm:px-6 pt-4 sm:pt-5 pb-4 sm:pb-6 border-2 border-gray-300 border-dashed rounded-lg">
-                  <div className="space-y-2 sm:space-y-1 text-center w-full">
+                <div className="mt-1 flex justify-center px-3 sm:px-4 lg:px-6 pt-3 sm:pt-4 lg:pt-5 pb-3 sm:pb-4 lg:pb-6 border-2 border-gray-300 border-dashed rounded-lg">
+                  <div className="space-y-2 text-center w-full">
                     {imagePreview ? (
                       <div className="relative inline-block">
                         <img 
                           src={imagePreview} 
                           alt="Preview" 
-                          className="mx-auto h-24 sm:h-32 w-auto object-cover rounded-lg max-w-full" 
+                          className="mx-auto h-20 sm:h-24 lg:h-32 w-auto object-cover rounded-lg max-w-full" 
                         />
                         <button
                           type="button"
@@ -285,20 +287,20 @@ const RaiseComplaint = () => {
                             setImage(null);
                             setImagePreview(null);
                           }}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 touch-manipulation"
+                          className="absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 bg-red-500 text-white rounded-full p-1 sm:p-1.5 hover:bg-red-600 active:bg-red-700 touch-manipulation transition-colors"
                         >
-                          <XCircleIcon className="w-4 h-4" />
+                          <XCircleIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                       </div>
                     ) : (
                       <>
-                        <PhotoIcon className="mx-auto h-8 w-8 sm:h-12 sm:w-12 text-gray-400" />
-                        <div className="flex flex-col sm:flex-row text-sm text-gray-600 justify-center items-center">
+                        <PhotoIcon className="mx-auto h-7 w-7 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-gray-400" />
+                        <div className="flex flex-col sm:flex-row text-xs sm:text-sm text-gray-600 justify-center items-center gap-1 sm:gap-0">
                           <label
                             htmlFor="image-upload"
-                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 touch-manipulation"
+                            className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 active:text-blue-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 touch-manipulation px-2 py-1"
                           >
-                            <span className="text-base sm:text-sm">Upload an image</span>
+                            <span>Upload an image</span>
                             <input
                               id="image-upload"
                               name="image"
@@ -308,7 +310,7 @@ const RaiseComplaint = () => {
                               onChange={handleImageChange}
                             />
                           </label>
-                          <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-0 sm:ml-1">or drag and drop</p>
+                          <p className="text-xs text-gray-500 sm:ml-1">or drag and drop</p>
                         </div>
                         <p className="text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
                       </>
@@ -318,23 +320,23 @@ const RaiseComplaint = () => {
               </div>
 
               {/* Submit Button - Mobile optimized */}
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end pt-2 sm:pt-3">
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`px-6 py-3 sm:py-2 rounded-lg text-white font-medium transition-all duration-200 w-full sm:w-auto touch-manipulation ${
+                  className={`px-4 sm:px-6 py-2.5 sm:py-2.5 rounded-lg text-white font-medium transition-all duration-200 w-full sm:w-auto touch-manipulation text-sm sm:text-base ${
                     loading 
                       ? 'bg-gray-400 cursor-not-allowed' 
-                      : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md hover:shadow-lg'
+                      : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md hover:shadow-lg active:scale-95'
                   }`}
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
                       <LoadingSpinner size="sm" />
-                      <span className="text-sm sm:text-base">Submitting...</span>
+                      <span>Submitting...</span>
                     </span>
                   ) : (
-                    <span className="text-sm sm:text-base">Submit Complaint</span>
+                    <span>Submit Complaint</span>
                   )}
                 </button>
               </div>
