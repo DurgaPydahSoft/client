@@ -56,24 +56,26 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
       animate={isAnimating ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
       transition={{ delay: animateDelay, duration: 0.4 }}
       onClick={onClick}
-      className={`bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 border-l-4 ${color} ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
+      className={`bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-2.5 sm:p-3 lg:p-2.5 xl:p-2 border-l-4 ${color} ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
-      <div className="flex items-start justify-between mb-1.5 sm:mb-2">
-        <div className={`p-1.5 sm:p-2 rounded-lg ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
-          <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${color.replace('border-', 'text-')}`} />
-      </div>
+      <div className="flex items-center justify-between mb-1 sm:mb-1.5 lg:mb-0.5">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className={`p-1.5 sm:p-1.5 lg:p-1 rounded-lg flex-shrink-0 ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
+            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-4 lg:h-4 ${color.replace('border-', 'text-')}`} />
+          </div>
+          <div className="text-base sm:text-lg lg:text-lg xl:text-xl font-bold text-gray-900 leading-tight truncate">{formatValue(value)}</div>
+        </div>
         {trend && (
-          <div className={`flex items-center gap-1 text-xs font-medium ${
+          <div className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ml-2 ${
             trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'
           }`}>
-            {trend === 'up' ? <ArrowUpIcon className="w-3 h-3 sm:w-4 sm:h-4" /> : trend === 'down' ? <ArrowDownIcon className="w-3 h-3 sm:w-4 sm:h-4" /> : null}
+            {trend === 'up' ? <ArrowUpIcon className="w-3 h-3" /> : trend === 'down' ? <ArrowDownIcon className="w-3 h-3" /> : null}
             {trendValue && `${trendValue}%`}
           </div>
         )}
       </div>
-      <div className="text-xl sm:text-2xl font-bold text-gray-900 mb-0.5 sm:mb-1">{formatValue(value)}</div>
-      <div className="text-xs sm:text-sm text-gray-600 font-medium">{label}</div>
-      {extra && <div className="mt-0.5 sm:mt-1 text-xs text-gray-400">{extra}</div>}
+      <div className="text-xs sm:text-xs lg:text-xs xl:text-sm text-gray-600 font-medium leading-tight truncate">{label}</div>
+      {extra && <div className="mt-0.5 sm:mt-0.5 lg:mt-0 text-xs text-gray-400 leading-tight truncate">{extra}</div>}
     </motion.div>
   );
 };
@@ -114,7 +116,10 @@ const DashboardHome = () => {
         absent: 0,
         percentage: 0,
         fullyPresent: 0,
-        partiallyPresent: 0
+        partiallyPresent: 0,
+        morningPresent: 0,
+        eveningPresent: 0,
+        nightPresent: 0
       },
       trend: []
     },
@@ -152,6 +157,10 @@ const DashboardHome = () => {
       activePolls: 0,
       recentAnnouncements: [],
       recentPolls: []
+    },
+    menu: {
+      todaysMenu: null,
+      hasMenu: false
     }
   });
 
@@ -178,7 +187,8 @@ const DashboardHome = () => {
           leavesRes,
           roomsStatsRes,
           announcementsRes,
-          pollsRes
+          pollsRes,
+          todaysMenuRes
         ] = await Promise.allSettled(
           [
             api.get('/api/admin/students?limit=1000'),
@@ -191,7 +201,8 @@ const DashboardHome = () => {
             api.get('/api/leave/all'),
             api.get('/api/admin/rooms/stats'),
             api.get('/api/announcements/admin/all'),
-            api.get('/api/polls/admin/all')
+            api.get('/api/polls/admin/all'),
+            api.get('/api/cafeteria/menu/today')
           ].map(call => 
             Promise.race([
               call,
@@ -253,7 +264,27 @@ const DashboardHome = () => {
                 absent: attendanceData.absent || 0,
                 percentage: attendanceData.percentages?.fullyPresentPercentage || 0,
                 fullyPresent: attendanceData.fullyPresent || 0,
-                partiallyPresent: attendanceData.partiallyPresent || 0
+                partiallyPresent: attendanceData.partiallyPresent || 0,
+                morningPresent: attendanceData.morningPresent || 0,
+                eveningPresent: attendanceData.eveningPresent || 0,
+                nightPresent: attendanceData.nightPresent || 0
+              }
+            }
+          }));
+        }
+
+        // Process Attendance Date Data for session-specific stats
+        if (attendanceDateRes.status === 'fulfilled' && attendanceDateRes.value.data.success) {
+          const dateData = attendanceDateRes.value.data.data.statistics || {};
+          setStats(prev => ({
+            ...prev,
+            attendance: {
+              ...prev.attendance,
+              today: {
+                ...prev.attendance.today,
+                morningPresent: dateData.morningPresent || prev.attendance.today.morningPresent || 0,
+                eveningPresent: dateData.eveningPresent || prev.attendance.today.eveningPresent || 0,
+                nightPresent: dateData.nightPresent || prev.attendance.today.nightPresent || 0
               }
             }
           }));
@@ -408,6 +439,27 @@ const DashboardHome = () => {
           }));
         }
 
+        // Process Today's Menu Data
+        if (todaysMenuRes.status === 'fulfilled' && todaysMenuRes.value.data.success) {
+          const menuData = todaysMenuRes.value.data.data;
+          setStats(prev => ({
+            ...prev,
+            menu: {
+              todaysMenu: menuData,
+              hasMenu: !!menuData && !!menuData.meals
+            }
+          }));
+        } else {
+          // 404 is expected when no menu exists for today
+          setStats(prev => ({
+            ...prev,
+            menu: {
+              todaysMenu: null,
+              hasMenu: false
+            }
+          }));
+        }
+        
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
         toast.error('Failed to load dashboard data');
@@ -476,7 +528,7 @@ const DashboardHome = () => {
         </div>
 
         {/* Key Metrics Overview */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4">
           <StatCard
             icon={UserGroupIcon}
             label="Total Students"
@@ -533,12 +585,12 @@ const DashboardHome = () => {
                     <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
                       <div className="text-xl sm:text-2xl font-bold text-blue-900">{stats.students.active}</div>
                       <div className="text-xs sm:text-sm text-blue-600">Active Students</div>
-      </div>
+        </div>
                     <div className="bg-green-50 rounded-lg p-3 sm:p-4">
                       <div className="text-xl sm:text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
                       <div className="text-xs sm:text-sm text-green-600">New This Week</div>
-        </div>
-                </div>
+      </div>
+      </div>
                   {stats.students.byCourse.length > 0 && (
                 <div>
                       <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">By Course</div>
@@ -547,7 +599,7 @@ const DashboardHome = () => {
                           <div key={idx} className="flex justify-between items-center">
                             <span className="text-xs sm:text-sm text-gray-600 truncate pr-2">{course.name}</span>
                             <span className="text-xs sm:text-sm font-semibold text-gray-900">{course.count}</span>
-                </div>
+        </div>
                         ))}
               </div>
             </div>
@@ -570,19 +622,36 @@ const DashboardHome = () => {
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 sm:p-4 text-white">
                     <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
                     <div className="text-xs sm:text-sm opacity-90">Today's Attendance Rate</div>
-                </div>
+                  </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.fullyPresent}</div>
                       <div className="text-xs text-gray-500">Fully Present</div>
-                </div>
+                    </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.partiallyPresent}</div>
                       <div className="text-xs text-gray-500">Partial</div>
-              </div>
+                    </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.absent}</div>
                       <div className="text-xs text-gray-500">Absent</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 sm:pt-3">
+                    <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Recent Session Presentees</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="text-center bg-blue-50 rounded-lg p-2">
+                        <div className="text-sm sm:text-base font-bold text-blue-900">🌅 {stats.attendance.today.morningPresent}</div>
+                        <div className="text-xs text-gray-600">Morning</div>
+                      </div>
+                      <div className="text-center bg-orange-50 rounded-lg p-2">
+                        <div className="text-sm sm:text-base font-bold text-orange-900">🌆 {stats.attendance.today.eveningPresent}</div>
+                        <div className="text-xs text-gray-600">Evening</div>
+                      </div>
+                      <div className="text-center bg-purple-50 rounded-lg p-2">
+                        <div className="text-sm sm:text-base font-bold text-purple-900">🌙 {stats.attendance.today.nightPresent}</div>
+                        <div className="text-xs text-gray-600">Night</div>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -639,21 +708,21 @@ const DashboardHome = () => {
                     <div className="text-center">
                       <div className="text-lg sm:text-xl font-bold text-orange-900">{stats.complaints.active}</div>
                       <div className="text-xs text-gray-500">Active</div>
-              </div>
+                </div>
                     <div className="text-center">
                       <div className="text-lg sm:text-xl font-bold text-green-900">{stats.complaints.resolved}</div>
                       <div className="text-xs text-gray-500">Resolved</div>
-                      </div>
+                </div>
                     <div className="text-center">
                       <div className="text-lg sm:text-xl font-bold text-blue-900">{stats.complaints.inProgress}</div>
                       <div className="text-xs text-gray-500">In Progress</div>
-                      </div>
-                    </div>
+              </div>
+            </div>
                   {stats.complaints.avgResolutionTime > 0 && (
                     <div className="bg-gray-50 rounded-lg p-2.5 sm:p-3">
                       <div className="text-xs sm:text-sm text-gray-600">Avg. Resolution Time</div>
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.complaints.avgResolutionTime} days</div>
-                  </div>
+          </div>
                   )}
                   <button
                     onClick={() => navigate('/admin/dashboard/complaints')}
@@ -673,17 +742,17 @@ const DashboardHome = () => {
                   <div className="bg-indigo-50 rounded-lg p-3 sm:p-4">
                     <div className="text-xl sm:text-2xl font-bold text-indigo-900 mb-1">{stats.leaves.pending}</div>
                     <div className="text-xs sm:text-sm text-indigo-600">Pending Approvals</div>
-                  </div>
+              </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-green-900">{stats.leaves.approvedToday}</div>
                       <div className="text-xs text-gray-500">Approved Today</div>
-                    </div>
+                      </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-red-900">{stats.leaves.rejectedToday}</div>
                       <div className="text-xs text-gray-500">Rejected Today</div>
+                      </div>
                     </div>
-                </div>
                 <button
                     onClick={() => navigate('/admin/dashboard/leave')}
                     className="w-full py-2 text-xs sm:text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors active:bg-indigo-100"
@@ -697,6 +766,77 @@ const DashboardHome = () => {
 
           {/* Right Column - 1/3 width */}
           <div className="space-y-4 sm:space-y-6">
+            {/* Today's Menu */}
+            <ModuleSection
+              title="Today's Menu"
+              icon={ChartBarIcon}
+              iconColor="bg-orange-500"
+            >
+              <div className="space-y-3 sm:space-y-4">
+                {stats.menu.hasMenu && stats.menu.todaysMenu ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
+                      const mealItems = stats.menu.todaysMenu.meals?.[meal] || [];
+                      const mealEmojis = {
+                        breakfast: '🥞',
+                        lunch: '🍛',
+                        snacks: '🍿',
+                        dinner: '🍽️'
+                      };
+                      return (
+                        <div
+                          key={meal}
+                          className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200"
+                        >
+                          <div className="flex items-center gap-1 mb-1.5">
+                            <span className="text-sm sm:text-base">{mealEmojis[meal]}</span>
+                            <span className="text-xs sm:text-sm font-medium text-gray-900 capitalize truncate">
+                              {meal}
+                    </span>
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            {mealItems.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {mealItems.slice(0, 2).map((item, idx) => (
+                                  <div key={idx} className="truncate">
+                                    • {typeof item === 'string' ? item : (item.name || item)}
+                  </div>
+                ))}
+                                {mealItems.length > 2 && (
+                                  <div className="text-gray-400 text-xs">
+                                    +{mealItems.length - 2} more
+                                  </div>
+                                )}
+              </div>
+                            ) : (
+                              <span className="text-gray-400 italic">No items</span>
+                            )}
+            </div>
+                </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="text-gray-400 text-2xl mb-2">🍽️</div>
+                    <div className="text-xs sm:text-sm text-gray-500 mb-2">No menu set for today</div>
+                <button
+                      onClick={() => navigate('/admin/dashboard/cafeteria/menu')}
+                      className="px-3 py-1.5 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 transition-colors"
+                >
+                      Create Menu
+                </button>
+              </div>
+                )}
+                <button
+                  onClick={() => navigate('/admin/dashboard/cafeteria/menu')}
+                  className="w-full py-2 text-xs sm:text-sm font-medium text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors active:bg-orange-100"
+                >
+                  Manage Menu →
+                </button>
+                    </div>
+            </ModuleSection>
+
             {/* Rooms Overview */}
             <ModuleSection
               title="Room Management"
@@ -707,16 +847,16 @@ const DashboardHome = () => {
                 <div className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg p-3 sm:p-4 text-white">
                   <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.rooms.occupancyRate}%</div>
                   <div className="text-xs sm:text-sm opacity-90">Bed Occupancy Rate</div>
-                </div>
+                  </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-gray-900">{stats.rooms.occupied}</div>
                     <div className="text-xs text-gray-500">Filled Beds</div>
-                  </div>
+              </div>
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-gray-900">{stats.rooms.available}</div>
                     <div className="text-xs text-gray-500">Available Beds</div>
-                  </div>
+            </div>
                 </div>
                 <button
                   onClick={() => navigate('/admin/dashboard/rooms/management')}
@@ -738,11 +878,11 @@ const DashboardHome = () => {
                   <div className="bg-pink-50 rounded-lg p-2.5 sm:p-3 text-center">
                     <div className="text-lg sm:text-xl font-bold text-pink-900">{stats.communication.activeAnnouncements}</div>
                     <div className="text-xs text-pink-600">Announcements</div>
-                  </div>
+                </div>
                   <div className="bg-purple-50 rounded-lg p-2.5 sm:p-3 text-center">
                     <div className="text-lg sm:text-xl font-bold text-purple-900">{stats.communication.activePolls}</div>
                     <div className="text-xs text-purple-600">Active Polls</div>
-                  </div>
+                </div>
                 </div>
                 {stats.communication.recentAnnouncements.length > 0 && (
                   <div>
@@ -751,9 +891,9 @@ const DashboardHome = () => {
                       {stats.communication.recentAnnouncements.map((announcement, idx) => (
                         <div key={idx} className="text-xs text-gray-600 truncate">
                           {announcement.title}
-                        </div>
-                      ))}
-                    </div>
+              </div>
+                    ))}
+                  </div>
                   </div>
                 )}
                 <button
@@ -793,8 +933,8 @@ const DashboardHome = () => {
                 >
                   Create Poll
                 </button>
-              </div>
             </div>
+          </div>
         </div>
         </div>
     </div>
