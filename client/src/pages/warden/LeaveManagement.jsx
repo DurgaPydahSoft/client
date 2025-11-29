@@ -25,6 +25,7 @@ const LeaveManagement = () => {
   const [otp, setOtp] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [verifyingOTP, setVerifyingOTP] = useState(false);
   const [filters, setFilters] = useState({
     status: 'Pending OTP Verification',
     applicationType: '',
@@ -66,6 +67,7 @@ const LeaveManagement = () => {
   };
 
   const handleVerifyOTP = async () => {
+    setVerifyingOTP(true);
     try {
       const response = await api.post('/api/leave/warden/verify-otp', {
         leaveId: selectedLeave._id,
@@ -80,6 +82,8 @@ const LeaveManagement = () => {
     } catch (error) {
       console.error('Error verifying OTP:', error);
       toast.error(error.response?.data?.message || 'Failed to verify OTP');
+    } finally {
+      setVerifyingOTP(false);
     }
   };
 
@@ -170,14 +174,14 @@ const LeaveManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <SEO 
         title="Leave & Permission Management - Warden"
         description="Verify OTP and manage student leave and permission requests"
         keywords="leave management, permission management, OTP verification, warden"
       />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
+      <div className="w-full mt-12 sm:mt-0">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -481,15 +485,23 @@ const LeaveManagement = () => {
             <div className="flex flex-col gap-2 sm:gap-3">
               <button
                 onClick={handleVerifyOTP}
-                className="w-full px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium"
-                disabled={otp.length !== 4 || !/^[0-9]{4}$/.test(otp)}
+                disabled={otp.length !== 4 || !/^[0-9]{4}$/.test(otp) || verifyingOTP}
+                className="w-full px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                Verify & Forward
+                {verifyingOTP ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  'Verify & Forward'
+                )}
               </button>
               <button
                 onClick={() => {
                   setShowOTPModal(false);
                   setOtp('');
+                  setVerifyingOTP(false);
                 }}
                 className="w-full px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
               >

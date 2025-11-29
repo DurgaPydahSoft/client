@@ -159,10 +159,10 @@ const WardenHome = () => {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <SEO title="Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
+      <div className="w-full  mt-12 sm:mt-0">
       {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

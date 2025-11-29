@@ -139,6 +139,40 @@ const TakeAttendance = () => {
     return Object.values(sessionStatus).some(session => session.isActive);
   };
 
+  // Get the nearest/upcoming session
+  const getNearestSession = () => {
+    const currentTime = getCurrentISTTime();
+    const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60) + (currentTime.getSeconds() / 3600);
+    
+    // First, check if any session is currently active
+    for (const [session, status] of Object.entries(sessionStatus)) {
+      if (status.isActive) {
+        return { session, status, type: 'active' };
+      }
+    }
+    
+    // If no active session, find the next upcoming session
+    let nearestSession = null;
+    let nearestTime = Infinity;
+    
+    for (const [session, timeRange] of Object.entries(SESSION_TIMES)) {
+      if (currentHour < timeRange.start) {
+        const timeUntilStart = timeRange.start - currentHour;
+        if (timeUntilStart < nearestTime) {
+          nearestTime = timeUntilStart;
+          nearestSession = { session, status: sessionStatus[session], type: 'upcoming' };
+        }
+      }
+    }
+    
+    // If all sessions have passed, show the next day's first session (morning)
+    if (!nearestSession) {
+      return { session: 'morning', status: sessionStatus.morning, type: 'next-day' };
+    }
+    
+    return nearestSession;
+  };
+
   // Check if a session has been completed (attendance already taken)
   const isSessionCompleted = (studentId, session) => {
     return attendanceData[studentId]?.[session] === true;
@@ -538,10 +572,10 @@ const TakeAttendance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <SEO title="Take Attendance - Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
+      <div className="w-full mt-12 sm:mt-0">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -570,41 +604,91 @@ const TakeAttendance = () => {
             </div>
           </div>
           
-          {/* Session Status Indicator */}
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ClockIcon className="w-4 h-4 text-blue-600" />
-                <span className="text-sm font-medium text-blue-800">Current Session Status</span>
-              </div>
-              <div className="text-xs text-blue-600">
-                IST: {currentTime.toLocaleTimeString('en-IN', { 
-                  hour: '2-digit', 
-                  minute: '2-digit',
-                  second: '2-digit'
-                })} | Date: {selectedDate}
-              </div>
-            </div>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {Object.entries(sessionStatus).map(([session, status]) => (
-                <div key={session} className={`p-2 rounded-lg text-xs ${
-                  status.isActive 
-                    ? 'bg-green-100 border border-green-300 text-green-800' 
-                    : 'bg-gray-100 border border-gray-300 text-gray-600'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium capitalize">{session}</span>
-                    <span className={`w-2 h-2 rounded-full ${
-                      status.isActive ? 'bg-green-500' : 'bg-gray-400'
-                    }`}></span>
+          {/* Session Status Indicator - Nearest Session Only */}
+          {(() => {
+            const nearest = getNearestSession();
+            if (!nearest) return null;
+            
+            const { session, status, type } = nearest;
+            const isActive = type === 'active';
+            const sessionIcons = {
+              morning: <SunIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+              evening: <MoonIcon className="w-4 h-4 sm:w-5 sm:h-5" />,
+              night: <StarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            };
+            const sessionNames = {
+              morning: 'Morning Session',
+              evening: 'Evening Session',
+              night: 'Night Session'
+            };
+            
+            return (
+              <div className={`mt-4 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 ${
+                isActive 
+                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md' 
+                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+              }`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  {/* Left Section - Session Info */}
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
+                      isActive 
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-blue-500 text-white'
+                    }`}>
+                      {sessionIcons[session]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                        <span className={`text-xs sm:text-sm font-semibold truncate ${
+                          isActive ? 'text-green-800' : 'text-blue-800'
+                        }`}>
+                          {sessionNames[session]}
+                        </span>
+                        {isActive && (
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full animate-pulse flex-shrink-0 w-fit">
+                            LIVE
+                          </span>
+                        )}
+                      </div>
+                      <div className={`text-base sm:text-lg font-bold mt-0.5 sm:mt-1 ${
+                        isActive ? 'text-green-700' : 'text-blue-700'
+                      }`}>
+                        {status.timeLeft}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-1 text-xs">
-                    {status.timeLeft}
+                  
+                  {/* Right Section - Time & Date */}
+                  <div className="flex items-center sm:flex-col sm:items-end sm:text-right gap-2 sm:gap-1 flex-shrink-0 border-t sm:border-t-0 border-gray-200 sm:border-0 pt-2 sm:pt-0">
+                    <div className="hidden sm:block">
+                      <div className="text-xs text-gray-600 mb-1">Current Time</div>
+                      <div className="text-sm font-mono font-semibold text-gray-800">
+                        {currentTime.toLocaleTimeString('en-IN', { 
+                          hour: '2-digit', 
+                          minute: '2-digit',
+                          second: '2-digit'
+                        })}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">{selectedDate}</div>
+                    </div>
+                    {/* Mobile: Inline time display */}
+                    <div className="sm:hidden flex items-center gap-2 text-xs text-gray-600">
+                      <ClockIcon className="w-3 h-3" />
+                      <span className="font-mono font-semibold">
+                        {currentTime.toLocaleTimeString('en-IN', { 
+                          hour: '2-digit', 
+                          minute: '2-digit'
+                        })}
+                      </span>
+                      <span className="text-gray-400">•</span>
+                      <span>{selectedDate}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
         </motion.div>
 
         {/* Controls */}
@@ -832,7 +916,7 @@ const TakeAttendance = () => {
   initial={{ opacity: 0, y: 20 }}
   animate={{ opacity: 1, y: 0 }}
   transition={{ delay: 0.2 }}
-  className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-[60] bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
+  className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-30 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
 >
   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
     <button

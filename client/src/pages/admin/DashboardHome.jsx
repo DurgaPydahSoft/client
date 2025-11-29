@@ -61,7 +61,7 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
       <div className="flex items-start justify-between mb-2">
         <div className={`p-2 rounded-lg ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
           <Icon className={`w-6 h-6 ${color.replace('border-', 'text-')}`} />
-        </div>
+      </div>
         {trend && (
           <div className={`flex items-center gap-1 text-xs font-medium ${
             trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'
@@ -87,9 +87,9 @@ const ModuleSection = ({ title, icon: Icon, iconColor, children, className = '' 
           <Icon className="w-6 h-6 text-white" />
         </div>
         <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-      </div>
+        </div>
       {children}
-    </div>
+                    </div>
   );
 };
 
@@ -214,8 +214,8 @@ const DashboardHome = () => {
           const byCourse = students.reduce((acc, student) => {
             const course = student.course?.name || student.course || 'Unknown';
             acc[course] = (acc[course] || 0) + 1;
-            return acc;
-          }, {});
+    return acc;
+      }, {});
           
           setStats(prev => ({
             ...prev,
@@ -447,10 +447,10 @@ const DashboardHome = () => {
       <div className="p-2 sm:p-3 md:p-4 mt-12 sm:mt-0 w-full space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
+        <div>
             <h1 className="text-3xl font-bold text-blue-900">Dashboard Overview</h1>
             <p className="text-gray-600 mt-1">Welcome back! Here's your system overview.</p>
-          </div>
+        </div>
           <div className="flex gap-2 bg-white p-2 rounded-lg shadow-sm">
             <button
               onClick={() => setTimeframe('week')}
@@ -514,8 +514,8 @@ const DashboardHome = () => {
             extra={`${stats.complaints.resolvedThisWeek} resolved this week`}
             onClick={() => navigate('/admin/dashboard/complaints')}
             animateDelay={0.2}
-          />
-        </div>
+            />
+          </div>
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -533,24 +533,24 @@ const DashboardHome = () => {
                     <div className="bg-blue-50 rounded-lg p-4">
                       <div className="text-2xl font-bold text-blue-900">{stats.students.active}</div>
                       <div className="text-sm text-blue-600">Active Students</div>
-                    </div>
+      </div>
                     <div className="bg-green-50 rounded-lg p-4">
                       <div className="text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
                       <div className="text-sm text-green-600">New This Week</div>
-                    </div>
-                  </div>
+        </div>
+                </div>
                   {stats.students.byCourse.length > 0 && (
-                    <div>
+                <div>
                       <div className="text-sm font-medium text-gray-700 mb-2">By Course</div>
                       <div className="space-y-2">
                         {stats.students.byCourse.slice(0, 3).map((course, idx) => (
                           <div key={idx} className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">{course.name}</span>
                             <span className="text-sm font-semibold text-gray-900">{course.count}</span>
-                          </div>
+                </div>
                         ))}
-                      </div>
-                    </div>
+              </div>
+            </div>
                   )}
                   <button
                     onClick={() => navigate('/admin/dashboard/students')}
@@ -570,16 +570,16 @@ const DashboardHome = () => {
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-4 text-white">
                     <div className="text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
                     <div className="text-sm opacity-90">Today's Attendance Rate</div>
-                  </div>
+                </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{stats.attendance.today.fullyPresent}</div>
                       <div className="text-xs text-gray-500">Fully Present</div>
-                    </div>
+                </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{stats.attendance.today.partiallyPresent}</div>
                       <div className="text-xs text-gray-500">Partial</div>
-                    </div>
+              </div>
                     <div className="text-center">
                       <div className="text-lg font-bold text-gray-900">{stats.attendance.today.absent}</div>
                       <div className="text-xs text-gray-500">Absent</div>
@@ -613,12 +613,12 @@ const DashboardHome = () => {
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="text-xl font-bold text-blue-900">₹{(stats.financial.electricityPayments / 1000).toFixed(0)}K</div>
                   <div className="text-xs text-blue-600">Electricity</div>
-                </div>
+              </div>
                 <div className="bg-green-50 rounded-lg p-4">
                   <div className="text-xl font-bold text-green-900">₹{(stats.financial.hostelFeeCollection / 1000).toFixed(0)}K</div>
                   <div className="text-xs text-green-600">Hostel Fees</div>
-                </div>
-              </div>
+            </div>
+          </div>
               <button
                 onClick={() => navigate('/admin/dashboard/fee-management')}
                 className="w-full mt-4 py-2 text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
@@ -639,21 +639,21 @@ const DashboardHome = () => {
                     <div className="text-center">
                       <div className="text-xl font-bold text-orange-900">{stats.complaints.active}</div>
                       <div className="text-xs text-gray-500">Active</div>
-                    </div>
+              </div>
                     <div className="text-center">
                       <div className="text-xl font-bold text-green-900">{stats.complaints.resolved}</div>
                       <div className="text-xs text-gray-500">Resolved</div>
-                    </div>
+                      </div>
                     <div className="text-center">
                       <div className="text-xl font-bold text-blue-900">{stats.complaints.inProgress}</div>
                       <div className="text-xs text-gray-500">In Progress</div>
+                      </div>
                     </div>
-                  </div>
                   {stats.complaints.avgResolutionTime > 0 && (
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-sm text-gray-600">Avg. Resolution Time</div>
                       <div className="text-lg font-bold text-gray-900">{stats.complaints.avgResolutionTime} days</div>
-                    </div>
+                  </div>
                   )}
                   <button
                     onClick={() => navigate('/admin/dashboard/complaints')}
@@ -661,7 +661,7 @@ const DashboardHome = () => {
                   >
                     Manage Complaints →
                   </button>
-                </div>
+              </div>
               </ModuleSection>
 
               <ModuleSection
@@ -683,17 +683,17 @@ const DashboardHome = () => {
                       <div className="text-lg font-bold text-red-900">{stats.leaves.rejectedToday}</div>
                       <div className="text-xs text-gray-500">Rejected Today</div>
                     </div>
-                  </div>
-                  <button
+                </div>
+                <button
                     onClick={() => navigate('/admin/dashboard/leave')}
                     className="w-full py-2 text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
-                  >
+                >
                     Manage Leaves →
-                  </button>
-                </div>
+                </button>
+              </div>
               </ModuleSection>
-            </div>
-          </div>
+                    </div>
+                  </div>
 
           {/* Right Column - 1/3 width */}
           <div className="space-y-6">
@@ -707,12 +707,12 @@ const DashboardHome = () => {
                 <div className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg p-4 text-white">
                   <div className="text-3xl font-bold mb-1">{stats.rooms.occupancyRate}%</div>
                   <div className="text-sm opacity-90">Occupancy Rate</div>
-                </div>
+              </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="text-center">
                     <div className="text-lg font-bold text-gray-900">{stats.rooms.occupied}</div>
                     <div className="text-xs text-gray-500">Occupied</div>
-                  </div>
+            </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-gray-900">{stats.rooms.available}</div>
                     <div className="text-xs text-gray-500">Available</div>
@@ -738,11 +738,11 @@ const DashboardHome = () => {
                   <div className="bg-pink-50 rounded-lg p-3 text-center">
                     <div className="text-xl font-bold text-pink-900">{stats.communication.activeAnnouncements}</div>
                     <div className="text-xs text-pink-600">Announcements</div>
-                  </div>
+                </div>
                   <div className="bg-purple-50 rounded-lg p-3 text-center">
                     <div className="text-xl font-bold text-purple-900">{stats.communication.activePolls}</div>
                     <div className="text-xs text-purple-600">Active Polls</div>
-                  </div>
+                </div>
                 </div>
                 {stats.communication.recentAnnouncements.length > 0 && (
                   <div>
@@ -751,9 +751,9 @@ const DashboardHome = () => {
                       {stats.communication.recentAnnouncements.map((announcement, idx) => (
                         <div key={idx} className="text-xs text-gray-600 truncate">
                           {announcement.title}
-                        </div>
-                      ))}
-                    </div>
+              </div>
+                    ))}
+                  </div>
                   </div>
                 )}
                 <button
@@ -793,11 +793,11 @@ const DashboardHome = () => {
                 >
                   Create Poll
                 </button>
-              </div>
             </div>
           </div>
         </div>
-      </div>
+        </div>
+    </div>
     </>
   );
 };
