@@ -875,7 +875,7 @@ const MenuManagement = () => {
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full self-start sm:self-auto">
-              Based on yesterday's night attendance
+              {foodCount?.description || 'Based on recent session attendance'}
             </div>
             <button
               onClick={async () => {
