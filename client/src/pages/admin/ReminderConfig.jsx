@@ -20,7 +20,7 @@ const ReminderConfig = () => {
   const { settings } = useGlobalSettings();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('pre'); // 'pre', 'post', 'auto', 'terms'
+  const [activeTab, setActiveTab] = useState('pre'); // 'pre', 'post', 'terms'
   const [config, setConfig] = useState({
     preReminders: {
       email: {
@@ -494,7 +494,6 @@ const ReminderConfig = () => {
             {[
               { id: 'pre', label: 'Pre Reminders', icon: ClockIcon, activeClass: 'border-green-600 text-green-600' },
               { id: 'post', label: 'Post Reminders', icon: ExclamationTriangleIcon, activeClass: 'border-red-600 text-red-600' },
-              { id: 'auto', label: 'Auto Settings', icon: Cog6ToothIcon, activeClass: 'border-blue-600 text-blue-600' },
               { id: 'terms', label: 'Term Dates', icon: ClockIcon, activeClass: 'border-purple-600 text-purple-600' }
             ].map((tab) => {
               const Icon = tab.icon;
@@ -555,8 +554,69 @@ const ReminderConfig = () => {
                   daysKey="daysBeforeDue"
                   availableDays={[1, 2, 3, 5]}
                 />
+              </div>
+
+              {/* Auto Settings for Pre Reminders */}
+              <div className="mt-6 bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <Cog6ToothIcon className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-base font-semibold text-gray-900">Auto Reminder Settings</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-900">Enable Auto Reminders</label>
+                      <p className="text-xs text-gray-500 mt-0.5">Automatically send pre-reminders based on schedule</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.autoReminders.enabled}
+                        onChange={(e) => handleAutoConfigChange('enabled', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  {config.autoReminders.enabled && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reminder Frequency
+                        </label>
+                        <select
+                          value={config.autoReminders.frequency}
+                          onChange={(e) => handleAutoConfigChange('frequency', e.target.value)}
+                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">How often to check and send automated reminders</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Max Pre Reminders per Student
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={config.autoReminders.maxPreReminders}
+                          onChange={(e) => handleAutoConfigChange('maxPreReminders', parseInt(e.target.value))}
+                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Maximum number of pre-reminders to send per student</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+            </div>
           )}
 
           {/* Post Reminders Tab */}
@@ -593,85 +653,69 @@ const ReminderConfig = () => {
                   daysKey="daysAfterDue"
                   availableDays={[1, 2, 3, 5, 7, 14]}
                 />
+              </div>
+
+              {/* Auto Settings for Post Reminders */}
+              <div className="mt-6 bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <Cog6ToothIcon className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-base font-semibold text-gray-900">Auto Reminder Settings</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-semibold text-gray-900">Enable Auto Reminders</label>
+                      <p className="text-xs text-gray-500 mt-0.5">Automatically send post-reminders based on schedule</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.autoReminders.enabled}
+                        onChange={(e) => handleAutoConfigChange('enabled', e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                  
+                  {config.autoReminders.enabled && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reminder Frequency
+                        </label>
+                        <select
+                          value={config.autoReminders.frequency}
+                          onChange={(e) => handleAutoConfigChange('frequency', e.target.value)}
+                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                        <p className="text-xs text-gray-500 mt-1">How often to check and send automated reminders</p>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Max Post Reminders per Student
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={config.autoReminders.maxPostReminders}
+                          onChange={(e) => handleAutoConfigChange('maxPostReminders', parseInt(e.target.value))}
+                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Maximum number of post-reminders to send per student</p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
-          )}
-
-          {/* Auto Reminders Tab */}
-          {activeTab === 'auto' && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Cog6ToothIcon className="w-5 h-5 text-blue-600" />
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">Auto Reminder Settings</h3>
-        </div>
-        
-              <div className="bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200 space-y-4">
-          <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-sm font-semibold text-gray-900">Enable Auto Reminders</label>
-                    <p className="text-xs text-gray-500 mt-0.5">Automatically send reminders based on schedule</p>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={config.autoReminders.enabled}
-              onChange={(e) => handleAutoConfigChange('enabled', e.target.checked)}
-                      className="sr-only peer"
-            />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-          </div>
-          
-                {config.autoReminders.enabled && (
-                  <>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reminder Frequency
-            </label>
-            <select
-              value={config.autoReminders.frequency}
-              onChange={(e) => handleAutoConfigChange('frequency', e.target.value)}
-                        className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-            >
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Max Pre Reminders per Student
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={config.autoReminders.maxPreReminders}
-                onChange={(e) => handleAutoConfigChange('maxPreReminders', parseInt(e.target.value))}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
             </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Max Post Reminders per Student
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10"
-                value={config.autoReminders.maxPostReminders}
-                onChange={(e) => handleAutoConfigChange('maxPostReminders', parseInt(e.target.value))}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-              />
-            </div>
-          </div>
-                  </>
-                )}
-        </div>
-      </div>
           )}
 
           {/* Term Due Date Configuration Tab */}
