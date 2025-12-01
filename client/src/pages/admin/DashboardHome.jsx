@@ -776,7 +776,7 @@ const DashboardHome = () => {
                 <div>
                       <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">By Course</div>
                       <div className="space-y-1.5 sm:space-y-2">
-                        {stats.students.byCourse.slice(0, 3).map((course, idx) => (
+                        {stats.students.byCourse.slice(0, 4).map((course, idx) => (
                           <div key={idx} className="flex justify-between items-center">
                             <span className="text-xs sm:text-sm text-gray-600 truncate pr-2">{course.name}</span>
                             <span className="text-xs sm:text-sm font-semibold text-gray-900">{course.count}</span>

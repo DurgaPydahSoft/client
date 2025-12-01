@@ -64,16 +64,38 @@ const ElectricityBills = () => {
         setRooms(fetchedRooms);
 
         // Initialize bulk billing data
-        const bulkData = fetchedRooms.map(room => ({
-          roomId: room._id,
-          roomNumber: room.roomNumber,
-          gender: room.gender,
-          category: room.category,
-          startUnits: room.lastBill?.endUnits || '',
-          endUnits: '',
-          rate: '',
-          isEdited: false
-        }));
+        const bulkData = fetchedRooms.map(room => {
+          const isDualMeter = room.meterType === 'dual';
+          const lastBill = room.lastBill;
+          
+          if (isDualMeter) {
+            return {
+              roomId: room._id,
+              roomNumber: room.roomNumber,
+              gender: room.gender,
+              category: room.category,
+              meterType: 'dual',
+              meter1StartUnits: lastBill?.meter1EndUnits || '',
+              meter1EndUnits: '',
+              meter2StartUnits: lastBill?.meter2EndUnits || '',
+              meter2EndUnits: '',
+              rate: '',
+              isEdited: false
+            };
+          } else {
+            return {
+              roomId: room._id,
+              roomNumber: room.roomNumber,
+              gender: room.gender,
+              category: room.category,
+              meterType: 'single',
+              startUnits: lastBill?.endUnits || '',
+              endUnits: '',
+              rate: '',
+              isEdited: false
+            };
+          }
+        });
         setBulkBillData(bulkData);
 
       } else {
@@ -105,15 +127,30 @@ const ElectricityBills = () => {
     const existingBill = bulkMonth ? room?.electricityBills.find(b => b.month === bulkMonth) : null;
     
     if (existingBill) {
+      const isDualMeter = room.meterType === 'dual';
+      
       // Store original values for cancel functionality
-      setEditModeData(prev => ({
-        ...prev,
-        [roomId]: {
-          startUnits: existingBill.startUnits,
-          endUnits: existingBill.endUnits,
-          rate: existingBill.rate
-        }
-      }));
+      if (isDualMeter) {
+        setEditModeData(prev => ({
+          ...prev,
+          [roomId]: {
+            meter1StartUnits: existingBill.meter1StartUnits,
+            meter1EndUnits: existingBill.meter1EndUnits,
+            meter2StartUnits: existingBill.meter2StartUnits,
+            meter2EndUnits: existingBill.meter2EndUnits,
+            rate: existingBill.rate
+          }
+        }));
+      } else {
+        setEditModeData(prev => ({
+          ...prev,
+          [roomId]: {
+            startUnits: existingBill.startUnits,
+            endUnits: existingBill.endUnits,
+            rate: existingBill.rate
+          }
+        }));
+      }
       
       // Enable edit mode
       setEditingBills(prev => new Set([...prev, roomId]));
@@ -122,13 +159,25 @@ const ElectricityBills = () => {
       setBulkBillData(prevData =>
         prevData.map(bill => {
           if (bill.roomId === roomId) {
-            return {
-              ...bill,
-              startUnits: existingBill.startUnits,
-              endUnits: existingBill.endUnits,
-              rate: existingBill.rate,
-              isEdited: false // Reset edited flag
-            };
+            if (isDualMeter) {
+              return {
+                ...bill,
+                meter1StartUnits: existingBill.meter1StartUnits,
+                meter1EndUnits: existingBill.meter1EndUnits,
+                meter2StartUnits: existingBill.meter2StartUnits,
+                meter2EndUnits: existingBill.meter2EndUnits,
+                rate: existingBill.rate,
+                isEdited: false // Reset edited flag
+              };
+            } else {
+              return {
+                ...bill,
+                startUnits: existingBill.startUnits,
+                endUnits: existingBill.endUnits,
+                rate: existingBill.rate,
+                isEdited: false // Reset edited flag
+              };
+            }
           }
           return bill;
         })
@@ -190,23 +239,55 @@ const ElectricityBills = () => {
       return;
     }
 
-    const startUnits = Number(billData.startUnits) || 0;
-    const endUnits = Number(billData.endUnits) || 0;
+    const room = rooms.find(r => r._id === roomId);
+    const isDualMeter = room?.meterType === 'dual';
     const rate = billData.rate !== '' ? Number(billData.rate) : Number(bulkRate) || 5;
 
-    if (endUnits < startUnits) {
-      toast.error('End units must be greater than or equal to start units');
-      return;
-    }
+    let payload;
 
-    setSavingRoomId(roomId);
-    try {
-      const payload = {
+    if (isDualMeter) {
+      const m1Start = Number(billData.meter1StartUnits) || 0;
+      const m1End = Number(billData.meter1EndUnits) || 0;
+      const m2Start = Number(billData.meter2StartUnits) || 0;
+      const m2End = Number(billData.meter2EndUnits) || 0;
+
+      if (m1End < m1Start) {
+        toast.error('Meter 1 ending units must be greater than or equal to starting units');
+        return;
+      }
+
+      if (m2End < m2Start) {
+        toast.error('Meter 2 ending units must be greater than or equal to starting units');
+        return;
+      }
+
+      payload = {
+        month: bulkMonth,
+        meter1StartUnits: m1Start,
+        meter1EndUnits: m1End,
+        meter2StartUnits: m2Start,
+        meter2EndUnits: m2End,
+        rate: rate
+      };
+    } else {
+      const startUnits = Number(billData.startUnits) || 0;
+      const endUnits = Number(billData.endUnits) || 0;
+
+      if (endUnits < startUnits) {
+        toast.error('End units must be greater than or equal to start units');
+        return;
+      }
+
+      payload = {
         month: bulkMonth,
         startUnits: startUnits,
         endUnits: endUnits,
         rate: rate
       };
+    }
+
+    setSavingRoomId(roomId);
+    try {
 
       await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${roomId}/electricity-bill`, payload, {
         headers: {
@@ -265,7 +346,23 @@ const ElectricityBills = () => {
       return;
     }
 
-    const billsToSave = bulkBillData.filter(bill => bill.isEdited && bill.endUnits && (Number(bill.endUnits) >= Number(bill.startUnits)));
+    const billsToSave = bulkBillData.filter(bill => {
+      if (!bill.isEdited) return false;
+      
+      if (bill.meterType === 'dual') {
+        // Dual meter validation
+        const m1Start = Number(bill.meter1StartUnits) || 0;
+        const m1End = Number(bill.meter1EndUnits) || 0;
+        const m2Start = Number(bill.meter2StartUnits) || 0;
+        const m2End = Number(bill.meter2EndUnits) || 0;
+        return m1End >= m1Start && m2End >= m2Start && m1End > 0 && m2End > 0;
+      } else {
+        // Single meter validation
+        const end = Number(bill.endUnits) || 0;
+        const start = Number(bill.startUnits) || 0;
+        return end >= start && end > 0;
+      }
+    });
 
     if (billsToSave.length === 0) {
       toast.error('No valid bills to save. Please enter end units for at least one room.');
@@ -276,12 +373,28 @@ const ElectricityBills = () => {
     try {
       const payload = {
         month: bulkMonth,
-        bills: billsToSave.map(b => ({
-          roomId: b.roomId,
-          startUnits: Number(b.startUnits),
-          endUnits: Number(b.endUnits),
-          rate: b.rate !== '' ? Number(b.rate) : undefined,
-        }))
+        bills: billsToSave.map(b => {
+          const baseBill = {
+            roomId: b.roomId,
+            rate: b.rate !== '' ? Number(b.rate) : undefined,
+          };
+          
+          if (b.meterType === 'dual') {
+            return {
+              ...baseBill,
+              meter1StartUnits: Number(b.meter1StartUnits),
+              meter1EndUnits: Number(b.meter1EndUnits),
+              meter2StartUnits: Number(b.meter2StartUnits),
+              meter2EndUnits: Number(b.meter2EndUnits),
+            };
+          } else {
+            return {
+              ...baseBill,
+              startUnits: Number(b.startUnits),
+              endUnits: Number(b.endUnits),
+            };
+          }
+        })
       };
 
       await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/bulk-electricity-bills`, payload, {
@@ -314,14 +427,30 @@ const ElectricityBills = () => {
       return;
     }
 
+    const room = rooms.find(r => r._id === roomId);
+    const isDualMeter = room?.meterType === 'dual';
+
     setSavingRoomId(roomId);
     try {
-      const payload = {
-        month: billData.month,
-        startUnits: billData.startUnits,
-        endUnits: billData.endUnits,
-        rate: billData.rate
-      };
+      let payload;
+      
+      if (isDualMeter) {
+        payload = {
+          month: billData.month,
+          meter1StartUnits: billData.meter1StartUnits,
+          meter1EndUnits: billData.meter1EndUnits,
+          meter2StartUnits: billData.meter2StartUnits,
+          meter2EndUnits: billData.meter2EndUnits,
+          rate: billData.rate
+        };
+      } else {
+        payload = {
+          month: billData.month,
+          startUnits: billData.startUnits,
+          endUnits: billData.endUnits,
+          rate: billData.rate
+        };
+      }
 
       await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${roomId}/electricity-bill`, payload, {
         headers: {
@@ -510,31 +639,68 @@ const ElectricityBills = () => {
             const room = rooms.find(r => r._id === bill.roomId);
             const existingBill = bulkMonth ? room?.electricityBills.find(b => b.month === bulkMonth) : null;
             const isAlreadyBilled = !!existingBill;
+            const isDualMeter = room?.meterType === 'dual' || bill.meterType === 'dual';
 
             let startUnits, endUnits, rate, consumption, total, isValid;
+            let meter1StartUnits, meter1EndUnits, meter2StartUnits, meter2EndUnits;
+            let meter1Consumption, meter2Consumption;
 
             if (isAlreadyBilled && !editingBills.has(bill.roomId)) {
               // Show existing bill values when not editing
-              startUnits = existingBill.startUnits;
-              endUnits = existingBill.endUnits;
+              if (isDualMeter && existingBill.meter1StartUnits !== undefined) {
+                meter1StartUnits = existingBill.meter1StartUnits;
+                meter1EndUnits = existingBill.meter1EndUnits;
+                meter2StartUnits = existingBill.meter2StartUnits;
+                meter2EndUnits = existingBill.meter2EndUnits;
+                meter1Consumption = existingBill.meter1Consumption || 0;
+                meter2Consumption = existingBill.meter2Consumption || 0;
+                consumption = existingBill.consumption;
+              } else {
+                startUnits = existingBill.startUnits;
+                endUnits = existingBill.endUnits;
+                consumption = existingBill.consumption;
+              }
               rate = existingBill.rate;
-              consumption = existingBill.consumption;
               total = existingBill.total;
               isValid = true;
             } else {
               // Use bulk bill data for new bills or when editing
-              startUnits = Number(bill.startUnits) || 0;
-              endUnits = Number(bill.endUnits) || 0;
               rate = Number(bill.rate) || Number(bulkRate) || 5;
 
-              isValid = endUnits >= startUnits;
+              if (isDualMeter) {
+                meter1StartUnits = Number(bill.meter1StartUnits) || 0;
+                meter1EndUnits = Number(bill.meter1EndUnits) || 0;
+                meter2StartUnits = Number(bill.meter2StartUnits) || 0;
+                meter2EndUnits = Number(bill.meter2EndUnits) || 0;
 
-              if (isValid) {
-                consumption = endUnits - startUnits;
-                total = consumption * rate;
+                const m1Valid = meter1EndUnits >= meter1StartUnits;
+                const m2Valid = meter2EndUnits >= meter2StartUnits;
+                isValid = m1Valid && m2Valid;
+
+                if (isValid) {
+                  meter1Consumption = meter1EndUnits - meter1StartUnits;
+                  meter2Consumption = meter2EndUnits - meter2StartUnits;
+                  consumption = meter1Consumption + meter2Consumption;
+                  total = consumption * rate;
+                } else {
+                  meter1Consumption = 0;
+                  meter2Consumption = 0;
+                  consumption = 0;
+                  total = 0;
+                }
               } else {
-                consumption = 0;
-                total = 0;
+                startUnits = Number(bill.startUnits) || 0;
+                endUnits = Number(bill.endUnits) || 0;
+
+                isValid = endUnits >= startUnits;
+
+                if (isValid) {
+                  consumption = endUnits - startUnits;
+                  total = consumption * rate;
+                } else {
+                  consumption = 0;
+                  total = 0;
+                }
               }
             }
 
@@ -578,43 +744,129 @@ const ElectricityBills = () => {
 
                 {/* Card Content */}
                 <div className="space-y-3">
-                  {/* Start Units */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
-                    <input
-                      type="number"
-                      value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
-                      onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
-                      disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                        isAlreadyBilled && !editingBills.has(bill.roomId) 
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
-                          : 'border-gray-300'
-                      }`}
-                      placeholder="Enter start units"
-                    />
-                  </div>
+                  {isDualMeter ? (
+                    <>
+                      {/* Dual Meter Mode */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mb-2">
+                        <p className="text-xs font-semibold text-blue-800">⚡ Dual Meter Mode</p>
+                      </div>
+                      
+                      {/* Meter 1 */}
+                      <div className="border-l-4 border-blue-500 pl-3 space-y-2">
+                        <p className="text-xs font-semibold text-gray-700">Meter 1</p>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                          <input
+                            type="number"
+                            value={editingBills.has(bill.roomId) ? bill.meter1StartUnits : (isAlreadyBilled ? meter1StartUnits : bill.meter1StartUnits)}
+                            onChange={(e) => handleBulkBillChange(bill.roomId, 'meter1StartUnits', e.target.value)}
+                            disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                              isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                                : 'border-gray-300'
+                            }`}
+                            placeholder="Enter start units"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                          <input
+                            type="number"
+                            placeholder="Enter new reading"
+                            value={editingBills.has(bill.roomId) ? bill.meter1EndUnits : (isAlreadyBilled ? meter1EndUnits : bill.meter1EndUnits)}
+                            onChange={(e) => handleBulkBillChange(bill.roomId, 'meter1EndUnits', e.target.value)}
+                            disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                              !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
+                              isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                : 'border-gray-300'
+                            }`}
+                          />
+                        </div>
+                      </div>
 
-                  {/* End Units */}
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
-                    <input
-                      type="number"
-                      placeholder="Enter new reading"
-                      value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
-                      onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                      disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                      className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
-                        !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
-                        isAlreadyBilled && !editingBills.has(bill.roomId) 
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
-                          : 'border-gray-300'
-                      }`}
-                    />
-                    {!isValid && !isAlreadyBilled && (
-                      <p className="text-xs text-red-600 mt-1">End units must be greater than start units</p>
-                    )}
-                  </div>
+                      {/* Meter 2 */}
+                      <div className="border-l-4 border-green-500 pl-3 space-y-2">
+                        <p className="text-xs font-semibold text-gray-700">Meter 2</p>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                          <input
+                            type="number"
+                            value={editingBills.has(bill.roomId) ? bill.meter2StartUnits : (isAlreadyBilled ? meter2StartUnits : bill.meter2StartUnits)}
+                            onChange={(e) => handleBulkBillChange(bill.roomId, 'meter2StartUnits', e.target.value)}
+                            disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                              isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                                : 'border-gray-300'
+                            }`}
+                            placeholder="Enter start units"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                          <input
+                            type="number"
+                            placeholder="Enter new reading"
+                            value={editingBills.has(bill.roomId) ? bill.meter2EndUnits : (isAlreadyBilled ? meter2EndUnits : bill.meter2EndUnits)}
+                            onChange={(e) => handleBulkBillChange(bill.roomId, 'meter2EndUnits', e.target.value)}
+                            disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                              !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
+                              isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                : 'border-gray-300'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                      
+                      {!isValid && !isAlreadyBilled && (
+                        <p className="text-xs text-red-600">End units must be greater than or equal to start units for both meters</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* Single Meter Mode */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                        <input
+                          type="number"
+                          value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
+                          onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
+                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                            isAlreadyBilled && !editingBills.has(bill.roomId) 
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
+                              : 'border-gray-300'
+                          }`}
+                          placeholder="Enter start units"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                        <input
+                          type="number"
+                          placeholder="Enter new reading"
+                          value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
+                          onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
+                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                            !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
+                            isAlreadyBilled && !editingBills.has(bill.roomId) 
+                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                              : 'border-gray-300'
+                          }`}
+                        />
+                        {!isValid && !isAlreadyBilled && (
+                          <p className="text-xs text-red-600 mt-1">End units must be greater than start units</p>
+                        )}
+                      </div>
+                    </>
+                  )}
 
                   {/* Rate */}
                   <div>
@@ -693,7 +945,14 @@ const ElectricityBills = () => {
                       ) : (
                         // Save button for new bills
                         <button
-                          onClick={() => handleSaveSingleBill(bill.roomId, {
+                          onClick={() => handleSaveSingleBill(bill.roomId, isDualMeter ? {
+                            month: bulkMonth,
+                            meter1StartUnits: Number(bill.meter1StartUnits) || 0,
+                            meter1EndUnits: Number(bill.meter1EndUnits) || 0,
+                            meter2StartUnits: Number(bill.meter2StartUnits) || 0,
+                            meter2EndUnits: Number(bill.meter2EndUnits) || 0,
+                            rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
+                          } : {
                             month: bulkMonth,
                             startUnits: Number(bill.startUnits) || 0,
                             endUnits: Number(bill.endUnits) || 0,
@@ -731,8 +990,10 @@ const ElectricityBills = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Units</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Units</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meter Readings</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consumption</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
@@ -750,31 +1011,68 @@ const ElectricityBills = () => {
                   const room = rooms.find(r => r._id === bill.roomId);
                   const existingBill = bulkMonth ? room?.electricityBills.find(b => b.month === bulkMonth) : null;
                   const isAlreadyBilled = !!existingBill;
+                  const isDualMeter = room?.meterType === 'dual' || bill.meterType === 'dual';
 
                   let startUnits, endUnits, rate, consumption, total, isValid;
+                  let meter1StartUnits, meter1EndUnits, meter2StartUnits, meter2EndUnits;
+                  let meter1Consumption, meter2Consumption;
 
                   if (isAlreadyBilled && !editingBills.has(bill.roomId)) {
                     // Show existing bill values when not editing
-                    startUnits = existingBill.startUnits;
-                    endUnits = existingBill.endUnits;
+                    if (isDualMeter && existingBill.meter1StartUnits !== undefined) {
+                      meter1StartUnits = existingBill.meter1StartUnits;
+                      meter1EndUnits = existingBill.meter1EndUnits;
+                      meter2StartUnits = existingBill.meter2StartUnits;
+                      meter2EndUnits = existingBill.meter2EndUnits;
+                      meter1Consumption = existingBill.meter1Consumption || 0;
+                      meter2Consumption = existingBill.meter2Consumption || 0;
+                      consumption = existingBill.consumption;
+                    } else {
+                      startUnits = existingBill.startUnits;
+                      endUnits = existingBill.endUnits;
+                      consumption = existingBill.consumption;
+                    }
                     rate = existingBill.rate;
-                    consumption = existingBill.consumption;
                     total = existingBill.total;
                     isValid = true;
                   } else {
                     // Use bulk bill data for new bills or when editing
-                    startUnits = Number(bill.startUnits) || 0;
-                    endUnits = Number(bill.endUnits) || 0;
                     rate = Number(bill.rate) || Number(bulkRate) || 5;
 
-                    isValid = endUnits >= startUnits;
+                    if (isDualMeter) {
+                      meter1StartUnits = Number(bill.meter1StartUnits) || 0;
+                      meter1EndUnits = Number(bill.meter1EndUnits) || 0;
+                      meter2StartUnits = Number(bill.meter2StartUnits) || 0;
+                      meter2EndUnits = Number(bill.meter2EndUnits) || 0;
 
-                    if (isValid) {
-                      consumption = endUnits - startUnits;
-                      total = consumption * rate;
+                      const m1Valid = meter1EndUnits >= meter1StartUnits;
+                      const m2Valid = meter2EndUnits >= meter2StartUnits;
+                      isValid = m1Valid && m2Valid;
+
+                      if (isValid) {
+                        meter1Consumption = meter1EndUnits - meter1StartUnits;
+                        meter2Consumption = meter2EndUnits - meter2StartUnits;
+                        consumption = meter1Consumption + meter2Consumption;
+                        total = consumption * rate;
+                      } else {
+                        meter1Consumption = 0;
+                        meter2Consumption = 0;
+                        consumption = 0;
+                        total = 0;
+                      }
                     } else {
-                      consumption = 0;
-                      total = 0;
+                      startUnits = Number(bill.startUnits) || 0;
+                      endUnits = Number(bill.endUnits) || 0;
+
+                      isValid = endUnits >= startUnits;
+
+                      if (isValid) {
+                        consumption = endUnits - startUnits;
+                        total = consumption * rate;
+                      } else {
+                        consumption = 0;
+                        total = 0;
+                      }
                     }
                   }
 
@@ -788,6 +1086,9 @@ const ElectricityBills = () => {
                         {bill.roomNumber}
                         <div className="flex items-center mt-1">
                           <span className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</span>
+                          {isDualMeter && (
+                            <span className="ml-2 px-2 py-0.5 text-xs text-white bg-blue-600 rounded-full">Dual</span>
+                          )}
                           {isAlreadyBilled && !editingBills.has(bill.roomId) && (
                             <span className="ml-2 px-2 py-0.5 text-xs text-white bg-green-600 rounded-full">Billed</span>
                           )}
@@ -796,34 +1097,102 @@ const ElectricityBills = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <input
-                          type="number"
-                          value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
-                          onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
-                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                          className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                            isAlreadyBilled && !editingBills.has(bill.roomId) 
-                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
-                              : 'border-gray-300'
-                          }`}
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <input
-                          type="number"
-                          placeholder="New reading"
-                          value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
-                          onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
-                          disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                          className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                            !isValid && !isAlreadyBilled ? 'border-red-500' : 
-                            isAlreadyBilled && !editingBills.has(bill.roomId) 
-                              ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
-                              : 'border-gray-300'
-                          }`}
-                        />
-                      </td>
+                      {isDualMeter ? (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              value={editingBills.has(bill.roomId) ? bill.meter1StartUnits : (isAlreadyBilled ? meter1StartUnits : bill.meter1StartUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'meter1StartUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-20 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                              placeholder="M1 Start"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              placeholder="M1 End"
+                              value={editingBills.has(bill.roomId) ? bill.meter1EndUnits : (isAlreadyBilled ? meter1EndUnits : bill.meter1EndUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'meter1EndUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-20 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                !isValid && !isAlreadyBilled ? 'border-red-500' : 
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              value={editingBills.has(bill.roomId) ? bill.meter2StartUnits : (isAlreadyBilled ? meter2StartUnits : bill.meter2StartUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'meter2StartUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-20 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                              placeholder="M2 Start"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              placeholder="M2 End"
+                              value={editingBills.has(bill.roomId) ? bill.meter2EndUnits : (isAlreadyBilled ? meter2EndUnits : bill.meter2EndUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'meter2EndUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-20 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                !isValid && !isAlreadyBilled ? 'border-red-500' : 
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                              placeholder="Start"
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <input
+                              type="number"
+                              placeholder="End"
+                              value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
+                              onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
+                              disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
+                              className={`w-24 p-1 border rounded focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                                !isValid && !isAlreadyBilled ? 'border-red-500' : 
+                                isAlreadyBilled && !editingBills.has(bill.roomId) 
+                                  ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">-</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">-</td>
+                        </>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <input
                           type="number"
@@ -882,7 +1251,14 @@ const ElectricityBills = () => {
                           ) : (
                             // Save button for new bills
                             <button
-                              onClick={() => handleSaveSingleBill(bill.roomId, {
+                              onClick={() => handleSaveSingleBill(bill.roomId, isDualMeter ? {
+                                month: bulkMonth,
+                                meter1StartUnits: Number(bill.meter1StartUnits) || 0,
+                                meter1EndUnits: Number(bill.meter1EndUnits) || 0,
+                                meter2StartUnits: Number(bill.meter2StartUnits) || 0,
+                                meter2EndUnits: Number(bill.meter2EndUnits) || 0,
+                                rate: bill.rate !== '' ? Number(bill.rate) : Number(bulkRate) || 5
+                              } : {
                                 month: bulkMonth,
                                 startUnits: Number(bill.startUnits) || 0,
                                 endUnits: Number(bill.endUnits) || 0,

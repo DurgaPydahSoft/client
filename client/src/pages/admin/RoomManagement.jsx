@@ -61,7 +61,8 @@ const RoomManagement = () => {
     gender: '',
     category: '',
     roomNumber: '',
-    bedCount: 1
+    bedCount: 1,
+    meterType: 'single'
   });
   const [showBillModal, setShowBillModal] = useState(false);
   const [billForm, setBillForm] = useState({ month: '', startUnits: '', endUnits: '', rate: '' });
@@ -168,7 +169,7 @@ const RoomManagement = () => {
       await api.post('/api/admin/rooms', formData);
       toast.success('Room added successfully');
       setShowAddModal(false);
-      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1 });
+      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
       fetchRooms();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add room');
@@ -188,7 +189,7 @@ const RoomManagement = () => {
       toast.success('Room updated successfully');
       setShowEditModal(false);
       setSelectedRoom(null);
-      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1 });
+      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
       fetchRooms();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update room');
@@ -218,7 +219,8 @@ const RoomManagement = () => {
       gender: room.gender,
       category: room.category,
       roomNumber: room.roomNumber,
-      bedCount: room.bedCount || 1
+      bedCount: room.bedCount || 1,
+      meterType: room.meterType || 'single'
     });
     setShowEditModal(true);
   };
@@ -1001,6 +1003,26 @@ const RoomManagement = () => {
                     placeholder="Enter bed count"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Meter Type
+                  </label>
+                  <select
+                    name="meterType"
+                    value={formData.meterType}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                  >
+                    <option value="single">Single Meter</option>
+                    <option value="dual">Dual Meter</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.meterType === 'dual' 
+                      ? 'This room has two electricity meters. You will need to enter readings for both meters when billing.'
+                      : 'This room has a single electricity meter.'}
+                  </p>
+                </div>
                 <div className="flex justify-end gap-2 sm:gap-3">
                   <button
                     type="button"
@@ -1107,6 +1129,26 @@ const RoomManagement = () => {
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                     placeholder="Enter bed count"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Meter Type
+                  </label>
+                  <select
+                    name="meterType"
+                    value={formData.meterType}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                  >
+                    <option value="single">Single Meter</option>
+                    <option value="dual">Dual Meter</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {formData.meterType === 'dual' 
+                      ? 'This room has two electricity meters. You will need to enter readings for both meters when billing.'
+                      : 'This room has a single electricity meter.'}
+                  </p>
                 </div>
                 <div className="flex justify-end gap-2 sm:gap-3">
                   <button
