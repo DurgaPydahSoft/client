@@ -55,17 +55,6 @@ const Login = () => {
   const handleSubmit = async e => {
     e.preventDefault();
     setLoading(true);
-    toast('Please wait at least 30-40 seconds because sometimes the server faces huge loads', {
-      icon: '⏳',
-      duration: 4000,
-      style: {
-        background: '#1e40af',
-        color: '#ffffff',
-        fontSize: '14px',
-        padding: '12px 16px',
-        borderRadius: '8px'
-      }
-    });
     try {
       if (role === 'admin') {
         const result = await login('admin', {
