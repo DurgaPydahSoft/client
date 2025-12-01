@@ -7,7 +7,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '../../context/AuthContext';
-import { hasFullAccess, canPerformAction } from '../../utils/permissionUtils';
+import { hasFullAccess, canPerformAction, hasPermission } from '../../utils/permissionUtils';
 import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 
 // Dynamic course and branch data will be fetched from backend
@@ -138,6 +138,7 @@ const Students = () => {
   const canEditStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'edit');
   const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
   const canAddStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'create');
+  const canManageConcessions = isSuperAdmin || hasPermission(user, 'concession_management');
 
 
   const [tab, setTab] = useState('list');
@@ -259,6 +260,22 @@ const Students = () => {
 
   // Admit card download state
   const [downloadingAdmitCard, setDownloadingAdmitCard] = useState(false);
+
+  // Concession request modal states
+  const [concessionRequestModal, setConcessionRequestModal] = useState(false);
+  const [concessionRequestForm, setConcessionRequestForm] = useState({
+    amount: '',
+    notes: ''
+  });
+  const [concessionRequestLoading, setConcessionRequestLoading] = useState(false);
+  const [concessionFeeStructure, setConcessionFeeStructure] = useState(null);
+  const [concessionCalculatedFees, setConcessionCalculatedFees] = useState({
+    term1: 0,
+    term2: 0,
+    term3: 0,
+    total: 0
+  });
+  const [loadingConcessionFeeStructure, setLoadingConcessionFeeStructure] = useState(false);
 
   // Room availability states
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
@@ -3375,19 +3392,92 @@ const Students = () => {
                       <span className="text-xs sm:text-sm text-gray-600 w-24">Gender:</span>
                       <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.gender}</span>
                     </div>
+                    {/* Student Phone */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Student Phone:</span>
+                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.studentPhone || 'N/A'}</span>
+                    </div>
+                    {/* Parent Phone */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Parent Phone:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.parentPhone || 'N/A'}</span>
+                    </div>
+                    {/* Email */}
+                    <div className="flex items-center space-x-2 sm:col-span-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Email:</span>
+                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.email || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Bottom Section: Other Info Cards */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {/* Fee & Concession Information */}
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-orange-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Fee & Concession
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-orange-700">Concession:</span>
+                      <span className="font-medium text-orange-900 text-sm sm:text-base">
+                        ₹{(selectedStudent.concession || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-orange-700">Status:</span>
+                      {selectedStudent.concession > 0 ? (
+                        selectedStudent.concessionApproved ? (
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Approved
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </span>
+                        )
+                      ) : (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          No Concession
+                        </span>
+                      )}
+                    </div>
+                    {selectedStudent.totalCalculatedFee > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-orange-700">Total Fee (After Concession):</span>
+                        <span className="font-medium text-orange-900 text-sm sm:text-base">
+                          ₹{selectedStudent.totalCalculatedFee.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {canManageConcessions && (
+                      <button
+                        onClick={() => {
+                          setStudentDetailsModal(false);
+                          openConcessionRequestModal(selectedStudent);
+                        }}
+                        className="w-full mt-2 px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        {selectedStudent.concession > 0 ? 'Update Concession' : 'Request Concession'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Academic Information */}
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h4 className="text-base sm:text-lg font-semibold text-blue-800 mb-3 flex items-center">
                     <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
-                    Academic Information
+                    Academic Info
                   </h4>
                   <div className="space-y-3">
                     {[
@@ -3401,28 +3491,6 @@ const Students = () => {
                       <div key={item.label} className="flex items-center justify-between">
                         <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
                         <span className="font-medium text-blue-900 text-sm sm:text-base">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Contact Information */}
-                <div className="bg-green-50 rounded-lg p-4">
-                  <h4 className="text-base sm:text-lg font-semibold text-green-800 mb-3 flex items-center">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                    </svg>
-                    Contact Information
-                  </h4>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Student Phone', value: selectedStudent.studentPhone },
-                      { label: 'Parent Phone', value: selectedStudent.parentPhone },
-                      { label: 'Email', value: selectedStudent.email },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-green-700">{item.label}:</span>
-                        <span className="font-medium text-green-900 break-all text-sm sm:text-base">{item.value}</span>
                       </div>
                     ))}
                   </div>
@@ -5452,6 +5520,136 @@ const Students = () => {
     setStudentDetailsModal(true);
   };
 
+  // Open concession request modal
+  const openConcessionRequestModal = (student) => {
+    if (!canManageConcessions) {
+      toast.error('You do not have permission to manage concessions');
+      return;
+    }
+    setSelectedStudent(student);
+    setConcessionRequestForm({
+      amount: student.concession?.toString() || '',
+      notes: ''
+    });
+    setConcessionRequestModal(true);
+    // Fetch fee structure for preview
+    if (student.academicYear && student.course && student.year && student.category) {
+      const courseId = student.course?._id || student.course;
+      fetchConcessionFeeStructure(student.academicYear, courseId, student.year, student.category);
+    }
+  };
+
+  // Fetch fee structure for concession preview
+  const fetchConcessionFeeStructure = async (academicYear, courseId, year, category) => {
+    if (!academicYear || !courseId || !year || !category) {
+      setConcessionFeeStructure(null);
+      setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+      return;
+    }
+
+    try {
+      setLoadingConcessionFeeStructure(true);
+      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${courseId}/${year}/${category}`);
+
+      if (response.data.success) {
+        const feeData = response.data.data;
+        setConcessionFeeStructure(feeData);
+
+        // Calculate initial fees without concession
+        const term1 = feeData.term1Fee || 0;
+        const term2 = feeData.term2Fee || 0;
+        const term3 = feeData.term3Fee || 0;
+        const total = term1 + term2 + term3;
+
+        setConcessionCalculatedFees({
+          term1,
+          term2,
+          term3,
+          total
+        });
+      } else {
+        setConcessionFeeStructure(null);
+        setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+      }
+    } catch (error) {
+      console.error('Error fetching fee structure for concession:', error);
+      setConcessionFeeStructure(null);
+      setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+    } finally {
+      setLoadingConcessionFeeStructure(false);
+    }
+  };
+
+  // Calculate fees with concession for preview
+  const calculateConcessionFees = (concessionAmount) => {
+    if (!concessionFeeStructure) return;
+
+    const concession = Number(concessionAmount) || 0;
+    
+    // Apply concession to Term 1 first
+    let term1 = Math.max(0, concessionFeeStructure.term1Fee - concession);
+    
+    // If concession exceeds Term 1 fee, apply excess to Term 2
+    let remainingConcession = Math.max(0, concession - concessionFeeStructure.term1Fee);
+    let term2 = Math.max(0, concessionFeeStructure.term2Fee - remainingConcession);
+    
+    // If concession still exceeds Term 1 + Term 2, apply to Term 3
+    remainingConcession = Math.max(0, remainingConcession - concessionFeeStructure.term2Fee);
+    let term3 = Math.max(0, concessionFeeStructure.term3Fee - remainingConcession);
+    
+    const total = term1 + term2 + term3;
+
+    setConcessionCalculatedFees({ term1, term2, term3, total });
+  };
+
+  // Handle concession request submission
+  const handleConcessionRequest = async (e) => {
+    e.preventDefault();
+    
+    if (!canManageConcessions) {
+      toast.error('You do not have permission to manage concessions');
+      return;
+    }
+
+    if (!selectedStudent) {
+      toast.error('No student selected');
+      return;
+    }
+
+    const concessionAmount = Number(concessionRequestForm.amount) || 0;
+    
+    if (concessionAmount < 0) {
+      toast.error('Concession amount cannot be negative');
+      return;
+    }
+
+    setConcessionRequestLoading(true);
+    try {
+      // Call update student API with concession field
+      await api.put(`/api/admin/students/${selectedStudent._id}`, {
+        concession: concessionAmount
+      });
+
+      toast.success(concessionAmount > 0 
+        ? 'Concession request submitted successfully. It will be reviewed by super admin.'
+        : 'Concession removed successfully.'
+      );
+      
+      setConcessionRequestModal(false);
+      setConcessionRequestForm({ amount: '', notes: '' });
+      
+      // Refresh student list and close details modal to refresh data
+      fetchStudents();
+      setStudentDetailsModal(false);
+      setSelectedStudent(null);
+    } catch (err) {
+      console.error('Error requesting concession:', err);
+      toast.error(err.response?.data?.message || 'Failed to request concession');
+    } finally {
+      setConcessionRequestLoading(false);
+    }
+  };
+
   // Download admit card function
   const handleDownloadAdmitCard = async (student) => {
     if (!student.studentPhoto) {
@@ -5754,6 +5952,192 @@ const Students = () => {
     )
   );
 
+  // Concession Request Modal Component
+  const renderConcessionRequestModal = () => (
+    concessionRequestModal && selectedStudent && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-800">
+              {selectedStudent.concession > 0 ? 'Update Concession' : 'Request Concession'}
+            </h3>
+            <button
+              onClick={() => {
+                setConcessionRequestModal(false);
+                setConcessionRequestForm({ amount: '', notes: '' });
+                setConcessionFeeStructure(null);
+                setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+              }}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+            >
+              <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <form onSubmit={handleConcessionRequest} className="p-4 sm:p-6">
+            {/* Student Info */}
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-3">
+                {selectedStudent.studentPhoto && (
+                  <img
+                    src={selectedStudent.studentPhoto}
+                    alt={selectedStudent.name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-200"
+                  />
+                )}
+                <div>
+                  <p className="font-semibold text-gray-900">{selectedStudent.name}</p>
+                  <p className="text-sm text-gray-600">{selectedStudent.rollNumber}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Concession Amount Input */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Concession Amount (₹) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={concessionRequestForm.amount}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setConcessionRequestForm(prev => ({ ...prev, amount: value }));
+                  calculateConcessionFees(value);
+                }}
+                required
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                placeholder="Enter concession amount"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter 0 to remove existing concession
+              </p>
+            </div>
+
+            {/* Notes (Optional) */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes (Optional)
+              </label>
+              <textarea
+                value={concessionRequestForm.notes}
+                onChange={(e) => setConcessionRequestForm(prev => ({ ...prev, notes: e.target.value }))}
+                rows={3}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                placeholder="Add any notes or remarks about this concession request..."
+              />
+            </div>
+
+            {/* Fee Preview */}
+            {loadingConcessionFeeStructure ? (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-center">
+                  <LoadingSpinner size="sm" />
+                  <span className="ml-2 text-sm text-gray-600">Loading fee structure...</span>
+                </div>
+              </div>
+            ) : concessionFeeStructure && concessionRequestForm.amount ? (
+              <div className="bg-orange-50 rounded-lg p-4 mb-4 border border-orange-200">
+                <h4 className="text-sm font-semibold text-orange-800 mb-3">Fee Preview</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Original Total Fee:</span>
+                    <span className="font-medium text-gray-900">
+                      ₹{concessionFeeStructure.totalFee.toLocaleString()}
+                    </span>
+                  </div>
+                  {Number(concessionRequestForm.amount) > 0 && (
+                    <>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Concession Amount:</span>
+                        <span className="font-medium text-orange-600">
+                          - ₹{Number(concessionRequestForm.amount).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="border-t border-orange-200 pt-2 mt-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">After Concession:</span>
+                          <span className="font-semibold text-orange-800">
+                            ₹{concessionCalculatedFees.total.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-500">
+                          <div>Term 1: ₹{concessionCalculatedFees.term1.toLocaleString()}</div>
+                          <div>Term 2: ₹{concessionCalculatedFees.term2.toLocaleString()}</div>
+                          <div>Term 3: ₹{concessionCalculatedFees.term3.toLocaleString()}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : concessionRequestForm.amount && Number(concessionRequestForm.amount) > 0 ? (
+              <div className="bg-yellow-50 rounded-lg p-4 mb-4 border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Fee structure not available. Fee calculation preview unavailable.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Info Message */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-start">
+                <ExclamationTriangleIcon className="h-5 w-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                <div className="text-sm text-blue-800">
+                  <p className="font-medium mb-1">Important:</p>
+                  <p className="text-xs">
+                    This concession request will be submitted for approval. Once approved by super admin, 
+                    the fees will be recalculated automatically. You can track the approval status in the 
+                    Fee Management → Concessions tab.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setConcessionRequestModal(false);
+                  setConcessionRequestForm({ amount: '', notes: '' });
+                  setConcessionFeeStructure(null);
+                  setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+                }}
+                className="w-full sm:w-auto px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                disabled={concessionRequestLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={concessionRequestLoading}
+                className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${
+                  concessionRequestLoading
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-orange-600 hover:bg-orange-700'
+                }`}
+              >
+                {concessionRequestLoading ? (
+                  <span className="flex items-center justify-center">
+                    <LoadingSpinner size="sm" className="border-white mr-2" />
+                    Submitting...
+                  </span>
+                ) : (
+                  'Submit Request'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )
+  );
+
   // Camera Modal Component
   const renderCameraModal = () => (
     showCamera && (
@@ -5921,6 +6305,7 @@ const Students = () => {
       {passwordResetModal && renderPasswordResetModal()}
       {renderShareModal()}
       {renderCameraModal()}
+      {renderConcessionRequestModal()}
 
       {/* Room View Modal */}
       {showRoomViewModal && selectedRoom && (
