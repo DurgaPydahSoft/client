@@ -30,6 +30,8 @@ import {
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../utils/permissionUtils';
 
 // Enhanced StatCard component with trend indicators
 const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, onClick, animateDelay = 0 }) => {
@@ -97,8 +99,60 @@ const ModuleSection = ({ title, icon: Icon, iconColor, children, className = '' 
 
 const DashboardHome = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('week');
+  
+  // Permission checks for each module
+  const canViewStudents = useMemo(() => hasPermission(user, 'student_management') || user?.role === 'warden', [user]);
+  const canViewAttendance = useMemo(() => hasPermission(user, 'attendance_management') || user?.role === 'warden', [user]);
+  const canViewFinancial = useMemo(() => hasPermission(user, 'fee_management'), [user]);
+  const canViewComplaints = useMemo(() => hasPermission(user, 'maintenance_ticket_management') || user?.role === 'warden', [user]);
+  const canViewLeaves = useMemo(() => hasPermission(user, 'leave_management') || user?.role === 'warden', [user]);
+  const canViewMenu = useMemo(() => hasPermission(user, 'menu_management'), [user]);
+  const canViewRooms = useMemo(() => hasPermission(user, 'room_management') || user?.role === 'warden', [user]);
+  const canViewAnnouncements = useMemo(() => hasPermission(user, 'announcement_management') || user?.role === 'warden', [user]);
+  const canViewPolls = useMemo(() => hasPermission(user, 'poll_management') || user?.role === 'warden', [user]);
+  const canViewCommunication = useMemo(() => canViewAnnouncements || canViewPolls, [canViewAnnouncements, canViewPolls]);
+  
+  // Check if user has any permissions to view dashboard content
+  const hasAnyPermission = useMemo(() => {
+    return canViewStudents || canViewAttendance || canViewFinancial || canViewComplaints || 
+           canViewLeaves || canViewMenu || canViewRooms || canViewCommunication || 
+           user?.role === 'super_admin';
+  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, 
+      canViewLeaves, canViewMenu, canViewRooms, canViewCommunication, user]);
+  
+  // Count visible stat cards for dynamic grid
+  const visibleStatCards = useMemo(() => {
+    let count = 0;
+    if (canViewStudents) count++;
+    if (canViewAttendance) count++;
+    if (canViewFinancial) count++;
+    if (canViewComplaints) count++;
+    return count;
+  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints]);
+  
+  // Count visible modules in left column
+  const visibleLeftModules = useMemo(() => {
+    let count = 0;
+    if (canViewStudents) count++;
+    if (canViewAttendance) count++;
+    if (canViewFinancial) count++;
+    if (canViewComplaints) count++;
+    if (canViewLeaves) count++;
+    return count;
+  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, canViewLeaves]);
+  
+  // Count visible modules in right column
+  const visibleRightModules = useMemo(() => {
+    let count = 0;
+    if (canViewMenu) count++;
+    if (canViewRooms) count++;
+    if (canViewCommunication) count++;
+    if (canViewStudents || canViewAttendance || canViewAnnouncements || canViewPolls) count++; // Quick Actions
+    return count;
+  }, [canViewMenu, canViewRooms, canViewCommunication, canViewStudents, canViewAttendance, canViewAnnouncements, canViewPolls]);
   
   // State for all modules
   const [stats, setStats] = useState({
@@ -560,6 +614,28 @@ const DashboardHome = () => {
     );
   }
 
+  // Show message if user has no permissions
+  if (!hasAnyPermission && !loading) {
+    return (
+      <>
+        <SEO 
+          title="Admin Dashboard"
+          description="Admin dashboard for hostel management system"
+          keywords="Admin Dashboard, Hostel Management"
+        />
+        <div className="mx-auto mt-12 sm:mt-0 w-full flex items-center justify-center min-h-[60vh]">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center max-w-md">
+            <ExclamationCircleIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Access</h2>
+            <p className="text-gray-600">
+              You don't have permission to view any dashboard modules. Please contact your administrator.
+            </p>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <SEO 
@@ -598,59 +674,93 @@ const DashboardHome = () => {
           </div>
         </div>
 
-        {/* Key Metrics Overview */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4">
-          <StatCard
-            icon={UserGroupIcon}
-            label="Total Students"
-            value={stats.students.total}
-            color="border-blue-500 text-blue-600"
-            extra={`${stats.students.active} active`}
-            onClick={() => navigate('/admin/dashboard/students')}
-            animateDelay={0.05}
-          />
-          <StatCard
-            icon={CheckCircleIcon}
-            label="Today's Attendance"
-            value={`${stats.attendance.today.percentage}%`}
-            color="border-green-500 text-green-600"
-            extra={`${stats.attendance.today.present} present`}
-            onClick={() => navigate('/admin/dashboard/attendance')}
-            animateDelay={0.1}
-          />
-          <StatCard
-            icon={CurrencyDollarIcon}
-            label="Fee Collection (This Month)"
-            value={`₹${(stats.financial.thisMonth / 1000).toFixed(0)}K`}
-            color="border-purple-500 text-purple-600"
-            trend={financialTrend?.direction}
-            trendValue={financialTrend?.value}
-            extra={`₹${(stats.financial.pendingPayments / 1000).toFixed(0)}K pending`}
-            onClick={() => navigate('/admin/dashboard/fee-management')}
-            animateDelay={0.15}
-          />
-          <StatCard
-            icon={ExclamationCircleIcon}
-            label="Active Complaints"
-            value={stats.complaints.active}
-            color="border-orange-500 text-orange-600"
-            extra={`${stats.complaints.resolvedThisWeek} resolved this week`}
-            onClick={() => navigate('/admin/dashboard/complaints')}
-            animateDelay={0.2}
-            />
+        {/* Key Metrics Overview - Dynamic grid based on visible cards */}
+        {visibleStatCards > 0 && (
+          <div 
+            className="grid gap-2.5 sm:gap-3 lg:gap-4"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(visibleStatCards, 4)}, minmax(0, 1fr))`
+            }}
+          >
+            {canViewStudents && (
+              <StatCard
+                icon={UserGroupIcon}
+                label="Total Students"
+                value={stats.students.total}
+                color="border-blue-500 text-blue-600"
+                extra={`${stats.students.active} active`}
+                onClick={() => navigate('/admin/dashboard/students')}
+                animateDelay={0.05}
+              />
+            )}
+            {canViewAttendance && (
+              <StatCard
+                icon={CheckCircleIcon}
+                label="Today's Attendance"
+                value={`${stats.attendance.today.percentage}%`}
+                color="border-green-500 text-green-600"
+                extra={`${stats.attendance.today.present} present`}
+                onClick={() => navigate('/admin/dashboard/attendance')}
+                animateDelay={0.1}
+              />
+            )}
+            {canViewFinancial && (
+              <StatCard
+                icon={CurrencyDollarIcon}
+                label="Fee Collection (This Month)"
+                value={`₹${(stats.financial.thisMonth / 1000).toFixed(0)}K`}
+                color="border-purple-500 text-purple-600"
+                trend={financialTrend?.direction}
+                trendValue={financialTrend?.value}
+                extra={`₹${(stats.financial.pendingPayments / 1000).toFixed(0)}K pending`}
+                onClick={() => navigate('/admin/dashboard/fee-management')}
+                animateDelay={0.15}
+              />
+            )}
+            {canViewComplaints && (
+              <StatCard
+                icon={ExclamationCircleIcon}
+                label="Active Complaints"
+                value={stats.complaints.active}
+                color="border-orange-500 text-orange-600"
+                extra={`${stats.complaints.resolvedThisWeek} resolved this week`}
+                onClick={() => navigate('/admin/dashboard/complaints')}
+                animateDelay={0.2}
+              />
+            )}
           </div>
+        )}
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-          {/* Left Column - 2/3 width */}
-          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-            {/* Students & Attendance */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <ModuleSection
-                title="Student Management"
-                icon={AcademicCapIcon}
-                iconColor="bg-blue-500"
-              >
+        {(visibleLeftModules > 0 || visibleRightModules > 0) && (
+          <div className={`grid grid-cols-1 gap-4 sm:gap-6 ${
+            visibleLeftModules > 0 && visibleRightModules > 0 
+              ? 'lg:grid-cols-3' 
+              : 'lg:grid-cols-1'
+          }`}>
+            {/* Left Column - 2/3 width if both columns have content, full width if only left */}
+            {visibleLeftModules > 0 && (
+              <div className={`space-y-4 sm:space-y-6 ${
+                visibleLeftModules > 0 && visibleRightModules > 0 
+                  ? 'lg:col-span-2' 
+                  : ''
+              }`}>
+                {/* Students & Attendance */}
+                {(canViewStudents || canViewAttendance) && (
+                  <div 
+                    className="grid gap-4 sm:gap-6"
+                    style={{
+                      gridTemplateColumns: canViewStudents && canViewAttendance
+                        ? 'repeat(2, 1fr)'
+                        : '1fr'
+                    }}
+                  >
+              {canViewStudents && (
+                <ModuleSection
+                  title="Student Management"
+                  icon={AcademicCapIcon}
+                  iconColor="bg-blue-500"
+                >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="grid grid-cols-2 gap-2 sm:gap-4">
                     <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
@@ -683,12 +793,14 @@ const DashboardHome = () => {
                   </button>
                 </div>
               </ModuleSection>
+              )}
 
-              <ModuleSection
-                title="Attendance"
-                icon={CalendarIcon}
-                iconColor="bg-green-500"
-              >
+                    {canViewAttendance && (
+                <ModuleSection
+                  title="Attendance"
+                  icon={CalendarIcon}
+                  iconColor="bg-green-500"
+                >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 sm:p-4 text-white">
                     <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
@@ -733,14 +845,17 @@ const DashboardHome = () => {
                   </button>
                 </div>
               </ModuleSection>
-            </div>
+                    )}
+                  </div>
+                )}
 
-            {/* Financial Overview */}
-            <ModuleSection
-              title="Financial Overview"
-              icon={CurrencyDollarIcon}
-              iconColor="bg-purple-500"
-            >
+                {/* Financial Overview */}
+                {canViewFinancial && (
+              <ModuleSection
+                title="Financial Overview"
+                icon={CurrencyDollarIcon}
+                iconColor="bg-purple-500"
+              >
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
                 <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
                   <div className="text-lg sm:text-xl font-bold text-purple-900">₹{(stats.financial.thisMonth / 1000).toFixed(0)}K</div>
@@ -766,14 +881,24 @@ const DashboardHome = () => {
                 View Financial Details →
               </button>
             </ModuleSection>
+                )}
 
-            {/* Complaints & Leaves */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <ModuleSection
-                title="Complaint Management"
-                icon={ExclamationCircleIcon}
-                iconColor="bg-orange-500"
-              >
+                {/* Complaints & Leaves */}
+                {(canViewComplaints || canViewLeaves) && (
+                  <div 
+                    className="grid gap-4 sm:gap-6"
+                    style={{
+                      gridTemplateColumns: canViewComplaints && canViewLeaves
+                        ? 'repeat(2, 1fr)'
+                        : '1fr'
+                    }}
+                  >
+              {canViewComplaints && (
+                <ModuleSection
+                  title="Complaint Management"
+                  icon={ExclamationCircleIcon}
+                  iconColor="bg-orange-500"
+                >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="grid grid-cols-3 gap-2">
                     <div className="text-center">
@@ -803,12 +928,14 @@ const DashboardHome = () => {
                   </button>
               </div>
               </ModuleSection>
+              )}
 
-              <ModuleSection
-                title="Leave Management"
-                icon={CalendarIcon}
-                iconColor="bg-indigo-500"
-              >
+              {canViewLeaves && (
+                <ModuleSection
+                  title="Leave Management"
+                  icon={CalendarIcon}
+                  iconColor="bg-indigo-500"
+                >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="bg-indigo-50 rounded-lg p-3 sm:p-4">
                     <div className="text-xl sm:text-2xl font-bold text-indigo-900 mb-1">{stats.leaves.pending}</div>
@@ -829,20 +956,29 @@ const DashboardHome = () => {
                     className="w-full py-2 text-xs sm:text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors active:bg-indigo-100"
                 >
                     Manage Leaves →
-                </button>
+                  </button>
               </div>
               </ModuleSection>
-                    </div>
+                    )}
                   </div>
+                )}
+              </div>
+            )}
 
-          {/* Right Column - 1/3 width */}
-          <div className="space-y-4 sm:space-y-6">
+            {/* Right Column - 1/3 width if both columns have content, full width if only right */}
+            {visibleRightModules > 0 && (
+              <div className={`space-y-4 sm:space-y-6 ${
+                visibleLeftModules > 0 && visibleRightModules > 0 
+                  ? 'lg:col-span-1' 
+                  : ''
+              }`}>
             {/* Today's Menu */}
-            <ModuleSection
-              title="Today's Menu"
-              icon={ChartBarIcon}
-              iconColor="bg-orange-500"
-            >
+            {canViewMenu && (
+              <ModuleSection
+                title="Today's Menu"
+                icon={ChartBarIcon}
+                iconColor="bg-orange-500"
+              >
               <div className="space-y-3 sm:space-y-4">
                 {stats.menu.hasMenu && stats.menu.todaysMenu ? (
                   <div className="grid grid-cols-2 gap-2">
@@ -907,13 +1043,15 @@ const DashboardHome = () => {
                 </button>
                     </div>
             </ModuleSection>
+            )}
 
             {/* Rooms Overview */}
-            <ModuleSection
-              title="Room Management"
-              icon={BuildingOfficeIcon}
-              iconColor="bg-cyan-500"
-            >
+            {canViewRooms && (
+              <ModuleSection
+                title="Room Management"
+                icon={BuildingOfficeIcon}
+                iconColor="bg-cyan-500"
+              >
               <div className="space-y-3 sm:space-y-4">
                 <div className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg p-3 sm:p-4 text-white">
                   <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.rooms.occupancyRate}%</div>
@@ -937,13 +1075,15 @@ const DashboardHome = () => {
                 </button>
               </div>
             </ModuleSection>
+            )}
 
             {/* Communication */}
-            <ModuleSection
-              title="Communication"
-              icon={MegaphoneIcon}
-              iconColor="bg-pink-500"
-            >
+            {canViewCommunication && (
+              <ModuleSection
+                title="Communication"
+                icon={MegaphoneIcon}
+                iconColor="bg-pink-500"
+              >
               <div className="space-y-3 sm:space-y-4">
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-pink-50 rounded-lg p-2.5 sm:p-3 text-center">
@@ -975,40 +1115,53 @@ const DashboardHome = () => {
                 </button>
               </div>
             </ModuleSection>
+            )}
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
-              <div className="space-y-1.5 sm:space-y-2">
-                <button
-                  onClick={() => navigate('/admin/dashboard/students')}
-                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
-                >
-                  Add New Student
-                </button>
-                <button
-                  onClick={() => navigate('/admin/dashboard/attendance')}
-                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
-                >
-                  Mark Attendance
-                </button>
-                <button
-                  onClick={() => navigate('/admin/dashboard/announcements')}
-                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
-                >
-                  Create Announcement
-                </button>
-                <button
-                  onClick={() => navigate('/admin/dashboard/polls')}
-                  className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
-                >
-                  Create Poll
-                </button>
-            </div>
+            {(canViewStudents || canViewAttendance || canViewAnnouncements || canViewPolls) && (
+              <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+                <div className="space-y-1.5 sm:space-y-2">
+                  {canViewStudents && (
+                    <button
+                      onClick={() => navigate('/admin/dashboard/students')}
+                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                    >
+                      Add New Student
+                    </button>
+                  )}
+                  {canViewAttendance && (
+                    <button
+                      onClick={() => navigate('/admin/dashboard/attendance')}
+                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                    >
+                      Mark Attendance
+                    </button>
+                  )}
+                  {canViewAnnouncements && (
+                    <button
+                      onClick={() => navigate('/admin/dashboard/announcements')}
+                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                    >
+                      Create Announcement
+                    </button>
+                  )}
+                  {canViewPolls && (
+                    <button
+                      onClick={() => navigate('/admin/dashboard/polls')}
+                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                    >
+                      Create Poll
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+              </div>
+            )}
           </div>
-        </div>
-        </div>
-    </div>
+        )}
+      </div>
     </>
   );
 };
