@@ -58,14 +58,14 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
       animate={isAnimating ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
       transition={{ delay: animateDelay, duration: 0.4 }}
       onClick={onClick}
-      className={`bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-2.5 sm:p-3 lg:p-2.5 xl:p-2 border-l-4 ${color} ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
+      className={`bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 lg:p-3 xl:p-2.5 border-l-4 ${color} ${onClick ? 'cursor-pointer active:scale-95' : ''}`}
     >
-      <div className="flex items-center justify-between mb-1 sm:mb-1.5 lg:mb-0.5">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className={`p-1.5 sm:p-1.5 lg:p-1 rounded-lg flex-shrink-0 ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
-            <Icon className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-4 lg:h-4 ${color.replace('border-', 'text-')}`} />
-      </div>
-          <div className="text-base sm:text-lg lg:text-lg xl:text-xl font-bold text-gray-900 leading-tight truncate">{formatValue(value)}</div>
+      <div className="flex items-center justify-between mb-2 sm:mb-1.5 lg:mb-0.5">
+        <div className="flex items-center gap-2.5 sm:gap-2 flex-1 min-w-0">
+          <div className={`p-2 sm:p-1.5 lg:p-1 rounded-lg flex-shrink-0 ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
+            <Icon className={`w-5 h-5 sm:w-5 sm:h-5 lg:w-4 lg:h-4 ${color.replace('border-', 'text-')}`} />
+          </div>
+          <div className="text-lg sm:text-xl lg:text-lg xl:text-xl font-bold text-gray-900 leading-tight truncate">{formatValue(value)}</div>
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ml-2 ${
@@ -73,11 +73,11 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
           }`}>
             {trend === 'up' ? <ArrowUpIcon className="w-3 h-3" /> : trend === 'down' ? <ArrowDownIcon className="w-3 h-3" /> : null}
             {trendValue && `${trendValue}%`}
-        </div>
+          </div>
         )}
       </div>
-      <div className="text-xs sm:text-xs lg:text-xs xl:text-sm text-gray-600 font-medium leading-tight truncate">{label}</div>
-      {extra && <div className="mt-0.5 sm:mt-0.5 lg:mt-0 text-xs text-gray-400 leading-tight truncate">{extra}</div>}
+      <div className="text-xs sm:text-sm lg:text-xs xl:text-sm text-gray-600 font-medium leading-tight truncate">{label}</div>
+      {extra && <div className="mt-1 sm:mt-0.5 lg:mt-0 text-xs text-gray-400 leading-tight truncate">{extra}</div>}
     </motion.div>
   );
 };
@@ -86,12 +86,12 @@ const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, o
 const ModuleSection = ({ title, icon: Icon, iconColor, children, className = '' }) => {
   return (
     <div className={`bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6 ${className}`}>
-      <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">
-        <div className={`p-1.5 sm:p-2 rounded-lg ${iconColor}`}>
+      <div className="flex items-center gap-2.5 sm:gap-3 mb-3 sm:mb-4 pb-3 sm:pb-4 border-b border-gray-200">
+        <div className={`p-2 sm:p-2 rounded-lg flex-shrink-0 ${iconColor}`}>
           <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-      </div>
-        <h2 className="text-lg sm:text-xl font-bold text-gray-900">{title}</h2>
         </div>
+        <h2 className="text-base sm:text-xl font-bold text-gray-900 truncate">{title}</h2>
+      </div>
       {children}
     </div>
   );
@@ -103,25 +103,27 @@ const DashboardHome = () => {
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('week');
   
-  // Permission checks for each module
-  const canViewStudents = useMemo(() => hasPermission(user, 'student_management') || user?.role === 'warden', [user]);
-  const canViewAttendance = useMemo(() => hasPermission(user, 'attendance_management') || user?.role === 'warden', [user]);
-  const canViewFinancial = useMemo(() => hasPermission(user, 'fee_management'), [user]);
-  const canViewComplaints = useMemo(() => hasPermission(user, 'maintenance_ticket_management') || user?.role === 'warden', [user]);
-  const canViewLeaves = useMemo(() => hasPermission(user, 'leave_management') || user?.role === 'warden', [user]);
-  const canViewMenu = useMemo(() => hasPermission(user, 'menu_management'), [user]);
-  const canViewRooms = useMemo(() => hasPermission(user, 'room_management') || user?.role === 'warden', [user]);
-  const canViewAnnouncements = useMemo(() => hasPermission(user, 'announcement_management') || user?.role === 'warden', [user]);
-  const canViewPolls = useMemo(() => hasPermission(user, 'poll_management') || user?.role === 'warden', [user]);
+  // Check if user is super admin
+  const isSuperAdmin = useMemo(() => user?.role === 'super_admin', [user]);
+  
+  // Permission checks for each module - bypass for super_admin
+  const canViewStudents = useMemo(() => isSuperAdmin || hasPermission(user, 'student_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewAttendance = useMemo(() => isSuperAdmin || hasPermission(user, 'attendance_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewFinancial = useMemo(() => isSuperAdmin || hasPermission(user, 'fee_management'), [user, isSuperAdmin]);
+  const canViewComplaints = useMemo(() => isSuperAdmin || hasPermission(user, 'maintenance_ticket_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewLeaves = useMemo(() => isSuperAdmin || hasPermission(user, 'leave_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewMenu = useMemo(() => isSuperAdmin || hasPermission(user, 'menu_management'), [user, isSuperAdmin]);
+  const canViewRooms = useMemo(() => isSuperAdmin || hasPermission(user, 'room_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewAnnouncements = useMemo(() => isSuperAdmin || hasPermission(user, 'announcement_management') || user?.role === 'warden', [user, isSuperAdmin]);
+  const canViewPolls = useMemo(() => isSuperAdmin || hasPermission(user, 'poll_management') || user?.role === 'warden', [user, isSuperAdmin]);
   const canViewCommunication = useMemo(() => canViewAnnouncements || canViewPolls, [canViewAnnouncements, canViewPolls]);
   
   // Check if user has any permissions to view dashboard content
   const hasAnyPermission = useMemo(() => {
-    return canViewStudents || canViewAttendance || canViewFinancial || canViewComplaints || 
-           canViewLeaves || canViewMenu || canViewRooms || canViewCommunication || 
-           user?.role === 'super_admin';
-  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, 
-      canViewLeaves, canViewMenu, canViewRooms, canViewCommunication, user]);
+    return isSuperAdmin || canViewStudents || canViewAttendance || canViewFinancial || canViewComplaints || 
+           canViewLeaves || canViewMenu || canViewRooms || canViewCommunication;
+  }, [isSuperAdmin, canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, 
+      canViewLeaves, canViewMenu, canViewRooms, canViewCommunication]);
   
   // Count visible stat cards for dynamic grid
   const visibleStatCards = useMemo(() => {
@@ -643,13 +645,13 @@ const DashboardHome = () => {
         description="Comprehensive admin dashboard for hostel management system with real-time statistics and insights."
         keywords="Admin Dashboard, Hostel Management, Statistics, Analytics"
       />
-      <div className=" mx-auto mt-12 sm:mt-0 w-full space-y-4 sm:space-y-6">
+      <div className="mx-auto  mt-12 sm:mt-0  space-y-4 sm:space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-        <div>
+          <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900">Dashboard Overview</h1>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Welcome back! Here's your system overview.</p>
-        </div>
+          </div>
           <div className="flex gap-2 bg-white p-1.5 sm:p-2 rounded-lg shadow-sm w-full sm:w-auto">
             <button
               onClick={() => setTimeframe('week')}
@@ -677,10 +679,7 @@ const DashboardHome = () => {
         {/* Key Metrics Overview - Dynamic grid based on visible cards */}
         {visibleStatCards > 0 && (
           <div 
-            className="grid gap-2.5 sm:gap-3 lg:gap-4"
-            style={{
-              gridTemplateColumns: `repeat(${Math.min(visibleStatCards, 4)}, minmax(0, 1fr))`
-            }}
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4"
           >
             {canViewStudents && (
               <StatCard
@@ -748,12 +747,7 @@ const DashboardHome = () => {
                 {/* Students & Attendance */}
                 {(canViewStudents || canViewAttendance) && (
                   <div 
-                    className="grid gap-4 sm:gap-6"
-                    style={{
-                      gridTemplateColumns: canViewStudents && canViewAttendance
-                        ? 'repeat(2, 1fr)'
-                        : '1fr'
-                    }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
                   >
               {canViewStudents && (
                 <ModuleSection
@@ -762,28 +756,37 @@ const DashboardHome = () => {
                   iconColor="bg-blue-500"
                 >
                 <div className="space-y-3 sm:space-y-4">
-                  <div className="grid grid-cols-2 gap-2 sm:gap-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-4">
                     <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-                      <div className="text-xl sm:text-2xl font-bold text-blue-900">{stats.students.active}</div>
-                      <div className="text-xs sm:text-sm text-blue-600">Active Students</div>
-        </div>
+                      <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-900">{stats.students.active}</div>
+                      <div className="text-xs sm:text-sm text-blue-600 mt-1">Active Students</div>
+                    </div>
                     <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-                      <div className="text-xl sm:text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
-                      <div className="text-xs sm:text-sm text-green-600">New This Week</div>
-      </div>
-      </div>
+                      <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
+                      <div className="text-xs sm:text-sm text-green-600 mt-1">New This Week</div>
+                    </div>
+                  </div>
                   {stats.students.byCourse.length > 0 && (
-                <div>
+                    <div>
                       <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">By Course</div>
-                      <div className="space-y-1.5 sm:space-y-2">
-                        {stats.students.byCourse.slice(0, 4).map((course, idx) => (
-                          <div key={idx} className="flex justify-between items-center">
-                            <span className="text-xs sm:text-sm text-gray-600 truncate pr-2">{course.name}</span>
-                            <span className="text-xs sm:text-sm font-semibold text-gray-900">{course.count}</span>
-        </div>
-                        ))}
-              </div>
-            </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                        {stats.students.byCourse.slice(0, 4).map((course, idx) => {
+                          const colors = [
+                            { bg: 'bg-blue-50', text: 'text-blue-900' },
+                            { bg: 'bg-green-50', text: 'text-green-900' },
+                            { bg: 'bg-purple-50', text: 'text-purple-900' },
+                            { bg: 'bg-orange-50', text: 'text-orange-900' }
+                          ];
+                          const color = colors[idx % colors.length];
+                          return (
+                            <div key={idx} className={`text-center ${color.bg} rounded-lg p-2 sm:p-2.5`}>
+                              <div className={`text-sm sm:text-base font-bold ${color.text}`}>{course.count}</div>
+                              <div className="text-xs text-gray-600 mt-0.5 truncate">{course.name}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
                   <button
                     onClick={() => navigate('/admin/dashboard/students')}
@@ -803,37 +806,37 @@ const DashboardHome = () => {
                 >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 sm:p-4 text-white">
-                    <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
+                    <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{stats.attendance.today.percentage}%</div>
                     <div className="text-xs sm:text-sm opacity-90">Today's Attendance Rate</div>
-                </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.fullyPresent}</div>
-                      <div className="text-xs text-gray-500">Fully Present</div>
-                </div>
+                      <div className="text-xs text-gray-500 mt-0.5">Fully Present</div>
+                    </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.partiallyPresent}</div>
-                      <div className="text-xs text-gray-500">Partial</div>
-              </div>
+                      <div className="text-xs text-gray-500 mt-0.5">Partial</div>
+                    </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-gray-900">{stats.attendance.today.absent}</div>
-                      <div className="text-xs text-gray-500">Absent</div>
+                      <div className="text-xs text-gray-500 mt-0.5">Absent</div>
                     </div>
                   </div>
-                  <div className="border-t border-gray-200 pt-2 sm:pt-3">
+                  <div className="border-t border-gray-200 pt-2.5 sm:pt-3">
                     <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Recent Session Presentees</div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="text-center bg-blue-50 rounded-lg p-2">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                      <div className="text-center bg-blue-50 rounded-lg p-2 sm:p-2.5">
                         <div className="text-sm sm:text-base font-bold text-blue-900">🌅 {stats.attendance.today.morningPresent}</div>
-                        <div className="text-xs text-gray-600">Morning</div>
+                        <div className="text-xs text-gray-600 mt-0.5">Morning</div>
                       </div>
-                      <div className="text-center bg-orange-50 rounded-lg p-2">
+                      <div className="text-center bg-orange-50 rounded-lg p-2 sm:p-2.5">
                         <div className="text-sm sm:text-base font-bold text-orange-900">🌆 {stats.attendance.today.eveningPresent}</div>
-                        <div className="text-xs text-gray-600">Evening</div>
+                        <div className="text-xs text-gray-600 mt-0.5">Evening</div>
                       </div>
-                      <div className="text-center bg-purple-50 rounded-lg p-2">
+                      <div className="text-center bg-purple-50 rounded-lg p-2 sm:p-2.5">
                         <div className="text-sm sm:text-base font-bold text-purple-900">🌙 {stats.attendance.today.nightPresent}</div>
-                        <div className="text-xs text-gray-600">Night</div>
+                        <div className="text-xs text-gray-600 mt-0.5">Night</div>
                       </div>
                     </div>
                   </div>
@@ -856,24 +859,24 @@ const DashboardHome = () => {
                 icon={CurrencyDollarIcon}
                 iconColor="bg-purple-500"
               >
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
                 <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
-                  <div className="text-lg sm:text-xl font-bold text-purple-900">₹{(stats.financial.thisMonth / 1000).toFixed(0)}K</div>
-                  <div className="text-xs text-purple-600">This Month</div>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold text-purple-900">₹{(stats.financial.thisMonth / 1000).toFixed(0)}K</div>
+                  <div className="text-xs text-purple-600 mt-1">This Month</div>
                 </div>
                 <div className="bg-orange-50 rounded-lg p-3 sm:p-4">
-                  <div className="text-lg sm:text-xl font-bold text-orange-900">₹{(stats.financial.pendingPayments / 1000).toFixed(0)}K</div>
-                  <div className="text-xs text-orange-600">Pending</div>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold text-orange-900">₹{(stats.financial.pendingPayments / 1000).toFixed(0)}K</div>
+                  <div className="text-xs text-orange-600 mt-1">Pending</div>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-                  <div className="text-lg sm:text-xl font-bold text-blue-900">₹{(stats.financial.electricityPayments / 1000).toFixed(0)}K</div>
-                  <div className="text-xs text-blue-600">Electricity</div>
-              </div>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold text-blue-900">₹{(stats.financial.electricityPayments / 1000).toFixed(0)}K</div>
+                  <div className="text-xs text-blue-600 mt-1">Electricity</div>
+                </div>
                 <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-                  <div className="text-lg sm:text-xl font-bold text-green-900">₹{(stats.financial.hostelFeeCollection / 1000).toFixed(0)}K</div>
-                  <div className="text-xs text-green-600">Hostel Fees</div>
-            </div>
-          </div>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold text-green-900">₹{(stats.financial.hostelFeeCollection / 1000).toFixed(0)}K</div>
+                  <div className="text-xs text-green-600 mt-1">Hostel Fees</div>
+                </div>
+              </div>
               <button
                 onClick={() => navigate('/admin/dashboard/fee-management')}
                 className="w-full mt-3 sm:mt-4 py-2 text-xs sm:text-sm font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors active:bg-purple-100"
@@ -886,12 +889,7 @@ const DashboardHome = () => {
                 {/* Complaints & Leaves */}
                 {(canViewComplaints || canViewLeaves) && (
                   <div 
-                    className="grid gap-4 sm:gap-6"
-                    style={{
-                      gridTemplateColumns: canViewComplaints && canViewLeaves
-                        ? 'repeat(2, 1fr)'
-                        : '1fr'
-                    }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
                   >
               {canViewComplaints && (
                 <ModuleSection
@@ -938,19 +936,19 @@ const DashboardHome = () => {
                 >
                 <div className="space-y-3 sm:space-y-4">
                   <div className="bg-indigo-50 rounded-lg p-3 sm:p-4">
-                    <div className="text-xl sm:text-2xl font-bold text-indigo-900 mb-1">{stats.leaves.pending}</div>
+                    <div className="text-lg sm:text-xl lg:text-2xl font-bold text-indigo-900 mb-1">{stats.leaves.pending}</div>
                     <div className="text-xs sm:text-sm text-indigo-600">Pending Approvals</div>
-              </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-green-900">{stats.leaves.approvedToday}</div>
-                      <div className="text-xs text-gray-500">Approved Today</div>
-                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">Approved Today</div>
+                    </div>
                     <div className="text-center">
                       <div className="text-base sm:text-lg font-bold text-red-900">{stats.leaves.rejectedToday}</div>
-                      <div className="text-xs text-gray-500">Rejected Today</div>
-                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">Rejected Today</div>
                     </div>
+                  </div>
                 <button
                     onClick={() => navigate('/admin/dashboard/leave')}
                     className="w-full py-2 text-xs sm:text-sm font-medium text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors active:bg-indigo-100"
@@ -981,7 +979,7 @@ const DashboardHome = () => {
               >
               <div className="space-y-3 sm:space-y-4">
                 {stats.menu.hasMenu && stats.menu.todaysMenu ? (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                     {['breakfast', 'lunch', 'snacks', 'dinner'].map(meal => {
                       const mealItems = stats.menu.todaysMenu.meals?.[meal] || [];
                       const mealEmojis = {
@@ -993,13 +991,13 @@ const DashboardHome = () => {
                       return (
                         <div
                           key={meal}
-                          className="bg-gray-50 rounded-lg p-2 sm:p-3 border border-gray-200"
+                          className="bg-gray-50 rounded-lg p-2.5 sm:p-3 border border-gray-200"
                         >
-                          <div className="flex items-center gap-1 mb-1.5">
-                            <span className="text-sm sm:text-base">{mealEmojis[meal]}</span>
+                          <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
+                            <span className="text-base sm:text-lg">{mealEmojis[meal]}</span>
                             <span className="text-xs sm:text-sm font-medium text-gray-900 capitalize truncate">
                               {meal}
-                    </span>
+                            </span>
                           </div>
                           <div className="text-xs text-gray-600">
                             {mealItems.length > 0 ? (
@@ -1007,19 +1005,19 @@ const DashboardHome = () => {
                                 {mealItems.slice(0, 2).map((item, idx) => (
                                   <div key={idx} className="truncate">
                                     • {typeof item === 'string' ? item : (item.name || item)}
-                  </div>
-                ))}
+                                  </div>
+                                ))}
                                 {mealItems.length > 2 && (
                                   <div className="text-gray-400 text-xs">
                                     +{mealItems.length - 2} more
                                   </div>
                                 )}
-              </div>
+                              </div>
                             ) : (
                               <span className="text-gray-400 italic">No items</span>
                             )}
-            </div>
-                </div>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -1054,18 +1052,18 @@ const DashboardHome = () => {
               >
               <div className="space-y-3 sm:space-y-4">
                 <div className="bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-lg p-3 sm:p-4 text-white">
-                  <div className="text-2xl sm:text-3xl font-bold mb-1">{stats.rooms.occupancyRate}%</div>
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1">{stats.rooms.occupancyRate}%</div>
                   <div className="text-xs sm:text-sm opacity-90">Bed Occupancy Rate</div>
-                  </div>
-                <div className="grid grid-cols-2 gap-2">
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-gray-900">{stats.rooms.occupied}</div>
-                    <div className="text-xs text-gray-500">Filled Beds</div>
-              </div>
+                    <div className="text-xs text-gray-500 mt-0.5">Filled Beds</div>
+                  </div>
                   <div className="text-center">
                     <div className="text-base sm:text-lg font-bold text-gray-900">{stats.rooms.available}</div>
-                    <div className="text-xs text-gray-500">Available Beds</div>
-            </div>
+                    <div className="text-xs text-gray-500 mt-0.5">Available Beds</div>
+                  </div>
                 </div>
                 <button
                   onClick={() => navigate('/admin/dashboard/rooms/management')}
@@ -1085,15 +1083,15 @@ const DashboardHome = () => {
                 iconColor="bg-pink-500"
               >
               <div className="space-y-3 sm:space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-pink-50 rounded-lg p-2.5 sm:p-3 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-pink-900">{stats.communication.activeAnnouncements}</div>
-                    <div className="text-xs text-pink-600">Announcements</div>
-                </div>
-                  <div className="bg-purple-50 rounded-lg p-2.5 sm:p-3 text-center">
-                    <div className="text-lg sm:text-xl font-bold text-purple-900">{stats.communication.activePolls}</div>
-                    <div className="text-xs text-purple-600">Active Polls</div>
-                </div>
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                  <div className="bg-pink-50 rounded-lg p-3 sm:p-3 text-center">
+                    <div className="text-base sm:text-lg lg:text-xl font-bold text-pink-900">{stats.communication.activeAnnouncements}</div>
+                    <div className="text-xs text-pink-600 mt-0.5">Announcements</div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 sm:p-3 text-center">
+                    <div className="text-base sm:text-lg lg:text-xl font-bold text-purple-900">{stats.communication.activePolls}</div>
+                    <div className="text-xs text-purple-600 mt-0.5">Active Polls</div>
+                  </div>
                 </div>
                 {stats.communication.recentAnnouncements.length > 0 && (
                   <div>
@@ -1120,12 +1118,12 @@ const DashboardHome = () => {
             {/* Quick Actions */}
             {(canViewStudents || canViewAttendance || canViewAnnouncements || canViewPolls) && (
               <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-4 sm:p-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
-                <div className="space-y-1.5 sm:space-y-2">
+                <h2 className="text-base sm:text-xl font-bold text-gray-900 mb-3 sm:mb-4">Quick Actions</h2>
+                <div className="space-y-2 sm:space-y-2">
                   {canViewStudents && (
                     <button
                       onClick={() => navigate('/admin/dashboard/students')}
-                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                      className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
                     >
                       Add New Student
                     </button>
@@ -1133,7 +1131,7 @@ const DashboardHome = () => {
                   {canViewAttendance && (
                     <button
                       onClick={() => navigate('/admin/dashboard/attendance')}
-                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                      className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
                     >
                       Mark Attendance
                     </button>
@@ -1141,7 +1139,7 @@ const DashboardHome = () => {
                   {canViewAnnouncements && (
                     <button
                       onClick={() => navigate('/admin/dashboard/announcements')}
-                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                      className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
                     >
                       Create Announcement
                     </button>
@@ -1149,7 +1147,7 @@ const DashboardHome = () => {
                   {canViewPolls && (
                     <button
                       onClick={() => navigate('/admin/dashboard/polls')}
-                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
+                      className="w-full text-left px-3 sm:px-4 py-2.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors active:bg-gray-100"
                     >
                       Create Poll
                     </button>
