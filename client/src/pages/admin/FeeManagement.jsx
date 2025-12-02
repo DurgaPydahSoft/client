@@ -146,6 +146,8 @@ const FeeManagement = () => {
   const [availableMonths, setAvailableMonths] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedElectricityBill, setSelectedElectricityBill] = useState(null);
+  const [pendingElectricityBills, setPendingElectricityBills] = useState([]);
+  const [pendingBillsLoading, setPendingBillsLoading] = useState(false);
 
   // Fee Reminders State
   const [feeReminders, setFeeReminders] = useState([]);
@@ -1527,6 +1529,112 @@ const FeeManagement = () => {
     setSelectedElectricityBill(null);
   };
 
+  // Fetch all pending electricity bills for a student (for balance modal)
+  const fetchPendingElectricityBills = async (student) => {
+    try {
+      setPendingBillsLoading(true);
+
+      // Find student's room
+      const roomsResponse = await api.get('/api/rooms');
+      if (!roomsResponse.data.success) {
+        throw new Error('Failed to fetch rooms');
+      }
+
+      const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
+      const studentRoom = rooms.find(room =>
+        room.roomNumber === student.roomNumber &&
+        room.gender === student.gender &&
+        room.category === student.category
+      );
+
+      if (!studentRoom) {
+        console.log('No room found for student:', student);
+        setPendingElectricityBills([]);
+        return;
+      }
+
+      // Get room's electricity bills
+      const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
+      if (!billsResponse.data.success) {
+        throw new Error('Failed to fetch electricity bills');
+      }
+
+      const allBills = billsResponse.data.data || [];
+
+      // Get current student count for the room (for old format bills)
+      const studentsResponse = await api.get(`/api/admin/rooms/${studentRoom._id}/students`);
+      const studentsInRoom = studentsResponse.data.success 
+        ? (studentsResponse.data.data.students || []).length 
+        : 0;
+
+      // Process all bills and get pending ones for this student
+      const pendingBills = allBills
+        .filter(bill => {
+          // Check if bill has studentBills array (new format)
+          if (bill.studentBills && bill.studentBills.length > 0) {
+            const studentBill = bill.studentBills.find(sb => 
+              (typeof sb.studentId === 'object' ? sb.studentId._id : sb.studentId) === student._id ||
+              String(sb.studentId) === String(student._id)
+            );
+            return studentBill && studentBill.paymentStatus === 'unpaid';
+          } else {
+            // Old format - check if room bill is unpaid and student is in room
+            if (bill.paymentStatus !== 'unpaid') return false;
+            
+            // Check if student has already paid for this bill
+            // We'll need to check Payment records, but for now, include if bill is unpaid
+            return true;
+          }
+        })
+        .map(bill => {
+          let studentBill = null;
+          let studentAmount = 0;
+          let paymentStatus = 'unpaid';
+
+          if (bill.studentBills && bill.studentBills.length > 0) {
+            // New format
+            studentBill = bill.studentBills.find(sb => 
+              (typeof sb.studentId === 'object' ? sb.studentId._id : sb.studentId) === student._id ||
+              String(sb.studentId) === String(student._id)
+            );
+            if (studentBill) {
+              studentAmount = studentBill.amount;
+              paymentStatus = studentBill.paymentStatus;
+            }
+          } else {
+            // Old format - calculate equal share
+            studentAmount = studentsInRoom > 0 ? Math.round(bill.total / studentsInRoom) : 0;
+            paymentStatus = bill.paymentStatus || 'unpaid';
+          }
+
+          return {
+            _id: bill._id,
+            month: bill.month,
+            amount: studentAmount,
+            totalBill: bill.total,
+            consumption: bill.consumption || 0,
+            rate: bill.rate || 0,
+            roomId: studentRoom._id,
+            roomNumber: studentRoom.roomNumber,
+            paymentStatus: paymentStatus,
+            startUnits: bill.startUnits || bill.meter1StartUnits || 0,
+            endUnits: bill.endUnits || bill.meter1EndUnits || 0,
+            isOldFormat: !bill.studentBills || bill.studentBills.length === 0
+          };
+        })
+        .sort((a, b) => new Date(b.month) - new Date(a.month)); // Sort by month descending
+
+      setPendingElectricityBills(pendingBills);
+      console.log('🔍 Pending electricity bills for student:', pendingBills);
+
+    } catch (error) {
+      console.error('Error fetching pending electricity bills:', error);
+      setPendingElectricityBills([]);
+    } finally {
+      setPendingBillsLoading(false);
+    }
+  };
+
   // Fetch available months for student's electricity bills
   const fetchAvailableMonths = async (student) => {
     try {
@@ -1917,6 +2025,7 @@ const FeeManagement = () => {
     setSelectedStudentBalance(student);
     setShowBalanceModal(true);
     setBalanceLoading(true);
+    setPendingElectricityBills([]); // Reset pending bills
 
     try {
       // Get student's fee structure
@@ -1942,6 +2051,9 @@ const FeeManagement = () => {
       } else {
         setStudentPayments([]);
       }
+
+      // Fetch pending electricity bills for the student
+      await fetchPendingElectricityBills(student);
 
     } catch (error) {
       console.error('Error fetching student balance:', error);
@@ -4506,6 +4618,7 @@ const FeeManagement = () => {
                 onClick={() => {
                   setShowBalanceModal(false);
                   setSelectedStudentBalance(null);
+                  setPendingElectricityBills([]); // Reset pending bills
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600"
                 aria-label="Close modal"
@@ -4707,6 +4820,103 @@ const FeeManagement = () => {
                   );
                 })()}
 
+                {/* Pending Electricity Bills */}
+                <div className="mb-6">
+                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    Pending Electricity Bills
+                  </h4>
+                  {pendingBillsLoading ? (
+                    <div className="text-center py-4">
+                      <LoadingSpinner />
+                      <p className="mt-2 text-sm text-gray-500">Loading electricity bills...</p>
+                    </div>
+                  ) : pendingElectricityBills.length === 0 ? (
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center justify-center text-green-700">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">All electricity bills are paid</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="space-y-3">
+                        {pendingElectricityBills.map((bill) => (
+                          <div key={bill._id} className="bg-white p-4 rounded-lg border border-gray-200 hover:border-yellow-400 transition-colors">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {(() => {
+                                      const [year, month] = bill.month.split('-');
+                                      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                                      return date.toLocaleDateString('en-US', { 
+                                        month: 'long', 
+                                        year: 'numeric' 
+                                      });
+                                    })()}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Unpaid
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+                                  <div>
+                                    <span className="text-gray-500">Room:</span>
+                                    <span className="ml-2 font-medium">{bill.roomNumber}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Consumption:</span>
+                                    <span className="ml-2 font-medium">{bill.consumption} units</span>
+                                  </div>
+                                  {bill.startUnits > 0 && bill.endUnits > 0 && (
+                                    <>
+                                      <div>
+                                        <span className="text-gray-500">Start Units:</span>
+                                        <span className="ml-2 font-medium">{bill.startUnits}</span>
+                                      </div>
+                                      <div>
+                                        <span className="text-gray-500">End Units:</span>
+                                        <span className="ml-2 font-medium">{bill.endUnits}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                  <div>
+                                    <span className="text-gray-500">Rate:</span>
+                                    <span className="ml-2 font-medium">₹{bill.rate}/unit</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Total Bill:</span>
+                                    <span className="ml-2 font-medium">₹{bill.totalBill.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="ml-4 text-right">
+                                <div className="text-lg font-bold text-red-600">
+                                  ₹{bill.amount.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">Student Share</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-gray-700">Total Pending:</span>
+                          <span className="text-lg font-bold text-red-600">
+                            ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Payment History */}
                 <div className="mb-6">
                   <h4 className="font-medium text-gray-900 mb-3">Payment History</h4>
@@ -4748,6 +4958,7 @@ const FeeManagement = () => {
                     onClick={() => {
                       setShowBalanceModal(false);
                       setSelectedStudentBalance(null);
+                      setPendingElectricityBills([]); // Reset pending bills
                     }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
                   >
