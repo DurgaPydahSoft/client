@@ -4660,21 +4660,21 @@ const FeeManagement = () => {
                       <h4 className="font-medium text-gray-900 mb-3">Balance Summary</h4>
 
                       {/* Concession Information */}
-                      {balance.hasConcession && (
+                      {balance.hasConcession && balance.concessionAmount > 0 && (
                         <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                           <h5 className="font-medium text-blue-900 mb-2">Concession Applied</h5>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                             <div className="text-center">
                               <span className="text-gray-600">Original Fee:</span>
-                              <div className="font-bold text-gray-900 line-through">₹{balance.originalTotalFee.toLocaleString()}</div>
+                              <div className="font-bold text-gray-900 line-through">₹{Number(balance.originalTotalFee || 0).toLocaleString()}</div>
                             </div>
                             <div className="text-center">
                               <span className="text-gray-600">Concession:</span>
-                              <div className="font-bold text-green-600">₹{balance.concessionAmount.toLocaleString()}</div>
+                              <div className="font-bold text-green-600">₹{Number(balance.concessionAmount || 0).toLocaleString()}</div>
                             </div>
                             <div className="text-center">
                               <span className="text-gray-600">Final Fee:</span>
-                              <div className="font-bold text-blue-600">₹{balance.calculatedTotalFee.toLocaleString()}</div>
+                              <div className="font-bold text-blue-600">₹{Number(balance.calculatedTotalFee || 0).toLocaleString()}</div>
                             </div>
                           </div>
                         </div>
@@ -4686,22 +4686,29 @@ const FeeManagement = () => {
                             {balance.hasConcession ? 'Final Fee (After Concession)' : 'Total Fee'}
                           </div>
                           <div className="text-lg font-bold text-gray-900">
-                            ₹{balance.hasConcession ? balance.calculatedTotalFee.toLocaleString() : balance.feeStructure.totalFee.toLocaleString()}
+                            {(() => {
+                              const totalFee = balance.hasConcession 
+                                ? (Number(balance.calculatedTotalFee) || 0) 
+                                : (Number(balance.feeStructure?.totalFee) || 0);
+                              return `₹${totalFee.toLocaleString()}`;
+                            })()}
                           </div>
-                          {balance.hasConcession && (
+                          {balance.hasConcession && balance.originalTotalFee && (
                             <div className="text-xs text-gray-500 line-through">
-                              Original: ₹{balance.originalTotalFee.toLocaleString()}
+                              Original: ₹{Number(balance.originalTotalFee || 0).toLocaleString()}
                             </div>
                           )}
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
                           <div className="text-sm font-medium text-gray-600">Total Paid</div>
-                          <div className="text-lg font-bold text-green-600">₹{balance.totalPaid.toLocaleString()}</div>
+                          <div className="text-lg font-bold text-green-600">
+                            ₹{Number(balance.totalPaid || 0).toLocaleString()}
+                          </div>
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
                           <div className="text-sm font-medium text-gray-600">Total Balance</div>
-                          <div className={`text-lg font-bold ${balance.totalBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            ₹{balance.totalBalance.toLocaleString()}
+                          <div className={`text-lg font-bold ${Number(balance.totalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ₹{Number(balance.totalBalance || 0).toLocaleString()}
                           </div>
                         </div>
                         <div className="bg-white rounded-lg p-4 border border-gray-200">
@@ -4715,43 +4722,6 @@ const FeeManagement = () => {
                   );
                 })()}
 
-                {/* Payment Status Section */}
-                {(() => {
-                  const balance = calculateStudentBalance(selectedStudentBalance);
-                  if (!balance) return null;
-
-                  return (
-                    <div className="mb-6">
-                      {/* <h4 className="font-medium text-gray-900 mb-3">Payment Status Overview</h4>
-                      <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-orange-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-orange-700 mb-1">Payment Status</div>
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              balance.isFullyPaid ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'
-                            }`}>
-                              {balance.isFullyPaid ? '✓ Fully Paid' : '⚠ Payment Pending'}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm font-medium text-orange-700 mb-1">Next Due</div>
-                            <div className="text-sm font-medium text-gray-900">
-                              {balance.totalBalance > 0 ? 'Immediate' : 'No Dues'}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-orange-200">
-                          <div className="text-center text-sm text-orange-600">
-                            {balance.totalBalance > 0 
-                              ? `₹${balance.totalBalance.toLocaleString()} payment required`
-                              : 'All payments completed successfully'
-                            }
-                          </div>
-                        </div>
-                      </div> */}
-                    </div>
-                  );
-                })()}
 
                 {/* Term-wise Breakdown */}
                 {(() => {
