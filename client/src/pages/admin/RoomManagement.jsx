@@ -52,6 +52,7 @@ const RoomManagement = () => {
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStudents, setRoomStudents] = useState([]);
+  const [roomStaff, setRoomStaff] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [filters, setFilters] = useState({
     gender: '',
@@ -254,13 +255,14 @@ const RoomManagement = () => {
     try {
       const response = await api.get(`/api/admin/rooms/${room._id}/students`);
       if (response.data.success) {
-        setRoomStudents(response.data.data.students);
+        setRoomStudents(response.data.data.students || []);
+        setRoomStaff(response.data.data.staff || []);
       } else {
-        throw new Error('Failed to fetch students');
+        throw new Error('Failed to fetch room occupants');
       }
     } catch (error) {
-      console.error('Error fetching students:', error);
-      toast.error('Failed to fetch student details');
+      console.error('Error fetching room occupants:', error);
+      toast.error('Failed to fetch room details');
     } finally {
       setLoadingStudents(false);
       setShowStudentModal(true);
@@ -1207,110 +1209,228 @@ const RoomManagement = () => {
                 <div className="flex justify-center items-center h-32">
                   <LoadingSpinner size="md" />
                 </div>
-              ) : !roomStudents || roomStudents.length === 0 ? (
+              ) : (!roomStudents || roomStudents.length === 0) && (!roomStaff || roomStaff.length === 0) ? (
                 <div className="text-center py-6 sm:py-8">
                   <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-3" />
-                  <p className="text-xs sm:text-sm text-gray-500">No students assigned to this room</p>
+                  <p className="text-xs sm:text-sm text-gray-500">No occupants assigned to this room</p>
                 </div>
               ) : (
                 <>
-                  {/* Course Count Summary */}
-                  <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-                      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Course Distribution</h3>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-                      {Object.entries(calculateCourseCounts(roomStudents)).map(([course, count]) => {
-                        // Define colors for each course
-                        const getCourseColors = (courseName) => {
-                          switch (courseName) {
-                            case 'B.Tech':
-                              return {
-                                bg: 'bg-blue-50',
-                                border: 'border-blue-200',
-                                text: 'text-blue-700',
-                                count: 'text-blue-600',
-                                icon: 'text-blue-500'
-                              };
-                            case 'Diploma':
-                              return {
-                                bg: 'bg-green-50',
-                                border: 'border-green-200',
-                                text: 'text-green-700',
-                                count: 'text-green-600',
-                                icon: 'text-green-500'
-                              };
-                            case 'Degree':
-                              return {
-                                bg: 'bg-purple-50',
-                                border: 'border-purple-200',
-                                text: 'text-purple-700',
-                                count: 'text-purple-600',
-                                icon: 'text-purple-500'
-                              };
-                            case 'Pharmacy':
-                              return {
-                                bg: 'bg-orange-50',
-                                border: 'border-orange-200',
-                                text: 'text-orange-700',
-                                count: 'text-orange-600',
-                                icon: 'text-orange-500'
-                              };
-                            default:
-                              return {
-                                bg: 'bg-gray-50',
-                                border: 'border-gray-200',
-                                text: 'text-gray-700',
-                                count: 'text-gray-600',
-                                icon: 'text-gray-500'
-                              };
-                          }
-                        };
-
-                        const colors = getCourseColors(course);
-
-                        return (
-                          <div key={course} className={`${colors.bg} ${colors.border} border rounded-lg p-2 sm:p-3 text-center transition-all duration-200 hover:shadow-sm`}>
-                            <div className={`text-lg sm:text-xl font-bold ${colors.count}`}>{count}</div>
-                            <div className={`text-xs sm:text-sm font-medium ${colors.text}`}>{course}</div>
+                  {/* Room Information */}
+                  <div className="mb-6">
+                    <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3">Room Information</h3>
+                      <div className="space-y-2 text-xs sm:text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Room Number:</span>
+                          <span className="font-medium">{selectedRoom.roomNumber}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Gender:</span>
+                          <span className="font-medium">{selectedRoom.gender}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Category:</span>
+                          <span className="font-medium">{selectedRoom.category}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total Beds:</span>
+                          <span className="font-medium">{selectedRoom.bedCount || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Students:</span>
+                          <span className="font-medium">{selectedRoom.studentCount || roomStudents?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Staff:</span>
+                          <span className="font-medium">{selectedRoom.staffCount || roomStaff?.length || 0}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Total Occupied:</span>
+                          <span className="font-medium">{selectedRoom.totalOccupancy || ((selectedRoom.studentCount || roomStudents?.length || 0) + (selectedRoom.staffCount || roomStaff?.length || 0))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Available Beds:</span>
+                          <span className="font-medium text-green-600">{selectedRoom.availableBeds || ((selectedRoom.bedCount || 0) - ((selectedRoom.studentCount || roomStudents?.length || 0) + (selectedRoom.staffCount || roomStaff?.length || 0)))}</span>
+                        </div>
+                        {selectedRoom.occupancyRate !== undefined && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Occupancy Rate:</span>
+                            <span className="font-medium">{selectedRoom.occupancyRate}%</span>
                           </div>
-                        );
-                      })}
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Staff Members List */}
+                  {roomStaff && roomStaff.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                        <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-purple-600" />
+                        Staff Members ({roomStaff.length})
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+                        {roomStaff.map((staff) => (
+                          <div
+                            key={staff._id}
+                            className="bg-purple-50 border border-purple-200 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
+                          >
+                            <div className="bg-purple-100 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                              <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-purple-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate mb-2">{staff.name}</h3>
+                              <div className="space-y-1.5 text-xs sm:text-sm text-gray-600">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">Profession:</span>
+                                  <span className="truncate">{staff.profession}</span>
+                                </div>
+                                {staff.department && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">Department:</span>
+                                    <span className="truncate">{staff.department}</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
+                                  <span className="truncate">Phone: {staff.phoneNumber}</span>
+                                </div>
+                                {staff.bedNumber && (
+                                  <div className="mt-2">
+                                    <span className="text-xs bg-purple-100 text-purple-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">
+                                      Bed: {staff.bedNumber}
+                                    </span>
+                                  </div>
+                                )}
+                                {staff.stayType && (
+                                  <div className="mt-2">
+                                    <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded ${
+                                      staff.stayType === 'monthly' 
+                                        ? 'bg-indigo-100 text-indigo-800' 
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {staff.stayType === 'monthly' 
+                                        ? `Monthly${staff.selectedMonth ? ` (${new Date(staff.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})` : ''}`
+                                        : 'Daily'}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Course Count Summary - Only show if there are students */}
+                  {roomStudents && roomStudents.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ChartBarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900">Course Distribution</h3>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+                        {Object.entries(calculateCourseCounts(roomStudents)).map(([course, count]) => {
+                          // Define colors for each course
+                          const getCourseColors = (courseName) => {
+                            switch (courseName) {
+                              case 'B.Tech':
+                                return {
+                                  bg: 'bg-blue-50',
+                                  border: 'border-blue-200',
+                                  text: 'text-blue-700',
+                                  count: 'text-blue-600',
+                                  icon: 'text-blue-500'
+                                };
+                              case 'Diploma':
+                                return {
+                                  bg: 'bg-green-50',
+                                  border: 'border-green-200',
+                                  text: 'text-green-700',
+                                  count: 'text-green-600',
+                                  icon: 'text-green-500'
+                                };
+                              case 'Degree':
+                                return {
+                                  bg: 'bg-purple-50',
+                                  border: 'border-purple-200',
+                                  text: 'text-purple-700',
+                                  count: 'text-purple-600',
+                                  icon: 'text-purple-500'
+                                };
+                              case 'Pharmacy':
+                                return {
+                                  bg: 'bg-orange-50',
+                                  border: 'border-orange-200',
+                                  text: 'text-orange-700',
+                                  count: 'text-orange-600',
+                                  icon: 'text-orange-500'
+                                };
+                              default:
+                                return {
+                                  bg: 'bg-gray-50',
+                                  border: 'border-gray-200',
+                                  text: 'text-gray-700',
+                                  count: 'text-gray-600',
+                                  icon: 'text-gray-500'
+                                };
+                            }
+                          };
+
+                          const colors = getCourseColors(course);
+
+                          return (
+                            <div key={course} className={`${colors.bg} ${colors.border} border rounded-lg p-2 sm:p-3 text-center transition-all duration-200 hover:shadow-sm`}>
+                              <div className={`text-lg sm:text-xl font-bold ${colors.count}`}>{count}</div>
+                              <div className={`text-xs sm:text-sm font-medium ${colors.text}`}>{course}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Student List */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    {roomStudents.map((student) => (
-                      <div
-                        key={student._id}
-                        className="bg-gray-50 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
-                      >
-                        <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
-                          <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate mb-2">{student.name}</h3>
-                          <div className="space-y-1.5 text-xs sm:text-sm text-gray-600">
-                            <div className="flex items-center gap-2">
-                              <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
-                              <span className="truncate">Roll No: {student.rollNumber}</span>
+                  {roomStudents && roomStudents.length > 0 && (
+                    <div>
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center">
+                        <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-blue-600" />
+                        Students ({roomStudents.length})
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        {roomStudents.map((student) => (
+                          <div
+                            key={student._id}
+                            className="bg-gray-50 rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4"
+                          >
+                            <div className="bg-blue-100 p-1.5 sm:p-2 rounded-lg flex-shrink-0">
+                              <UserIcon className="w-4 h-4 sm:w-6 sm:h-6 text-blue-600" />
                             </div>
-                            <div className="flex items-center gap-2">
-                              <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
-                              <span className="truncate">Phone: {student.studentPhone}</span>
-                            </div>
-                            <div className="mt-2">
-                              <span className="text-xs bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded truncate inline-block">
-                                {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
-                              </span>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-medium text-gray-900 text-sm sm:text-base truncate mb-2">{student.name}</h3>
+                              <div className="space-y-1.5 text-xs sm:text-sm text-gray-600">
+                                <div className="flex items-center gap-2">
+                                  <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
+                                  <span className="truncate">Roll No: {student.rollNumber}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 text-gray-500" />
+                                  <span className="truncate">Phone: {student.studentPhone}</span>
+                                </div>
+                                <div className="mt-2">
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded truncate inline-block">
+                                    {(student.course?.name || student.course || 'N/A')} - {(student.branch?.name || student.branch || 'N/A')}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>

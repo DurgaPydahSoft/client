@@ -283,6 +283,7 @@ const Students = () => {
   const [showRoomViewModal, setShowRoomViewModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStudents, setRoomStudents] = useState([]);
+  const [roomStaff, setRoomStaff] = useState([]);
   const [loadingRoomStudents, setLoadingRoomStudents] = useState(false);
 
   // Bed and locker availability states
@@ -493,13 +494,14 @@ const Students = () => {
     try {
       const response = await api.get(`/api/admin/rooms/${room._id}/students`);
       if (response.data.success) {
-        setRoomStudents(response.data.data.students);
+        setRoomStudents(response.data.data.students || []);
+        setRoomStaff(response.data.data.staff || []);
       } else {
-        throw new Error('Failed to fetch students');
+        throw new Error('Failed to fetch room occupants');
       }
     } catch (error) {
-      console.error('Error fetching room students:', error);
-      toast.error('Failed to fetch student details');
+      console.error('Error fetching room occupants:', error);
+      toast.error('Failed to fetch room details');
     } finally {
       setLoadingRoomStudents(false);
       setShowRoomViewModal(true);
@@ -6345,12 +6347,20 @@ const Students = () => {
                     <span className="font-medium">{selectedRoom.bedCount}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Occupied Beds:</span>
-                    <span className="font-medium">{selectedRoom.studentCount}</span>
+                    <span className="text-gray-600">Students:</span>
+                    <span className="font-medium">{selectedRoom.studentCount || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Staff:</span>
+                    <span className="font-medium">{selectedRoom.staffCount || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Occupied:</span>
+                    <span className="font-medium">{selectedRoom.totalOccupancy || (selectedRoom.studentCount || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Available Beds:</span>
-                    <span className="font-medium text-green-600">{selectedRoom.availableBeds}</span>
+                    <span className="font-medium text-green-600">{selectedRoom.availableBeds || (selectedRoom.bedCount - (selectedRoom.studentCount || 0))}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Occupancy Rate:</span>
@@ -6417,9 +6427,73 @@ const Students = () => {
               </div>
             )}
 
+            {/* Staff Members List */}
+            {roomStaff && roomStaff.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <UserIcon className="w-5 h-5 mr-2 text-purple-600" />
+                  Staff Members in Room ({roomStaff.length})
+                </h3>
+                <div className="space-y-4">
+                  {roomStaff.map((staff) => (
+                    <div
+                      key={staff._id}
+                      className="bg-purple-50 border border-purple-200 rounded-lg p-4 flex items-start gap-4"
+                    >
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <UserIcon className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{staff.name}</h3>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Profession:</span>
+                            <span>{staff.profession}</span>
+                          </div>
+                          {staff.department && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Department:</span>
+                              <span>{staff.department}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <PhoneIcon className="w-4 h-4" />
+                            <span>Phone: {staff.phoneNumber}</span>
+                          </div>
+                          {staff.bedNumber && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                Bed: {staff.bedNumber}
+                              </span>
+                            </div>
+                          )}
+                          {staff.stayType && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                staff.stayType === 'monthly' 
+                                  ? 'bg-indigo-100 text-indigo-800' 
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {staff.stayType === 'monthly' 
+                                  ? `Monthly Basis${staff.selectedMonth ? ` (${new Date(staff.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})` : ''}`
+                                  : 'Daily Basis'}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Students List */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Students in Room</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <AcademicCapIcon className="w-5 h-5 mr-2 text-blue-600" />
+                Students in Room ({roomStudents?.length || 0})
+              </h3>
               {loadingRoomStudents ? (
                 <div className="flex justify-center py-8">
                   <LoadingSpinner size="sm" />

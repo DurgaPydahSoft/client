@@ -42,6 +42,14 @@ const StaffGuestsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingStaffGuest, setEditingStaffGuest] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedStaffGuest, setSelectedStaffGuest] = useState(null);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
+  const [renewalForm, setRenewalForm] = useState({
+    selectedMonth: '',
+    roomNumber: '',
+    bedNumber: ''
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterGender, setFilterGender] = useState('all');
@@ -59,10 +67,16 @@ const StaffGuestsManagement = () => {
     purpose: '',
     checkinDate: '',
     checkoutDate: '',
+    stayType: 'daily',
+    selectedMonth: '',
+    roomNumber: '',
+    bedNumber: '',
     dailyRate: '',
     photo: null,
     existingPhoto: null
   });
+  const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Attendance-related state
   const [attendanceData, setAttendanceData] = useState([]);
@@ -99,6 +113,40 @@ const StaffGuestsManagement = () => {
       fetchDailyRateSettings();
     }
   }, [activeTab, attendanceFilters, attendanceSearchTerm]);
+
+  // Fetch rooms when gender changes for staff type
+  useEffect(() => {
+    if (formData.type === 'staff' && formData.gender && showForm) {
+      fetchRoomsForStaff();
+    } else {
+      setRoomsWithAvailability([]);
+    }
+  }, [formData.type, formData.gender, showForm]);
+
+  const fetchRoomsForStaff = async () => {
+    if (!formData.gender) {
+      setRoomsWithAvailability([]);
+      return;
+    }
+
+    setLoadingRooms(true);
+    try {
+      // For staff, we fetch all rooms matching gender (category is not required for staff)
+      const response = await api.get('/api/admin/rooms/bed-availability', {
+        params: {
+          gender: formData.gender
+        }
+      });
+      if (response.data.success) {
+        setRoomsWithAvailability(response.data.data.rooms || []);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      toast.error('Failed to fetch room availability');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
 
   const fetchStaffGuests = async () => {
     try {
@@ -242,6 +290,10 @@ const StaffGuestsManagement = () => {
         purpose: '',
         checkinDate: '',
         checkoutDate: '',
+        stayType: 'daily',
+        selectedMonth: '',
+        roomNumber: '',
+        bedNumber: '',
         dailyRate: '',
         photo: null,
         existingPhoto: null
@@ -267,6 +319,10 @@ const StaffGuestsManagement = () => {
       purpose: staffGuest.purpose || '',
       checkinDate: staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toISOString().split('T')[0] : '',
       checkoutDate: staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toISOString().split('T')[0] : '',
+      stayType: staffGuest.stayType || 'daily',
+      selectedMonth: staffGuest.selectedMonth || '',
+      roomNumber: staffGuest.roomNumber || '',
+      bedNumber: staffGuest.bedNumber || '',
       dailyRate: staffGuest.dailyRate || '',
       photo: null, // New photo file (if selected)
       existingPhoto: staffGuest.photo // Keep existing photo URL
@@ -274,13 +330,14 @@ const StaffGuestsManagement = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, onSuccess) => {
     if (window.confirm('Are you sure you want to delete this staff/guest?')) {
       try {
         await api.delete(`/api/admin/staff-guests/${id}`);
         toast.success('Staff/Guest deleted successfully');
         fetchStaffGuests();
         fetchStats();
+        if (onSuccess) onSuccess();
       } catch (error) {
         console.error('Error deleting staff/guest:', error);
         toast.error('Failed to delete staff/guest');
@@ -311,12 +368,17 @@ const StaffGuestsManagement = () => {
       purpose: '',
       checkinDate: '',
       checkoutDate: '',
+      stayType: 'daily',
+      selectedMonth: '',
+      roomNumber: '',
+      bedNumber: '',
       dailyRate: '',
       photo: null,
       existingPhoto: null
     });
     setEditingStaffGuest(null);
     setShowForm(false);
+    setRoomsWithAvailability([]);
   };
 
   // Attendance helper functions
@@ -333,6 +395,58 @@ const StaffGuestsManagement = () => {
       case 'Partial': return 'text-yellow-600 bg-yellow-50';
       case 'Absent': return 'text-red-600 bg-red-50';
       default: return 'text-gray-600 bg-gray-50';
+    }
+  };
+
+  // Helper function to check if validity has expired (for monthly basis staff)
+  const checkValidityExpired = (staffGuest) => {
+    // Check if staff is inactive (expired)
+    if (staffGuest.type === 'staff' && !staffGuest.isActive) {
+      return true;
+    }
+    
+    if (staffGuest.type !== 'staff' || staffGuest.stayType !== 'monthly' || !staffGuest.selectedMonth) {
+      return false;
+    }
+    
+    const [year, month] = staffGuest.selectedMonth.split('-').map(Number);
+    const lastDayOfMonth = new Date(year, month, 0); // Last day of selected month
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return today > lastDayOfMonth;
+  };
+
+  // Handle renewal
+  const handleRenewal = async () => {
+    if (!renewalForm.selectedMonth) {
+      toast.error('Please select a month for renewal');
+      return;
+    }
+
+    try {
+      const response = await api.post(`/api/admin/staff-guests/${selectedStaffGuest._id}/renew`, {
+        selectedMonth: renewalForm.selectedMonth,
+        roomNumber: renewalForm.roomNumber || null,
+        bedNumber: renewalForm.bedNumber || null
+      });
+
+      if (response.data.success) {
+        toast.success('Staff member renewed successfully');
+        setShowRenewalModal(false);
+        setShowDetailModal(false);
+        setRenewalForm({ selectedMonth: '', roomNumber: '', bedNumber: '' });
+        fetchStaffGuests();
+        fetchStats();
+        
+        // Generate admit card for the renewed period
+        if (response.data.data) {
+          generateStaffAdmitCardPDF(response.data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error renewing staff:', error);
+      toast.error(error.response?.data?.message || 'Failed to renew staff member');
     }
   };
 
@@ -412,6 +526,44 @@ const StaffGuestsManagement = () => {
     try {
       console.log('Generating PDF for staff/guest:', staffGuest);
 
+      // Pre-load photo if it's a URL and convert to base64
+      let photoData = staffGuest.photo;
+      if (photoData && (photoData.startsWith('http') || photoData.startsWith('https'))) {
+        try {
+          console.log('Loading photo from URL:', photoData);
+          const response = await fetch(photoData);
+          if (response.ok) {
+            const blob = await response.blob();
+            const reader = new FileReader();
+            photoData = await new Promise((resolve, reject) => {
+              reader.onloadend = () => {
+                const base64String = reader.result;
+                if (base64String) {
+                  console.log('Photo converted to base64 successfully');
+                  resolve(base64String);
+                } else {
+                  reject(new Error('Failed to convert image to base64'));
+                }
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+          } else {
+            console.warn('Failed to fetch photo, status:', response.status);
+            photoData = null;
+          }
+        } catch (error) {
+          console.error('Error loading photo from URL:', error);
+          photoData = null;
+        }
+      }
+
+      // Create a copy of staffGuest with the processed photo
+      const staffGuestWithPhoto = {
+        ...staffGuest,
+        photo: photoData
+      };
+
       const doc = new jsPDF('p', 'mm', 'a4');
       const pageWidth = doc.internal.pageSize.width;
       const pageHeight = doc.internal.pageSize.height;
@@ -420,16 +572,31 @@ const StaffGuestsManagement = () => {
       const contentWidth = pageWidth - (margin * 2);
 
       const generateOneCopy = async (startY, copyLabel) => {
-        if (!staffGuest || typeof staffGuest !== 'object') {
-          console.error('❌ Invalid staffGuest object:', staffGuest);
+        if (!staffGuestWithPhoto || typeof staffGuestWithPhoto !== 'object') {
+          console.error('❌ Invalid staffGuest object:', staffGuestWithPhoto);
           throw new Error('Invalid staffGuest object provided to generateOneCopy');
         }
 
-        const dailyRate = staffGuest.dailyRate || dailyRateSettings.staffDailyRate || 100;
-        const dayCount = staffGuest.dayCount || 0;
+        const dailyRate = staffGuestWithPhoto.dailyRate || dailyRateSettings.staffDailyRate || 100;
+        
+        // Calculate day count - for monthly staff, calculate days in the selected month
+        let dayCount = 0;
+        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+          const [year, month] = staffGuestWithPhoto.selectedMonth.split('-').map(Number);
+          dayCount = new Date(year, month, 0).getDate(); // Days in the selected month
+        } else if (staffGuestWithPhoto.checkinDate) {
+          // For daily basis, calculate days between checkin and checkout
+          const startDate = new Date(staffGuestWithPhoto.checkinDate);
+          const endDate = staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate) : new Date();
+          startDate.setHours(0, 0, 0, 0);
+          endDate.setHours(0, 0, 0, 0);
+          const timeDiff = endDate.getTime() - startDate.getTime();
+          dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+        }
+        
         const totalCharges = dailyRate * dayCount;
-        const actualCharges = staffGuest.calculatedCharges || totalCharges;
-        const staffGender = staffGuest.gender?.toLowerCase();
+        const actualCharges = staffGuestWithPhoto.calculatedCharges || totalCharges;
+        const staffGender = staffGuestWithPhoto.gender?.toLowerCase();
         const hostelName = staffGender === 'female' ? 'Girls Hostel' : 'Boys Hostel';
 
         const wardenNumbers = {
@@ -471,7 +638,7 @@ const StaffGuestsManagement = () => {
         doc.setFontSize(8);
         doc.text('HOSTEL ADMIT CARD', pageWidth - margin - 5, yPos + 4, { align: 'right' });
         doc.setFontSize(6);
-        doc.text(`${staffGuest.type.toUpperCase()} - ${new Date().getFullYear()}`, pageWidth - margin - 5, yPos + 8, { align: 'right' });
+        doc.text(`${staffGuestWithPhoto.type.toUpperCase()} - ${new Date().getFullYear()}`, pageWidth - margin - 5, yPos + 8, { align: 'right' });
 
         yPos = startY + 24;
         doc.setDrawColor(100, 100, 100);
@@ -528,16 +695,45 @@ const StaffGuestsManagement = () => {
         doc.setFont('helvetica', 'normal'); // Set to normal for list items
         doc.setFontSize(7);
         doc.text(`Daily Rate: Rs.${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
-        doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
-        doc.text(`Base Amount: Rs.${totalCharges}`, chargesSummaryX, emergencyY + 15);
+        
+        // Show stay type and duration
+        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+          const monthName = new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+          doc.text(`Stay Type: Monthly Basis`, chargesSummaryX, emergencyY + 10);
+          doc.text(`Valid Month: ${monthName}`, chargesSummaryX, emergencyY + 15);
+          doc.text(`Days in Month: ${dayCount} days`, chargesSummaryX, emergencyY + 20);
+          
+          // Show validity expiration warning if expired
+          if (staffGuestWithPhoto.isValidityExpired) {
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(255, 0, 0);
+            doc.text(`⚠️ VALIDITY EXPIRED`, chargesSummaryX, emergencyY + 25);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+          }
+        } else {
+          doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
+        }
+        
+        // Base Amount position - adjust based on monthly vs daily and expiration
+        let baseAmountY;
+        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+          baseAmountY = emergencyY + (staffGuestWithPhoto.isValidityExpired ? 30 : 25);
+        } else {
+          baseAmountY = emergencyY + 15;
+        }
+        doc.text(`Base Amount: Rs.${totalCharges}`, chargesSummaryX, baseAmountY);
 
+        // Total Payable position - always 5mm below Base Amount
+        const totalPayableY = baseAmountY + 5;
+        
         if (actualCharges !== totalCharges) {
-          doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, emergencyY + 20);
+          doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, totalPayableY);
           doc.setFont('helvetica', 'bold');
-          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, emergencyY + 25);
+          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY + 5);
         } else {
           doc.setFont('helvetica', 'bold');
-          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, emergencyY + 20);
+          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY);
         }
 
         // Reset to normal font for subsequent text
@@ -553,18 +749,14 @@ const StaffGuestsManagement = () => {
         doc.setLineWidth(0.4);
         doc.rect(photoX, photoY, photoWidth, photoHeight);
 
-        if (staffGuest.photo) {
+        if (staffGuestWithPhoto.photo) {
           try {
-            if (staffGuest.photo.startsWith('data:image')) {
-              // Handle base64 data URLs (preferred method from backend)
-              doc.addImage(staffGuest.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
-            } else if (staffGuest.photo.startsWith('http') || staffGuest.photo.startsWith('/')) {
-              // Handle URL-based images (fallback method - should not happen with new backend)
-              // For now, just show placeholder since URL loading will fail due to CORS
-              doc.setFontSize(4);
-              doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
+            if (staffGuestWithPhoto.photo.startsWith('data:image')) {
+              // Handle base64 data URLs (preferred method - already converted from URL if needed)
+              doc.addImage(staffGuestWithPhoto.photo, 'JPEG', photoX, photoY, photoWidth, photoHeight);
             } else {
               // Handle other image formats or invalid URLs
+              console.warn('Photo format not recognized:', staffGuestWithPhoto.photo);
               doc.setFontSize(4);
               doc.text('Photo', photoX + photoWidth / 2, photoY + photoHeight / 2, { align: 'center' });
             }
@@ -590,18 +782,25 @@ const StaffGuestsManagement = () => {
         doc.setFontSize(7);
 
         const staffDetails = [
-          ['Name:', String(staffGuest.name || '')],
-          ['Type:', String(staffGuest.type || '')],
-          ['Gender:', String(staffGuest.gender || '')],
-          ['Profession:', String(staffGuest.profession || '')],
-          ['Phone:', String(staffGuest.phoneNumber || '')],
-          ['Email:', String(staffGuest.email || 'N/A')],
-          ['Department:', String(staffGuest.department || 'N/A')],
-          ['Purpose:', String(staffGuest.purpose || 'N/A')],
+          ['Name:', String(staffGuestWithPhoto.name || '')],
+          ['Type:', String(staffGuestWithPhoto.type || '')],
+          ['Gender:', String(staffGuestWithPhoto.gender || '')],
+          ['Profession:', String(staffGuestWithPhoto.profession || '')],
+          ['Phone:', String(staffGuestWithPhoto.phoneNumber || '')],
+          ['Email:', String(staffGuestWithPhoto.email || 'N/A')],
+          ['Department:', String(staffGuestWithPhoto.department || 'N/A')],
+          ['Purpose:', String(staffGuestWithPhoto.purpose || 'N/A')],
           ['Hostel:', String(hostelName)],
-          ['Check-in:', String(staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toLocaleDateString() : 'N/A')],
-          ['Check-out:', String(staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toLocaleDateString() : 'N/A')],
-          ['Status:', String(staffGuest.isCheckedIn ? 'Checked In' : 'Checked Out')]
+          ...(staffGuestWithPhoto.roomNumber ? [['Room:', String(staffGuestWithPhoto.roomNumber)]] : []),
+          ...(staffGuestWithPhoto.bedNumber ? [['Bed:', String(staffGuestWithPhoto.bedNumber)]] : []),
+          ...(staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth ? [
+            ['Stay Type:', 'Monthly Basis'],
+            ['Valid Month:', String(new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))]
+          ] : [
+            ['Check-in:', String(staffGuestWithPhoto.checkinDate ? new Date(staffGuestWithPhoto.checkinDate).toLocaleDateString() : 'N/A')],
+            ['Check-out:', String(staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate).toLocaleDateString() : 'N/A')]
+          ]),
+          ['Status:', String(staffGuestWithPhoto.isCheckedIn ? 'Checked In' : 'Checked Out')]
         ];
 
         staffDetails.forEach(([label, value]) => {
@@ -612,26 +811,7 @@ const StaffGuestsManagement = () => {
           yPos += 3.5;
         });
 
-        // IMPORTANT NOTES aligned below charges and emergency contacts
-        const notesY = emergencyY + 25 + 5;
-        const notesX = qrCodeX;
-
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'bold');
-        doc.text('IMPORTANT NOTES:', notesX, notesY);
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(7);
-        const noteLines = [
-          '1. Present this card at hostel entrance for verification.',
-          '2. Keep this card safe during your stay.',
-          '3. Report any issues to hostel administration.'
-        ];
-        let noteYPos = notesY + 4;
-        noteLines.forEach((line) => {
-          doc.text(line, notesX, noteYPos);
-          noteYPos += 4;
-        });
+        // Important Notes section removed as per user request
       };
 
       await generateOneCopy(margin, 'STAFF/GUEST COPY');
@@ -642,7 +822,7 @@ const StaffGuestsManagement = () => {
 
       await generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
 
-      const fileName = `AdmitCard_${staffGuest.name || 'Staff'}_${staffGuest.type || 'Unknown'}.pdf`;
+      const fileName = `AdmitCard_${staffGuestWithPhoto.name || 'Staff'}_${staffGuestWithPhoto.type || 'Unknown'}.pdf`;
       console.log('Saving PDF as:', fileName);
       doc.save(fileName);
 
@@ -869,15 +1049,23 @@ const StaffGuestsManagement = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Gender</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profession</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stay Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Charges</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {console.log('Rendering table with staffGuests:', staffGuests)}
                       {staffGuests && staffGuests.length > 0 ? staffGuests.map((staffGuest) => (
-                        <tr key={staffGuest._id} className="hover:bg-gray-50">
+                        <tr 
+                          key={staffGuest._id} 
+                          className="hover:bg-gray-50 cursor-pointer transition-colors"
+                          onClick={() => {
+                            setSelectedStaffGuest(staffGuest);
+                            setShowDetailModal(true);
+                          }}
+                        >
                           <td className="px-6 py-4 whitespace-nowrap">
                             {staffGuest.photo ? (
                               <img
@@ -918,67 +1106,74 @@ const StaffGuestsManagement = () => {
                             {staffGuest.phoneNumber}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span className="font-medium text-green-600">₹{staffGuest.calculatedCharges || 0}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <CheckCircleIcon className="w-3 h-3 mr-1" />
-                                Checked In
+                            {staffGuest.roomNumber ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                Room {staffGuest.roomNumber}
+                                {staffGuest.bedNumber && ` - Bed ${staffGuest.bedNumber}`}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <ClockIcon className="w-3 h-3 mr-1" />
-                                Checked Out
-                              </span>
+                              <span className="text-gray-400">-</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => handleEdit(staffGuest)}
-                                className="text-blue-600 hover:text-blue-900"
-                                title="Edit"
-                              >
-                                <PencilIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => generateStaffAdmitCardPDF(staffGuest)}
-                                className="text-purple-600 hover:text-purple-900"
-                                title="Generate Admit Card PDF"
-                              >
-                                <DocumentArrowDownIcon className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(staffGuest._id)}
-                                className="text-red-600 hover:text-red-900"
-                                title="Delete"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
-                              {staffGuest.checkInTime && !staffGuest.checkOutTime ? (
-                                <button
-                                  onClick={() => handleCheckInOut(staffGuest._id, 'checkout')}
-                                  className="text-orange-600 hover:text-orange-900"
-                                  title="Check Out"
-                                >
-                                  <EyeSlashIcon className="w-4 h-4" />
-                                </button>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {staffGuest.type === 'staff' && staffGuest.stayType ? (
+                              (() => {
+                                const isExpired = checkValidityExpired(staffGuest);
+                                return (
+                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                    staffGuest.stayType === 'monthly' 
+                                      ? (isExpired ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
+                                      : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {staffGuest.stayType === 'monthly' ? (
+                                      <>
+                                        Monthly
+                                        {staffGuest.selectedMonth && ` (${new Date(staffGuest.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})`}
+                                        {isExpired && ' ⚠️'}
+                                      </>
+                                    ) : 'Daily'}
+                                  </span>
+                                );
+                              })()
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <span className="font-medium text-green-600">
+                              ₹{typeof staffGuest.calculatedCharges === 'number' 
+                                ? staffGuest.calculatedCharges.toLocaleString('en-IN') 
+                                : (staffGuest.calculatedCharges || 0)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {(() => {
+                              const isExpired = checkValidityExpired(staffGuest);
+                              if (isExpired) {
+                                return (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    <XMarkIcon className="w-3 h-3 mr-1" />
+                                    Expired
+                                  </span>
+                                );
+                              }
+                              return staffGuest.checkInTime && !staffGuest.checkOutTime ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                  Checked In
+                                </span>
                               ) : (
-                                <button
-                                  onClick={() => handleCheckInOut(staffGuest._id, 'checkin')}
-                                  className="text-green-600 hover:text-green-900"
-                                  title="Check In"
-                                >
-                                  <EyeIcon className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  <ClockIcon className="w-3 h-3 mr-1" />
+                                  Checked Out
+                                </span>
+                              );
+                            })()}
                           </td>
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                          <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
                             <UserIcon className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                             <p className="text-lg font-medium">No staff/guests found</p>
                             <p className="text-sm">Add your first staff member or guest to get started</p>
@@ -1300,7 +1495,11 @@ const StaffGuestsManagement = () => {
                             {staffGuest.checkinDate ? new Date(staffGuest.checkinDate).toLocaleDateString() : 'N/A'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            <span className="font-medium text-green-600">₹{staffGuest.calculatedCharges || 0}</span>
+                            <span className="font-medium text-green-600">
+                              ₹{typeof staffGuest.calculatedCharges === 'number' 
+                                ? staffGuest.calculatedCharges.toLocaleString('en-IN') 
+                                : (staffGuest.calculatedCharges || 0)}
+                            </span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <button
@@ -1456,7 +1655,9 @@ const StaffGuestsManagement = () => {
                             <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
                             <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
                             <p>• Base Amount: ₹{(admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
-                            <p className="font-bold">• Total Payable: ₹{admitCardData.calculatedCharges || 0}</p>
+                            <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number' 
+                              ? admitCardData.calculatedCharges.toLocaleString('en-IN') 
+                              : (admitCardData.calculatedCharges || 0)}</p>
                           </div>
                         </div>
                       </div>
@@ -1696,31 +1897,139 @@ const StaffGuestsManagement = () => {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Check-in Date
-                        </label>
-                        <input
-                          type="date"
-                          name="checkinDate"
-                          value={formData.checkinDate}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                      {/* Stay Type Selection - Only for Staff */}
+                      {formData.type === 'staff' && (
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Stay Basis *
+                          </label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="stayType"
+                                value="daily"
+                                checked={formData.stayType === 'daily'}
+                                onChange={handleInputChange}
+                                className="mr-2"
+                              />
+                              <span>Daily Basis</span>
+                            </label>
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="stayType"
+                                value="monthly"
+                                checked={formData.stayType === 'monthly'}
+                                onChange={handleInputChange}
+                                className="mr-2"
+                              />
+                              <span>Monthly Basis</span>
+                            </label>
+                          </div>
+                        </div>
+                      )}
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Check-out Date
-                        </label>
-                        <input
-                          type="date"
-                          name="checkoutDate"
-                          value={formData.checkoutDate}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
+                      {/* Date Fields - For Daily Basis Staff or Non-Staff */}
+                      {formData.type !== 'staff' || formData.stayType === 'daily' ? (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Check-in Date {formData.type === 'staff' && formData.stayType === 'daily' ? '*' : ''}
+                            </label>
+                            <input
+                              type="date"
+                              name="checkinDate"
+                              value={formData.checkinDate}
+                              onChange={handleInputChange}
+                              required={formData.type === 'staff' && formData.stayType === 'daily'}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Check-out Date
+                            </label>
+                            <input
+                              type="date"
+                              name="checkoutDate"
+                              value={formData.checkoutDate}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                        </>
+                      ) : null}
+
+                      {/* Month Selection - For Monthly Basis Staff */}
+                      {formData.type === 'staff' && formData.stayType === 'monthly' && (
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Select Month * (YYYY-MM)
+                          </label>
+                          <input
+                            type="month"
+                            name="selectedMonth"
+                            value={formData.selectedMonth}
+                            onChange={handleInputChange}
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Select the month for which the staff member will stay
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Room Allocation - Only for Staff */}
+                      {formData.type === 'staff' && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Room Number
+                            </label>
+                            <select
+                              name="roomNumber"
+                              value={formData.roomNumber}
+                              onChange={handleInputChange}
+                              disabled={!formData.gender || loadingRooms}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            >
+                              <option value="">Select Room</option>
+                              {loadingRooms ? (
+                                <option value="" disabled>Loading rooms...</option>
+                              ) : (
+                                roomsWithAvailability.map(room => (
+                                  <option key={room._id} value={room.roomNumber}>
+                                    Room {room.roomNumber} ({room.totalOccupancy || 0}/{room.bedCount} beds) - {room.availableBeds || 0} available
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formData.roomNumber ? `Selected: Room ${formData.roomNumber}` : 'Select a room to allocate to this staff member'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Bed Number (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              name="bedNumber"
+                              value={formData.bedNumber}
+                              onChange={handleInputChange}
+                              placeholder="e.g., 1, 2, 3..."
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Specify bed number within the room (optional)
+                            </p>
+                          </div>
+                        </>
+                      )}
 
                       {/* Daily Rate and Charges Display - For Staff and Students */}
                       {['staff', 'student'].includes(formData.type) && (
@@ -1757,24 +2066,42 @@ const StaffGuestsManagement = () => {
                                 <div className="space-y-2">
                                   <div className="text-lg font-bold text-green-700">
                                     ₹{(() => {
-                                      if (!formData.checkinDate) return '0';
-                                      const startDate = new Date(formData.checkinDate);
-                                      const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
-                                      const timeDiff = endDate.getTime() - startDate.getTime();
-                                      const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
-                                      const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
-                                      return (dayCount * rateToUse).toLocaleString();
+                                      if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
+                                        // Calculate for monthly basis
+                                        const [year, month] = formData.selectedMonth.split('-').map(Number);
+                                        const daysInMonth = new Date(year, month, 0).getDate();
+                                        const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                        return (daysInMonth * rateToUse).toLocaleString();
+                                      } else if (formData.checkinDate) {
+                                        // Calculate for daily basis
+                                        const startDate = new Date(formData.checkinDate);
+                                        const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
+                                        const timeDiff = endDate.getTime() - startDate.getTime();
+                                        const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                        const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                        return (dayCount * rateToUse).toLocaleString();
+                                      }
+                                      return '0';
                                     })()}
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     {(() => {
-                                      if (!formData.checkinDate) return 'Enter check-in date to calculate';
-                                      const startDate = new Date(formData.checkinDate);
-                                      const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
-                                      const timeDiff = endDate.getTime() - startDate.getTime();
-                                      const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
-                                      const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
-                                      return `${dayCount} days × ₹${rateToUse}`;
+                                      if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
+                                        const [year, month] = formData.selectedMonth.split('-').map(Number);
+                                        const daysInMonth = new Date(year, month, 0).getDate();
+                                        const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                        return `${daysInMonth} days × ₹${rateToUse}`;
+                                      } else if (formData.checkinDate) {
+                                        const startDate = new Date(formData.checkinDate);
+                                        const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
+                                        const timeDiff = endDate.getTime() - startDate.getTime();
+                                        const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                        const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
+                                        return `${dayCount} days × ₹${rateToUse}`;
+                                      }
+                                      return formData.type === 'staff' && formData.stayType === 'monthly' 
+                                        ? 'Select month to calculate' 
+                                        : 'Enter check-in date to calculate';
                                     })()}
                                   </div>
                                 </div>
@@ -1789,8 +2116,14 @@ const StaffGuestsManagement = () => {
                             </div>
                             <div className="mt-3 text-xs text-gray-600">
                               <p>• Set individual daily rate or leave empty to use default from settings</p>
-                              <p>• Charges are calculated based on the number of days between check-in and check-out dates</p>
-                              <p>• If no check-out date is provided, charges are calculated until today</p>
+                              {formData.type === 'staff' && formData.stayType === 'monthly' ? (
+                                <p>• Charges are calculated for the entire selected month</p>
+                              ) : (
+                                <>
+                                  <p>• Charges are calculated based on the number of days between check-in and check-out dates</p>
+                                  <p>• If no check-out date is provided, charges are calculated until today</p>
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1875,6 +2208,406 @@ const StaffGuestsManagement = () => {
                       </button>
                     </div>
                   </form>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Detail Modal */}
+        <AnimatePresence>
+          {showDetailModal && selectedStaffGuest && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowDetailModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="flex items-center gap-4">
+                      {selectedStaffGuest.photo ? (
+                        <img
+                          src={selectedStaffGuest.photo}
+                          alt={selectedStaffGuest.name}
+                          className="w-20 h-20 rounded-full object-cover border-4 border-gray-200"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-200">
+                          <UserIcon className="w-10 h-10 text-gray-400" />
+                        </div>
+                      )}
+                      <div>
+                        <h2 className="text-2xl font-bold text-gray-900">{selectedStaffGuest.name}</h2>
+                        <p className="text-sm text-gray-500">
+                          {selectedStaffGuest.type.charAt(0).toUpperCase() + selectedStaffGuest.type.slice(1)}
+                          {selectedStaffGuest.department && ` • ${selectedStaffGuest.department}`}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowDetailModal(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <XMarkIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  {/* Details Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    {/* Personal Information */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <UserIcon className="w-5 h-5 mr-2 text-blue-600" />
+                        Personal Information
+                      </h3>
+                      <div className="space-y-3">
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Profession:</span>
+                          <p className="text-sm text-gray-900">{selectedStaffGuest.profession}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Gender:</span>
+                          <p className="text-sm text-gray-900">{selectedStaffGuest.gender}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Phone:</span>
+                          <p className="text-sm text-gray-900 flex items-center gap-2">
+                            <PhoneIcon className="w-4 h-4" />
+                            {selectedStaffGuest.phoneNumber}
+                          </p>
+                        </div>
+                        {selectedStaffGuest.email && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Email:</span>
+                            <p className="text-sm text-gray-900 flex items-center gap-2">
+                              <EnvelopeIcon className="w-4 h-4" />
+                              {selectedStaffGuest.email}
+                            </p>
+                          </div>
+                        )}
+                        {selectedStaffGuest.purpose && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Purpose:</span>
+                            <p className="text-sm text-gray-900">{selectedStaffGuest.purpose}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Stay Information */}
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <CalendarIcon className="w-5 h-5 mr-2 text-green-600" />
+                        Stay Information
+                      </h3>
+                      <div className="space-y-3">
+                        {selectedStaffGuest.type === 'staff' && selectedStaffGuest.stayType && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Stay Type:</span>
+                            <p className="text-sm">
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                selectedStaffGuest.stayType === 'monthly' 
+                                  ? (checkValidityExpired(selectedStaffGuest) ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {selectedStaffGuest.stayType === 'monthly' ? (
+                                  <>
+                                    Monthly
+                                    {selectedStaffGuest.selectedMonth && ` (${new Date(selectedStaffGuest.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})`}
+                                    {checkValidityExpired(selectedStaffGuest) && ' ⚠️ Expired'}
+                                  </>
+                                ) : 'Daily'}
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                        {selectedStaffGuest.checkinDate && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Check-in Date:</span>
+                            <p className="text-sm text-gray-900">
+                              {new Date(selectedStaffGuest.checkinDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        )}
+                        {selectedStaffGuest.checkoutDate && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Check-out Date:</span>
+                            <p className="text-sm text-gray-900">
+                              {new Date(selectedStaffGuest.checkoutDate).toLocaleDateString('en-US', { 
+                                year: 'numeric', 
+                                month: 'long', 
+                                day: 'numeric' 
+                              })}
+                            </p>
+                          </div>
+                        )}
+                        {selectedStaffGuest.roomNumber && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Room Allocation:</span>
+                            <p className="text-sm text-gray-900 flex items-center gap-2">
+                              <BuildingOfficeIcon className="w-4 h-4" />
+                              Room {selectedStaffGuest.roomNumber}
+                              {selectedStaffGuest.bedNumber && ` - Bed ${selectedStaffGuest.bedNumber}`}
+                            </p>
+                          </div>
+                        )}
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">Status:</span>
+                          <p className="text-sm">
+                            {(() => {
+                              const isExpired = checkValidityExpired(selectedStaffGuest);
+                              if (isExpired) {
+                                return (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    <XMarkIcon className="w-3 h-3 mr-1" />
+                                    Expired
+                                  </span>
+                                );
+                              }
+                              return selectedStaffGuest.checkInTime && !selectedStaffGuest.checkOutTime ? (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                  Checked In
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  <ClockIcon className="w-3 h-3 mr-1" />
+                                  Checked Out
+                                </span>
+                              );
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Charges Information */}
+                    {selectedStaffGuest.type !== 'guest' && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                          <CurrencyDollarIcon className="w-5 h-5 mr-2 text-yellow-600" />
+                          Charges Information
+                        </h3>
+                        <div className="space-y-3">
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Daily Rate:</span>
+                            <p className="text-sm text-gray-900">
+                              ₹{selectedStaffGuest.dailyRate || dailyRateSettings.staffDailyRate} per day
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Total Charges:</span>
+                            <p className="text-lg font-bold text-green-600">
+                              ₹{typeof selectedStaffGuest.calculatedCharges === 'number' 
+                                ? selectedStaffGuest.calculatedCharges.toLocaleString('en-IN') 
+                                : (selectedStaffGuest.calculatedCharges || 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
+                    {/* Show Renewal button for expired monthly staff */}
+                    {selectedStaffGuest.type === 'staff' && 
+                     selectedStaffGuest.stayType === 'monthly' && 
+                     checkValidityExpired(selectedStaffGuest) && (
+                      <button
+                        onClick={() => {
+                          // Set default month to next month
+                          const nextMonth = new Date();
+                          nextMonth.setMonth(nextMonth.getMonth() + 1);
+                          const monthString = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+                          setRenewalForm({
+                            selectedMonth: monthString,
+                            roomNumber: selectedStaffGuest.roomNumber || '',
+                            bedNumber: selectedStaffGuest.bedNumber || ''
+                          });
+                          setShowRenewalModal(true);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                      >
+                        <StarIcon className="w-4 h-4" />
+                        Renew
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleEdit(selectedStaffGuest);
+                        setShowDetailModal(false);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        generateStaffAdmitCardPDF(selectedStaffGuest);
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <DocumentArrowDownIcon className="w-4 h-4" />
+                      Generate Admit Card
+                    </button>
+                    {selectedStaffGuest.checkInTime && !selectedStaffGuest.checkOutTime ? (
+                      <button
+                        onClick={() => {
+                          handleCheckInOut(selectedStaffGuest._id, 'checkout');
+                          setShowDetailModal(false);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        <EyeSlashIcon className="w-4 h-4" />
+                        Check Out
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          handleCheckInOut(selectedStaffGuest._id, 'checkin');
+                          setShowDetailModal(false);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        <EyeIcon className="w-4 h-4" />
+                        Check In
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        handleDelete(selectedStaffGuest._id, () => {
+                          setShowDetailModal(false);
+                        });
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Renewal Modal */}
+        <AnimatePresence>
+          {showRenewalModal && selectedStaffGuest && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+              onClick={() => setShowRenewalModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-white rounded-lg shadow-xl w-full max-w-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Renew Monthly Staff</h2>
+                    <button
+                      onClick={() => setShowRenewalModal(false)}
+                      className="text-gray-400 hover:text-gray-500"
+                    >
+                      <XMarkIcon className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>{selectedStaffGuest.name}</strong> - Renewing for a new month
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Select Month (YYYY-MM) *
+                      </label>
+                      <input
+                        type="month"
+                        value={renewalForm.selectedMonth}
+                        onChange={(e) => setRenewalForm({ ...renewalForm, selectedMonth: e.target.value })}
+                        min={new Date().toISOString().slice(0, 7)}
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Select the month for which you want to renew the staff member
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Room Number (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={renewalForm.roomNumber}
+                        onChange={(e) => setRenewalForm({ ...renewalForm, roomNumber: e.target.value })}
+                        placeholder="Enter room number"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Leave empty to keep current room or enter a new room number
+                      </p>
+                    </div>
+
+                    {renewalForm.roomNumber && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Bed Number (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={renewalForm.bedNumber}
+                          onChange={(e) => setRenewalForm({ ...renewalForm, bedNumber: e.target.value })}
+                          placeholder="Enter bed number"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setShowRenewalModal(false);
+                        setRenewalForm({ selectedMonth: '', roomNumber: '', bedNumber: '' });
+                      }}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleRenewal}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      Renew & Generate Admit Card
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
