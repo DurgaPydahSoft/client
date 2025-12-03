@@ -28,6 +28,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 // Public components
 const StudentPreRegistration = lazy(() => import('./pages/public/StudentPreRegistration'));
 const PreRegistrationSuccess = lazy(() => import('./pages/public/PreRegistrationSuccess'));
+const UploadPastPayments = lazy(() => import('./pages/public/UploadPastPayments'));
 
 // Admin components
 const Students = lazy(() => import('./pages/admin/Students'));
@@ -47,6 +48,7 @@ const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
 const CourseManagement = lazy(() => import('./pages/admin/CourseManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
+const PaymentRecords = lazy(() => import('./pages/admin/PaymentRecords'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
 const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManagement'));
@@ -138,6 +140,7 @@ function App() {
                 <Route path="leave/qr/:id" element={<LeaveQRDetails />} />
                 <Route path="/student/preregister" element={<StudentPreRegistration />} />
                 <Route path="/student/preregister/success" element={<PreRegistrationSuccess />} />
+                <Route path="/upload-past-payments" element={<UploadPastPayments />} />
 
                 {/* Protected admin routes */}
                 <Route
@@ -242,6 +245,11 @@ function App() {
                   <Route path="fee-management" element={
                     <ProtectedSection permission="fee_management" sectionName="Fee Management">
                       <AdminFeeManagement />
+                    </ProtectedSection>
+                  } />
+                  <Route path="fee-management/payment-records" element={
+                    <ProtectedSection permission="fee_management" sectionName="Payment Records">
+                      <PaymentRecords />
                     </ProtectedSection>
                   } />
                   <Route path="feature-controls" element={

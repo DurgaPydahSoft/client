@@ -662,11 +662,14 @@ const FeeManagement = () => {
   }, [cachedPayments]);
 
   // Memoize calculateStudentBalance to avoid recalculating for same student
-  const calculateStudentBalance = useCallback((student) => {
+  const calculateStudentBalance = useCallback((student, paymentsOverride = null) => {
     const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
     if (!feeStructure) return null;
 
-    const studentPaymentHistory = payments.filter(p => {
+    // Use override payments if provided, otherwise use state payments
+    const paymentsToUse = paymentsOverride || payments;
+
+    const studentPaymentHistory = paymentsToUse.filter(p => {
       // Handle both string and object IDs
       const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
       const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
@@ -838,13 +841,31 @@ const FeeManagement = () => {
 
       console.log('🔍 Frontend: Calculating stats from', allStudentsData.length, 'students...');
 
-        // OPTIMIZATION: Use cached payments instead of fetching individually
-        // Payments should already be loaded via React Query
-        if (payments.length === 0) {
-          // If payments not loaded yet, fetch them once
-          await refetchPayments();
+        // OPTIMIZATION: Use cached payments from React Query
+        // Wait for payments to be loaded before calculating stats
+        let paymentsToUse = cachedPayments || payments;
+        if (!paymentsToUse || paymentsToUse.length === 0) {
+          console.log('🔍 Payments not loaded yet, fetching...');
+          try {
+            const paymentsResult = await refetchPayments();
+            if (paymentsResult?.data) {
+              paymentsToUse = paymentsResult.data;
+              console.log('🔍 Payments fetched:', paymentsToUse.length);
+            } else {
+              console.log('🔍 No payments data returned, using empty array');
+              paymentsToUse = [];
+            }
+          } catch (error) {
+            console.error('Error fetching payments:', error);
+            paymentsToUse = [];
+          }
         }
-
+        
+        // Update payments state to ensure balance calculations use latest data
+        if (paymentsToUse && paymentsToUse.length > 0) {
+          setPayments(paymentsToUse);
+        }
+        
         // Update stats with all students data
         const totalStudents = allStudentsData.length;
         
@@ -918,9 +939,9 @@ const FeeManagement = () => {
             totalFeeAmount += originalFee;
             totalCalculatedFeeAmount += calculatedFee;
 
-            // OPTIMIZATION: Use payments from state instead of individual API calls
-            // Payments are already loaded via React Query
-            const studentBalance = calculateStudentBalance(student);
+            // OPTIMIZATION: Use loaded payments for balance calculation
+            // Temporarily update payments state for this calculation
+            const studentBalance = calculateStudentBalance(student, paymentsToUse);
               
             if (studentBalance) {
           // Get term due dates from cache (already fetched above)
@@ -976,12 +997,16 @@ const FeeManagement = () => {
     }
   }, [payments, refetchPayments, getStudentTermDueDates, calculateStudentBalance]);
 
-  // Calculate stats when cached students data changes
+  // Calculate stats when cached students data and payments are ready
   useEffect(() => {
     if (activeTab === 'dues' && cachedStudentsForStats && cachedStudentsForStats.length >= 0) {
-      calculateStatsFromStudents(cachedStudentsForStats);
+      // Wait for payments to be loaded before calculating stats
+      // Check if payments query has finished (even if empty, it means it's loaded)
+      if (cachedPayments !== undefined) {
+        calculateStatsFromStudents(cachedStudentsForStats);
+      }
     }
-  }, [cachedStudentsForStats, activeTab, calculateStatsFromStudents, feeStructures, payments]);
+  }, [cachedStudentsForStats, cachedPayments, activeTab, calculateStatsFromStudents, feeStructures]);
 
 
 
