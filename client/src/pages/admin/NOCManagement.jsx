@@ -12,25 +12,52 @@ import {
   CalendarIcon,
   FunnelIcon,
   ChartBarIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CogIcon,
+  PlusIcon,
+  PencilIcon,
+  TrashIcon,
+  ArrowUpIcon,
+  ArrowDownIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const NOCManagement = () => {
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'checklist'
+  
+  // NOC Requests state
   const [nocRequests, setNocRequests] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [action, setAction] = useState(''); // 'approve', 'reject', or 'view'
+  const [action, setAction] = useState(''); // 'approve', 'reject', 'send-for-correction', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Checklist Configuration state
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [loadingChecklist, setLoadingChecklist] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const [checklistForm, setChecklistForm] = useState({
+    description: '',
+    order: 0,
+    isActive: true,
+    requiresRemarks: false,
+    requiresSignature: false,
+    defaultValue: ''
+  });
+
   useEffect(() => {
-    fetchNOCRequests();
-    fetchStats();
-  }, [filter]);
+    if (activeTab === 'requests') {
+      fetchNOCRequests();
+      fetchStats();
+    } else if (activeTab === 'checklist') {
+      fetchChecklistItems();
+    }
+  }, [filter, activeTab]);
 
   const fetchNOCRequests = async () => {
     try {
@@ -68,21 +95,36 @@ const NOCManagement = () => {
   const handleSubmitAction = async () => {
     if (!selectedRequest) return;
 
+    if (action === 'send-for-correction' && !remarks.trim()) {
+      toast.error('Admin remarks are required when sending for correction');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const requestId = selectedRequest.id || selectedRequest._id;
-      const url = action === 'approve' 
-        ? `/api/noc/admin/${requestId}/approve`
-        : `/api/noc/admin/${requestId}/reject`;
-      
-      const payload = action === 'approve' 
-        ? {} 
-        : { rejectionReason: remarks };
+      let url, payload;
+
+      if (action === 'approve') {
+        url = `/api/noc/admin/${requestId}/approve`;
+        payload = { adminRemarks: remarks };
+      } else if (action === 'send-for-correction') {
+        url = `/api/noc/admin/${requestId}/send-for-correction`;
+        payload = { adminRemarks: remarks };
+      } else {
+        url = `/api/noc/admin/${requestId}/reject`;
+        payload = { rejectionReason: remarks };
+      }
 
       const response = await api.post(url, payload);
       
       if (response.data.success) {
-        toast.success(`NOC request ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+        const actionMessages = {
+          'approve': 'approved',
+          'send-for-correction': 'sent for correction',
+          'reject': 'rejected'
+        };
+        toast.success(`NOC request ${actionMessages[action]} successfully`);
         setShowModal(false);
         setSelectedRequest(null);
         setRemarks('');
@@ -97,12 +139,120 @@ const NOCManagement = () => {
     }
   };
 
+  // Checklist Configuration functions
+  const fetchChecklistItems = async () => {
+    setLoadingChecklist(true);
+    try {
+      const response = await api.get('/api/noc/checklist');
+      if (response.data.success) {
+        setChecklistItems(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching checklist items:', error);
+      toast.error('Failed to fetch checklist items');
+    } finally {
+      setLoadingChecklist(false);
+    }
+  };
+
+  const handleCreateChecklistItem = () => {
+    setEditingItem(null);
+    setChecklistForm({
+      description: '',
+      isActive: true,
+      requiresRemarks: false,
+      requiresSignature: false
+    });
+    setShowChecklistModal(true);
+  };
+
+  const handleEditChecklistItem = (item) => {
+    setEditingItem(item);
+    setChecklistForm({
+      description: item.description,
+      order: item.order,
+      isActive: item.isActive,
+      requiresRemarks: item.requiresRemarks,
+      requiresSignature: item.requiresSignature
+    });
+    setShowChecklistModal(true);
+  };
+
+  const handleSaveChecklistItem = async () => {
+    if (!checklistForm.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+
+    try {
+      if (editingItem) {
+        // When editing, include order to preserve it
+        await api.put(`/api/noc/checklist/${editingItem.id || editingItem._id}`, checklistForm);
+        toast.success('Checklist item updated successfully');
+      } else {
+        // When creating, don't send order - backend will auto-assign
+        const { order, ...createForm } = checklistForm;
+        await api.post('/api/noc/checklist', createForm);
+        toast.success('Checklist item created successfully');
+      }
+      setShowChecklistModal(false);
+      fetchChecklistItems();
+    } catch (error) {
+      console.error('Error saving checklist item:', error);
+      toast.error(error.response?.data?.message || 'Failed to save checklist item');
+    }
+  };
+
+  const handleDeleteChecklistItem = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this checklist item?')) {
+      return;
+    }
+
+    try {
+      await api.delete(`/api/noc/checklist/${id}`);
+      toast.success('Checklist item deleted successfully');
+      fetchChecklistItems();
+    } catch (error) {
+      console.error('Error deleting checklist item:', error);
+      toast.error('Failed to delete checklist item');
+    }
+  };
+
+  const handleReorderChecklist = async (itemId, direction) => {
+    const itemIndex = checklistItems.findIndex(item => (item.id || item._id) === itemId);
+    if (itemIndex === -1) return;
+
+    const newIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
+    if (newIndex < 0 || newIndex >= checklistItems.length) return;
+
+    const items = [...checklistItems];
+    const [movedItem] = items.splice(itemIndex, 1);
+    items.splice(newIndex, 0, movedItem);
+
+    // Update orders
+    const reorderData = items.map((item, index) => ({
+      id: item.id || item._id,
+      order: index
+    }));
+
+    try {
+      await api.post('/api/noc/checklist/reorder', { items: reorderData });
+      toast.success('Checklist reordered successfully');
+      fetchChecklistItems();
+    } catch (error) {
+      console.error('Error reordering checklist:', error);
+      toast.error('Failed to reorder checklist');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'Warden Verified':
         return 'bg-blue-100 text-blue-800';
+      case 'Sent for Correction':
+        return 'bg-orange-100 text-orange-800';
       case 'Approved':
         return 'bg-green-100 text-green-800';
       case 'Rejected':
@@ -118,6 +268,8 @@ const NOCManagement = () => {
         return <ClockIcon className="h-4 w-4" />;
       case 'Warden Verified':
         return <CheckCircleIcon className="h-4 w-4" />;
+      case 'Sent for Correction':
+        return <ExclamationTriangleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Rejected':
@@ -142,7 +294,7 @@ const NOCManagement = () => {
     return request.status === filter;
   });
 
-  if (loading) {
+  if (loading && activeTab === 'requests') {
     return <LoadingSpinner />;
   }
 
@@ -165,26 +317,59 @@ const NOCManagement = () => {
                     <p className="text-gray-600">Approve and manage NOC requests</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="flex items-center">
-                    <FunnelIcon className="h-5 w-5 text-gray-400 mr-2" />
-                    <select
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="all">All Requests</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Warden Verified">Warden Verified</option>
-                      <option value="Approved">Approved</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
+                {activeTab === 'requests' && (
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center">
+                      <FunnelIcon className="h-5 w-5 text-gray-400 mr-2" />
+                      <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="all">All Requests</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Warden Verified">Warden Verified</option>
+                        <option value="Sent for Correction">Sent for Correction</option>
+                        <option value="Approved">Approved</option>
+                        <option value="Rejected">Rejected</option>
+                      </select>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
+            </div>
+            
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'requests'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                NOC Requests
+              </button>
+              <button
+                onClick={() => setActiveTab('checklist')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'checklist'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <CogIcon className="h-4 w-4 mr-2" />
+                  Checklist Configuration
+                </div>
+              </button>
             </div>
           </div>
 
+          {/* Tab Content */}
+          {activeTab === 'requests' ? (
+            <>
           {/* Stats Cards */}
           {stats && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -342,13 +527,19 @@ const NOCManagement = () => {
                           <EyeIcon className="h-5 w-5" />
                         </button>
                         
-                        {request.status === 'Warden Verified' && (
+                        {(request.status === 'Warden Verified' || request.status === 'Sent for Correction') && (
                           <>
                             <button
                               onClick={() => handleAction(request, 'approve')}
                               className="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
                             >
                               Approve
+                            </button>
+                            <button
+                              onClick={() => handleAction(request, 'send-for-correction')}
+                              className="px-3 py-1 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors duration-200"
+                            >
+                              Send for Correction
                             </button>
                             <button
                               onClick={() => handleAction(request, 'reject')}
@@ -377,7 +568,9 @@ const NOCManagement = () => {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">
                     {action === 'view' ? 'NOC Request Details' : 
-                     action === 'approve' ? 'Approve NOC Request' : 'Reject NOC Request'}
+                     action === 'approve' ? 'Approve NOC Request' : 
+                     action === 'send-for-correction' ? 'Send for Correction' :
+                     'Reject NOC Request'}
                   </h3>
                 </div>
                 
@@ -426,12 +619,58 @@ const NOCManagement = () => {
                         </div>
                       </div>
 
+                      {/* Checklist Responses */}
+                      {selectedRequest.checklistResponses && selectedRequest.checklistResponses.length > 0 && (
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Checklist Verification</h4>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No.</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Checked Out</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {selectedRequest.checklistResponses.map((response, index) => (
+                                  <tr key={index}>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {response.checklistItemId?.description || 'N/A'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{response.checkedOut || '—'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">
+                                      {response.remarks || '—'}
+                                      {response.signature && (
+                                        <span className="block text-xs text-gray-500 mt-1">Signature: {response.signature}</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Warden Remarks */}
                       {selectedRequest.wardenRemarks && (
                         <div>
                           <h4 className="text-md font-semibold text-gray-900 mb-3">Warden Remarks</h4>
                           <div className="p-4 bg-blue-50 rounded-md">
                             <p className="text-sm text-blue-900 whitespace-pre-wrap">{selectedRequest.wardenRemarks}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Admin Remarks (for corrections) */}
+                      {selectedRequest.adminRemarks && (
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Admin Remarks</h4>
+                          <div className="p-4 bg-orange-50 rounded-md">
+                            <p className="text-sm text-orange-900 whitespace-pre-wrap">{selectedRequest.adminRemarks}</p>
                           </div>
                         </div>
                       )}
@@ -461,10 +700,27 @@ const NOCManagement = () => {
                           </div>
                         </div>
                       )}
+
+                      {action === 'send-for-correction' && (
+                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-md">
+                          <div className="flex">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-orange-400 mr-2 mt-0.5" />
+                            <div>
+                              <h4 className="text-sm font-medium text-orange-800">Send for Correction</h4>
+                              <p className="mt-1 text-sm text-orange-700">
+                                This will send the NOC request back to the warden for corrections. 
+                                The warden will need to review and resubmit.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {action === 'approve' ? 'Approval Notes (Optional)' : 'Rejection Reason *'}
+                          {action === 'approve' ? 'Approval Notes (Optional)' : 
+                           action === 'send-for-correction' ? 'Correction Remarks *' :
+                           'Rejection Reason *'}
                         </label>
                         <textarea
                           value={remarks}
@@ -473,9 +729,11 @@ const NOCManagement = () => {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                           placeholder={action === 'approve' 
                             ? 'Add any notes about this approval...'
+                            : action === 'send-for-correction'
+                            ? 'Please specify what needs to be corrected...'
                             : 'Please provide a reason for rejection...'
                           }
-                          required={action === 'reject'}
+                          required={action === 'reject' || action === 'send-for-correction'}
                         />
                       </div>
                     </div>
@@ -496,18 +754,228 @@ const NOCManagement = () => {
                   {action !== 'view' && (
                     <button
                       onClick={handleSubmitAction}
-                      disabled={isSubmitting || (action === 'reject' && !remarks.trim())}
+                      disabled={isSubmitting || ((action === 'reject' || action === 'send-for-correction') && !remarks.trim())}
                       className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                         action === 'approve' 
                           ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                          : action === 'send-for-correction'
+                          ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
                           : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                       }`}
                     >
-                      {isSubmitting ? 'Processing...' : (action === 'approve' ? 'Approve & Deactivate' : 'Reject')}
+                      {isSubmitting ? 'Processing...' : 
+                       action === 'approve' ? 'Approve & Deactivate' : 
+                       action === 'send-for-correction' ? 'Send for Correction' :
+                       'Reject'}
                     </button>
                   )}
                 </div>
               </motion.div>
+            </div>
+          )}
+            </>
+          ) : (
+            /* Checklist Configuration Tab */
+            <div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+                <div className="px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Checklist Items</h2>
+                    <p className="text-sm text-gray-600">Configure checklist items for NOC verification</p>
+                  </div>
+                  <button
+                    onClick={handleCreateChecklistItem}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Add Checklist Item
+                  </button>
+                </div>
+              </div>
+
+              {loadingChecklist ? (
+                <LoadingSpinner />
+              ) : checklistItems.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                  <CogIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Checklist Items</h3>
+                  <p className="text-gray-600 mb-4">Create checklist items that wardens will fill during NOC verification.</p>
+                  <button
+                    onClick={handleCreateChecklistItem}
+                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-2" />
+                    Add First Checklist Item
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Options</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {checklistItems
+                        .sort((a, b) => a.order - b.order)
+                        .map((item, index) => (
+                          <tr key={item.id || item._id} className={!item.isActive ? 'opacity-50' : ''}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleReorderChecklist(item.id || item._id, 'up')}
+                                  disabled={index === 0}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                >
+                                  <ArrowUpIcon className="h-4 w-4" />
+                                </button>
+                                <span className="text-sm font-medium text-gray-900">{item.order + 1}</span>
+                                <button
+                                  onClick={() => handleReorderChecklist(item.id || item._id, 'down')}
+                                  disabled={index === checklistItems.length - 1}
+                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                >
+                                  <ArrowDownIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="text-sm font-medium text-gray-900">{item.description}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex flex-wrap gap-2">
+                                {item.requiresRemarks && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                    Requires Remarks
+                                  </span>
+                                )}
+                                {item.requiresSignature && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                    Requires Signature
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                item.isActive 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {item.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <div className="flex items-center justify-end space-x-2">
+                                <button
+                                  onClick={() => handleEditChecklistItem(item)}
+                                  className="text-blue-600 hover:text-blue-900"
+                                >
+                                  <PencilIcon className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteChecklistItem(item.id || item._id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  <TrashIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Checklist Item Modal */}
+              {showChecklistModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                  >
+                    <div className="px-6 py-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {editingItem ? 'Edit Checklist Item' : 'Create Checklist Item'}
+                      </h3>
+                    </div>
+                    
+                    <div className="px-6 py-4 space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Description *
+                        </label>
+                        <input
+                          type="text"
+                          value={checklistForm.description}
+                          onChange={(e) => setChecklistForm({ ...checklistForm, description: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="e.g., Room, Key, Almirah/Locker"
+                          required
+                        />
+                      </div>
+
+                      <div className="flex items-center">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={checklistForm.isActive}
+                            onChange={(e) => setChecklistForm({ ...checklistForm, isActive: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Active</span>
+                        </label>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={checklistForm.requiresRemarks}
+                            onChange={(e) => setChecklistForm({ ...checklistForm, requiresRemarks: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Requires Remarks</span>
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={checklistForm.requiresSignature}
+                            onChange={(e) => setChecklistForm({ ...checklistForm, requiresSignature: e.target.checked })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-2 text-sm text-gray-700">Requires Signature</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+                      <button
+                        onClick={() => {
+                          setShowChecklistModal(false);
+                          setEditingItem(null);
+                        }}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveChecklistItem}
+                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                      >
+                        {editingItem ? 'Update' : 'Create'}
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
             </div>
           )}
         </motion.div>

@@ -25,6 +25,8 @@ const NOCManagement = () => {
   const [action, setAction] = useState(''); // 'verify', 'reject', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checklistItems, setChecklistItems] = useState([]);
+  const [checklistResponses, setChecklistResponses] = useState([]);
 
   // Create NOC on behalf of student state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -112,15 +114,85 @@ const NOCManagement = () => {
     }
   };
 
-  const handleAction = (request, actionType) => {
+  const fetchChecklistItems = async () => {
+    try {
+      const response = await api.get('/api/noc/warden/checklist');
+      if (response.data.success) {
+        setChecklistItems(response.data.data);
+        // Initialize checklist responses
+        const initialResponses = response.data.data.map(item => ({
+          checklistItemId: item.id || item._id,
+          checkedOut: item.defaultValue || '',
+          remarks: '',
+          signature: ''
+        }));
+        setChecklistResponses(initialResponses);
+      }
+    } catch (error) {
+      console.error('Error fetching checklist items:', error);
+      toast.error('Failed to fetch checklist items');
+    }
+  };
+
+  const handleAction = async (request, actionType) => {
     setSelectedRequest(request);
     setAction(actionType);
     setRemarks('');
+    
+    if (actionType === 'verify') {
+      // Fetch checklist items and initialize responses
+      await fetchChecklistItems();
+      
+      // If resubmitting after correction, populate existing responses
+      if (request.checklistResponses && request.checklistResponses.length > 0) {
+        const existingResponses = request.checklistResponses.map(response => ({
+          checklistItemId: response.checklistItemId?.id || response.checklistItemId?._id || response.checklistItemId,
+          checkedOut: response.checkedOut || '',
+          remarks: response.remarks || '',
+          signature: response.signature || ''
+        }));
+        setChecklistResponses(existingResponses);
+      }
+    }
+    
     setShowModal(true);
   };
 
   const handleSubmitAction = async () => {
     if (!selectedRequest) return;
+
+    if (action === 'verify') {
+      // Validate checklist responses
+      const activeItems = checklistItems.filter(item => item.isActive);
+      if (activeItems.length > 0) {
+        const missingItems = activeItems.filter(item => {
+          const response = checklistResponses.find(r => 
+            (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
+          );
+          return !response || !response.checkedOut || !response.checkedOut.trim();
+        });
+
+        if (missingItems.length > 0) {
+          toast.error(`Please fill all required checklist items`);
+          return;
+        }
+
+        // Validate required remarks and signatures
+        for (const item of activeItems) {
+          const response = checklistResponses.find(r => 
+            (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
+          );
+          if (item.requiresRemarks && (!response?.remarks || !response.remarks.trim())) {
+            toast.error(`Remarks are required for: ${item.description}`);
+            return;
+          }
+          if (item.requiresSignature && (!response?.signature || !response.signature.trim())) {
+            toast.error(`Signature is required for: ${item.description}`);
+            return;
+          }
+        }
+      }
+    }
 
     setIsSubmitting(true);
     try {
@@ -130,7 +202,15 @@ const NOCManagement = () => {
         : `/api/noc/warden/${requestId}/reject`;
       
       const payload = action === 'verify' 
-        ? { remarks }
+        ? { 
+            remarks,
+            checklistResponses: checklistResponses.map(r => ({
+              checklistItemId: r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId,
+              checkedOut: r.checkedOut.trim(),
+              remarks: r.remarks.trim(),
+              signature: r.signature.trim()
+            }))
+          }
         : { rejectionReason: remarks };
 
       const response = await api.post(url, payload);
@@ -140,6 +220,7 @@ const NOCManagement = () => {
         setShowModal(false);
         setSelectedRequest(null);
         setRemarks('');
+        setChecklistResponses([]);
         fetchNOCRequests();
       }
     } catch (error) {
@@ -150,12 +231,37 @@ const NOCManagement = () => {
     }
   };
 
+  const updateChecklistResponse = (itemId, field, value) => {
+    setChecklistResponses(prev => {
+      const existing = prev.find(r => 
+        (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (itemId?.id || itemId?._id || itemId)
+      );
+      
+      if (existing) {
+        return prev.map(r => 
+          (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (itemId?.id || itemId?._id || itemId)
+            ? { ...r, [field]: value }
+            : r
+        );
+      } else {
+        return [...prev, {
+          checklistItemId: itemId?.id || itemId?._id || itemId,
+          checkedOut: field === 'checkedOut' ? value : '',
+          remarks: field === 'remarks' ? value : '',
+          signature: field === 'signature' ? value : ''
+        }];
+      }
+    });
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'Warden Verified':
         return 'bg-blue-100 text-blue-800';
+      case 'Sent for Correction':
+        return 'bg-orange-100 text-orange-800';
       case 'Approved':
         return 'bg-green-100 text-green-800';
       case 'Rejected':
@@ -236,6 +342,7 @@ const NOCManagement = () => {
                     >
                       <option value="all">All Requests</option>
                       <option value="Pending">Pending</option>
+                      <option value="Sent for Correction">Sent for Correction</option>
                       <option value="Warden Verified">Warden Verified</option>
                       <option value="Approved">Approved</option>
                       <option value="Rejected">Rejected</option>
@@ -313,6 +420,15 @@ const NOCManagement = () => {
                           </div>
                         </div>
 
+                        {/* Admin Remarks (if sent for correction) */}
+                        {request.adminRemarks && (
+                          <div className="mt-3 p-2 sm:p-3 bg-orange-50 rounded-md">
+                            <p className="text-xs sm:text-sm text-orange-800 break-words">
+                              <span className="font-medium">Admin Remarks (Corrections Required):</span> {request.adminRemarks}
+                            </p>
+                          </div>
+                        )}
+
                         {/* Warden Remarks */}
                         {request.wardenRemarks && (
                           <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md">
@@ -336,7 +452,7 @@ const NOCManagement = () => {
                           <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         
-                        {request.status === 'Pending' && (
+                        {(request.status === 'Pending' || request.status === 'Sent for Correction') && (
                           <div className="flex space-x-1 sm:space-x-2">
                             <button
                               onClick={() => handleAction(request, 'verify')}
@@ -400,6 +516,88 @@ const NOCManagement = () => {
                     </div>
                   ) : (
                     <div className="space-y-3 sm:space-y-4">
+                      {/* Admin Remarks (if sent for correction) */}
+                      {selectedRequest.adminRemarks && (
+                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                          <h4 className="text-xs sm:text-sm font-medium text-orange-800 mb-1">Admin Remarks (Corrections Required)</h4>
+                          <p className="text-xs sm:text-sm text-orange-900 whitespace-pre-wrap">{selectedRequest.adminRemarks}</p>
+                        </div>
+                      )}
+
+                      {/* Checklist Form */}
+                      {action === 'verify' && checklistItems.length > 0 && (
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-3">
+                            Checklist Verification *
+                          </label>
+                          <div className="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-md p-3">
+                            {checklistItems
+                              .filter(item => item.isActive)
+                              .sort((a, b) => a.order - b.order)
+                              .map((item, index) => {
+                                const response = checklistResponses.find(r => 
+                                  (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
+                                );
+                                return (
+                                  <div key={item.id || item._id} className="border-b border-gray-100 pb-3 last:border-b-0">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex-1">
+                                        <label className="block text-xs sm:text-sm font-medium text-gray-700">
+                                          {index + 1}. {item.description}
+                                        </label>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div>
+                                        <label className="block text-xs text-gray-600 mb-1">Checked Out *</label>
+                                        <input
+                                          type="text"
+                                          value={response?.checkedOut || ''}
+                                          onChange={(e) => updateChecklistResponse(item, 'checkedOut', e.target.value)}
+                                          className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                          placeholder={item.defaultValue || 'e.g., Clear, —, 5000/-'}
+                                          required
+                                        />
+                                      </div>
+                                      {item.requiresRemarks && (
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">
+                                            Remarks {item.requiresRemarks ? '*' : ''}
+                                          </label>
+                                          <textarea
+                                            value={response?.remarks || ''}
+                                            onChange={(e) => updateChecklistResponse(item, 'remarks', e.target.value)}
+                                            rows={2}
+                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                            placeholder="Enter remarks..."
+                                            required={item.requiresRemarks}
+                                          />
+                                        </div>
+                                      )}
+                                      {item.requiresSignature && (
+                                        <div>
+                                          <label className="block text-xs text-gray-600 mb-1">
+                                            Signature {item.requiresSignature ? '*' : ''}
+                                          </label>
+                                          <input
+                                            type="text"
+                                            value={response?.signature || ''}
+                                            onChange={(e) => updateChecklistResponse(item, 'signature', e.target.value)}
+                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                            placeholder="Enter signature..."
+                                            required={item.requiresSignature}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Warden Remarks */}
                       <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                           {action === 'verify' ? 'Remarks (Optional)' : 'Rejection Reason *'}
@@ -426,6 +624,7 @@ const NOCManagement = () => {
                       setShowModal(false);
                       setSelectedRequest(null);
                       setRemarks('');
+                      setChecklistResponses([]);
                     }}
                     className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                   >
