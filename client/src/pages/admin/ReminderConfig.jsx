@@ -9,7 +9,8 @@ import {
   DevicePhoneMobileIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
-  XMarkIcon
+  XMarkIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -87,9 +88,64 @@ const ReminderConfig = () => {
       setLoading(true);
       const response = await api.get('/api/reminder-config');
       
-      if (response.data.success) {
-        setConfig(response.data.data);
-        } else {
+      if (response.data.success && response.data.data) {
+        // Use the fetched config directly, ensuring all nested properties exist with proper defaults
+        const fetchedConfig = response.data.data;
+        
+        // Helper function to safely convert to boolean (handles string "false", boolean false, etc.)
+        const toBoolean = (value, defaultValue = true) => {
+          if (value === undefined || value === null) return defaultValue;
+          if (typeof value === 'boolean') return value;
+          if (typeof value === 'string') {
+            const lower = value.toLowerCase();
+            return lower !== 'false' && lower !== '0' && lower !== '';
+          }
+          return Boolean(value);
+        };
+        
+        setConfig({
+          preReminders: {
+            email: {
+              enabled: toBoolean(fetchedConfig.preReminders?.email?.enabled, true),
+              daysBeforeDue: fetchedConfig.preReminders?.email?.daysBeforeDue ?? [7, 3, 1],
+              template: fetchedConfig.preReminders?.email?.template ?? 'pre_reminder_email'
+            },
+            push: {
+              enabled: toBoolean(fetchedConfig.preReminders?.push?.enabled, true),
+              daysBeforeDue: fetchedConfig.preReminders?.push?.daysBeforeDue ?? [5, 2, 1],
+              template: fetchedConfig.preReminders?.push?.template ?? 'pre_reminder_push'
+            },
+            sms: {
+              enabled: toBoolean(fetchedConfig.preReminders?.sms?.enabled, true),
+              daysBeforeDue: fetchedConfig.preReminders?.sms?.daysBeforeDue ?? [3, 1],
+              template: fetchedConfig.preReminders?.sms?.template ?? 'pre_reminder_sms'
+            }
+          },
+          postReminders: {
+            email: {
+              enabled: toBoolean(fetchedConfig.postReminders?.email?.enabled, true),
+              daysAfterDue: fetchedConfig.postReminders?.email?.daysAfterDue ?? [1, 3, 7, 14],
+              template: fetchedConfig.postReminders?.email?.template ?? 'post_reminder_email'
+            },
+            push: {
+              enabled: toBoolean(fetchedConfig.postReminders?.push?.enabled, true),
+              daysAfterDue: fetchedConfig.postReminders?.push?.daysAfterDue ?? [1, 2, 5, 10],
+              template: fetchedConfig.postReminders?.push?.template ?? 'post_reminder_push'
+            },
+            sms: {
+              enabled: toBoolean(fetchedConfig.postReminders?.sms?.enabled, true),
+              daysAfterDue: fetchedConfig.postReminders?.sms?.daysAfterDue ?? [1, 3, 7],
+              template: fetchedConfig.postReminders?.sms?.template ?? 'post_reminder_sms'
+            }
+          },
+          autoReminders: {
+            enabled: toBoolean(fetchedConfig.autoReminders?.enabled, true),
+            frequency: fetchedConfig.autoReminders?.frequency ?? 'weekly',
+            maxPreReminders: fetchedConfig.autoReminders?.maxPreReminders ?? 3,
+            maxPostReminders: fetchedConfig.autoReminders?.maxPostReminders ?? 4
+          }
+        });
+      } else {
         setError(response.data.message || 'Failed to load reminder configuration');
       }
     } catch (err) {
@@ -130,8 +186,10 @@ const ReminderConfig = () => {
       
       if (response.data.success) {
         toast.success('Reminder configuration saved successfully!');
-          setError(null);
-        } else {
+        setError(null);
+        // Refresh config from server to ensure we have the latest state
+        await fetchReminderConfig();
+      } else {
         setError(response.data.message || 'Failed to save reminder configuration');
         toast.error(response.data.message || 'Failed to save reminder configuration');
       }
@@ -910,6 +968,45 @@ const TermConfigForm = ({
     }
   });
 
+  // State to store semester dates from AcademicCalendar
+  const [semesterDates, setSemesterDates] = useState({
+    semester1: null,
+    semester2: null
+  });
+  const [loadingSemesterDates, setLoadingSemesterDates] = useState(false);
+
+  // Fetch semester dates from AcademicCalendar when course/academicYear/yearOfStudy changes
+  useEffect(() => {
+    const fetchSemesterDates = async () => {
+      if (!formData.courseId || !formData.academicYear || !formData.yearOfStudy) {
+        setSemesterDates({ semester1: null, semester2: null });
+        return;
+      }
+
+      try {
+        setLoadingSemesterDates(true);
+        const response = await api.get(`/api/reminder-config/semester-dates/${formData.courseId}/${formData.academicYear}/${formData.yearOfStudy}`);
+        
+        if (response.data.success) {
+          const dates = response.data.data;
+          setSemesterDates({
+            semester1: dates.semester1?.startDate || null,
+            semester2: dates.semester2?.startDate || null
+          });
+        } else {
+          setSemesterDates({ semester1: null, semester2: null });
+        }
+      } catch (error) {
+        console.log('No semester dates found in AcademicCalendar:', error.message);
+        setSemesterDates({ semester1: null, semester2: null });
+      } finally {
+        setLoadingSemesterDates(false);
+      }
+    };
+
+    fetchSemesterDates();
+  }, [formData.courseId, formData.academicYear, formData.yearOfStudy]);
+
   useEffect(() => {
     if (editingConfig) {
       // Ensure lateFee and referenceSemester are included when editing
@@ -948,6 +1045,27 @@ const TermConfigForm = ({
     }
   }, [editingConfig]);
 
+  // Helper function to calculate and display due date preview
+  const calculateDueDatePreview = (term) => {
+    const termConfig = formData.termDueDates[term];
+    const referenceSemester = termConfig.referenceSemester || 'Semester 1';
+    const daysFromStart = termConfig.daysFromSemesterStart || 0;
+    
+    // Get the reference semester date
+    const referenceDate = referenceSemester === 'Semester 2' 
+      ? semesterDates.semester2 
+      : semesterDates.semester1;
+    
+    if (!referenceDate) {
+      return null;
+    }
+    
+    const dueDate = new Date(referenceDate);
+    dueDate.setDate(dueDate.getDate() + daysFromStart);
+    
+    return dueDate;
+  };
+
   const handleInputChange = (path, value) => {
     setFormData(prev => {
       const newData = { ...prev };
@@ -962,6 +1080,18 @@ const TermConfigForm = ({
       return newData;
     });
   };
+
+  // Update formData when course/academicYear/yearOfStudy changes from parent component
+  useEffect(() => {
+    if (selectedCourse || selectedAcademicYear || selectedYearOfStudy) {
+      setFormData(prev => ({
+        ...prev,
+        courseId: selectedCourse || prev.courseId,
+        academicYear: selectedAcademicYear || prev.academicYear,
+        yearOfStudy: selectedYearOfStudy || prev.yearOfStudy
+      }));
+    }
+  }, [selectedCourse, selectedAcademicYear, selectedYearOfStudy]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -1052,11 +1182,64 @@ const TermConfigForm = ({
               </div>
             </div>
 
+            {/* Semester Dates Info */}
+            {formData.courseId && formData.academicYear && formData.yearOfStudy && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  Semester Dates from Academic Calendar
+                </h4>
+                {loadingSemesterDates ? (
+                  <p className="text-xs text-blue-700">Loading semester dates...</p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className={`p-2 rounded ${semesterDates.semester1 ? 'bg-white border border-blue-300' : 'bg-gray-100 border border-gray-300'}`}>
+                      <div className="text-xs font-medium text-gray-700">Semester 1 Start Date</div>
+                      <div className={`text-sm font-semibold ${semesterDates.semester1 ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {semesterDates.semester1 
+                          ? new Date(semesterDates.semester1).toLocaleDateString('en-IN', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })
+                          : 'Not configured in Academic Calendar'}
+                      </div>
+                    </div>
+                    <div className={`p-2 rounded ${semesterDates.semester2 ? 'bg-white border border-blue-300' : 'bg-gray-100 border border-gray-300'}`}>
+                      <div className="text-xs font-medium text-gray-700">Semester 2 Start Date</div>
+                      <div className={`text-sm font-semibold ${semesterDates.semester2 ? 'text-blue-700' : 'text-gray-500'}`}>
+                        {semesterDates.semester2 
+                          ? new Date(semesterDates.semester2).toLocaleDateString('en-IN', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            })
+                          : 'Not configured in Academic Calendar'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(!semesterDates.semester1 && !semesterDates.semester2) && (
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ Please configure semester dates in Academic Calendar first. Due dates will use fallback dates if not configured.
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Term Due Dates */}
             <div>
               <h4 className="text-base font-semibold text-gray-900 mb-4">Term Due Dates Configuration</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {['term1', 'term2', 'term3'].map(term => (
+                {['term1', 'term2', 'term3'].map(term => {
+                  const termConfig = formData.termDueDates[term];
+                  const referenceSemester = termConfig.referenceSemester || 'Semester 1';
+                  const selectedSemesterDate = referenceSemester === 'Semester 2' 
+                    ? semesterDates.semester2 
+                    : semesterDates.semester1;
+                  const dueDatePreview = calculateDueDatePreview(term);
+                  
+                  return (
                   <div key={term} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
                     <h5 className="font-medium text-gray-900 mb-3 text-sm capitalize">{term.replace('term', 'Term ')}</h5>
                     <div className="space-y-3">
@@ -1067,12 +1250,31 @@ const TermConfigForm = ({
                         <select
                           value={formData.termDueDates[term].referenceSemester || 'Semester 1'}
                           onChange={(e) => handleInputChange(`termDueDates.${term}.referenceSemester`, e.target.value)}
-                          className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          className={`block w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm ${
+                            (referenceSemester === 'Semester 1' && !semesterDates.semester1) ||
+                            (referenceSemester === 'Semester 2' && !semesterDates.semester2)
+                              ? 'border-orange-300 bg-orange-50'
+                              : 'border-gray-300'
+                          }`}
                         >
                           <option value="Semester 1">Semester 1</option>
                           <option value="Semester 2">Semester 2</option>
                         </select>
                         <p className="text-xs text-gray-500 mt-1">Which semester start date to use as reference</p>
+                        {selectedSemesterDate && (
+                          <p className="text-xs text-blue-600 mt-1 font-medium">
+                            📅 Ref: {new Date(selectedSemesterDate).toLocaleDateString('en-IN', { 
+                              year: 'numeric', 
+                              month: 'short', 
+                              day: 'numeric' 
+                            })}
+                          </p>
+                        )}
+                        {!selectedSemesterDate && (
+                          <p className="text-xs text-orange-600 mt-1">
+                            ⚠️ {referenceSemester} not configured in Academic Calendar
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -1087,6 +1289,21 @@ const TermConfigForm = ({
                           className="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
                           required
                         />
+                        {dueDatePreview && (
+                          <p className="text-xs text-green-600 mt-1 font-medium">
+                            ✅ Due Date: {dueDatePreview.toLocaleDateString('en-IN', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric',
+                              weekday: 'short'
+                            })}
+                          </p>
+                        )}
+                        {!selectedSemesterDate && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Due date will be calculated once semester date is configured
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -1117,7 +1334,8 @@ const TermConfigForm = ({
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 

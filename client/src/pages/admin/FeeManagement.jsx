@@ -234,16 +234,23 @@ const FeeManagement = () => {
   };
 
   // Cache for term due dates to avoid repeated API calls
+  // Note: Due dates are configured per course/academicYear/yearOfStudy (shared across all categories)
+  // Fee structures are per course/academicYear/year/category (different fees per category)
+  // This means all categories (A+, A, B+, B, C) share the same due dates but have different fee amounts
   const termDueDatesCache = useRef(new Map());
   const CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache
 
   // Helper function to get student term due dates from backend with caching
+  // Due dates are linked to fee structures via: course, academicYear, yearOfStudy
+  // Fee structures are linked via: course, academicYear, year, category
+  // Due dates are shared across all categories for the same course/year/academicYear
   const getStudentTermDueDates = useCallback(async (student) => {
     if (!student?.course?._id || !student?.academicYear || !student?.year) {
+      console.warn('⚠️ Cannot fetch due dates: Missing student course, academicYear, or year');
       return null;
     }
 
-    // Create cache key from course, academicYear, and year
+    // Create cache key from course, academicYear, and year (category not needed - due dates are shared)
     const cacheKey = `${student.course._id}-${student.academicYear}-${student.year}`;
     
     // Check cache first
@@ -253,21 +260,32 @@ const FeeManagement = () => {
     }
 
     try {
+      // Fetch due dates from reminder config
+      // Note: semesterStartDate is used as a fallback if semester dates aren't configured
       const response = await api.get(`/api/reminder-config/calculate-term-due-dates/${student.course._id}/${student.academicYear}/${student.year}`, {
         params: { semesterStartDate: new Date().toISOString() }
       });
       
-      if (response.data.success) {
+      if (response.data.success && response.data.data) {
         const dueDates = response.data.data; // Returns { term1: Date, term2: Date, term3: Date }
-        // Cache the result
-        termDueDatesCache.current.set(cacheKey, {
-          data: dueDates,
-          timestamp: Date.now()
-        });
-        return dueDates;
+        
+        // Validate that due dates are valid Date objects or strings
+        if (dueDates.term1 && dueDates.term2 && dueDates.term3) {
+          // Cache the result
+          termDueDatesCache.current.set(cacheKey, {
+            data: dueDates,
+            timestamp: Date.now()
+          });
+          return dueDates;
+        } else {
+          console.warn('⚠️ Invalid due dates structure received:', dueDates);
+        }
       }
     } catch (error) {
-      console.log('No due dates configured for student:', student.name, error.message);
+      // Due dates not configured for this course/academicYear/year combination
+      // This is acceptable - the system will show all balances if no due dates are configured
+      console.log(`ℹ️ No due dates configured for ${student.name} (${student.course?.name || 'Unknown Course'}, Year ${student.year}, ${student.academicYear})`);
+      
       // Cache null result to avoid repeated failed calls
       termDueDatesCache.current.set(cacheKey, {
         data: null,
@@ -278,6 +296,9 @@ const FeeManagement = () => {
   }, []);
 
   // Helper function to filter balances based on due dates
+  // This function links fee structures (which have balances) with due date configurations
+  // Only shows dues for terms where the due date has passed (currentDate >= dueDate)
+  // If no due dates are configured, shows all balances (all terms are considered due)
   const getDateFilteredBalance = (studentBalance, termDueDates, currentDate) => {
     if (!studentBalance) {
       // No balance data, return zeros
@@ -290,7 +311,8 @@ const FeeManagement = () => {
     }
 
     if (!termDueDates) {
-      // No due dates configured, show all balances
+      // No due dates configured - show all balances as due
+      // This happens when due date config doesn't exist for this course/academicYear/year
       return {
         term1Due: studentBalance.termBalances.term1.balance,
         term2Due: studentBalance.termBalances.term2.balance,
@@ -299,24 +321,30 @@ const FeeManagement = () => {
       };
     }
 
-    // Filter balances based on due dates
-    const filteredBalance = {
-      term1Due: currentDate >= new Date(termDueDates.term1) ? studentBalance.termBalances.term1.balance : 0,
-      term2Due: currentDate >= new Date(termDueDates.term2) ? studentBalance.termBalances.term2.balance : 0,
-      term3Due: currentDate >= new Date(termDueDates.term3) ? studentBalance.termBalances.term3.balance : 0,
-      totalDue: 0
+    // Parse due dates to ensure they're Date objects
+    // Due dates come from backend as ISO strings or Date objects
+    const parseDueDate = (dateValue) => {
+      if (!dateValue) return null;
+      if (dateValue instanceof Date) return dateValue;
+      const parsed = new Date(dateValue);
+      return isNaN(parsed.getTime()) ? null : parsed;
     };
 
-    // Debug logging for date filtering
-    console.log('🔍 Date filtering for student:', studentBalance);
-    console.log('🔍 Current date:', currentDate);
-    console.log('🔍 Term due dates:', termDueDates);
-    console.log('🔍 Term balances before filtering:', {
-      term1: studentBalance.termBalances.term1.balance,
-      term2: studentBalance.termBalances.term2.balance,
-      term3: studentBalance.termBalances.term3.balance
-    });
-    console.log('🔍 Filtered balances:', filteredBalance);
+    const term1DueDate = parseDueDate(termDueDates.term1);
+    const term2DueDate = parseDueDate(termDueDates.term2);
+    const term3DueDate = parseDueDate(termDueDates.term3);
+
+    // Ensure currentDate is a Date object
+    const currentDateObj = currentDate instanceof Date ? currentDate : new Date(currentDate);
+
+    // Filter balances based on due dates
+    // Only show dues for terms where the due date has passed
+    const filteredBalance = {
+      term1Due: (term1DueDate && currentDateObj >= term1DueDate) ? studentBalance.termBalances.term1.balance : 0,
+      term2Due: (term2DueDate && currentDateObj >= term2DueDate) ? studentBalance.termBalances.term2.balance : 0,
+      term3Due: (term3DueDate && currentDateObj >= term3DueDate) ? studentBalance.termBalances.term3.balance : 0,
+      totalDue: 0
+    };
 
     // Calculate total due
     filteredBalance.totalDue = filteredBalance.term1Due + filteredBalance.term2Due + filteredBalance.term3Due;
@@ -325,6 +353,9 @@ const FeeManagement = () => {
   };
 
   // Fetch fee structure for a specific student course, year, category and academic year
+  // Fee structures are linked by: academicYear, course, year, category
+  // Note: Due dates are configured separately per course/academicYear/year (shared across categories)
+  // This means all categories (A+, A, B+, B, C) have the same due dates but different fee amounts
   const getFeeStructureForStudent = (course, year, category, academicYear) => {
     const structure = feeStructures.find(structure => {
       // Handle both cases: course as object (with _id) or course as string (course name)
