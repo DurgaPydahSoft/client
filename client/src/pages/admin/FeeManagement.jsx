@@ -378,12 +378,110 @@ const FeeManagement = () => {
     }
   }, [user]);
 
+  // OPTIMIZED: Use React Query for students table data to enable parallel fetching
+  const fetchStudentsForTable = useCallback(async () => {
+    const params = new URLSearchParams({
+      page: currentPage,
+      limit: 20
+    });
+
+    if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
+    if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
+    if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
+    if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+    if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
+
+    const response = await api.get(`/api/admin/students?${params}`);
+    
+    if (response.data.success) {
+      const studentsData = response.data.data.students || response.data.data || [];
+      const totalCount = response.data.data.totalCount || response.data.data.total || studentsData.length;
+      setTotalPages(response.data.data.totalPages || 1);
+      return { students: studentsData, totalCount };
+    }
+    return { students: [], totalCount: 0 };
+  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
+
+  // Use React Query for students table - enables parallel fetching with payments
+  const { data: studentsTableData, isLoading: studentsTableLoading, refetch: refetchStudentsTable } = useQuery({
+    queryKey: ['students-table', currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year],
+    queryFn: fetchStudentsForTable,
+    staleTime: 30 * 1000, // 30 seconds
+    cacheTime: 2 * 60 * 1000, // 2 minutes
+    enabled: activeTab === 'dues', // Only fetch when dues tab is active
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Update students state when table data changes
   useEffect(() => {
-    fetchStudents();
+    if (studentsTableData) {
+      setStudents(studentsTableData.students);
+      setStats(prev => ({ ...prev, totalStudents: studentsTableData.totalCount }));
+    }
+  }, [studentsTableData]);
+
+  // OPTIMIZED: Set loading to false once initial data is loaded or queries finish
+  // This allows the page to render even if some queries are still loading
+  useEffect(() => {
+    // For dues tab, wait for students table query to finish loading
+    if (activeTab === 'dues') {
+      // If query is not loading (finished or disabled), we can show the page
+      // studentsTableData will be undefined if query is disabled or hasn't run yet
+      // But if studentsTableLoading is false, it means the query has finished (success or error)
+      if (!studentsTableLoading) {
+        setLoading(false);
+      }
+    } else {
+      // For other tabs, set loading to false immediately
+      setLoading(false);
+    }
+  }, [activeTab, studentsTableLoading]);
+
+  // Fallback: Set loading to false after 2 seconds to prevent infinite loading
+  // This ensures the page always renders even if queries are slow
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+    return () => clearTimeout(timeout);
   }, []);
 
-  useEffect(() => {
-    fetchStudents();
+  // Legacy fetchStudents function for manual refresh
+  const fetchStudents = useCallback(async () => {
+    try {
+      setTableLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: 20
+      });
+
+      if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+      if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
+      if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
+      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
+      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+      if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
+
+      const response = await api.get(`/api/admin/students?${params}`);
+
+      if (response.data.success) {
+        const studentsData = response.data.data.students || response.data.data || [];
+        const totalCount = response.data.data.totalCount || response.data.data.total || studentsData.length;
+        setStudents(studentsData);
+        setTotalPages(response.data.data.totalPages || 1);
+        setStats(prev => ({ ...prev, totalStudents: totalCount }));
+      } else {
+        setError('Failed to fetch students');
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err);
+      setError(err.response?.data?.message || 'Failed to fetch students');
+    } finally {
+      setTableLoading(false);
+      setLoading(false);
+    }
   }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
 
   // Fetch course years function - defined before useEffects that use it
@@ -527,13 +625,15 @@ const FeeManagement = () => {
     return [];
   }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
 
-  // Use React Query to cache students for stats
+  // Use React Query to cache students for stats - OPTIMIZED: Fetch immediately when dues tab is active
   const { data: cachedStudentsForStats, isLoading: studentsStatsLoading, refetch: refetchStudentsForStats } = useQuery({
     queryKey: ['students-for-stats', debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, filters.year],
     queryFn: fetchStudentsForStats,
     staleTime: 1 * 60 * 1000, // 1 minute - stats should be relatively fresh
     cacheTime: 5 * 60 * 1000, // 5 minutes cache
     enabled: activeTab === 'dues', // Only fetch when dues tab is active
+    refetchOnMount: false, // Don't refetch if data exists
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Fetch all students for accurate statistics when filters change
@@ -557,69 +657,8 @@ const FeeManagement = () => {
     }
   };
 
-  const fetchStudents = async () => {
-    try {
-      setTableLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage,
-        limit: 20
-      });
-
-      if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
-      if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
-      if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
-      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
-      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
-      if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
-
-      console.log('🔍 Frontend: Fetching students with params:', params.toString());
-      console.log('🔍 Frontend: Auth header:', api.defaults.headers.common['Authorization'] ? 'present' : 'missing');
-
-      const response = await api.get(`/api/admin/students?${params}`);
-
-      console.log('🔍 Frontend: Response received:', response.data);
-
-      if (response.data.success) {
-        const studentsData = response.data.data.students || response.data.data || [];
-        const totalCount = response.data.data.totalCount || response.data.data.total || studentsData.length;
-
-        console.log('🔍 Frontend: Students received:', studentsData.length);
-        console.log('🔍 Frontend: Total count from backend:', totalCount);
-        console.log('🔍 Frontend: Sample student:', studentsData[0]);
-
-        setStudents(studentsData);
-        setTotalPages(response.data.data.totalPages || 1);
-
-        // Stats will be updated automatically when cachedStudentsForStats changes
-      } else {
-        setError('Failed to fetch students');
-      }
-    } catch (err) {
-      console.error('Error fetching students:', err);
-      console.error('🔍 Frontend: Students error response:', err.response?.data);
-      setError(err.response?.data?.message || 'Failed to fetch students');
-    } finally {
-      setTableLoading(false);
-      setLoading(false);
-    }
-  };
-
-  // Fetch hostel fee payments from backend
-  const fetchHostelFeePayments = async () => {
-    try {
-      console.log('🔍 Fetching hostel fee payments from backend...');
-      const response = await api.get('/api/payments/hostel-fee/stats');
-
-      if (response.data.success) {
-        // For now, we'll get all payments by fetching from each student
-        // In a production system, you might want a bulk endpoint
-        console.log('🔍 Hostel fee payment stats fetched:', response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching hostel fee payments:', error);
-      // Don't show error to user as this is background fetch
-    }
-  };
+  // REMOVED: fetchHostelFeePayments - This was causing errors because /api/payments/hostel-fee/stats doesn't exist
+  // We're now using fetchAllPaymentsForStats which properly fetches all payments via /api/payments/all
 
   // Fetch all payments for statistics - OPTIMIZED: Single API call instead of N+1
   const fetchAllPaymentsForStats = useCallback(async () => {
@@ -645,13 +684,15 @@ const FeeManagement = () => {
     return [];
   }, []);
   
-  // Use React Query to cache payments
-  const { data: cachedPayments, refetch: refetchPayments } = useQuery({
+  // Use React Query to cache payments - OPTIMIZED: Fetch immediately on mount
+  const { data: cachedPayments, refetch: refetchPayments, isLoading: paymentsLoading } = useQuery({
     queryKey: ['all-payments', 'hostel_fee'],
     queryFn: fetchAllPaymentsForStats,
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
-    enabled: activeTab === 'dues', // Only fetch when dues tab is active
+    enabled: true, // Fetch immediately on mount for faster loading
+    refetchOnMount: false, // Don't refetch if data exists
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
   
   // Update payments when cached data changes
@@ -997,16 +1038,22 @@ const FeeManagement = () => {
     }
   }, [payments, refetchPayments, getStudentTermDueDates, calculateStudentBalance]);
 
-  // Calculate stats when cached students data and payments are ready
+  // Calculate stats when cached students data and payments are ready - OPTIMIZED: Don't block on payments
   useEffect(() => {
     if (activeTab === 'dues' && cachedStudentsForStats && cachedStudentsForStats.length >= 0) {
-      // Wait for payments to be loaded before calculating stats
-      // Check if payments query has finished (even if empty, it means it's loaded)
-      if (cachedPayments !== undefined) {
-        calculateStatsFromStudents(cachedStudentsForStats);
-      }
+      // Calculate stats immediately with available data
+      // If payments are still loading, use empty array (will recalculate when payments load)
+      calculateStatsFromStudents(cachedStudentsForStats);
     }
-  }, [cachedStudentsForStats, cachedPayments, activeTab, calculateStatsFromStudents, feeStructures]);
+  }, [cachedStudentsForStats, activeTab, calculateStatsFromStudents, feeStructures]);
+  
+  // Recalculate stats when payments finish loading
+  useEffect(() => {
+    if (activeTab === 'dues' && cachedStudentsForStats && cachedPayments !== undefined && !paymentsLoading) {
+      // Payments have finished loading, recalculate stats with complete data
+      calculateStatsFromStudents(cachedStudentsForStats);
+    }
+  }, [cachedPayments, paymentsLoading, activeTab, cachedStudentsForStats, calculateStatsFromStudents]);
 
 
 
@@ -1106,12 +1153,14 @@ const FeeManagement = () => {
   }, [feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year]);
 
   // Use React Query for fee structures
-  const { data: cachedFeeStructures, isLoading: feeStructuresQueryLoading } = useQuery({
+  const { data: cachedFeeStructures, isLoading: feeStructuresQueryLoading, refetch: refetchFeeStructures } = useQuery({
     queryKey: ['fee-structures', feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year],
     queryFn: fetchFeeStructures,
     staleTime: 3 * 60 * 1000, // 3 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
     enabled: activeTab === 'structure' || activeTab === 'dues', // Only fetch when needed
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   // Update fee structures when cached data changes
@@ -1212,8 +1261,8 @@ const FeeManagement = () => {
 
         // Refresh both fee structures and students to update linking
         await Promise.all([
-          fetchFeeStructures(),
-          fetchStudents()
+          refetchFeeStructures(),
+          refetchStudentsTable()
         ]);
 
         // Recalculate stats - will trigger automatically via React Query cache invalidation
@@ -1293,8 +1342,8 @@ const FeeManagement = () => {
 
         // Refresh data
         await Promise.all([
-          fetchFeeStructures(),
-          fetchStudents()
+          refetchFeeStructures(),
+          refetchStudentsTable()
         ]);
 
         // Recalculate stats - will trigger automatically via React Query cache invalidation
@@ -2001,8 +2050,12 @@ const FeeManagement = () => {
       }
       handleClosePaymentModal();
 
-      // Refresh students to update balance display
-      fetchStudents();
+      // Refresh students and payments to update balance display
+      refetchStudentsTable();
+      refetchPayments();
+      if (activeTab === 'dues') {
+        refetchStudentsForStats();
+      }
 
     } catch (error) {
       console.error('Error recording payment:', error);
@@ -2141,10 +2194,8 @@ const FeeManagement = () => {
 
   // Fee structures are fetched via React Query based on activeTab
 
-  // Fetch hostel fee payments when component mounts
-  useEffect(() => {
-    fetchHostelFeePayments();
-  }, []);
+  // REMOVED: useEffect for fetchHostelFeePayments - This was causing errors
+  // Payments are now fetched via React Query (fetchAllPaymentsForStats) which is more efficient
 
   // Check email service status on component mount
   useEffect(() => {
@@ -2639,7 +2690,8 @@ const FeeManagement = () => {
         fetchConcessionApprovals();
         // Refresh students list if on dues tab
         if (activeTab === 'dues') {
-          fetchStudents();
+          refetchStudentsTable();
+          refetchStudentsForStats();
         }
       }
     } catch (error) {
@@ -2660,7 +2712,8 @@ const FeeManagement = () => {
         fetchConcessionApprovals();
         // Refresh students list if on dues tab
         if (activeTab === 'dues') {
-          fetchStudents();
+          refetchStudentsTable();
+          refetchStudentsForStats();
         }
       }
     } catch (error) {
@@ -3441,7 +3494,11 @@ const FeeManagement = () => {
                 </button>
 
                 <button
-                  onClick={fetchStudents}
+                  onClick={() => {
+                    refetchStudentsTable();
+                    refetchPayments();
+                    refetchStudentsForStats();
+                  }}
                   className="flex-1 sm:flex-none px-3 py-2 text-blue-600 hover:text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-50 flex items-center justify-center gap-1 text-sm"
                 >
                   <ArrowPathIcon className="w-4 h-4" />
@@ -3463,7 +3520,7 @@ const FeeManagement = () => {
               </div>
             </div>
 
-            {tableLoading ? (
+            {(tableLoading || studentsTableLoading) ? (
               <div className="flex justify-center items-center py-8">
                 <LoadingSpinner />
               </div>
