@@ -714,7 +714,12 @@ const FeeManagement = () => {
       // Handle both string and object IDs
       const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
       const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
-      return paymentStudentId === studentId;
+      
+      // Filter by studentId AND academicYear to ensure only payments from current academic year are included
+      const paymentAcademicYear = p.academicYear || (typeof p.studentId === 'object' ? p.studentId?.academicYear : null);
+      const studentAcademicYear = student.academicYear;
+      
+      return paymentStudentId === studentId && paymentAcademicYear === studentAcademicYear;
     });
     const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
 
