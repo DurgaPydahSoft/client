@@ -859,6 +859,7 @@ const FeeManagement = () => {
   }, [payments, feeStructures]);
 
   // OPTIMIZED: Calculate stats from cached students data - no API calls needed
+  // FIXED: Removed setPayments call to prevent infinite loop
   const calculateStatsFromStudents = useCallback(async (allStudentsData) => {
     setStatsLoading(true);
     try {
@@ -883,29 +884,15 @@ const FeeManagement = () => {
       console.log('🔍 Frontend: Calculating stats from', allStudentsData.length, 'students...');
 
         // OPTIMIZATION: Use cached payments from React Query
-        // Wait for payments to be loaded before calculating stats
+        // Use cachedPayments directly, don't update state to prevent infinite loops
         let paymentsToUse = cachedPayments || payments;
         if (!paymentsToUse || paymentsToUse.length === 0) {
-          console.log('🔍 Payments not loaded yet, fetching...');
-          try {
-            const paymentsResult = await refetchPayments();
-            if (paymentsResult?.data) {
-              paymentsToUse = paymentsResult.data;
-              console.log('🔍 Payments fetched:', paymentsToUse.length);
-            } else {
-              console.log('🔍 No payments data returned, using empty array');
-              paymentsToUse = [];
-            }
-          } catch (error) {
-            console.error('Error fetching payments:', error);
-            paymentsToUse = [];
-          }
+          console.log('🔍 Payments not loaded yet, using empty array for now');
+          paymentsToUse = [];
         }
         
-        // Update payments state to ensure balance calculations use latest data
-        if (paymentsToUse && paymentsToUse.length > 0) {
-          setPayments(paymentsToUse);
-        }
+        // REMOVED: setPayments call - this was causing infinite loop
+        // Payments state is already updated by React Query useEffect
         
         // Update stats with all students data
         const totalStudents = allStudentsData.length;
@@ -1036,24 +1023,60 @@ const FeeManagement = () => {
     } finally {
       setStatsLoading(false);
     }
-  }, [payments, refetchPayments, getStudentTermDueDates, calculateStudentBalance]);
+  }, [cachedPayments, payments, getStudentTermDueDates, calculateStudentBalance, getFeeStructureForStudent]);
 
-  // Calculate stats when cached students data and payments are ready - OPTIMIZED: Don't block on payments
+  // FIXED: Prevent infinite loop by using ref to track calculation and removing duplicate effects
+  const isCalculatingStats = useRef(false);
+  const lastCalculationKey = useRef('');
+  const statsCalculationTimeout = useRef(null);
+
+  // Calculate stats when cached students data and payments are ready - OPTIMIZED: Prevent infinite loops
   useEffect(() => {
-    if (activeTab === 'dues' && cachedStudentsForStats && cachedStudentsForStats.length >= 0) {
-      // Calculate stats immediately with available data
-      // If payments are still loading, use empty array (will recalculate when payments load)
-      calculateStatsFromStudents(cachedStudentsForStats);
+    // Clear any pending calculation
+    if (statsCalculationTimeout.current) {
+      clearTimeout(statsCalculationTimeout.current);
     }
-  }, [cachedStudentsForStats, activeTab, calculateStatsFromStudents, feeStructures]);
-  
-  // Recalculate stats when payments finish loading
-  useEffect(() => {
-    if (activeTab === 'dues' && cachedStudentsForStats && cachedPayments !== undefined && !paymentsLoading) {
-      // Payments have finished loading, recalculate stats with complete data
-      calculateStatsFromStudents(cachedStudentsForStats);
+
+    // Skip if already calculating or if not on dues tab
+    if (activeTab !== 'dues' || !cachedStudentsForStats || isCalculatingStats.current) {
+      return;
     }
-  }, [cachedPayments, paymentsLoading, activeTab, cachedStudentsForStats, calculateStatsFromStudents]);
+
+    // Create a unique key for this calculation to prevent duplicate calculations
+    const calculationKey = `${cachedStudentsForStats.length}-${cachedPayments?.length || 0}-${filters.academicYear}-${filters.category}-${filters.gender}-${filters.course}-${filters.year}`;
+    
+    // Skip if we just calculated with the same data
+    if (lastCalculationKey.current === calculationKey) {
+      return;
+    }
+
+    // Debounce the calculation to prevent rapid recalculations
+    statsCalculationTimeout.current = setTimeout(() => {
+      // Double-check we're still on dues tab and have data
+      if (activeTab !== 'dues' || !cachedStudentsForStats || isCalculatingStats.current) {
+        return;
+      }
+
+      // Mark as calculating and update key
+      isCalculatingStats.current = true;
+      lastCalculationKey.current = calculationKey;
+
+      // Calculate stats with available data
+      calculateStatsFromStudents(cachedStudentsForStats).finally(() => {
+        // Reset calculating flag after calculation completes
+        setTimeout(() => {
+          isCalculatingStats.current = false;
+        }, 500); // Longer delay to prevent rapid recalculations
+      });
+    }, 300); // 300ms debounce to prevent rapid recalculations
+
+    // Cleanup function
+    return () => {
+      if (statsCalculationTimeout.current) {
+        clearTimeout(statsCalculationTimeout.current);
+      }
+    };
+  }, [cachedStudentsForStats, cachedPayments, activeTab, calculateStatsFromStudents, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
 
 
 
