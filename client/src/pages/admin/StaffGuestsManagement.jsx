@@ -56,6 +56,14 @@ const StaffGuestsManagement = () => {
   const [stats, setStats] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // Get current month in YYYY-MM format
+  const getCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     type: 'staff',
@@ -68,10 +76,12 @@ const StaffGuestsManagement = () => {
     checkinDate: '',
     checkoutDate: '',
     stayType: 'daily',
-    selectedMonth: '',
+    selectedMonth: getCurrentMonth(),
     roomNumber: '',
     bedNumber: '',
     dailyRate: '',
+    chargeType: 'per_day',
+    monthlyFixedAmount: '',
     photo: null,
     existingPhoto: null
   });
@@ -93,6 +103,7 @@ const StaffGuestsManagement = () => {
   // Settings and Admit Card state
   const [dailyRateSettings, setDailyRateSettings] = useState({
     staffDailyRate: 100,
+    monthlyFixedAmount: 3000,
     lastUpdated: null,
     updatedBy: null
   });
@@ -233,10 +244,30 @@ const StaffGuestsManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: files ? files[0] : value
-    }));
+    
+    // When charge type changes, reset the related fields
+    if (name === 'chargeType') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        // Reset monthlyFixedAmount when switching to per_day
+        monthlyFixedAmount: value === 'per_day' ? '' : prev.monthlyFixedAmount,
+        // Reset dailyRate when switching to monthly_fixed (optional, but cleaner)
+        dailyRate: value === 'monthly_fixed' ? '' : prev.dailyRate
+      }));
+    } else if (name === 'stayType' && value === 'monthly') {
+      // When switching to monthly, set current month if not already set
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        selectedMonth: prev.selectedMonth || getCurrentMonth()
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: files ? files[0] : value
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -290,16 +321,18 @@ const StaffGuestsManagement = () => {
         purpose: '',
         checkinDate: '',
         checkoutDate: '',
-        stayType: 'daily',
-        selectedMonth: '',
-        roomNumber: '',
-        bedNumber: '',
-        dailyRate: '',
-        photo: null,
-        existingPhoto: null
-      });
-      fetchStaffGuests();
-      fetchStats();
+      stayType: 'daily',
+      selectedMonth: getCurrentMonth(),
+      roomNumber: '',
+      bedNumber: '',
+      dailyRate: '',
+      chargeType: 'per_day',
+      monthlyFixedAmount: '',
+      photo: null,
+      existingPhoto: null
+    });
+    fetchStaffGuests();
+    fetchStats();
     } catch (error) {
       console.error('Error saving staff/guest:', error);
       toast.error(error.response?.data?.message || 'Failed to save staff/guest');
@@ -324,6 +357,8 @@ const StaffGuestsManagement = () => {
       roomNumber: staffGuest.roomNumber || '',
       bedNumber: staffGuest.bedNumber || '',
       dailyRate: staffGuest.dailyRate || '',
+      chargeType: staffGuest.chargeType || 'per_day',
+      monthlyFixedAmount: staffGuest.monthlyFixedAmount || '',
       photo: null, // New photo file (if selected)
       existingPhoto: staffGuest.photo // Keep existing photo URL
     });
@@ -369,10 +404,12 @@ const StaffGuestsManagement = () => {
       checkinDate: '',
       checkoutDate: '',
       stayType: 'daily',
-      selectedMonth: '',
+      selectedMonth: getCurrentMonth(),
       roomNumber: '',
       bedNumber: '',
       dailyRate: '',
+      chargeType: 'per_day',
+      monthlyFixedAmount: '',
       photo: null,
       existingPhoto: null
     });
@@ -482,21 +519,22 @@ const StaffGuestsManagement = () => {
     }
   };
 
-  const updateDailyRateSettings = async (newRate) => {
+  const updateDailyRateSettings = async () => {
     try {
       setSettingsLoading(true);
       const response = await api.put('/api/admin/staff-guests/settings/daily-rates', {
-        staffDailyRate: newRate
+        staffDailyRate: dailyRateSettings.staffDailyRate,
+        monthlyFixedAmount: dailyRateSettings.monthlyFixedAmount
       });
       if (response.data.success) {
         setDailyRateSettings(response.data.data);
-        toast.success('Daily rate updated successfully');
+        toast.success('Settings updated successfully');
         // Refresh staff/guests to show updated charges
         fetchStaffGuests();
       }
     } catch (error) {
-      console.error('Error updating daily rate settings:', error);
-      toast.error('Failed to update daily rate settings');
+      console.error('Error updating settings:', error);
+      toast.error(error.response?.data?.message || 'Failed to update settings');
     } finally {
       setSettingsLoading(false);
     }
@@ -1689,12 +1727,12 @@ const StaffGuestsManagement = () => {
           <>
             <div className="bg-white rounded-lg shadow p-6 w-full max-w-4xl mx-auto">
               <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Daily Rate Settings</h2>
-                <p className="text-gray-600 mt-1">Configure daily charges for staff members</p>
+                <h2 className="text-xl font-bold text-gray-900">Charge Settings</h2>
+                <p className="text-gray-600 mt-1">Configure default charges for staff members</p>
               </div>
 
-              <div className="max-w-md mx-auto sm:max-w-full">
-                <div className="mb-4">
+              <div className="max-w-md mx-auto sm:max-w-full space-y-6">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Staff Daily Rate (₹)
                   </label>
@@ -1709,15 +1747,43 @@ const StaffGuestsManagement = () => {
                       }))}
                       className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter daily rate"
+                      min="0"
+                      step="0.01"
                     />
-                    <button
-                      onClick={() => updateDailyRateSettings(dailyRateSettings.staffDailyRate)}
-                      disabled={settingsLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 w-full sm:w-auto"
-                    >
-                      {settingsLoading ? 'Updating...' : 'Update'}
-                    </button>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">Default daily rate for per-day basis staff</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Monthly Fixed Amount (₹)
+                  </label>
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                    <CurrencyDollarIcon className="w-5 h-5 text-gray-400" />
+                    <input
+                      type="number"
+                      value={dailyRateSettings.monthlyFixedAmount}
+                      onChange={(e) => setDailyRateSettings(prev => ({
+                        ...prev,
+                        monthlyFixedAmount: parseFloat(e.target.value) || 0
+                      }))}
+                      className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter monthly fixed amount"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Default monthly fixed amount for monthly basis staff (when monthly fixed charge type is selected)</p>
+                </div>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    onClick={updateDailyRateSettings}
+                    disabled={settingsLoading}
+                    className="w-full sm:w-auto px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                  >
+                    {settingsLoading ? 'Updating...' : 'Update Settings'}
+                  </button>
                 </div>
 
                 {dailyRateSettings.lastUpdated && (
@@ -2031,43 +2097,114 @@ const StaffGuestsManagement = () => {
                         </>
                       )}
 
-                      {/* Daily Rate and Charges Display - For Staff and Students */}
+                      {/* Charge Type and Charges Display - For Staff and Students */}
                       {['staff', 'student'].includes(formData.type) && (
                         <div className="md:col-span-2">
                           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
                             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                               <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
-                              Daily Rate & Charges Information
+                              Charges Information
                             </h4>
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                              <div className="bg-white rounded-lg p-4 border border-blue-100">
-                                <div className="text-sm font-medium text-gray-600 mb-3">Individual Daily Rate</div>
-                                <div className="space-y-2">
-                                  <div className="relative">
-                                    <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            
+                            {/* Charge Type Selection - Only for Monthly Staff */}
+                            {formData.type === 'staff' && formData.stayType === 'monthly' && (
+                              <div className="mb-4 bg-white rounded-lg p-4 border border-blue-100">
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                  Charge Type *
+                                </label>
+                                <div className="flex gap-4">
+                                  <label className="flex items-center">
                                     <input
-                                      type="number"
-                                      name="dailyRate"
-                                      value={formData.dailyRate}
+                                      type="radio"
+                                      name="chargeType"
+                                      value="per_day"
+                                      checked={formData.chargeType === 'per_day'}
                                       onChange={handleInputChange}
-                                      placeholder={dailyRateSettings.staffDailyRate || 100}
-                                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                      min="0"
-                                      step="0.01"
+                                      className="mr-2"
                                     />
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    Leave empty to use default: ₹{dailyRateSettings.staffDailyRate || 100}
-                                  </div>
+                                    <span className="text-sm text-gray-700">Per Day Rate</span>
+                                  </label>
+                                  <label className="flex items-center">
+                                    <input
+                                      type="radio"
+                                      name="chargeType"
+                                      value="monthly_fixed"
+                                      checked={formData.chargeType === 'monthly_fixed'}
+                                      onChange={handleInputChange}
+                                      className="mr-2"
+                                    />
+                                    <span className="text-sm text-gray-700">Monthly Fixed Amount</span>
+                                  </label>
                                 </div>
                               </div>
+                            )}
+
+                            <div className={`grid grid-cols-1 gap-4 ${formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+                              {/* Per Day Rate or Monthly Fixed Amount Input */}
+                              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                <div className="text-sm font-medium text-gray-600 mb-3">
+                                  {formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed'
+                                    ? 'Monthly Fixed Amount'
+                                    : 'Individual Daily Rate'}
+                                </div>
+                                <div className="space-y-2">
+                                  {formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed' ? (
+                                    <>
+                                      <div className="relative">
+                                        <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                          type="number"
+                                          name="monthlyFixedAmount"
+                                          value={formData.monthlyFixedAmount}
+                                          onChange={handleInputChange}
+                                          placeholder={dailyRateSettings.monthlyFixedAmount || 3000}
+                                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        Leave empty to use default: ₹{dailyRateSettings.monthlyFixedAmount || 3000}
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="relative">
+                                        <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                          type="number"
+                                          name="dailyRate"
+                                          value={formData.dailyRate}
+                                          onChange={handleInputChange}
+                                          placeholder={dailyRateSettings.staffDailyRate || 100}
+                                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          min="0"
+                                          step="0.01"
+                                        />
+                                      </div>
+                                      <div className="text-xs text-gray-500">
+                                        Leave empty to use default: ₹{dailyRateSettings.staffDailyRate || 100}
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* Calculated Charges */}
                               <div className="bg-white rounded-lg p-4 border border-green-100">
                                 <div className="text-sm font-medium text-gray-600 mb-3">Calculated Charges</div>
                                 <div className="space-y-2">
                                   <div className="text-lg font-bold text-green-700">
                                     ₹{(() => {
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
-                                        // Calculate for monthly basis
+                                        // Monthly fixed amount
+                                        if (formData.chargeType === 'monthly_fixed') {
+                                          const amount = formData.monthlyFixedAmount 
+                                            ? parseFloat(formData.monthlyFixedAmount) 
+                                            : (dailyRateSettings.monthlyFixedAmount || 3000);
+                                          return amount.toLocaleString();
+                                        }
+                                        // Per day calculation
                                         const [year, month] = formData.selectedMonth.split('-').map(Number);
                                         const daysInMonth = new Date(year, month, 0).getDate();
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
@@ -2087,6 +2224,12 @@ const StaffGuestsManagement = () => {
                                   <div className="text-xs text-gray-500">
                                     {(() => {
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
+                                        if (formData.chargeType === 'monthly_fixed') {
+                                          const amount = formData.monthlyFixedAmount 
+                                            ? parseFloat(formData.monthlyFixedAmount) 
+                                            : (dailyRateSettings.monthlyFixedAmount || 3000);
+                                          return `Fixed amount: ₹${amount.toLocaleString()}`;
+                                        }
                                         const [year, month] = formData.selectedMonth.split('-').map(Number);
                                         const daysInMonth = new Date(year, month, 0).getDate();
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
@@ -2106,20 +2249,33 @@ const StaffGuestsManagement = () => {
                                   </div>
                                 </div>
                               </div>
-                              <div className="bg-white rounded-lg p-4 border border-purple-100">
-                                <div className="text-sm font-medium text-gray-600 mb-3">Default Rate</div>
-                                <div className="space-y-2">
-                                  <div className="text-lg font-bold text-purple-700">₹{dailyRateSettings.staffDailyRate || 100}</div>
-                                  <div className="text-xs text-gray-500">From settings</div>
+                              
+                              {/* Default Rate - Only show for per_day charge type */}
+                              {!(formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed') && (
+                                <div className="bg-white rounded-lg p-4 border border-purple-100">
+                                  <div className="text-sm font-medium text-gray-600 mb-3">Default Rate</div>
+                                  <div className="space-y-2">
+                                    <div className="text-lg font-bold text-purple-700">₹{dailyRateSettings.staffDailyRate || 100}</div>
+                                    <div className="text-xs text-gray-500">From settings</div>
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                             <div className="mt-3 text-xs text-gray-600">
-                              <p>• Set individual daily rate or leave empty to use default from settings</p>
                               {formData.type === 'staff' && formData.stayType === 'monthly' ? (
-                                <p>• Charges are calculated for the entire selected month</p>
+                                <>
+                                  {formData.chargeType === 'monthly_fixed' ? (
+                                    <p>• Monthly fixed amount will be charged regardless of days in the month</p>
+                                  ) : (
+                                    <>
+                                      <p>• Set individual daily rate or leave empty to use default from settings</p>
+                                      <p>• Charges are calculated for the entire selected month (days × rate)</p>
+                                    </>
+                                  )}
+                                </>
                               ) : (
                                 <>
+                                  <p>• Set individual daily rate or leave empty to use default from settings</p>
                                   <p>• Charges are calculated based on the number of days between check-in and check-out dates</p>
                                   <p>• If no check-out date is provided, charges are calculated until today</p>
                                 </>
