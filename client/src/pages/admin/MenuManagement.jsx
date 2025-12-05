@@ -409,17 +409,19 @@ const MenuManagement = () => {
         const simpleDate = new Date(formattedDate).toISOString().split('T')[0];
         formData.append('date', simpleDate);
 
-        // Add meals data without images first
-        const mealsWithoutImages = {};
+        // Add meals data with image flags to help backend match files correctly
+        const mealsWithFlags = {};
         for (const mealType of MEALS) {
-          mealsWithoutImages[mealType] = mealsData[mealType].map(item => ({
+          mealsWithFlags[mealType] = mealsData[mealType].map((item, index) => ({
             name: item.name,
-            imageUrl: item.imageUrl
+            imageUrl: item.imageUrl,
+            hasImage: !!item.imageFile,
+            imageIndex: item.imageFile ? index : null
           }));
         }
-        formData.append('meals', JSON.stringify(mealsWithoutImages));
+        formData.append('meals', JSON.stringify(mealsWithFlags));
 
-        // Add image files to FormData
+        // Add image files to FormData using the original array index
         for (const mealType of MEALS) {
           mealsData[mealType].forEach((item, index) => {
             if (item.imageFile) {
@@ -586,17 +588,19 @@ const MenuManagement = () => {
         const simpleDate = new Date(todayFormatted).toISOString().split('T')[0];
         formData.append('date', simpleDate);
 
-        // Add meals data without images first
-        const mealsWithoutImages = {};
+        // Add meals data with image flags to help backend match files correctly
+        const mealsWithFlags = {};
         for (const mealType of MEALS) {
-          mealsWithoutImages[mealType] = mealsData[mealType].map(item => ({
+          mealsWithFlags[mealType] = mealsData[mealType].map((item, index) => ({
             name: item.name,
-            imageUrl: item.imageUrl
+            imageUrl: item.imageUrl,
+            hasImage: !!item.imageFile,
+            imageIndex: item.imageFile ? index : null
           }));
         }
-        formData.append('meals', JSON.stringify(mealsWithoutImages));
+        formData.append('meals', JSON.stringify(mealsWithFlags));
 
-        // Add image files to FormData
+        // Add image files to FormData using the original array index
         for (const mealType of MEALS) {
           mealsData[mealType].forEach((item, index) => {
             if (item.imageFile) {
