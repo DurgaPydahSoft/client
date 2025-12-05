@@ -431,8 +431,9 @@ const MenuManagement = () => {
           });
         }
 
+        let response;
         try {
-          const response = await api.post('/api/cafeteria/menu/date', formData, {
+          response = await api.post('/api/cafeteria/menu/date', formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
@@ -440,17 +441,47 @@ const MenuManagement = () => {
         } catch (error) {
           throw error;
         }
+        
+        // Update state with response data if available
+        if (response && response.data && response.data.data) {
+          const menuData = response.data.data;
+          if (menuData && menuData.meals) {
+            menuData.meals = ensureAllMealTypes(menuData.meals);
+            setMenu(menuData);
+            setEditMenu({ ...menuData.meals });
+          }
+        } else {
+          // If no response data, fetch from server
+          await fetchMenu();
+        }
       } else {
-        await api.post('/api/cafeteria/menu/date', {
+        const response = await api.post('/api/cafeteria/menu/date', {
           date: formattedDate,
           meals: mealsData
         });
+        
+        // Update state with response data if available
+        if (response && response.data && response.data.data) {
+          const menuData = response.data.data;
+          if (menuData && menuData.meals) {
+            menuData.meals = ensureAllMealTypes(menuData.meals);
+            setMenu(menuData);
+            setEditMenu({ ...menuData.meals });
+          }
+        } else {
+          // If no response data, fetch from server
+          await fetchMenu();
+        }
       }
 
       toast.success('Menu saved!');
-      fetchMenu();
+      
+      // Clear add inputs and images
+      setAddInputs({});
+      setAddImages({});
     } catch (err) {
       toast.error('Failed to save menu');
+      console.error('Save error:', err);
     } finally {
       setLoading(false);
     }
@@ -1537,91 +1568,118 @@ const MenuManagement = () => {
       )}
 
       {/* Today's Menu Items Popup */}
-      {showMenuPopup && selectedPopupMeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md sm:max-w-lg lg:max-w-4xl xl:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
-              <div className="flex items-center gap-2">
-                <span className="text-xl sm:text-2xl">
-                  {selectedPopupMeal.type === 'breakfast' && '🥞'}
-                  {selectedPopupMeal.type === 'lunch' && '🍛'}
-                  {selectedPopupMeal.type === 'snacks' && '🍿'}
-                  {selectedPopupMeal.type === 'dinner' && '🍽️'}
-                </span>
-                <h3 className="text-base sm:text-lg font-bold text-gray-900 capitalize">
-                  {selectedPopupMeal.type}
-                </h3>
-                {selectedPopupMeal.stats && selectedPopupMeal.stats.totalRatings > 0 && (
-                  <div className="ml-auto">
-                    <span className="text-xs sm:text-sm font-bold text-yellow-600">
-                      ⭐ {selectedPopupMeal.stats.average}/5
-                    </span>
+      {showMenuPopup && selectedPopupMeal && (() => {
+        const itemCount = selectedPopupMeal.items.length;
+        // Calculate optimal columns based on item count and screen size
+        const getGridCols = () => {
+          if (itemCount <= 2) return 'grid-cols-1 sm:grid-cols-2';
+          if (itemCount <= 4) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-2';
+          if (itemCount <= 6) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3';
+          if (itemCount <= 9) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3';
+          if (itemCount <= 12) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
+          return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
+        };
+        
+        // Calculate modal width based on item count
+        const getModalWidth = () => {
+          if (itemCount <= 2) return 'max-w-md sm:max-w-lg';
+          if (itemCount <= 4) return 'max-w-lg sm:max-w-xl md:max-w-2xl';
+          if (itemCount <= 6) return 'max-w-xl sm:max-w-2xl md:max-w-3xl';
+          if (itemCount <= 9) return 'max-w-2xl sm:max-w-3xl md:max-w-4xl lg:max-w-4xl';
+          if (itemCount <= 12) return 'max-w-3xl sm:max-w-4xl md:max-w-5xl lg:max-w-5xl';
+          return 'max-w-4xl sm:max-w-5xl md:max-w-6xl lg:max-w-6xl xl:max-w-7xl 2xl:max-w-7xl';
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-2 sm:p-4">
+            <div className={`bg-white rounded-xl shadow-lg w-full ${getModalWidth()} max-h-[95vh] overflow-hidden flex flex-col`}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl sm:text-2xl">
+                    {selectedPopupMeal.type === 'breakfast' && '🥞'}
+                    {selectedPopupMeal.type === 'lunch' && '🍛'}
+                    {selectedPopupMeal.type === 'snacks' && '🍿'}
+                    {selectedPopupMeal.type === 'dinner' && '🍽️'}
+                  </span>
+                  <h3 className="text-base sm:text-lg font-bold text-gray-900 capitalize">
+                    {selectedPopupMeal.type}
+                  </h3>
+                  {selectedPopupMeal.stats && selectedPopupMeal.stats.totalRatings > 0 && (
+                    <div className="ml-auto">
+                      <span className="text-xs sm:text-sm font-bold text-yellow-600">
+                        ⭐ {selectedPopupMeal.stats.average}/5
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMenuPopup(false);
+                    setSelectedPopupMeal(null);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 text-lg p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                {selectedPopupMeal.items.length > 0 ? (
+                  <div className={`grid ${getGridCols()} gap-3 sm:gap-4`}>
+                    {selectedPopupMeal.items.map((item, idx) => (
+                      <div key={`${selectedPopupMeal.type}-${idx}`} className={`bg-gray-50 rounded-lg overflow-hidden border border-gray-200 hover:shadow-md transition-shadow ${item.imageUrl ? '' : 'flex items-center justify-center min-h-[80px]'}`}>
+                        {item.imageUrl ? (
+                          <>
+                            {/* Image Section */}
+                            <div className="w-full aspect-square overflow-hidden bg-gray-100">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name || item}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Show a placeholder when image fails to load
+                                  e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkY2QjYwIi8+CjxwYXRoIGQ9Ik0zMiAxNkMyNC4yNjggMTYgMTggMjIuMjY4IDE4IDMwQzE4IDM3LjczMiAyNC4yNjggNDQgMzIgNDRDNDAuNzMyIDQ0IDQ3IDM3LjczMiA0NyAzMEM0NyAyMi4yNjggNDAuNzMyIDE2IDMyIDE2WiIgZmlsbD0iI0ZGRkZGRiIvPgo8cGF0aCBkPSJNMzIgNTJDMjQuMjY4IDUyIDE4IDU4LjI2OCAxOCA2NkgxNkMzMi41NTIgNjYgNDYgNTIuNTUyIDQ2IDM2QzQ2IDI4LjI2OCAzOS43MzIgMjIgMzIgMjJDMjQuMjY4IDIyIDE4IDI4LjI2OCAxOCAzNkMxOCA0My43MzIgMjQuMjY4IDUwIDMyIDUwWiIgZmlsbD0iI0ZGRkZGRiIvPgo8L3N2Zz4K';
+                                  e.target.className = 'w-full h-full object-cover opacity-75';
+                                  e.target.title = 'Image failed to load';
+                                }}
+                                onLoad={(e) => {
+                                  e.target.className = 'w-full h-full object-cover';
+                                  e.target.title = '';
+                                }}
+                                crossOrigin="anonymous"
+                                loading="lazy"
+                              />
+                            </div>
+                            {/* Name Section */}
+                            <div className="p-3 sm:p-4">
+                              <div className="text-sm sm:text-base font-medium text-gray-900 text-center line-clamp-2">
+                                {typeof item === 'string' ? item : (item.name || item)}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          /* Name only - no placeholder */
+                          <div className="p-4 sm:p-5 w-full">
+                            <div className="text-sm sm:text-base md:text-lg font-medium text-gray-900 text-center">
+                              {typeof item === 'string' ? item : (item.name || item)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400 text-sm">
+                    No items available for {selectedPopupMeal.type}
                   </div>
                 )}
               </div>
-              <button
-                onClick={() => {
-                  setShowMenuPopup(false);
-                  setSelectedPopupMeal(null);
-                }}
-                className="text-gray-500 hover:text-gray-700 text-lg p-1 rounded-full hover:bg-gray-100 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-              {selectedPopupMeal.items.length > 0 ? (
-                <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-4">
-                  {selectedPopupMeal.items.map((item, idx) => (
-                    <div key={`${selectedPopupMeal.type}-${idx}`} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="flex flex-col items-center text-center">
-                        {item.imageUrl && (
-                          <div className="mb-3">
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name || item}
-                              className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 object-cover rounded-lg border border-gray-200 shadow-md"
-                              onError={(e) => {
-                                // Show a placeholder when image fails to load
-                                e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjRkY2QjYwIi8+CjxwYXRoIGQ9Ik0zMiAxNkMyNC4yNjggMTYgMTggMjIuMjY4IDE4IDMwQzE4IDM3LjczMiAyNC4yNjggNDQgMzIgNDRDNDAuNzMyIDQ0IDQ3IDM3LjczMiA0NyAzMEM0NyAyMi4yNjggNDAuNzMyIDE2IDMyIDE2WiIgZmlsbD0iI0ZGRkZGRiIvPgo8cGF0aCBkPSJNMzIgNTJDMjQuMjY4IDUyIDE4IDU4LjI2OCAxOCA2NkgxNkMzMi41NTIgNjYgNDYgNTIuNTUyIDQ2IDM2QzQ2IDI4LjI2OCAzOS43MzIgMjIgMzIgMjJDMjQuMjY4IDIyIDE4IDI4LjI2OCAxOCAzNkMxOCA0My43MzIgMjQuMjY4IDUwIDMyIDUwWiIgZmlsbD0iI0ZGRkZGRiIvPgo8L3N2Zz4K';
-                                e.target.className = 'w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 object-cover rounded-lg border border-red-200 shadow-md opacity-75';
-                                e.target.title = 'Image failed to load';
-                              }}
-                              onLoad={(e) => {
-                                e.target.className = 'w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 lg:w-40 lg:h-40 xl:w-48 xl:h-48 object-cover rounded-lg border border-gray-200 shadow-md';
-                                e.target.title = '';
-                              }}
-                              crossOrigin="anonymous"
-                              loading="lazy"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm sm:text-base lg:text-lg font-medium text-gray-900">
-                            {typeof item === 'string' ? item : (item.name || item)}
-                          </div>
-                          {!item.imageUrl && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              No image available
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  No items available for {selectedPopupMeal.type}
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };
