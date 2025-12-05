@@ -431,9 +431,8 @@ const MenuManagement = () => {
           });
         }
 
-        let response;
         try {
-          response = await api.post('/api/cafeteria/menu/date', formData, {
+          await api.post('/api/cafeteria/menu/date', formData, {
             headers: {
               'Content-Type': 'multipart/form-data',
             },
@@ -441,37 +440,11 @@ const MenuManagement = () => {
         } catch (error) {
           throw error;
         }
-        
-        // Update state with response data if available
-        if (response && response.data && response.data.data) {
-          const menuData = response.data.data;
-          if (menuData && menuData.meals) {
-            menuData.meals = ensureAllMealTypes(menuData.meals);
-            setMenu(menuData);
-            setEditMenu({ ...menuData.meals });
-          }
-        } else {
-          // If no response data, fetch from server
-          await fetchMenu();
-        }
       } else {
-        const response = await api.post('/api/cafeteria/menu/date', {
+        await api.post('/api/cafeteria/menu/date', {
           date: formattedDate,
           meals: mealsData
         });
-        
-        // Update state with response data if available
-        if (response && response.data && response.data.data) {
-          const menuData = response.data.data;
-          if (menuData && menuData.meals) {
-            menuData.meals = ensureAllMealTypes(menuData.meals);
-            setMenu(menuData);
-            setEditMenu({ ...menuData.meals });
-          }
-        } else {
-          // If no response data, fetch from server
-          await fetchMenu();
-        }
       }
 
       toast.success('Menu saved!');
@@ -479,10 +452,22 @@ const MenuManagement = () => {
       // Clear add inputs and images
       setAddInputs({});
       setAddImages({});
+      
+      // Set loading to false first
+      setLoading(false);
+      
+      // Always fetch fresh menu data after save to ensure images are loaded
+      // Use a small delay to ensure server processing is complete
+      setTimeout(async () => {
+        try {
+          await fetchMenu();
+        } catch (error) {
+          console.error('Error refreshing menu after save:', error);
+        }
+      }, 500);
     } catch (err) {
       toast.error('Failed to save menu');
       console.error('Save error:', err);
-    } finally {
       setLoading(false);
     }
   };
