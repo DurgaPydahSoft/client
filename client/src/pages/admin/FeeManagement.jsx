@@ -5098,7 +5098,7 @@ const FeeManagement = () => {
                                     Unpaid
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-2 gap-3 text-sm text-gray-600">
+                                <div className="grid grid-cols-3 gap-3 text-sm text-gray-600">
                                   <div>
                                     <span className="text-gray-500">Room:</span>
                                     <span className="ml-2 font-medium">{bill.roomNumber}</span>
@@ -5107,7 +5107,7 @@ const FeeManagement = () => {
                                     <span className="text-gray-500">Consumption:</span>
                                     <span className="ml-2 font-medium">{bill.consumption} units</span>
                                   </div>
-                                  {bill.startUnits > 0 && bill.endUnits > 0 && (
+                                  {/* {bill.startUnits > 0 && bill.endUnits > 0 && (
                                     <>
                                       <div>
                                         <span className="text-gray-500">Start Units:</span>
@@ -5118,11 +5118,11 @@ const FeeManagement = () => {
                                         <span className="ml-2 font-medium">{bill.endUnits}</span>
                                       </div>
                                     </>
-                                  )}
-                                  <div>
+                                  )} */}
+                                  {/* <div>
                                     <span className="text-gray-500">Rate:</span>
                                     <span className="ml-2 font-medium">₹{bill.rate}/unit</span>
-                                  </div>
+                                  </div> */}
                                   <div>
                                     <span className="text-gray-500">Total Bill:</span>
                                     <span className="ml-2 font-medium">₹{bill.totalBill.toLocaleString()}</span>
