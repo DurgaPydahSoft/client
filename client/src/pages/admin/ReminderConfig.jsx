@@ -10,7 +10,10 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
-  CalendarIcon
+  CalendarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -57,6 +60,7 @@ const ReminderConfig = () => {
         template: 'post_reminder_sms'
       }
     },
+    // Auto reminders config (kept for backend compatibility but not displayed in UI)
     autoReminders: {
       enabled: true,
       frequency: 'weekly',
@@ -75,6 +79,7 @@ const ReminderConfig = () => {
   const [showTermConfigForm, setShowTermConfigForm] = useState(false);
   const [editingConfig, setEditingConfig] = useState(null);
   const [selectedCourseDetails, setSelectedCourseDetails] = useState(null);
+  const [expandedTemplates, setExpandedTemplates] = useState({}); // Track which templates are expanded
 
   useEffect(() => {
     fetchReminderConfig();
@@ -82,6 +87,99 @@ const ReminderConfig = () => {
     fetchCourses();
     fetchAcademicYears();
   }, []);
+
+  // Helper function to get template preview
+  const getTemplatePreview = (section, type) => {
+    const isPre = section === 'preReminders';
+    const currentYear = new Date().getFullYear();
+    const academicYear = `${currentYear}-${currentYear + 1}`;
+    
+    // Sample data for preview
+    const sampleData = {
+      studentName: 'John Doe',
+      rollNumber: 'R12345',
+      term: 'Term 1',
+      amount: 'Rs.15000',
+      dueDate: new Date(Date.now() + (isPre ? 7 : -1) * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }),
+      academicYear: academicYear,
+      feeAmounts: {
+        term1: 15000,
+        term2: 15000,
+        term3: 15000
+      }
+    };
+
+    if (type === 'sms') {
+      return {
+        title: 'SMS Template',
+        content: `Dear ${sampleData.studentName}, your Hostel ${sampleData.term} Fee of ${sampleData.amount} is due on ${sampleData.dueDate}. Kindly pay at the earliest to avoid late fee. - Pydah Hostel`,
+        description: 'Template variables: {studentName}, {term}, {amount}, {dueDate}'
+      };
+    } else if (type === 'email') {
+      const reminderNumber = isPre ? 1 : 2;
+      const subject = reminderNumber === 1 
+        ? 'First Fee Reminder - Pydah Hostel'
+        : reminderNumber === 2
+        ? 'Second Fee Reminder - Pydah Hostel'
+        : 'Final Fee Reminder - Pydah Hostel';
+      
+      return {
+        title: 'Email Template',
+        subject: subject,
+        content: `Subject: ${subject}
+
+Dear ${sampleData.studentName},
+
+${isPre 
+  ? `We hope this message finds you well. This is a gentle reminder regarding your hostel fee payments for the academic year ${sampleData.academicYear}. Please review the fee details below and ensure timely payment to avoid any inconvenience.`
+  : `This is an important reminder that your hostel fee payment for the academic year ${sampleData.academicYear} is overdue. Please make the payment immediately to avoid late fees and maintain your hostel accommodation.`}
+
+Fee Payment Details:
+- Roll Number: ${sampleData.rollNumber}
+- Academic Year: ${sampleData.academicYear}
+- Term 1 Amount: ₹${sampleData.feeAmounts.term1}
+- Term 2 Amount: ₹${sampleData.feeAmounts.term2}
+- Term 3 Amount: ₹${sampleData.feeAmounts.term3}
+
+${isPre 
+  ? 'Friendly Reminder: This is your fee reminder. Please ensure all payments are made on time to maintain your hostel accommodation.'
+  : 'Urgent: Please make the payment immediately to avoid late fees and potential service disruptions.'}
+
+If you have already made the payment or have any questions regarding the fee structure, please contact the hostel administration.
+
+Best regards,
+Pydah Hostel Management Team`,
+        description: 'Email includes HTML formatting with styled header, fee details card, and call-to-action button.'
+      };
+    } else if (type === 'push') {
+      const reminderNumber = isPre ? 1 : 2;
+      return {
+        title: 'Push Notification Template',
+        content: {
+          title: `Hostel Fee Reminder ${reminderNumber > 0 ? `#${reminderNumber}` : ''}`,
+          message: isPre
+            ? `First hostel fee reminder for ${sampleData.academicYear}. Please check your fee status.`
+            : reminderNumber === 2
+            ? `Second hostel fee reminder for ${sampleData.academicYear}. Payment is due soon.`
+            : `Final hostel fee reminder for ${sampleData.academicYear}. Immediate payment required.`
+        },
+        description: 'Push notification appears in the student\'s app notification center.'
+      };
+    }
+    
+    return null;
+  };
+
+  const toggleTemplatePreview = (key) => {
+    setExpandedTemplates(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
 
   const fetchReminderConfig = async () => {
     try {
@@ -138,6 +236,7 @@ const ReminderConfig = () => {
               template: fetchedConfig.postReminders?.sms?.template ?? 'post_reminder_sms'
             }
           },
+          // Auto reminders config (kept for backend compatibility but not displayed in UI)
           autoReminders: {
             enabled: toBoolean(fetchedConfig.autoReminders?.enabled, true),
             frequency: fetchedConfig.autoReminders?.frequency ?? 'weekly',
@@ -169,15 +268,6 @@ const ReminderConfig = () => {
     }));
   };
 
-  const handleAutoConfigChange = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      autoReminders: {
-        ...prev.autoReminders,
-        [key]: value
-      }
-    }));
-  };
 
   const handleSaveConfig = async () => {
     try {
@@ -469,7 +559,7 @@ const ReminderConfig = () => {
           </div>
 
         {channelConfig.enabled && (
-          <div>
+          <div className="space-y-4">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-xs font-medium text-gray-700">
                 {isPre ? 'Days before due date' : 'Days after due date'}
@@ -514,6 +604,80 @@ const ReminderConfig = () => {
                 No days configured. Click "Add Day" to add reminder days.
               </div>
             )}
+
+            {/* Template Preview Section */}
+            {(() => {
+              const templateKey = `${section}-${type}`;
+              const template = getTemplatePreview(section, type);
+              const isExpanded = expandedTemplates[templateKey];
+              
+              if (!template) return null;
+              
+              return (
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <button
+                    onClick={() => toggleTemplatePreview(templateKey)}
+                    className="flex items-center justify-between w-full text-left mb-2 hover:text-blue-600 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <DocumentTextIcon className="w-4 h-4 text-gray-500" />
+                      <span className="text-xs font-semibold text-gray-700">View {template.title}</span>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUpIcon className="w-4 h-4 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="w-4 h-4 text-gray-500" />
+                    )}
+                  </button>
+                  
+                  {isExpanded && (
+                    <div className="bg-white border border-gray-300 rounded-lg p-3 mt-2">
+                      {type === 'sms' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500 mb-2">{template.description}</p>
+                          <div className="bg-gray-50 rounded p-3 border-l-4 border-blue-500">
+                            <p className="text-xs font-mono text-gray-800 whitespace-pre-wrap break-words">
+                              {template.content}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {type === 'email' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500 mb-2">{template.description}</p>
+                          <div className="bg-gray-50 rounded p-3 border-l-4 border-blue-500 space-y-2">
+                            <div className="border-b border-gray-200 pb-2">
+                              <span className="text-xs font-semibold text-gray-600">Subject: </span>
+                              <span className="text-xs text-gray-800">{template.subject}</span>
+                            </div>
+                            <p className="text-xs text-gray-800 whitespace-pre-wrap break-words">
+                              {template.content}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {type === 'push' && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-500 mb-2">{template.description}</p>
+                          <div className="bg-gray-50 rounded p-3 border-l-4 border-blue-500 space-y-2">
+                            <div>
+                              <span className="text-xs font-semibold text-gray-600">Title: </span>
+                              <span className="text-xs text-gray-800">{template.content.title}</span>
+                            </div>
+                            <div>
+                              <span className="text-xs font-semibold text-gray-600">Message: </span>
+                              <span className="text-xs text-gray-800">{template.content.message}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             </div>
         )}
           </div>
@@ -614,66 +778,6 @@ const ReminderConfig = () => {
                 />
               </div>
 
-              {/* Auto Settings for Pre Reminders */}
-              <div className="mt-6 bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <Cog6ToothIcon className="w-5 h-5 text-blue-600" />
-                  <h4 className="text-base font-semibold text-gray-900">Auto Reminder Settings</h4>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-semibold text-gray-900">Enable Auto Reminders</label>
-                      <p className="text-xs text-gray-500 mt-0.5">Automatically send pre-reminders based on schedule</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={config.autoReminders.enabled}
-                        onChange={(e) => handleAutoConfigChange('enabled', e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-                  
-                  {config.autoReminders.enabled && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Reminder Frequency
-                        </label>
-                        <select
-                          value={config.autoReminders.frequency}
-                          onChange={(e) => handleAutoConfigChange('frequency', e.target.value)}
-                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">How often to check and send automated reminders</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Max Pre Reminders per Student
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={config.autoReminders.maxPreReminders}
-                          onChange={(e) => handleAutoConfigChange('maxPreReminders', parseInt(e.target.value))}
-                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Maximum number of pre-reminders to send per student</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
@@ -713,66 +817,6 @@ const ReminderConfig = () => {
                 />
               </div>
 
-              {/* Auto Settings for Post Reminders */}
-              <div className="mt-6 bg-gray-50 rounded-lg p-4 sm:p-6 border border-gray-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <Cog6ToothIcon className="w-5 h-5 text-blue-600" />
-                  <h4 className="text-base font-semibold text-gray-900">Auto Reminder Settings</h4>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <label className="text-sm font-semibold text-gray-900">Enable Auto Reminders</label>
-                      <p className="text-xs text-gray-500 mt-0.5">Automatically send post-reminders based on schedule</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={config.autoReminders.enabled}
-                        onChange={(e) => handleAutoConfigChange('enabled', e.target.checked)}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    </label>
-                  </div>
-                  
-                  {config.autoReminders.enabled && (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Reminder Frequency
-                        </label>
-                        <select
-                          value={config.autoReminders.frequency}
-                          onChange={(e) => handleAutoConfigChange('frequency', e.target.value)}
-                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="monthly">Monthly</option>
-                        </select>
-                        <p className="text-xs text-gray-500 mt-1">How often to check and send automated reminders</p>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Max Post Reminders per Student
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={config.autoReminders.maxPostReminders}
-                          onChange={(e) => handleAutoConfigChange('maxPostReminders', parseInt(e.target.value))}
-                          className="block w-full sm:w-auto min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">Maximum number of post-reminders to send per student</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 

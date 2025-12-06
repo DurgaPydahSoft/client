@@ -11,20 +11,6 @@ import { hasFullAccess, canPerformAction, hasPermission } from '../../utils/perm
 import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 
 // Dynamic course and branch data will be fetched from backend
-// Room mappings based on gender and category
-const ROOM_MAPPINGS = {
-  Male: {
-    'A+': ['302', '309', '310', '311', '312'],
-    'A': ['303', '304', '305', '306', '308', '320', '324', '325'],
-    'B+': ['321'],
-    'B': ['314', '315', '316', '317', '322', '323']
-  },
-  Female: {
-    'A+': ['209', '211', '212', '213', '214', '215'],
-    'A': ['103', '115', '201', '202', '203', '204', '205', '206', '207', '208', '216', '217'],
-    'B': ['101', '102', '104', '105', '106', '108', '109', '111', '112', '114', '117']
-  }
-};
 
 const CATEGORIES = ['A+', 'A', 'B+', 'B'];
 
@@ -286,6 +272,10 @@ const Students = () => {
   const [roomStaff, setRoomStaff] = useState([]);
   const [loadingRoomStudents, setLoadingRoomStudents] = useState(false);
 
+  // Edit form room availability states
+  const [editRoomsWithAvailability, setEditRoomsWithAvailability] = useState([]);
+  const [loadingEditRooms, setLoadingEditRooms] = useState(false);
+
   // Bed and locker availability states
   const [bedLockerAvailability, setBedLockerAvailability] = useState(null);
   const [loadingBedLocker, setLoadingBedLocker] = useState(false);
@@ -484,6 +474,35 @@ const Students = () => {
       toast.error('Error fetching room availability');
     } finally {
       setLoadingRooms(false);
+    }
+  };
+
+  // Fetch rooms with bed availability for edit form
+  const fetchEditRoomsWithAvailability = async (gender, category) => {
+    if (!gender || !category) {
+      setEditRoomsWithAvailability([]);
+      return;
+    }
+
+    setLoadingEditRooms(true);
+    try {
+      const params = new URLSearchParams({
+        gender: gender,
+        category: category
+      });
+
+      const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
+      if (res.data.success) {
+        setEditRoomsWithAvailability(res.data.data.rooms || []);
+      } else {
+        console.error('Failed to fetch rooms with availability for edit:', res.data.message);
+        toast.error('Failed to fetch room availability');
+      }
+    } catch (err) {
+      console.error('Error fetching rooms with availability for edit:', err);
+      toast.error('Error fetching room availability');
+    } finally {
+      setLoadingEditRooms(false);
     }
   };
 
@@ -809,6 +828,15 @@ const Students = () => {
       setRoomsWithAvailability([]);
     }
   }, [form.gender, form.category]);
+
+  // Fetch rooms with availability for edit form when gender or category changes
+  useEffect(() => {
+    if (editForm.gender && editForm.category) {
+      fetchEditRoomsWithAvailability(editForm.gender, editForm.category);
+    } else {
+      setEditRoomsWithAvailability([]);
+    }
+  }, [editForm.gender, editForm.category]);
 
   // Fetch bed/locker availability when room is selected
   useEffect(() => {
@@ -1223,6 +1251,12 @@ const Students = () => {
       fetchBranches(courseId);
     }
 
+    // Fetch rooms for the edit form if gender and category are available
+    if (student.gender && student.category) {
+      console.log('Fetching rooms for edit form:', student.gender, student.category);
+      fetchEditRoomsWithAvailability(student.gender, student.category);
+    }
+
     setEditModal(true);
   };
 
@@ -1242,9 +1276,18 @@ const Students = () => {
       if (name === 'gender') {
         newForm.category = '';
         newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
       }
       if (name === 'category') {
         newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
+      }
+      if (name === 'roomNumber') {
+        // Reset bed and locker when room changes
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
       }
 
       return newForm;
@@ -1820,15 +1863,10 @@ const Students = () => {
       }
 
       // Normalize category for room mapping
-      let normalizedCategory = 'A'; // default
-      if (categoryUpper === 'A+') normalizedCategory = 'A+';
-      else if (categoryUpper === 'A') normalizedCategory = 'A';
-      else if (categoryUpper === 'B+') normalizedCategory = 'B+';
-      else if (categoryUpper === 'B') normalizedCategory = 'B';
-
-      const validRooms = ROOM_MAPPINGS[normalizedGender]?.[normalizedCategory];
-      if (validRooms && !validRooms.includes(String(RoomNumber))) {
-        errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+      // Room validation removed - rooms are now fetched dynamically from backend
+      // Room number format validation only
+      if (RoomNumber && !/^[0-9]+$/.test(String(RoomNumber))) {
+        errors.RoomNumber = 'Room number must be numeric.';
       }
     }
 
@@ -3034,18 +3072,14 @@ const Students = () => {
               </select>
             </div>
             <div>
-              <select
+              <input
+                type="text"
                 name="roomNumber"
                 value={filters.roomNumber}
                 onChange={handleFilterChange}
-                disabled={!filters.gender || !filters.category}
+                placeholder="Filter by room number"
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Rooms</option>
-                {filters.gender && filters.category && ROOM_MAPPINGS[filters.gender][filters.category].map(room => (
-                  <option key={room} value={room}>Room {room}</option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <select
@@ -3895,19 +3929,41 @@ const Students = () => {
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
-                <select
-                  name="roomNumber"
-                  value={editForm.roomNumber}
-                  onChange={handleEditFormChange}
-                  required
-                  disabled={!editForm.category}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Room</option>
-                  {editForm.category && ROOM_MAPPINGS[editForm.gender]?.[editForm.category]?.map(room => (
-                    <option key={room} value={room}>{room}</option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    name="roomNumber"
+                    value={editForm.roomNumber}
+                    onChange={handleEditFormChange}
+                    required
+                    disabled={!editForm.gender || !editForm.category || loadingEditRooms}
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Room</option>
+                    {loadingEditRooms ? (
+                      <option value="" disabled>Loading rooms...</option>
+                    ) : (
+                      editRoomsWithAvailability.map(room => (
+                        <option key={room._id} value={room.roomNumber}>
+                          Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {editForm.roomNumber && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const selectedRoom = editRoomsWithAvailability.find(r => r.roomNumber === editForm.roomNumber);
+                        if (selectedRoom) {
+                          handleRoomView(selectedRoom);
+                        }
+                      }}
+                      className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      View
+                    </button>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Bed Number (Optional)</label>
@@ -4364,17 +4420,14 @@ const Students = () => {
                             </select>
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
+                            <input
+                              type="text"
                               value={student.RoomNumber || ''}
                               onChange={(e) => handleEditField(index, 'RoomNumber', e.target.value)}
                               title={errors.RoomNumber}
+                              placeholder="Enter room number"
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RoomNumber ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              {student.Gender && student.Category && ROOM_MAPPINGS[student.Gender]?.[student.Category]?.map(room => (
-                                <option key={room} value={room}>Room {room}</option>
-                              ))}
-                            </select>
+                            />
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
                             <input
