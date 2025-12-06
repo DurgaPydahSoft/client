@@ -280,10 +280,6 @@ const Students = () => {
   // Room availability states
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  const [filterRooms, setFilterRooms] = useState([]);
-  const [loadingFilterRooms, setLoadingFilterRooms] = useState(false);
-  // Cache for bulk upload rooms by gender/category
-  const [bulkUploadRoomsCache, setBulkUploadRoomsCache] = useState({});
   const [showRoomViewModal, setShowRoomViewModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStudents, setRoomStudents] = useState([]);
@@ -489,42 +485,6 @@ const Students = () => {
     } finally {
       setLoadingRooms(false);
     }
-  };
-
-  // Fetch rooms for bulk upload (with caching)
-  const fetchRoomsForBulkUpload = async (gender, category) => {
-    if (!gender || !category) {
-      return [];
-    }
-
-    const cacheKey = `${gender}_${category}`;
-    
-    // Check cache first
-    if (bulkUploadRoomsCache[cacheKey]) {
-      return bulkUploadRoomsCache[cacheKey];
-    }
-
-    try {
-      const params = new URLSearchParams({
-        gender: gender,
-        category: category
-      });
-
-      const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
-      if (res.data.success) {
-        const rooms = res.data.data.rooms || [];
-        // Cache the result
-        setBulkUploadRoomsCache(prev => ({
-          ...prev,
-          [cacheKey]: rooms
-        }));
-        return rooms;
-      }
-    } catch (err) {
-      console.error('Error fetching rooms for bulk upload:', err);
-    }
-    
-    return [];
   };
 
   // Handle room view modal
@@ -864,58 +824,6 @@ const Students = () => {
       }));
     }
   }, [form.roomNumber]);
-
-  // Fetch rooms for filter dropdown when gender or category changes
-  useEffect(() => {
-    if (filters.gender && filters.category) {
-      const fetchFilterRooms = async () => {
-        setLoadingFilterRooms(true);
-        try {
-          const params = new URLSearchParams({
-            gender: filters.gender,
-            category: filters.category
-          });
-          const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
-          if (res.data.success) {
-            setFilterRooms(res.data.data.rooms || []);
-          }
-        } catch (err) {
-          console.error('Error fetching filter rooms:', err);
-          setFilterRooms([]);
-        } finally {
-          setLoadingFilterRooms(false);
-        }
-      };
-      fetchFilterRooms();
-    } else {
-      setFilterRooms([]);
-    }
-  }, [filters.gender, filters.category]);
-
-  // Fetch rooms for bulk upload preview when data is loaded
-  useEffect(() => {
-    if (editablePreviewData.length > 0) {
-      // Get unique gender/category combinations
-      const uniqueCombos = new Set();
-      editablePreviewData.forEach(student => {
-        if (student.Gender && student.Category) {
-          uniqueCombos.add(`${student.Gender}_${student.Category}`);
-        }
-      });
-
-      // Fetch rooms for each unique combination
-      uniqueCombos.forEach(combo => {
-        const [gender, category] = combo.split('_');
-        const cacheKey = combo;
-        // Only fetch if not already cached
-        if (!bulkUploadRoomsCache[cacheKey]) {
-          fetchRoomsForBulkUpload(gender, category).catch(err => {
-            console.error('Error fetching rooms for bulk upload:', err);
-          });
-        }
-      });
-    }
-  }, [editablePreviewData]);
 
   // Fetch fee structure when course, year, category or academic year changes
   useEffect(() => {
@@ -1315,11 +1223,6 @@ const Students = () => {
       fetchBranches(courseId);
     }
 
-    // Fetch rooms for the edit modal if gender and category are available
-    if (student.gender && student.category) {
-      fetchRoomsWithAvailability(student.gender, student.category);
-    }
-
     setEditModal(true);
   };
 
@@ -1339,21 +1242,9 @@ const Students = () => {
       if (name === 'gender') {
         newForm.category = '';
         newForm.roomNumber = '';
-        // Clear rooms when gender changes
-        setRoomsWithAvailability([]);
       }
       if (name === 'category') {
         newForm.roomNumber = '';
-        // Fetch rooms when category is selected (if gender is also set)
-        if (newForm.gender && value) {
-          fetchRoomsWithAvailability(newForm.gender, value);
-        } else {
-          setRoomsWithAvailability([]);
-        }
-      }
-      // Fetch rooms when gender is selected (if category is also set)
-      if (name === 'gender' && value && newForm.category) {
-        fetchRoomsWithAvailability(value, newForm.category);
       }
 
       return newForm;
@@ -1457,8 +1348,10 @@ const Students = () => {
     }
 
     // Validate room number
-    // Room validation is now handled by backend - removed hardcoded validation
-    // The backend will validate if the room exists and matches gender/category
+    const validRooms = ROOM_MAPPINGS[formData.gender]?.[formData.category] || [];
+    if (!validRooms.includes(formData.roomNumber)) {
+      errors.push('Invalid room number for the selected gender and category');
+    }
 
     // Enhanced batch validation with better error handling
     if (formData.batch) {
@@ -1915,8 +1808,13 @@ const Students = () => {
     }
 
     if (!RoomNumber) errors.RoomNumber = 'Room number is required.';
-    // Room validation is now handled by backend - removed hardcoded validation
-    // The backend will validate if the room exists and matches gender/category
+    else if (Gender && Category) {
+      // Case-insensitive gender and category handling for room validation
+      const genderUpper = Gender.toUpperCase();
+      const categoryUpper = Category.toUpperCase();
+
+      // Normalize gender for room mapping
+      let normalizedGender = 'Male'; // default
       if (['FEMALE', 'F', 'GIRL'].includes(genderUpper)) {
         normalizedGender = 'Female';
       }
@@ -1928,8 +1826,10 @@ const Students = () => {
       else if (categoryUpper === 'B+') normalizedCategory = 'B+';
       else if (categoryUpper === 'B') normalizedCategory = 'B';
 
-      // Room validation is now handled by backend - removed hardcoded validation
-      // The backend will validate if the room exists and matches gender/category
+      const validRooms = ROOM_MAPPINGS[normalizedGender]?.[normalizedCategory];
+      if (validRooms && !validRooms.includes(String(RoomNumber))) {
+        errors.RoomNumber = `Invalid room for ${Gender} - ${Category}.`;
+      }
     }
 
     // Student phone is optional for bulk upload, but if provided must be valid
@@ -2014,25 +1914,11 @@ const Students = () => {
     toast.success('Changes saved to preview.');
   };
 
-  const handleEditField = async (index, field, value) => {
+  const handleEditField = (index, field, value) => {
     const updatedData = [...editablePreviewData];
     const newStudent = { ...updatedData[index], [field]: value };
-    
-    // Reset room number when gender or category changes
-    if (field === 'Gender' || field === 'Category') {
-      newStudent.RoomNumber = '';
-    }
-    
     updatedData[index] = newStudent;
     setEditablePreviewData(updatedData);
-
-    // Fetch rooms when gender and category are both set (after state update)
-    if ((field === 'Gender' || field === 'Category') && newStudent.Gender && newStudent.Category) {
-      // Fetch rooms asynchronously - cache will be updated and component will re-render
-      fetchRoomsForBulkUpload(newStudent.Gender, newStudent.Category).catch(err => {
-        console.error('Error fetching rooms:', err);
-      });
-    }
 
     const newErrors = [...previewErrors];
     newErrors[index] = validateStudentRow(newStudent);
@@ -3152,17 +3038,13 @@ const Students = () => {
                 name="roomNumber"
                 value={filters.roomNumber}
                 onChange={handleFilterChange}
-                disabled={!filters.gender || !filters.category || loadingFilterRooms}
+                disabled={!filters.gender || !filters.category}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Rooms</option>
-                {loadingFilterRooms ? (
-                  <option value="" disabled>Loading rooms...</option>
-                ) : (
-                  filterRooms.map(room => (
-                    <option key={room._id} value={room.roomNumber}>Room {room.roomNumber}</option>
-                  ))
-                )}
+                {filters.gender && filters.category && ROOM_MAPPINGS[filters.gender][filters.category].map(room => (
+                  <option key={room} value={room}>Room {room}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -4018,19 +3900,13 @@ const Students = () => {
                   value={editForm.roomNumber}
                   onChange={handleEditFormChange}
                   required
-                  disabled={!editForm.gender || !editForm.category || loadingRooms}
+                  disabled={!editForm.category}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">Select Room</option>
-                  {loadingRooms ? (
-                    <option value="" disabled>Loading rooms...</option>
-                  ) : (
-                    roomsWithAvailability.map(room => (
-                      <option key={room._id} value={room.roomNumber}>
-                        Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
-                      </option>
-                    ))
-                  )}
+                  {editForm.category && ROOM_MAPPINGS[editForm.gender]?.[editForm.category]?.map(room => (
+                    <option key={room} value={room}>{room}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -4492,20 +4368,12 @@ const Students = () => {
                               value={student.RoomNumber || ''}
                               onChange={(e) => handleEditField(index, 'RoomNumber', e.target.value)}
                               title={errors.RoomNumber}
-                              disabled={!student.Gender || !student.Category}
                               className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RoomNumber ? 'border-red-500' : 'border-gray-300'}`}
                             >
                               <option value="">Select</option>
-                              {(() => {
-                                if (!student.Gender || !student.Category) return null;
-                                const cacheKey = `${student.Gender}_${student.Category}`;
-                                const rooms = bulkUploadRoomsCache[cacheKey] || [];
-                                return rooms.map(room => (
-                                  <option key={room._id} value={room.roomNumber}>
-                                    Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
-                                  </option>
-                                ));
-                              })()}
+                              {student.Gender && student.Category && ROOM_MAPPINGS[student.Gender]?.[student.Category]?.map(room => (
+                                <option key={room} value={room}>Room {room}</option>
+                              ))}
                             </select>
                           </td>
                           <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
