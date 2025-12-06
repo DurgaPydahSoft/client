@@ -15,7 +15,9 @@ import {
   PhoneIcon,
   TableCellsIcon,
   Squares2X2Icon,
-  LockClosedIcon
+  LockClosedIcon,
+  DocumentChartBarIcon,
+  Cog6ToothIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -51,6 +53,35 @@ const ElectricityBills = () => {
   const [savingRoomId, setSavingRoomId] = useState(null);
   const [editingBills, setEditingBills] = useState(new Set()); // Track which bills are being edited
   const [editModeData, setEditModeData] = useState({}); // Store original values for edit mode
+  const [activeTab, setActiveTab] = useState('reports'); // 'reports', 'billing', or 'settings'
+  const [reportsLoading, setReportsLoading] = useState(false);
+  const [reportsData, setReportsData] = useState([]);
+  // Set default month filter to previous month
+  const getPreviousMonth = () => {
+    const now = new Date();
+    // Get current year and month (0-indexed, so December is 11)
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-11 (0 = January, 11 = December)
+    
+    // Calculate previous month
+    let prevYear = currentYear;
+    let prevMonth = currentMonth - 1;
+    
+    // Handle January (month 0) - go back to December of previous year
+    if (prevMonth < 0) {
+      prevMonth = 11; // December
+      prevYear = currentYear - 1;
+    }
+    
+    // Format as YYYY-MM (month is 1-indexed for display, so add 1)
+    const monthStr = String(prevMonth + 1).padStart(2, '0');
+    return `${prevYear}-${monthStr}`;
+  };
+  const [reportsMonthFilter, setReportsMonthFilter] = useState(getPreviousMonth());
+  const [reportsPaymentFilter, setReportsPaymentFilter] = useState('');
+  const [defaultRate, setDefaultRate] = useState('');
+  const [loadingDefaultRate, setLoadingDefaultRate] = useState(false);
+  const [savingDefaultRate, setSavingDefaultRate] = useState(false);
 
   const fetchRooms = async () => {
     try {
@@ -327,6 +358,117 @@ const ElectricityBills = () => {
     fetchRooms();
   }, [filters]);
 
+  // Fetch reports data
+  const fetchReportsData = async () => {
+    setReportsLoading(true);
+    try {
+      const params = {
+        ...filters,
+        includeLastBill: false // We want all bills, not just last one
+      };
+      const response = await api.get('/api/admin/rooms', { params });
+      if (response.data.success) {
+        const fetchedRooms = response.data.data.rooms || [];
+        
+        // Process rooms to extract all bills
+        const processedData = fetchedRooms.map(room => {
+          // Get all bills, optionally filtered by month and payment status
+          let bills = room.electricityBills || [];
+          if (reportsMonthFilter) {
+            bills = bills.filter(bill => bill.month.startsWith(reportsMonthFilter));
+          }
+          if (reportsPaymentFilter) {
+            bills = bills.filter(bill => {
+              const status = bill.paymentStatus || 'unpaid';
+              return status === reportsPaymentFilter;
+            });
+          }
+          
+          // Sort bills by month (newest first)
+          bills = [...bills].sort((a, b) => b.month.localeCompare(a.month));
+          
+          return {
+            roomNumber: room.roomNumber,
+            gender: room.gender,
+            category: room.category,
+            meterType: room.meterType,
+            bills: bills,
+            totalBills: bills.length,
+            totalConsumption: bills.reduce((sum, bill) => sum + (bill.consumption || 0), 0),
+            totalAmount: bills.reduce((sum, bill) => sum + (bill.total || 0), 0)
+          };
+        });
+        
+        // Sort by room number
+        processedData.sort((a, b) => a.roomNumber.localeCompare(b.roomNumber));
+        
+        setReportsData(processedData);
+      } else {
+        throw new Error('Failed to fetch reports data');
+      }
+    } catch (error) {
+      console.error('⚡ Error fetching reports data:', error);
+      toast.error('Failed to fetch reports data');
+    } finally {
+      setReportsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'reports') {
+      fetchReportsData();
+    }
+  }, [activeTab, filters, reportsMonthFilter, reportsPaymentFilter]);
+
+  // Fetch default rate
+  const fetchDefaultRate = async () => {
+    setLoadingDefaultRate(true);
+    try {
+      const response = await api.get('/api/admin/rooms/electricity-default-rate');
+      if (response.data.success) {
+        const rate = response.data.rate || '';
+        setDefaultRate(rate.toString());
+        setBulkRate(rate.toString()); // Also set bulkRate for backward compatibility
+      }
+    } catch (error) {
+      console.error('Error fetching default rate:', error);
+      toast.error('Failed to fetch default rate');
+    } finally {
+      setLoadingDefaultRate(false);
+    }
+  };
+
+  // Save default rate
+  const handleSaveDefaultRate = async () => {
+    if (!defaultRate || isNaN(Number(defaultRate)) || Number(defaultRate) <= 0) {
+      toast.error('Please enter a valid positive number for the rate');
+      return;
+    }
+
+    setSavingDefaultRate(true);
+    try {
+      const response = await api.post('/api/admin/rooms/electricity-default-rate', {
+        rate: Number(defaultRate)
+      });
+      if (response.data.success) {
+        toast.success('Default electricity rate saved successfully!');
+        setBulkRate(defaultRate); // Update bulkRate as well
+      } else {
+        throw new Error(response.data.message || 'Failed to save default rate');
+      }
+    } catch (error) {
+      console.error('Error saving default rate:', error);
+      toast.error(error.response?.data?.message || 'Failed to save default rate');
+    } finally {
+      setSavingDefaultRate(false);
+    }
+  };
+
+  // Load default rate on mount
+  useEffect(() => {
+    fetchDefaultRate();
+  }, []);
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
@@ -472,7 +614,7 @@ const ElectricityBills = () => {
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (loading && activeTab === 'billing') return <LoadingSpinner />;
 
   return (
     <div className="mx-auto  mt-12 sm:mt-0">
@@ -484,14 +626,60 @@ const ElectricityBills = () => {
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Electricity Bills</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage electricity billing for all rooms</p>
         </div>
+        {/* Tabs in Header */}
+        <div className="flex gap-2 border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'reports'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <DocumentChartBarIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Reports</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('billing')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'billing'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <TableCellsIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Billing</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'settings'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Cog6ToothIcon className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
+            </div>
+          </button>
+        </div>
       </div>
 
-      {/* Filters */}
+      {/* Bulk Billing Tab Content */}
+      {activeTab === 'billing' && (
+        <>
+
+      {/* Filters and Controls - Single Line */}
       <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-3 sm:mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Gender
+              Hostel Type
             </label>
             <select
               name="gender"
@@ -499,9 +687,9 @@ const ElectricityBills = () => {
               onChange={handleFilterChange}
               className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              <option value="">All Hostels</option>
+              <option value="Male">Boys Hostel</option>
+              <option value="Female">Girls Hostel</option>
             </select>
           </div>
           <div>
@@ -541,6 +729,28 @@ const ElectricityBills = () => {
               )}
             </select>
           </div>
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Billing Month</label>
+            <input
+              type="month"
+              value={bulkMonth}
+              onChange={(e) => setBulkMonth(e.target.value)}
+              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+            <button
+              onClick={handleSaveBulkBills}
+              disabled={isSavingBulk || !canManageBills}
+              className={`w-full px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
+                ? 'bg-green-600 text-white hover:bg-green-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                }`}
+              title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
+            >
+              {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -577,53 +787,6 @@ const ElectricityBills = () => {
           >
             📅 This Month
           </button>
-          <button
-            onClick={() => setBulkRate('5')}
-            className="flex-1 py-2 px-3 bg-green-100 text-green-700 rounded-lg text-xs font-medium hover:bg-green-200 transition-colors"
-          >
-            💰 Set Rate ₹5
-          </button>
-        </div>
-      </div>
-
-      {/* Bulk Billing Controls */}
-      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
-        <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">Bulk Electricity Billing</h2>
-
-        {/* Global Controls */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-50 rounded-lg">
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Billing Month</label>
-            <input
-              type="month"
-              value={bulkMonth}
-              onChange={(e) => setBulkMonth(e.target.value)}
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Default Rate/Unit</label>
-            <input
-              type="number"
-              placeholder="e.g., 5"
-              value={bulkRate}
-              onChange={(e) => setBulkRate(e.target.value)}
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg"
-            />
-          </div>
-          <div className="flex items-end sm:col-span-2 lg:col-span-1">
-            <button
-              onClick={handleSaveBulkBills}
-              disabled={isSavingBulk || !canManageBills}
-              className={`w-full px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                }`}
-              title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
-            >
-              {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -982,8 +1145,6 @@ const ElectricityBills = () => {
 
       {/* Desktop Table View */}
       <div className="hidden sm:block bg-white rounded-lg shadow-sm p-4">
-        <h2 className="text-xl font-bold mb-4">Bulk Electricity Billing</h2>
-
         {/* Billing Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -1282,6 +1443,242 @@ const ElectricityBills = () => {
           </table>
         </div>
       </div>
+        </>
+      )}
+
+      {/* Reports Tab */}
+      {activeTab === 'reports' && (
+        <div className="space-y-3">
+          {/* Compact Filters */}
+          <div className="bg-white rounded-lg shadow-sm p-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <select
+                name="gender"
+                value={filters.gender}
+                onChange={handleFilterChange}
+                className="px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Hostels</option>
+                <option value="Male">Boys Hostel</option>
+                <option value="Female">Girls Hostel</option>
+              </select>
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                disabled={!filters.gender}
+                className="px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">All Categories</option>
+                {filters.gender === 'Male' ? (
+                  <>
+                    <option value="A+">A+</option>
+                    <option value="A">A</option>
+                    <option value="B+">B+</option>
+                    <option value="B">B</option>
+                  </>
+                ) : filters.gender === 'Female' ? (
+                  <>
+                    <option value="A+">A+</option>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="A+">A+</option>
+                    <option value="A">A</option>
+                    <option value="B+">B+</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </>
+                )}
+              </select>
+              <input
+                type="month"
+                value={reportsMonthFilter}
+                onChange={(e) => setReportsMonthFilter(e.target.value)}
+                placeholder="Filter by month"
+                className="px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <select
+                value={reportsPaymentFilter}
+                onChange={(e) => setReportsPaymentFilter(e.target.value)}
+                className="px-2 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Payments</option>
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="pending">Pending</option>
+              </select>
+              <div className="text-xs text-gray-600 flex items-center">
+                <span className="font-medium">{reportsData.length}</span>
+                <span className="ml-1">room(s)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Compact Reports Table */}
+          {reportsLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 uppercase sticky left-0 bg-gray-50 z-10">
+                        Room / Category
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                        Consumption
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                        Total Amount
+                      </th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-600 uppercase">
+                        Recent Bills
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {reportsData.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="px-3 py-6 text-center text-xs text-gray-500">
+                          No rooms found
+                        </td>
+                      </tr>
+                    ) : (
+                      reportsData.map((roomData) => (
+                        <tr key={roomData.roomNumber} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 whitespace-nowrap sticky left-0 bg-white z-10">
+                            <div className="flex items-center gap-1.5">
+                              <BuildingOfficeIcon className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="text-xs font-medium text-gray-900">Room {roomData.roomNumber}</span>
+                              <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                {roomData.category}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-500 mt-0.5">{roomData.gender}</div>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <span className="text-xs font-semibold text-gray-700">{roomData.totalConsumption.toLocaleString()}</span>
+                            <span className="text-xs text-gray-500 ml-1">units</span>
+                          </td>
+                          <td className="px-3 py-2 whitespace-nowrap">
+                            <span className="text-xs font-semibold text-green-600">
+                              ₹{roomData.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-xs text-gray-700">
+                            {roomData.bills.length === 0 ? (
+                              <span className="text-gray-400">No bills</span>
+                            ) : (
+                              <div className="space-y-1 max-h-32 overflow-y-auto">
+                                {roomData.bills.slice(0, 3).map((bill, idx) => (
+                                  <div key={idx} className="flex items-center justify-between gap-2 py-0.5 border-b border-gray-100 last:border-0">
+                                    <span className="text-xs text-gray-600">
+                                      {new Date(bill.month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' })}
+                                    </span>
+                                    <span className="text-xs font-semibold text-green-600">
+                                      ₹{Math.round(bill.total || 0).toLocaleString()}
+                                    </span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                      bill.paymentStatus === 'paid'
+                                        ? 'bg-green-100 text-green-700'
+                                        : bill.paymentStatus === 'pending'
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-red-100 text-red-700'
+                                    }`}>
+                                      {bill.paymentStatus === 'paid' ? '✓' : bill.paymentStatus === 'pending' ? '⏳' : '✗'}
+                                    </span>
+                                  </div>
+                                ))}
+                                {roomData.bills.length > 3 && (
+                                  <div className="text-xs text-gray-500 pt-1">
+                                    +{roomData.bills.length - 3} more
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="space-y-4 sm:space-y-6">
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Electricity Rate Settings</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              Set the default electricity rate per unit. This rate will be used for all new bills unless a specific rate is provided.
+            </p>
+
+            <div className="max-w-md space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Default Rate per Unit (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={defaultRate}
+                  onChange={(e) => setDefaultRate(e.target.value)}
+                  placeholder="e.g., 5.00"
+                  disabled={loadingDefaultRate || savingDefaultRate}
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveDefaultRate}
+                  disabled={loadingDefaultRate || savingDefaultRate || !defaultRate}
+                  className={`px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    loadingDefaultRate || savingDefaultRate || !defaultRate
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {savingDefaultRate ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Saving...
+                    </span>
+                  ) : (
+                    'Save Default Rate'
+                  )}
+                </button>
+                <button
+                  onClick={fetchDefaultRate}
+                  disabled={loadingDefaultRate || savingDefaultRate}
+                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingDefaultRate ? (
+                    <span className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                      Loading...
+                    </span>
+                  ) : (
+                    'Refresh'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
