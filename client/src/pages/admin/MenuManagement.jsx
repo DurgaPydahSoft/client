@@ -90,6 +90,7 @@ const MenuManagement = () => {
   });
   const [addInputs, setAddInputs] = useState({}); // { meal: value }
   const [addImages, setAddImages] = useState({}); // { meal: file }
+  const [uploadProgress, setUploadProgress] = useState(0); // Upload progress percentage
 
   // Today's menu state
   const [todaysMenu, setTodaysMenu] = useState(null);
@@ -380,6 +381,7 @@ const MenuManagement = () => {
 
   const handleSave = async () => {
     setLoading(true);
+    setUploadProgress(0);
     try {
       const formattedDate = formatDateForAPI(selectedDate);
 
@@ -436,6 +438,14 @@ const MenuManagement = () => {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
+          timeout: 120000, // 2 minutes timeout for image uploads on slow connections
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploadProgress(percentCompleted);
+              console.log(`Upload progress: ${percentCompleted}%`);
+            }
+          },
         });
       } else {
         await api.post('/api/cafeteria/menu/date', {
@@ -443,6 +453,9 @@ const MenuManagement = () => {
           meals: mealsData
         });
       }
+
+      // Reset upload progress
+      setUploadProgress(0);
 
       // Wait a moment for server to process images
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -457,12 +470,18 @@ const MenuManagement = () => {
       // Show success message only after everything is complete
       toast.success('Menu saved successfully!');
     } catch (err) {
-      toast.error('Failed to save menu');
+      setUploadProgress(0);
+      if (err.code === 'ECONNABORTED' || err.message.includes('timeout')) {
+        toast.error('Upload timed out. Please check your internet connection and try again.');
+      } else {
+        toast.error('Failed to save menu');
+      }
       console.error('Save error:', err);
     } finally {
       // Loading will be set to false by fetchMenu, but ensure it's set if fetchMenu fails
       if (isMounted.current) {
         setLoading(false);
+        setUploadProgress(0);
       }
     }
   };
@@ -624,6 +643,13 @@ const MenuManagement = () => {
         savePromise = api.post('/api/cafeteria/menu/date', formData, {
           headers: {
             'Content-Type': 'multipart/form-data',
+          },
+          timeout: 120000, // 2 minutes timeout for image uploads on slow connections
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              console.log(`Upload progress: ${percentCompleted}%`);
+            }
           },
         });
       } else {
@@ -787,6 +813,28 @@ const MenuManagement = () => {
             <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></span>
           </button>
         </div>
+        
+        {/* Loading Indicator for Save Operation */}
+        {loading && (
+          <div className="mt-4 flex items-center justify-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <svg className="w-5 h-5 animate-spin text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-blue-900">
+                {uploadProgress > 0 ? `Uploading images... ${uploadProgress}%` : 'Saving menu...'}
+              </div>
+              {uploadProgress > 0 && (
+                <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  ></div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Today's Menu Overview - Desktop: shown after header */}
@@ -1529,10 +1577,21 @@ const MenuManagement = () => {
                   disabled={savingToday}
                   className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium text-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Save Changes
+                  {savingToday ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Changes
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={closeTodayModal}
