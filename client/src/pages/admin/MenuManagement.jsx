@@ -403,6 +403,7 @@ const MenuManagement = () => {
         meal.some(item => item.imageFile)
       );
 
+      // Save to server
       if (hasImages) {
         const formData = new FormData();
         // Convert ISO string to simple date format
@@ -431,15 +432,11 @@ const MenuManagement = () => {
           });
         }
 
-        try {
-          await api.post('/api/cafeteria/menu/date', formData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-        } catch (error) {
-          throw error;
-        }
+        await api.post('/api/cafeteria/menu/date', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
       } else {
         await api.post('/api/cafeteria/menu/date', {
           date: formattedDate,
@@ -447,28 +444,26 @@ const MenuManagement = () => {
         });
       }
 
-      toast.success('Menu saved!');
-      
-      // Clear add inputs and images
+      // Wait a moment for server to process images
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Fetch fresh menu data after save to ensure images are loaded
+      await fetchMenu();
+
+      // Clear add inputs and images only after successful save and refresh
       setAddInputs({});
       setAddImages({});
       
-      // Set loading to false first
-      setLoading(false);
-      
-      // Always fetch fresh menu data after save to ensure images are loaded
-      // Use a small delay to ensure server processing is complete
-      setTimeout(async () => {
-        try {
-          await fetchMenu();
-        } catch (error) {
-          console.error('Error refreshing menu after save:', error);
-        }
-      }, 500);
+      // Show success message only after everything is complete
+      toast.success('Menu saved successfully!');
     } catch (err) {
       toast.error('Failed to save menu');
       console.error('Save error:', err);
-      setLoading(false);
+    } finally {
+      // Loading will be set to false by fetchMenu, but ensure it's set if fetchMenu fails
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
