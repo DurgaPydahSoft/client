@@ -112,7 +112,7 @@ const FeeManagement = () => {
     }
   });
   const [feeStructureLoading, setFeeStructureLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('dues'); // 'dues', 'structure', 'payments', 'reminders', or 'reminder-config'
+  const [activeTab, setActiveTab] = useState('dues'); // 'dues', 'structure', 'additional-fees', 'payments', 'reminders', or 'reminder-config'
   const [feeStructureFilter, setFeeStructureFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     course: '',
@@ -127,7 +127,7 @@ const FeeManagement = () => {
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [selectedStudentForPayment, setSelectedStudentForPayment] = useState(null);
   const [paymentForm, setPaymentForm] = useState({
-    paymentType: 'hostel_fee', // 'hostel_fee', 'electricity', 'caution_deposit', or 'additional_fee'
+    paymentType: 'hostel_fee', // 'hostel_fee', 'electricity', or 'additional_fee'
     amount: '',
     paymentMethod: 'Cash',
     term: '',
@@ -135,10 +135,23 @@ const FeeManagement = () => {
     month: '', // For electricity bills
     notes: '',
     utrNumber: '', // UTR number for online payments
-    additionalFeeType: 'caution_deposit' // For additional fees
+    additionalFeeType: '' // For additional fees
   });
-  const [additionalFees, setAdditionalFees] = useState({ cautionDeposit: 0 });
-  const [additionalFeesForm, setAdditionalFeesForm] = useState({ cautionDeposit: 0 });
+  // Additional Fees Setup State
+  const [additionalFees, setAdditionalFees] = useState({});
+  const [additionalFeesLoading, setAdditionalFeesLoading] = useState(false);
+  const [showAdditionalFeeModal, setShowAdditionalFeeModal] = useState(false);
+  const [selectedAdditionalFee, setSelectedAdditionalFee] = useState(null);
+  const [additionalFeeForm, setAdditionalFeeForm] = useState({
+    feeType: '',
+    amount: 0,
+    description: '',
+    isActive: true,
+    categories: ['A+', 'A', 'B+', 'B'] // Default to all categories
+  });
+  const [additionalFeesFilter, setAdditionalFeesFilter] = useState({
+    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
+  });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [selectedStudentBalance, setSelectedStudentBalance] = useState(null);
@@ -1208,25 +1221,7 @@ const FeeManagement = () => {
     const response = await api.get(url);
 
     if (response.data.success && Array.isArray(response.data.data)) {
-      // Also fetch additional fees for this academic year
-      if (feeStructureFilter.academicYear) {
-        try {
-          const additionalFeesResponse = await api.get(`/api/fee-structures/additional-fees/${feeStructureFilter.academicYear}`);
-          if (additionalFeesResponse.data.success) {
-            setAdditionalFees(additionalFeesResponse.data.data);
-            setAdditionalFeesForm(additionalFeesResponse.data.data);
-          }
-        } catch (err) {
-          console.error('Error fetching additional fees:', err);
-        }
-      }
-      
-      // Check if additionalFees is in the response (from updated backend)
-      if (response.data.additionalFees) {
-        setAdditionalFees(response.data.additionalFees);
-        setAdditionalFeesForm(response.data.additionalFees);
-      }
-      
+      // Note: Additional fees are now fetched separately in the Additional Fees Setup tab
       return response.data.data;
     } else {
       return [];
@@ -1638,8 +1633,244 @@ const FeeManagement = () => {
     setFeeStructureFilter(prev => ({ ...prev, [key]: value }));
   };
 
+  // ==================== ADDITIONAL FEES SETUP FUNCTIONS ====================
+  
+  // Fetch additional fees for an academic year
+  const fetchAdditionalFees = useCallback(async () => {
+    if (!additionalFeesFilter.academicYear) {
+      setAdditionalFees({});
+      return;
+    }
+
+    try {
+      setAdditionalFeesLoading(true);
+      const response = await api.get(`/api/fee-structures/additional-fees/${additionalFeesFilter.academicYear}`);
+      
+      if (response.data.success) {
+        setAdditionalFees(response.data.data || {});
+      } else {
+        setAdditionalFees({});
+      }
+    } catch (err) {
+      console.error('Error fetching additional fees:', err);
+      setAdditionalFees({});
+    } finally {
+      setAdditionalFeesLoading(false);
+    }
+  }, [additionalFeesFilter.academicYear]);
+
+  // Fetch additional fees when tab is active or filter changes
+  useEffect(() => {
+    if (activeTab === 'additional-fees') {
+      fetchAdditionalFees();
+    }
+  }, [activeTab, additionalFeesFilter.academicYear, fetchAdditionalFees]);
+
+  // Fetch additional fees when payment modal opens and payment type is additional_fee
+  useEffect(() => {
+    if (showPaymentModal && selectedStudentForPayment && 
+        paymentForm.paymentType === 'additional_fee') {
+      // Fetch additional fees for the student's academic year and category
+      const fetchAdditionalFeesForPayment = async () => {
+        if (selectedStudentForPayment.academicYear) {
+          try {
+            const response = await api.get(`/api/fee-structures/additional-fees/${selectedStudentForPayment.academicYear}`, {
+              params: { category: selectedStudentForPayment.category }
+            });
+            if (response.data.success) {
+              setAdditionalFees(response.data.data || {});
+              // Set default additional fee type if not set and available
+              if (!paymentForm.additionalFeeType) {
+                const availableFees = Object.keys(response.data.data || {}).filter(feeType => {
+                  const fee = response.data.data[feeType];
+                  return fee.isActive && fee.categories && fee.categories.includes(selectedStudentForPayment.category);
+                });
+                if (availableFees.length > 0) {
+                  setPaymentForm(prev => ({ ...prev, additionalFeeType: availableFees[0] }));
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching additional fees for payment:', err);
+          }
+        }
+      };
+      fetchAdditionalFeesForPayment();
+    }
+  }, [showPaymentModal, selectedStudentForPayment, paymentForm.paymentType]);
+
+  // Open modal to add/edit additional fee
+  const openAdditionalFeeModal = (feeType = null) => {
+    if (feeType && additionalFees[feeType]) {
+      // Edit mode
+      setSelectedAdditionalFee(feeType);
+      setAdditionalFeeForm({
+        feeType: feeType,
+        amount: additionalFees[feeType].amount || 0,
+        description: additionalFees[feeType].description || '',
+        isActive: additionalFees[feeType].isActive !== undefined ? additionalFees[feeType].isActive : true,
+        categories: Array.isArray(additionalFees[feeType].categories) && additionalFees[feeType].categories.length > 0
+          ? additionalFees[feeType].categories
+          : ['A+', 'A', 'B+', 'B'] // Default to all categories if not specified
+      });
+    } else {
+      // Add mode
+      setSelectedAdditionalFee(null);
+      setAdditionalFeeForm({
+        feeType: '',
+        amount: 0,
+        description: '',
+        isActive: true,
+        categories: ['A+', 'A', 'B+', 'B'] // Default to all categories
+      });
+    }
+    setShowAdditionalFeeModal(true);
+  };
+
+  // Handle additional fee form submit
+  const handleAdditionalFeeSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!additionalFeesFilter.academicYear) {
+      toast.error('Please select an academic year');
+      return;
+    }
+
+    if (!additionalFeeForm.feeType || !additionalFeeForm.feeType.trim()) {
+      toast.error('Please enter a fee type name');
+      return;
+    }
+
+    // Validate fee type name (alphanumeric with underscores, max 50 chars)
+    if (!/^[a-zA-Z0-9_]+$/.test(additionalFeeForm.feeType.trim()) || additionalFeeForm.feeType.trim().length > 50) {
+      toast.error('Fee type name must be alphanumeric with underscores only, max 50 characters');
+      return;
+    }
+
+    if (additionalFeeForm.amount < 0) {
+      toast.error('Amount must be a non-negative number');
+      return;
+    }
+
+    if (!additionalFeeForm.categories || additionalFeeForm.categories.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+
+    try {
+      setAdditionalFeesLoading(true);
+
+      // Prepare updated additional fees object
+      const updatedAdditionalFees = { ...additionalFees };
+      
+      if (selectedAdditionalFee && selectedAdditionalFee !== additionalFeeForm.feeType.trim()) {
+        // Fee type name changed - remove old and add new
+        delete updatedAdditionalFees[selectedAdditionalFee];
+      }
+
+      // Add or update the fee
+      updatedAdditionalFees[additionalFeeForm.feeType.trim()] = {
+        amount: parseFloat(additionalFeeForm.amount) || 0,
+        description: additionalFeeForm.description || '',
+        isActive: additionalFeeForm.isActive !== undefined ? additionalFeeForm.isActive : true,
+        categories: Array.isArray(additionalFeeForm.categories) && additionalFeeForm.categories.length > 0
+          ? additionalFeeForm.categories
+          : ['A+', 'A', 'B+', 'B'] // Default to all categories if not specified
+      };
+
+      const response = await api.post('/api/fee-structures/additional-fees', {
+        academicYear: additionalFeesFilter.academicYear,
+        additionalFees: updatedAdditionalFees
+      });
+
+      if (response.data.success) {
+        toast.success(`Additional fee ${selectedAdditionalFee ? 'updated' : 'created'} successfully`);
+        setAdditionalFees(updatedAdditionalFees);
+        setShowAdditionalFeeModal(false);
+        setSelectedAdditionalFee(null);
+        setAdditionalFeeForm({
+          feeType: '',
+          amount: 0,
+          description: '',
+          isActive: true,
+          categories: ['A+', 'A', 'B+', 'B']
+        });
+      } else {
+        toast.error(response.data.message || 'Failed to save additional fee');
+      }
+    } catch (err) {
+      console.error('Error saving additional fee:', err);
+      toast.error(err.response?.data?.message || 'Failed to save additional fee');
+    } finally {
+      setAdditionalFeesLoading(false);
+    }
+  };
+
+  // Delete additional fee
+  const deleteAdditionalFee = async (feeType) => {
+    if (!window.confirm(`Are you sure you want to delete the "${feeType}" additional fee?`)) {
+      return;
+    }
+
+    try {
+      setAdditionalFeesLoading(true);
+
+      const updatedAdditionalFees = { ...additionalFees };
+      delete updatedAdditionalFees[feeType];
+
+      const response = await api.post('/api/fee-structures/additional-fees', {
+        academicYear: additionalFeesFilter.academicYear,
+        additionalFees: updatedAdditionalFees
+      });
+
+      if (response.data.success) {
+        toast.success('Additional fee deleted successfully');
+        setAdditionalFees(updatedAdditionalFees);
+      } else {
+        toast.error(response.data.message || 'Failed to delete additional fee');
+      }
+    } catch (err) {
+      console.error('Error deleting additional fee:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete additional fee');
+    } finally {
+      setAdditionalFeesLoading(false);
+    }
+  };
+
+  // Toggle additional fee active status
+  const toggleAdditionalFeeStatus = async (feeType) => {
+    try {
+      setAdditionalFeesLoading(true);
+
+      const updatedAdditionalFees = { ...additionalFees };
+      if (updatedAdditionalFees[feeType]) {
+        updatedAdditionalFees[feeType] = {
+          ...updatedAdditionalFees[feeType],
+          isActive: !updatedAdditionalFees[feeType].isActive
+        };
+      }
+
+      const response = await api.post('/api/fee-structures/additional-fees', {
+        academicYear: additionalFeesFilter.academicYear,
+        additionalFees: updatedAdditionalFees
+      });
+
+      if (response.data.success) {
+        toast.success(`Additional fee ${updatedAdditionalFees[feeType].isActive ? 'activated' : 'deactivated'} successfully`);
+        setAdditionalFees(updatedAdditionalFees);
+      } else {
+        toast.error(response.data.message || 'Failed to update additional fee');
+      }
+    } catch (err) {
+      console.error('Error toggling additional fee status:', err);
+      toast.error(err.response?.data?.message || 'Failed to update additional fee');
+    } finally {
+      setAdditionalFeesLoading(false);
+    }
+  };
+
   // Payment Tracking Functions
-  const openPaymentModal = (student) => {
+  const openPaymentModal = async (student) => {
     setSelectedStudentForPayment(student);
     const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
 
@@ -1658,8 +1889,31 @@ const FeeManagement = () => {
       month: '',
       notes: '',
       utrNumber: '',
-      additionalFeeType: 'caution_deposit'
+      additionalFeeType: ''
     });
+
+    // Fetch additional fees for the student's academic year and category
+    if (student.academicYear) {
+      try {
+        const response = await api.get(`/api/fee-structures/additional-fees/${student.academicYear}`, {
+          params: { category: student.category }
+        });
+        if (response.data.success) {
+          setAdditionalFees(response.data.data || {});
+          // Set default additional fee type if available
+          const availableFees = Object.keys(response.data.data || {}).filter(feeType => {
+            const fee = response.data.data[feeType];
+            return fee.isActive && fee.categories && fee.categories.includes(student.category);
+          });
+          if (availableFees.length > 0) {
+            setPaymentForm(prev => ({ ...prev, additionalFeeType: availableFees[0] }));
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching additional fees:', err);
+        setAdditionalFees({});
+      }
+    }
 
     // Show modal immediately
     setShowPaymentModal(true);
@@ -1680,7 +1934,7 @@ const FeeManagement = () => {
       month: '',
       notes: '',
       utrNumber: '',
-      additionalFeeType: 'caution_deposit'
+      additionalFeeType: ''
     });
     setStudentElectricityBills([]);
     setAvailableMonths([]);
@@ -2021,6 +2275,12 @@ const FeeManagement = () => {
       }
     }
 
+    if (paymentForm.paymentType === 'additional_fee') {
+      if (!paymentForm.additionalFeeType) {
+        errors.push('Please select an additional fee type');
+      }
+    }
+
     // 5. Duplicate payment prevention (check recent payments)
     if (student && paymentForm.amount) {
       const recentPayments = payments.filter(p =>
@@ -2064,8 +2324,8 @@ const FeeManagement = () => {
           utrNumber: paymentForm.utrNumber
         };
         endpoint = '/api/payments/hostel-fee';
-      } else if (paymentForm.paymentType === 'caution_deposit' || paymentForm.paymentType === 'additional_fee') {
-        // Additional fee payment (caution deposit, etc.)
+      } else if (paymentForm.paymentType === 'additional_fee') {
+        // Additional fee payment (caution deposit, diesel charges, etc.)
         paymentData = {
           studentId: selectedStudentForPayment._id,
           amount: parseFloat(paymentForm.amount),
@@ -2073,7 +2333,7 @@ const FeeManagement = () => {
           notes: paymentForm.notes,
           academicYear: selectedStudentForPayment.academicYear,
           utrNumber: paymentForm.utrNumber,
-          additionalFeeType: paymentForm.additionalFeeType || 'caution_deposit'
+          additionalFeeType: paymentForm.additionalFeeType
         };
         endpoint = '/api/payments/additional-fee';
       } else {
@@ -3388,6 +3648,15 @@ const FeeManagement = () => {
               >
                 Fee Structure
               </button>
+              <button
+                onClick={() => setActiveTab('additional-fees')}
+                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'additional-fees'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+              >
+                Additional Fees Setup
+              </button>
              
               <button
                 onClick={() => setActiveTab('reminders')}
@@ -4080,62 +4349,6 @@ const FeeManagement = () => {
 
       {activeTab === 'structure' && (
         <>
-          {/* Additional Fees Configuration (Common for all students per academic year) */}
-          {feeStructureFilter.academicYear && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-                <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900">Additional Fees Configuration</h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Configure fees common for all students in {feeStructureFilter.academicYear}
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Caution Deposit (₹)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={additionalFeesForm.cautionDeposit || 0}
-                    onChange={(e) => setAdditionalFeesForm(prev => ({
-                      ...prev,
-                      cautionDeposit: parseFloat(e.target.value) || 0
-                    }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Enter caution deposit amount"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  onClick={async () => {
-                    try {
-                      const response = await api.post('/api/fee-structures/additional-fees', {
-                        academicYear: feeStructureFilter.academicYear,
-                        additionalFees: additionalFeesForm
-                      });
-                      if (response.data.success) {
-                        toast.success('Additional fees updated successfully');
-                        setAdditionalFees(additionalFeesForm);
-                        // Refetch fee structures to get updated additional fees
-                        refetchFeeStructures();
-                      }
-                    } catch (err) {
-                      toast.error(err.response?.data?.message || 'Failed to update additional fees');
-                    }
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
-                >
-                  Save Additional Fees
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Fee Structure Management */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
@@ -4634,33 +4847,67 @@ const FeeManagement = () => {
                     >
                       <option value="hostel_fee">Hostel Fee</option>
                       <option value="electricity">Electricity Bill</option>
-                      <option value="caution_deposit">Caution Deposit</option>
                       <option value="additional_fee">Additional Fee</option>
                     </select>
                   </div>
 
-                  {(paymentForm.paymentType === 'caution_deposit' || paymentForm.paymentType === 'additional_fee') && (
+                  {paymentForm.paymentType === 'additional_fee' && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fee Type
+                        Fee Type <span className="text-red-500">*</span>
                       </label>
                       <select
                         value={paymentForm.additionalFeeType}
                         onChange={(e) => {
-                          setPaymentForm(prev => ({ ...prev, additionalFeeType: e.target.value }));
+                          const selectedFeeType = e.target.value;
+                          setPaymentForm(prev => ({ ...prev, additionalFeeType: selectedFeeType }));
                           // Set amount to the configured fee amount if available
-                          if (e.target.value === 'caution_deposit' && additionalFees.cautionDeposit > 0) {
-                            setPaymentForm(prev => ({ ...prev, amount: additionalFees.cautionDeposit.toString() }));
+                          if (selectedFeeType && additionalFees[selectedFeeType]) {
+                            const feeData = additionalFees[selectedFeeType];
+                            if (feeData.amount > 0) {
+                              setPaymentForm(prev => ({ ...prev, amount: feeData.amount.toString() }));
+                            }
                           }
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                         required
                       >
-                        <option value="caution_deposit">Caution Deposit</option>
+                        <option value="">Select Fee Type</option>
+                        {Object.entries(additionalFees)
+                          .filter(([feeType, feeData]) => {
+                            // Filter by student's category and active status
+                            if (!feeData.isActive) return false;
+                            if (!selectedStudentForPayment) return true;
+                            const studentCategory = selectedStudentForPayment.category;
+                            return feeData.categories && feeData.categories.includes(studentCategory);
+                          })
+                          .map(([feeType, feeData]) => (
+                            <option key={feeType} value={feeType}>
+                              {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {feeData.amount > 0 ? `(₹${feeData.amount.toLocaleString()})` : ''}
+                            </option>
+                          ))}
                       </select>
-                      {paymentForm.additionalFeeType === 'caution_deposit' && additionalFees.cautionDeposit > 0 && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Configured amount: ₹{additionalFees.cautionDeposit.toLocaleString()}
+                      {paymentForm.additionalFeeType && additionalFees[paymentForm.additionalFeeType] && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500">
+                            Configured amount: ₹{additionalFees[paymentForm.additionalFeeType].amount.toLocaleString()}
+                          </p>
+                          {additionalFees[paymentForm.additionalFeeType].description && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {additionalFees[paymentForm.additionalFeeType].description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {Object.keys(additionalFees).filter((feeType) => {
+                        const feeData = additionalFees[feeType];
+                        if (!feeData.isActive) return false;
+                        if (!selectedStudentForPayment) return false;
+                        const studentCategory = selectedStudentForPayment.category;
+                        return feeData.categories && feeData.categories.includes(studentCategory);
+                      }).length === 0 && (
+                        <p className="text-xs text-red-500 mt-1">
+                          No additional fees configured for {selectedStudentForPayment?.category} category in {selectedStudentForPayment?.academicYear}
                         </p>
                       )}
                     </div>
@@ -5725,6 +5972,169 @@ const FeeManagement = () => {
         </div>
       )}
 
+      {/* Additional Fees Setup Tab Content */}
+      {activeTab === 'additional-fees' && (
+        <>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+              <div>
+                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Additional Fees Setup</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Configure additional fees (caution deposit, diesel charges, etc.) common for all students per academic year
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openAdditionalFeeModal()}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Additional Fee</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Academic Year Filter */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Academic Year
+              </label>
+              <select
+                value={additionalFeesFilter.academicYear}
+                onChange={(e) => setAdditionalFeesFilter(prev => ({ ...prev, academicYear: e.target.value }))}
+                className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">Select Academic Year</option>
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Additional Fees List */}
+            {additionalFeesLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <LoadingSpinner />
+                <p className="ml-3 text-gray-500">Loading additional fees...</p>
+              </div>
+            ) : !additionalFeesFilter.academicYear ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 text-lg">Please select an academic year to view additional fees</p>
+              </div>
+            ) : Object.keys(additionalFees).length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
+                <PlusIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-500 text-lg mb-2">No additional fees configured</p>
+                <p className="text-sm text-gray-400 mb-4">Click "Add Additional Fee" to create a new fee type</p>
+                <button
+                  onClick={() => openAdditionalFeeModal()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                >
+                  Add Additional Fee
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.entries(additionalFees).map(([feeType, feeData]) => (
+                  <div
+                    key={feeType}
+                    className={`bg-white rounded-lg border-2 p-4 ${
+                      feeData.isActive ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-60'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <h3 className="text-base font-semibold text-gray-900 capitalize">
+                          {feeType.replace(/_/g, ' ')}
+                        </h3>
+                        {feeData.description && (
+                          <p className="text-xs text-gray-600 mt-1">{feeData.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          feeData.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        }`}>
+                          {feeData.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Categories:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Array.isArray(feeData.categories) && feeData.categories.length > 0 ? (
+                          feeData.categories.map((cat) => (
+                            <span
+                              key={cat}
+                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {cat}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-500">All categories</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <div className="text-2xl font-bold text-blue-600">
+                        ₹{feeData.amount?.toLocaleString() || 0}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">Amount per student</div>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <p className="text-xs font-medium text-gray-700 mb-1">Applies to Categories:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {Array.isArray(feeData.categories) && feeData.categories.length > 0 ? (
+                          feeData.categories.map((cat) => (
+                            <span
+                              key={cat}
+                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {cat}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-500">All categories</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-3 border-t border-gray-200">
+                      <button
+                        onClick={() => openAdditionalFeeModal(feeType)}
+                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => toggleAdditionalFeeStatus(feeType)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
+                          feeData.isActive
+                            ? 'bg-yellow-600 text-white hover:bg-yellow-700'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                        }`}
+                      >
+                        {feeData.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => deleteAdditionalFee(feeType)}
+                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Payments Tab Content */}
       {activeTab === 'payments' && (
         <>
@@ -6746,6 +7156,166 @@ const FeeManagement = () => {
                   : 'Approve as Requested'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Additional Fee Modal */}
+      {showAdditionalFeeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                {selectedAdditionalFee ? 'Edit Additional Fee' : 'Add Additional Fee'}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAdditionalFeeModal(false);
+                  setSelectedAdditionalFee(null);
+                  setAdditionalFeeForm({
+                    feeType: '',
+                    amount: 0,
+                    description: '',
+                    isActive: true,
+                    categories: ['A+', 'A', 'B+', 'B']
+                  });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleAdditionalFeeSubmit}>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Fee Type Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={additionalFeeForm.feeType}
+                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, feeType: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="e.g., caution_deposit, diesel_charges, maintenance_fee"
+                    required
+                    disabled={!!selectedAdditionalFee}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Use lowercase with underscores (e.g., caution_deposit, diesel_charges)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Amount (₹) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={additionalFeeForm.amount}
+                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="Enter amount"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    value={additionalFeeForm.description}
+                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="Enter description for this fee type"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Apply to Categories <span className="text-red-500">*</span>
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Select which student categories this fee applies to
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['A+', 'A', 'B+', 'B'].map((category) => (
+                      <label key={category} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={additionalFeeForm.categories.includes(category)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAdditionalFeeForm(prev => ({
+                                ...prev,
+                                categories: [...prev.categories, category]
+                              }));
+                            } else {
+                              setAdditionalFeeForm(prev => ({
+                                ...prev,
+                                categories: prev.categories.filter(cat => cat !== category)
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">{category}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {additionalFeeForm.categories.length === 0 && (
+                    <p className="text-xs text-red-500 mt-1">
+                      Please select at least one category
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={additionalFeeForm.isActive}
+                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, isActive: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                    Active (fee will be available for payment)
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAdditionalFeeModal(false);
+                    setSelectedAdditionalFee(null);
+                    setAdditionalFeeForm({
+                      feeType: '',
+                      amount: 0,
+                      description: '',
+                      isActive: true
+                    });
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={additionalFeesLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {additionalFeesLoading ? 'Saving...' : (selectedAdditionalFee ? 'Update' : 'Create')}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
