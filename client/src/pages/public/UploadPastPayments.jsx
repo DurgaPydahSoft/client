@@ -123,6 +123,25 @@ const UploadPastPayments = () => {
       setUploading(false);
     }
   };
+  // Add this function after your imports
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    // If it's an ISO string from backend, parse it
+    const date = new Date(dateString);
+    
+    // Format as DD/MM/YYYY - this handles timezone correctly
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}/${month}/${year}`;
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid Date';
+  }
+};
 
   const handleReset = () => {
     setFile(null);
@@ -292,8 +311,8 @@ const UploadPastPayments = () => {
                           <td className="px-2 py-2 text-gray-900">₹{payment.amount?.toLocaleString()}</td>
                           <td className="px-2 py-2 text-gray-900">{payment.paymentMethod}</td>
                           <td className="px-2 py-2 text-gray-900">
-                            {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 'N/A'}
-                          </td>
+  {payment.paymentDate ? formatDateForDisplay(payment.paymentDate) : 'N/A'}
+</td>
                           <td className="px-2 py-2 text-gray-900">{payment.term || 'Auto'}</td>
                           {previewData.validPayments.some(p => p.warnings) && (
                             <td className="px-2 py-2">
