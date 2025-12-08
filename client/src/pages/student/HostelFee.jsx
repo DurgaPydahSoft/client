@@ -700,7 +700,7 @@ const HostelFee = () => {
 
 
       {/* Payment Section - Only show if there's pending amount */}
-      {pendingAmount > 0 && (
+      {/* {pendingAmount > 0 && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg sm:rounded-xl shadow-sm border border-green-200 p-3 sm:p-6 mb-3 sm:mb-6">
           <div className="flex items-center mb-2 sm:mb-4">
             <CreditCardIcon className="w-4 h-4 sm:w-6 sm:h-6 text-green-600 mr-2" />
@@ -741,7 +741,7 @@ const HostelFee = () => {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Overall Status Card - Mobile Optimized */}
       <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-3 sm:mb-6">
