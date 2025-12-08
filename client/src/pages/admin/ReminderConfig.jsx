@@ -46,17 +46,17 @@ const ReminderConfig = () => {
     postReminders: {
       email: {
         enabled: true,
-        daysAfterDue: [1, 3, 7, 14],
+        maxDaysAfterDue: 30,
         template: 'post_reminder_email'
       },
       push: {
         enabled: true,
-        daysAfterDue: [1, 2, 5, 10],
+        maxDaysAfterDue: 30,
         template: 'post_reminder_push'
       },
       sms: {
         enabled: true,
-        daysAfterDue: [1, 3, 7],
+        maxDaysAfterDue: 30,
         template: 'post_reminder_sms'
       }
     },
@@ -222,17 +222,26 @@ Pydah Hostel Management Team`,
           postReminders: {
             email: {
               enabled: toBoolean(fetchedConfig.postReminders?.email?.enabled, true),
-              daysAfterDue: fetchedConfig.postReminders?.email?.daysAfterDue ?? [1, 3, 7, 14],
+              maxDaysAfterDue: fetchedConfig.postReminders?.email?.maxDaysAfterDue ?? 
+                (fetchedConfig.postReminders?.email?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.email.daysAfterDue) && fetchedConfig.postReminders.email.daysAfterDue.length > 0
+                  ? Math.max(...fetchedConfig.postReminders.email.daysAfterDue.filter(d => !isNaN(d) && d > 0))
+                  : 30),
               template: fetchedConfig.postReminders?.email?.template ?? 'post_reminder_email'
             },
             push: {
               enabled: toBoolean(fetchedConfig.postReminders?.push?.enabled, true),
-              daysAfterDue: fetchedConfig.postReminders?.push?.daysAfterDue ?? [1, 2, 5, 10],
+              maxDaysAfterDue: fetchedConfig.postReminders?.push?.maxDaysAfterDue ?? 
+                (fetchedConfig.postReminders?.push?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.push.daysAfterDue) && fetchedConfig.postReminders.push.daysAfterDue.length > 0
+                  ? Math.max(...fetchedConfig.postReminders.push.daysAfterDue.filter(d => !isNaN(d) && d > 0))
+                  : 30),
               template: fetchedConfig.postReminders?.push?.template ?? 'post_reminder_push'
             },
             sms: {
               enabled: toBoolean(fetchedConfig.postReminders?.sms?.enabled, true),
-              daysAfterDue: fetchedConfig.postReminders?.sms?.daysAfterDue ?? [1, 3, 7],
+              maxDaysAfterDue: fetchedConfig.postReminders?.sms?.maxDaysAfterDue ?? 
+                (fetchedConfig.postReminders?.sms?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.sms.daysAfterDue) && fetchedConfig.postReminders.sms.daysAfterDue.length > 0
+                  ? Math.max(...fetchedConfig.postReminders.sms.daysAfterDue.filter(d => !isNaN(d) && d > 0))
+                  : 30),
               template: fetchedConfig.postReminders?.sms?.template ?? 'post_reminder_sms'
             }
           },
@@ -482,7 +491,8 @@ Pydah Hostel Management Team`,
   const ReminderChannel = ({ section, type, icon: Icon, label, daysKey, availableDays, testLabel }) => {
     const channelConfig = config[section][type];
     const isPre = section === 'preReminders';
-    const days = channelConfig[daysKey] || [];
+    const days = isPre ? (channelConfig[daysKey] || []) : [];
+    const maxDays = !isPre ? (channelConfig.maxDaysAfterDue || 30) : null;
 
     const handleDayChange = (index, value) => {
       // Allow empty string for editing
@@ -506,6 +516,20 @@ Pydah Hostel Management Team`,
       handleConfigChange(section, type, daysKey, uniqueDays);
     };
 
+    const handleMaxDaysChange = (value) => {
+      if (value === '') {
+        handleConfigChange(section, type, 'maxDaysAfterDue', '');
+        return;
+      }
+      
+      const numValue = parseInt(value);
+      if (isNaN(numValue) || numValue < 1 || numValue > 365) {
+        return; // Invalid input, ignore
+      }
+      
+      handleConfigChange(section, type, 'maxDaysAfterDue', numValue);
+    };
+
     const handleAddDay = () => {
       // Add empty string to allow user to type the value
       const newDays = [...days, ''];
@@ -524,6 +548,12 @@ Pydah Hostel Management Team`,
       // If empty or invalid, remove it
       if (day === '' || isNaN(day) || day < 1 || day > 365) {
         handleRemoveDay(index);
+      }
+    };
+
+    const handleMaxDaysBlur = () => {
+      if (maxDays === '' || isNaN(maxDays) || maxDays < 1 || maxDays > 365) {
+        handleConfigChange(section, type, 'maxDaysAfterDue', 30); // Reset to default
       }
     };
 
@@ -560,48 +590,77 @@ Pydah Hostel Management Team`,
 
         {channelConfig.enabled && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-medium text-gray-700">
-                {isPre ? 'Days before due date' : 'Days after due date'}
-              </label>
-              <button
-                onClick={handleAddDay}
-                type="button"
-                className="px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center gap-1"
-              >
-                <span>+</span>
-                <span>Add Day</span>
-              </button>
-            </div>
-            {days.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {days.map((day, index) => (
-                  <div key={index} className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2 py-1.5">
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={day === '' ? '' : day}
-                      placeholder="Enter days"
-                      onChange={(e) => handleDayChange(index, e.target.value)}
-                      onBlur={() => handleDayBlur(index)}
-                      className="w-20 px-2 py-1 text-xs border-0 focus:ring-2 focus:ring-blue-500 rounded text-gray-900 font-medium placeholder:text-gray-400"
-                    />
-                    <span className="text-xs text-gray-500">days</span>
-                    <button
-                      onClick={() => handleRemoveDay(index)}
-                      type="button"
-                      className="ml-1 p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
-                      title="Remove"
-                    >
-                      <XMarkIcon className="w-4 h-4" />
-                    </button>
+            {isPre ? (
+              // Pre Reminders: Show array of days
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Days before due date
+                  </label>
+                  <button
+                    onClick={handleAddDay}
+                    type="button"
+                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center gap-1"
+                  >
+                    <span>+</span>
+                    <span>Add Day</span>
+                  </button>
+                </div>
+                {days.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {days.map((day, index) => (
+                      <div key={index} className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2 py-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max="365"
+                          value={day === '' ? '' : day}
+                          placeholder="Enter days"
+                          onChange={(e) => handleDayChange(index, e.target.value)}
+                          onBlur={() => handleDayBlur(index)}
+                          className="w-20 px-2 py-1 text-xs border-0 focus:ring-2 focus:ring-blue-500 rounded text-gray-900 font-medium placeholder:text-gray-400"
+                        />
+                        <span className="text-xs text-gray-500">days</span>
+                        <button
+                          onClick={() => handleRemoveDay(index)}
+                          type="button"
+                          className="ml-1 p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+                          title="Remove"
+                        >
+                          <XMarkIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="text-center py-4 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg">
+                    No days configured. Click "Add Day" to add reminder days.
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="text-center py-4 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg">
-                No days configured. Click "Add Day" to add reminder days.
+              // Post Reminders: Show single max days input
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Send reminders for up to (days from due date) *
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={maxDays === '' ? '' : maxDays}
+                    onChange={(e) => handleMaxDaysChange(e.target.value)}
+                    onBlur={handleMaxDaysBlur}
+                    className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                    placeholder="Enter days"
+                    required
+                  />
+                  <span className="text-xs text-gray-500">days</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Reminders will be sent for up to {maxDays || 30} days from the due date
+                </p>
               </div>
             )}
 
@@ -796,24 +855,21 @@ Pydah Hostel Management Team`,
                   type="email"
                   icon={EnvelopeIcon}
                   label="Email"
-                  daysKey="daysAfterDue"
-                  availableDays={[1, 2, 3, 5, 7, 14, 21, 30]}
+                  daysKey="maxDaysAfterDue"
                 />
                 <ReminderChannel
                   section="postReminders"
                   type="push"
                   icon={DevicePhoneMobileIcon}
                   label="Push Notification"
-                  daysKey="daysAfterDue"
-                  availableDays={[1, 2, 3, 5, 7, 10, 14]}
+                  daysKey="maxDaysAfterDue"
                 />
                 <ReminderChannel
                   section="postReminders"
                   type="sms"
                   icon={BellIcon}
                   label="SMS"
-                  daysKey="daysAfterDue"
-                  availableDays={[1, 2, 3, 5, 7, 14]}
+                  daysKey="maxDaysAfterDue"
                 />
               </div>
 

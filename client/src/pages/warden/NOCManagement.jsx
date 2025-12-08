@@ -189,7 +189,7 @@ const NOCManagement = () => {
 
         if (missingItems.length > 0) {
           toast.error(`Please fill amount for all checklist items`);
-          return;
+            return;
         }
       }
     }
@@ -564,14 +564,14 @@ const NOCManagement = () => {
                                 </tr>
                               </thead>
                               <tbody className="bg-white divide-y divide-gray-200">
-                                {checklistItems
-                                  .filter(item => item.isActive)
-                                  .sort((a, b) => a.order - b.order)
-                                  .map((item, index) => {
-                                    const response = checklistResponses.find(r => 
-                                      (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
-                                    );
-                                    return (
+                            {checklistItems
+                              .filter(item => item.isActive)
+                              .sort((a, b) => a.order - b.order)
+                              .map((item, index) => {
+                                const response = checklistResponses.find(r => 
+                                  (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
+                                );
+                                return (
                                       <tr key={item.id || item._id}>
                                         <td className="px-3 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900">
                                           {index + 1}
@@ -580,14 +580,14 @@ const NOCManagement = () => {
                                           {item.description}
                                         </td>
                                         <td className="px-3 py-2 whitespace-nowrap">
-                                          <input
-                                            type="text"
+                                        <input
+                                          type="text"
                                             value={response?.amount || ''}
                                             onChange={(e) => updateChecklistResponse(item, 'amount', e.target.value)}
-                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                          className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                                             placeholder="e.g., 5000/-"
-                                            required
-                                          />
+                                          required
+                                        />
                                         </td>
                                         <td className="px-3 py-2">
                                           <textarea
@@ -599,8 +599,8 @@ const NOCManagement = () => {
                                           />
                                         </td>
                                       </tr>
-                                    );
-                                  })}
+                                );
+                              })}
                               </tbody>
                             </table>
                           </div>
