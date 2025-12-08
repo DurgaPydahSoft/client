@@ -34,6 +34,7 @@ const NOCManagement = () => {
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [nocReason, setNocReason] = useState('');
+  const [vacatingDate, setVacatingDate] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
@@ -76,11 +77,26 @@ const NOCManagement = () => {
       return;
     }
 
+    if (!vacatingDate) {
+      toast.error('Please select a vacating date');
+      return;
+    }
+
+    // Validate vacating date is not in the past
+    const selectedDate = new Date(vacatingDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      toast.error('Vacating date cannot be in the past');
+      return;
+    }
+
     setIsCreating(true);
     try {
       const response = await api.post('/api/noc/warden/create', {
         studentId: selectedStudent._id,
-        reason: nocReason.trim()
+        reason: nocReason.trim(),
+        vacatingDate: vacatingDate
       });
 
       if (response.data.success) {
@@ -88,6 +104,7 @@ const NOCManagement = () => {
         setShowCreateModal(false);
         setSelectedStudent(null);
         setNocReason('');
+        setVacatingDate('');
         setStudentSearch('');
         fetchNOCRequests();
       }
@@ -122,9 +139,8 @@ const NOCManagement = () => {
         // Initialize checklist responses
         const initialResponses = response.data.data.map(item => ({
           checklistItemId: item.id || item._id,
-          checkedOut: item.defaultValue || '',
-          remarks: '',
-          signature: ''
+          amount: '',
+          remarks: ''
         }));
         setChecklistResponses(initialResponses);
       }
@@ -147,9 +163,8 @@ const NOCManagement = () => {
       if (request.checklistResponses && request.checklistResponses.length > 0) {
         const existingResponses = request.checklistResponses.map(response => ({
           checklistItemId: response.checklistItemId?.id || response.checklistItemId?._id || response.checklistItemId,
-          checkedOut: response.checkedOut || '',
-          remarks: response.remarks || '',
-          signature: response.signature || ''
+          amount: response.amount || '',
+          remarks: response.remarks || ''
         }));
         setChecklistResponses(existingResponses);
       }
@@ -169,27 +184,12 @@ const NOCManagement = () => {
           const response = checklistResponses.find(r => 
             (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
           );
-          return !response || !response.checkedOut || !response.checkedOut.trim();
+          return !response || !response.amount || !response.amount.trim();
         });
 
         if (missingItems.length > 0) {
-          toast.error(`Please fill all required checklist items`);
+          toast.error(`Please fill amount for all checklist items`);
           return;
-        }
-
-        // Validate required remarks and signatures
-        for (const item of activeItems) {
-          const response = checklistResponses.find(r => 
-            (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
-          );
-          if (item.requiresRemarks && (!response?.remarks || !response.remarks.trim())) {
-            toast.error(`Remarks are required for: ${item.description}`);
-            return;
-          }
-          if (item.requiresSignature && (!response?.signature || !response.signature.trim())) {
-            toast.error(`Signature is required for: ${item.description}`);
-            return;
-          }
         }
       }
     }
@@ -206,9 +206,8 @@ const NOCManagement = () => {
             remarks,
             checklistResponses: checklistResponses.map(r => ({
               checklistItemId: r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId,
-              checkedOut: r.checkedOut.trim(),
-              remarks: r.remarks.trim(),
-              signature: r.signature.trim()
+              amount: r.amount.trim(),
+              remarks: r.remarks ? r.remarks.trim() : ''
             }))
           }
         : { rejectionReason: remarks };
@@ -246,9 +245,8 @@ const NOCManagement = () => {
       } else {
         return [...prev, {
           checklistItemId: itemId?.id || itemId?._id || itemId,
-          checkedOut: field === 'checkedOut' ? value : '',
-          remarks: field === 'remarks' ? value : '',
-          signature: field === 'signature' ? value : ''
+          amount: field === 'amount' ? value : '',
+          remarks: field === 'remarks' ? value : ''
         }];
       }
     });
@@ -401,7 +399,7 @@ const NOCManagement = () => {
                           <p className="text-sm sm:text-base text-gray-600 line-clamp-2 break-words">{request.reason}</p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                           <div className="truncate">
                             <span className="font-medium">Student:</span> 
                             <span className="ml-1 truncate block sm:inline">{request.studentName}</span>
@@ -418,6 +416,18 @@ const NOCManagement = () => {
                             <span className="font-medium">Year:</span> 
                             <span className="ml-1">{request.year}</span>
                           </div>
+                          {request.vacatingDate && (
+                            <div className="truncate">
+                              <span className="font-medium">Vacating Date:</span>{' '}
+                              <span className="ml-1">
+                                {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Admin Remarks (if sent for correction) */}
@@ -506,6 +516,19 @@ const NOCManagement = () => {
                         <label className="block text-xs sm:text-sm font-medium text-gray-700">Reason</label>
                         <p className="mt-1 text-xs sm:text-sm text-gray-900 whitespace-pre-wrap break-words">{selectedRequest.reason}</p>
                       </div>
+                      {selectedRequest.vacatingDate && (
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700">Vacating Date from Hostel</label>
+                          <p className="mt-1 text-xs sm:text-sm text-gray-900">
+                            {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              weekday: 'long'
+                            })}
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700">Status</label>
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedRequest.status)}`}>
@@ -530,69 +553,56 @@ const NOCManagement = () => {
                           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-3">
                             Checklist Verification *
                           </label>
-                          <div className="space-y-3 max-h-96 overflow-y-auto border border-gray-200 rounded-md p-3">
-                            {checklistItems
-                              .filter(item => item.isActive)
-                              .sort((a, b) => a.order - b.order)
-                              .map((item, index) => {
-                                const response = checklistResponses.find(r => 
-                                  (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
-                                );
-                                return (
-                                  <div key={item.id || item._id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <div className="flex-1">
-                                        <label className="block text-xs sm:text-sm font-medium text-gray-700">
-                                          {index + 1}. {item.description}
-                                        </label>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <div>
-                                        <label className="block text-xs text-gray-600 mb-1">Checked Out *</label>
-                                        <input
-                                          type="text"
-                                          value={response?.checkedOut || ''}
-                                          onChange={(e) => updateChecklistResponse(item, 'checkedOut', e.target.value)}
-                                          className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                                          placeholder={item.defaultValue || 'e.g., Clear, —, 5000/-'}
-                                          required
-                                        />
-                                      </div>
-                                      {item.requiresRemarks && (
-                                        <div>
-                                          <label className="block text-xs text-gray-600 mb-1">
-                                            Remarks {item.requiresRemarks ? '*' : ''}
-                                          </label>
+                          <div className="overflow-x-auto border border-gray-200 rounded-md">
+                            <table className="min-w-full divide-y divide-gray-200">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">S.No.</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount *</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white divide-y divide-gray-200">
+                                {checklistItems
+                                  .filter(item => item.isActive)
+                                  .sort((a, b) => a.order - b.order)
+                                  .map((item, index) => {
+                                    const response = checklistResponses.find(r => 
+                                      (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
+                                    );
+                                    return (
+                                      <tr key={item.id || item._id}>
+                                        <td className="px-3 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900">
+                                          {index + 1}
+                                        </td>
+                                        <td className="px-3 py-2 text-xs sm:text-sm text-gray-900">
+                                          {item.description}
+                                        </td>
+                                        <td className="px-3 py-2 whitespace-nowrap">
+                                          <input
+                                            type="text"
+                                            value={response?.amount || ''}
+                                            onChange={(e) => updateChecklistResponse(item, 'amount', e.target.value)}
+                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
+                                            placeholder="e.g., 5000/-"
+                                            required
+                                          />
+                                        </td>
+                                        <td className="px-3 py-2">
                                           <textarea
                                             value={response?.remarks || ''}
                                             onChange={(e) => updateChecklistResponse(item, 'remarks', e.target.value)}
                                             rows={2}
                                             className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
                                             placeholder="Enter remarks..."
-                                            required={item.requiresRemarks}
                                           />
-                                        </div>
-                                      )}
-                                      {item.requiresSignature && (
-                                        <div>
-                                          <label className="block text-xs text-gray-600 mb-1">
-                                            Signature {item.requiresSignature ? '*' : ''}
-                                          </label>
-                                          <input
-                                            type="text"
-                                            value={response?.signature || ''}
-                                            onChange={(e) => updateChecklistResponse(item, 'signature', e.target.value)}
-                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                                            placeholder="Enter signature..."
-                                            required={item.requiresSignature}
-                                          />
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                              </tbody>
+                            </table>
                           </div>
                         </div>
                       )}
@@ -757,6 +767,24 @@ const NOCManagement = () => {
                       {nocReason.length}/500 characters
                     </p>
                   </div>
+
+                  {/* Vacating Date */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Vacating Date from Hostel *
+                    </label>
+                    <input
+                      type="date"
+                      value={vacatingDate}
+                      onChange={(e) => setVacatingDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select the date when the student plans to vacate the hostel
+                    </p>
+                  </div>
                 </div>
 
                 <div className="px-4 sm:px-6 py-4 bg-gray-50 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
@@ -765,6 +793,7 @@ const NOCManagement = () => {
                       setShowCreateModal(false);
                       setSelectedStudent(null);
                       setNocReason('');
+                      setVacatingDate('');
                       setStudentSearch('');
                     }}
                     className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -773,7 +802,7 @@ const NOCManagement = () => {
                   </button>
                   <button
                     onClick={handleCreateNOC}
-                    disabled={isCreating || !selectedStudent || nocReason.trim().length < 10}
+                    disabled={isCreating || !selectedStudent || nocReason.trim().length < 10 || !vacatingDate}
                     className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isCreating ? 'Creating...' : 'Create NOC Request'}

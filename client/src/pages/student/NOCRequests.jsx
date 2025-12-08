@@ -27,6 +27,7 @@ const NOCRequests = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [reason, setReason] = useState('');
+  const [vacatingDate, setVacatingDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -67,16 +68,32 @@ const NOCRequests = () => {
       return;
     }
 
+    if (!vacatingDate) {
+      toast.error('Please select a vacating date');
+      return;
+    }
+
+    // Validate vacating date is not in the past
+    const selectedDate = new Date(vacatingDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      toast.error('Vacating date cannot be in the past');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const response = await api.post('/api/noc/student/create', {
-        reason: reason.trim()
+        reason: reason.trim(),
+        vacatingDate: vacatingDate
       });
 
       if (response.data.success) {
         toast.success('NOC request submitted successfully');
         setReason('');
+        setVacatingDate('');
         setShowCreateForm(false);
         fetchNOCRequests();
       }
@@ -233,7 +250,7 @@ const NOCRequests = () => {
                           <p className="text-sm sm:text-base text-gray-600 line-clamp-2">{request.reason}</p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                           <div>
                             <span className="font-medium">Course:</span> {request.course?.name || 'N/A'}
                           </div>
@@ -243,6 +260,16 @@ const NOCRequests = () => {
                           <div>
                             <span className="font-medium">Year:</span> {request.year || 'N/A'}
                           </div>
+                          {request.vacatingDate && (
+                            <div>
+                              <span className="font-medium">Vacating Date:</span>{' '}
+                              {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         {/* Additional info based on status */}
@@ -405,6 +432,24 @@ const NOCRequests = () => {
                       </div>
                     </div>
 
+                    <div className="mb-4 sm:mb-6">
+                      <label htmlFor="vacatingDate" className="block text-sm font-medium text-gray-700 mb-2">
+                        Vacating Date from Hostel *
+                      </label>
+                      <input
+                        type="date"
+                        id="vacatingDate"
+                        value={vacatingDate}
+                        onChange={(e) => setVacatingDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
+                        required
+                      />
+                      <p className="mt-1 text-xs sm:text-sm text-gray-500">
+                        Select the date when you plan to vacate the hostel
+                      </p>
+                    </div>
+
                     <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
                       <button
                         type="button"
@@ -415,7 +460,7 @@ const NOCRequests = () => {
                       </button>
                       <button
                         type="submit"
-                        disabled={isSubmitting || !reason.trim()}
+                        disabled={isSubmitting || !reason.trim() || !vacatingDate}
                         className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isSubmitting ? 'Submitting...' : 'Submit NOC Request'}

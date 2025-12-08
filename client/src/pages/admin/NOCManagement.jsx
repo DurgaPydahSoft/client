@@ -44,10 +44,7 @@ const NOCManagement = () => {
   const [checklistForm, setChecklistForm] = useState({
     description: '',
     order: 0,
-    isActive: true,
-    requiresRemarks: false,
-    requiresSignature: false,
-    defaultValue: ''
+    isActive: true
   });
 
   useEffect(() => {
@@ -159,9 +156,7 @@ const NOCManagement = () => {
     setEditingItem(null);
     setChecklistForm({
       description: '',
-      isActive: true,
-      requiresRemarks: false,
-      requiresSignature: false
+      isActive: true
     });
     setShowChecklistModal(true);
   };
@@ -171,9 +166,7 @@ const NOCManagement = () => {
     setChecklistForm({
       description: item.description,
       order: item.order,
-      isActive: item.isActive,
-      requiresRemarks: item.requiresRemarks,
-      requiresSignature: item.requiresSignature
+      isActive: item.isActive
     });
     setShowChecklistModal(true);
   };
@@ -471,7 +464,7 @@ const NOCManagement = () => {
                           <p className="text-gray-600 line-clamp-2">{request.reason}</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
                           <div>
                             <span className="font-medium">Student:</span> {request.studentName}
                           </div>
@@ -484,6 +477,16 @@ const NOCManagement = () => {
                           <div>
                             <span className="font-medium">Year:</span> {request.year}
                           </div>
+                          {request.vacatingDate && (
+                            <div>
+                              <span className="font-medium">Vacating Date:</span>{' '}
+                              {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         {/* Warden Remarks */}
@@ -611,11 +614,26 @@ const NOCManagement = () => {
                       {/* NOC Details */}
                       <div>
                         <h4 className="text-md font-semibold text-gray-900 mb-3">NOC Request Details</h4>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                          <div className="p-4 bg-gray-50 rounded-md">
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRequest.reason}</p>
+                        <div className="space-y-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                            <div className="p-4 bg-gray-50 rounded-md">
+                              <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRequest.reason}</p>
+                            </div>
                           </div>
+                          {selectedRequest.vacatingDate && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Vacating Date from Hostel</label>
+                              <p className="text-sm text-gray-900">
+                                {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  weekday: 'long'
+                                })}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -629,7 +647,7 @@ const NOCManagement = () => {
                                 <tr>
                                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No.</th>
                                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Checked Out</th>
+                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
                                 </tr>
                               </thead>
@@ -640,12 +658,9 @@ const NOCManagement = () => {
                                     <td className="px-4 py-3 text-sm text-gray-900">
                                       {response.checklistItemId?.description || 'N/A'}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{response.checkedOut || '—'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-900">{response.amount || '—'}</td>
                                     <td className="px-4 py-3 text-sm text-gray-900">
                                       {response.remarks || '—'}
-                                      {response.signature && (
-                                        <span className="block text-xs text-gray-500 mt-1">Signature: {response.signature}</span>
-                                      )}
                                     </td>
                                   </tr>
                                 ))}
@@ -815,7 +830,6 @@ const NOCManagement = () => {
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Options</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
@@ -846,20 +860,6 @@ const NOCManagement = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="text-sm font-medium text-gray-900">{item.description}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex flex-wrap gap-2">
-                                {item.requiresRemarks && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                    Requires Remarks
-                                  </span>
-                                )}
-                                {item.requiresSignature && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                                    Requires Signature
-                                  </span>
-                                )}
-                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -931,27 +931,6 @@ const NOCManagement = () => {
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="ml-2 text-sm text-gray-700">Active</span>
-                        </label>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={checklistForm.requiresRemarks}
-                            onChange={(e) => setChecklistForm({ ...checklistForm, requiresRemarks: e.target.checked })}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Requires Remarks</span>
-                        </label>
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={checklistForm.requiresSignature}
-                            onChange={(e) => setChecklistForm({ ...checklistForm, requiresSignature: e.target.checked })}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Requires Signature</span>
                         </label>
                       </div>
                     </div>

@@ -227,6 +227,21 @@ const NOCRequestDetails = () => {
                         <p className="text-xs sm:text-sm text-gray-900 whitespace-pre-wrap">{nocRequest.reason}</p>
                       </div>
                     </div>
+                    {nocRequest.vacatingDate && (
+                      <div className="mb-4">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Vacating Date from Hostel</label>
+                        <div className="p-3 sm:p-4 bg-blue-50 rounded-md">
+                          <p className="text-xs sm:text-sm text-blue-900">
+                            {new Date(nocRequest.vacatingDate).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              weekday: 'long'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center text-xs sm:text-sm text-gray-600">
                       <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       <span>Submitted on {formatDate(nocRequest.createdAt)}</span>
