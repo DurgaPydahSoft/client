@@ -712,8 +712,8 @@ const FeeManagement = () => {
     try {
       console.log('🔍 Frontend: Fetching all payments for statistics...');
       
-      // Fetch all hostel fee payments using the correct endpoint
-      const response = await api.get(`/api/payments/all?paymentType=hostel_fee&limit=10000`);
+      // Fetch all payments (hostel_fee, electricity, and additional_fee) using the correct endpoint
+      const response = await api.get(`/api/payments/all?limit=10000`);
       
       if (response.data.success) {
         const allPayments = response.data.data.payments || [];
@@ -733,7 +733,7 @@ const FeeManagement = () => {
   
   // Use React Query to cache payments - OPTIMIZED: Fetch immediately on mount
   const { data: cachedPayments, refetch: refetchPayments, isLoading: paymentsLoading } = useQuery({
-    queryKey: ['all-payments', 'hostel_fee'],
+    queryKey: ['all-payments'],
     queryFn: fetchAllPaymentsForStats,
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
@@ -2471,16 +2471,24 @@ const FeeManagement = () => {
         return;
       }
 
-      // Fetch student's payments from backend
-      const response = await api.get(`/api/payments/hostel-fee/${student._id}?academicYear=${student.academicYear}`);
+      // Fetch all student's payments from backend (hostel_fee, electricity, and additional_fee)
+      const response = await api.get(`/api/payments/all?studentId=${student._id}&limit=1000`);
 
       if (response.data.success) {
-        const studentPaymentHistory = response.data.data.payments;
+        const allStudentPayments = response.data.data.payments || [];
+        // Filter by academic year if provided
+        const studentPaymentHistory = student.academicYear 
+          ? allStudentPayments.filter(p => p.academicYear === student.academicYear)
+          : allStudentPayments;
         setStudentPayments(studentPaymentHistory);
 
         // Update local payments array with fetched payments
         setPayments(prev => {
-          const existingPayments = prev.filter(p => p.studentId !== student._id);
+          const existingPayments = prev.filter(p => {
+            const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
+            const studentId = typeof student._id === 'object' ? student._id._id || student._id : student._id;
+            return paymentStudentId !== studentId;
+          });
           return [...existingPayments, ...studentPaymentHistory];
         });
       } else {
@@ -5413,7 +5421,26 @@ const FeeManagement = () => {
                           <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-medium">{payment.term?.replace('term', 'Term ')}</span>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  payment.paymentType === 'electricity'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : payment.paymentType === 'additional_fee'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {payment.paymentType === 'electricity' 
+                                    ? '⚡ Electricity' 
+                                    : payment.paymentType === 'additional_fee'
+                                    ? '💰 Additional Fee'
+                                    : '🏠 Hostel Fee'}
+                                </span>
+                                <span className="font-medium">
+                                  {payment.paymentType === 'electricity'
+                                    ? `Bill: ${payment.billMonth || 'N/A'}`
+                                    : payment.paymentType === 'additional_fee'
+                                    ? payment.additionalFeeType ? payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Additional Fee'
+                                    : payment.term?.replace('term', 'Term ') || 'N/A'}
+                                </span>
                                 <span className="text-sm text-gray-500">
                                   {new Date(payment.paymentDate).toLocaleDateString()}
                                 </span>
@@ -6268,16 +6295,25 @@ const FeeManagement = () => {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${payment.paymentType === 'electricity'
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                payment.paymentType === 'electricity'
                                   ? 'bg-yellow-100 text-yellow-800'
+                                  : payment.paymentType === 'additional_fee'
+                                  ? 'bg-purple-100 text-purple-800'
                                   : 'bg-blue-100 text-blue-800'
                                 }`}>
-                                {payment.paymentType === 'electricity' ? '⚡ Electricity' : '🏠 Hostel Fee'}
+                                {payment.paymentType === 'electricity' 
+                                  ? '⚡ Electricity' 
+                                  : payment.paymentType === 'additional_fee'
+                                  ? '💰 Additional Fee'
+                                  : '🏠 Hostel Fee'}
                               </span>
                             </div>
                             <div className="text-sm font-medium text-gray-900 mt-1">
                               {payment.paymentType === 'electricity'
                                 ? `Bill Month: ${payment.billMonth || 'N/A'}`
+                                : payment.paymentType === 'additional_fee'
+                                ? `Fee Type: ${payment.additionalFeeType ? payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'N/A'}`
                                 : `Term: ${payment.term || 'N/A'}`
                               }
                             </div>

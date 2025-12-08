@@ -243,13 +243,15 @@ const PaymentRecords = () => {
     const successCount = payments.filter(p => p.status === 'success').length;
     const hostelFeeCount = payments.filter(p => p.paymentType === 'hostel_fee').length;
     const electricityCount = payments.filter(p => p.paymentType === 'electricity').length;
+    const additionalFeeCount = payments.filter(p => p.paymentType === 'additional_fee').length;
     
     return {
       totalAmount,
       totalCount: payments.length,
       successCount,
       hostelFeeCount,
-      electricityCount
+      electricityCount,
+      additionalFeeCount
     };
   }, [payments]);
 
@@ -364,6 +366,7 @@ const PaymentRecords = () => {
                 <option value="">All Types</option>
                 <option value="hostel_fee">Hostel Fee</option>
                 <option value="electricity">Electricity</option>
+                <option value="additional_fee">Additional Fee</option>
               </select>
             </div>
 
@@ -505,27 +508,53 @@ const PaymentRecords = () => {
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              payment.paymentType === 'electricity'
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : payment.paymentType === 'additional_fee'
+                                ? 'bg-purple-100 text-purple-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {payment.paymentType === 'electricity' 
+                                ? '⚡ Electricity' 
+                                : payment.paymentType === 'additional_fee'
+                                ? '💰 Additional Fee'
+                                : '🏠 Hostel Fee'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-900 mt-1">
                             {payment.paymentType === 'hostel_fee' ? (
                               <>
-                                Hostel Fee
                                 {payment.term && (
-                                  <span className="ml-1 text-gray-500">
-                                    ({payment.term.replace('term', 'Term ')})
+                                  <span className="text-gray-700">
+                                    {payment.term.replace('term', 'Term ')}
                                   </span>
                                 )}
                                 {payment.academicYear && (
                                   <div className="text-xs text-gray-500">{payment.academicYear}</div>
                                 )}
                               </>
-                            ) : (
+                            ) : payment.paymentType === 'electricity' ? (
                               <>
-                                Electricity
                                 {payment.billMonth && (
-                                  <div className="text-xs text-gray-500">{payment.billMonth}</div>
+                                  <div className="text-xs text-gray-500">Bill: {payment.billMonth}</div>
                                 )}
                               </>
-                            )}
+                            ) : payment.paymentType === 'additional_fee' ? (
+                              <>
+                                {payment.additionalFeeType ? (
+                                  <div className="text-xs text-gray-700 font-medium">
+                                    {payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </div>
+                                ) : (
+                                  <div className="text-xs text-gray-500">Additional Fee</div>
+                                )}
+                                {payment.academicYear && (
+                                  <div className="text-xs text-gray-500">{payment.academicYear}</div>
+                                )}
+                              </>
+                            ) : null}
                           </div>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
