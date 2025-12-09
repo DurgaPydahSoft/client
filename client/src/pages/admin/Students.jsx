@@ -140,6 +140,7 @@ const Students = () => {
   const [editForm, setEditForm] = useState(initialForm);
   const [editId, setEditId] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [originalEditForm, setOriginalEditForm] = useState(null); // Store original form data
   const [filters, setFilters] = useState({
     search: '',
     course: '',
@@ -1222,8 +1223,7 @@ const Students = () => {
       return;
     }
 
-    setEditId(student._id);
-    setEditForm({
+    const initialEditForm = {
       name: student.name,
       rollNumber: student.rollNumber,
       course: student.course?._id || student.course, // Handle both populated and unpopulated data
@@ -1242,7 +1242,11 @@ const Students = () => {
       batch: student.batch,
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
-    });
+    };
+    
+    setEditId(student._id);
+    setEditForm(initialEditForm);
+    setOriginalEditForm(initialEditForm); // Store original for comparison
 
     // Fetch branches for the selected course
     const courseId = student.course?._id || student.course;
@@ -1390,11 +1394,26 @@ const Students = () => {
       errors.push('Invalid email address format');
     }
 
-    // Validate room number
-    const validRooms = ROOM_MAPPINGS[formData.gender]?.[formData.category] || [];
-    if (!validRooms.includes(formData.roomNumber)) {
-      errors.push('Invalid room number for the selected gender and category');
+    // Validate room number against fetched rooms
+    // Since rooms are fetched dynamically from backend, validate against editRoomsWithAvailability
+    // Only validate if rooms are loaded and room number is provided
+    // Normalize room numbers to strings for comparison to handle type mismatches
+    if (formData.roomNumber && editRoomsWithAvailability.length > 0) {
+      const validRoomNumbers = editRoomsWithAvailability.map(room => String(room.roomNumber || ''));
+      const formRoomNumber = String(formData.roomNumber || '');
+      const originalRoomNumber = originalEditForm ? String(originalEditForm.roomNumber || '') : '';
+      
+      // Only validate if the room number doesn't match any valid room AND it's different from the original
+      // This allows existing room assignments to remain unchanged even if not in current filtered list
+      if (formRoomNumber && !validRoomNumbers.includes(formRoomNumber)) {
+        // If the room number hasn't changed from original, allow it (student might just be updating other fields)
+        if (formRoomNumber !== originalRoomNumber) {
+          errors.push('Invalid room number for the selected gender and category');
+        }
+        // If it's the same as original, skip validation (allows existing assignments)
+      }
     }
+    // If rooms are not loaded yet, skip validation (dropdown will handle it)
 
     // Enhanced batch validation with better error handling
     if (formData.batch) {
