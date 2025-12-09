@@ -26,6 +26,8 @@ const NOCRequestDetails = () => {
   const [expandedSections, setExpandedSections] = useState({
     studentInfo: true,
     nocDetails: true,
+    meterReadings: false,
+    calculatedBill: false,
     wardenRemarks: false,
     rejectionReason: false,
     accountStatus: false,
@@ -64,6 +66,12 @@ const NOCRequestDetails = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'Warden Verified':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'Sent for Correction':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'Admin Approved - Pending Meter Reading':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'Ready for Deactivation':
+        return 'bg-indigo-100 text-indigo-800 border-indigo-200';
       case 'Approved':
         return 'bg-green-100 text-green-800 border-green-200';
       case 'Rejected':
@@ -78,6 +86,12 @@ const NOCRequestDetails = () => {
       case 'Pending':
         return <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
       case 'Warden Verified':
+        return <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
+      case 'Sent for Correction':
+        return <ExclamationTriangleIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
+      case 'Admin Approved - Pending Meter Reading':
+        return <ClockIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
+      case 'Ready for Deactivation':
         return <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />;
@@ -250,6 +264,142 @@ const NOCRequestDetails = () => {
                 )}
               </div>
 
+              {/* Meter Readings */}
+              {nocRequest.meterReadings && nocRequest.meterReadings.meterType && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <button
+                    onClick={() => toggleSection('meterReadings')}
+                    className="w-full px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                      <DocumentTextIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      Meter Readings
+                    </h3>
+                    {expandedSections.meterReadings ? (
+                      <ChevronUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    )}
+                  </button>
+                  {expandedSections.meterReadings && (
+                    <div className="px-4 sm:px-6 py-4">
+                      <div className="space-y-3 sm:space-y-4">
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Meter Type</label>
+                          <p className="text-xs sm:text-sm text-gray-900">
+                            {nocRequest.meterReadings.meterType === 'single' ? 'Single Meter' : 'Dual Meter'}
+                          </p>
+                        </div>
+                        {nocRequest.meterReadings.meterType === 'single' ? (
+                          <>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Start Units</label>
+                              <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.startUnits}</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">End Units</label>
+                              <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.endUnits}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Meter 1 Start Units</label>
+                                <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.meter1StartUnits}</p>
+                              </div>
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Meter 1 End Units</label>
+                                <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.meter1EndUnits}</p>
+                              </div>
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Meter 2 Start Units</label>
+                                <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.meter2StartUnits}</p>
+                              </div>
+                              <div>
+                                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Meter 2 End Units</label>
+                                <p className="text-xs sm:text-sm text-gray-900">{nocRequest.meterReadings.meter2EndUnits}</p>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {nocRequest.meterReadings.readingDate && (
+                          <div>
+                            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Reading Date</label>
+                            <p className="text-xs sm:text-sm text-gray-900">
+                              {new Date(nocRequest.meterReadings.readingDate).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Calculated Electricity Bill */}
+              {nocRequest.calculatedElectricityBill && nocRequest.calculatedElectricityBill.total && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+                  <button
+                    onClick={() => toggleSection('calculatedBill')}
+                    className="w-full px-4 sm:px-6 py-4 border-b border-gray-200 flex items-center justify-between hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 flex items-center">
+                      <DocumentTextIcon className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                      Calculated Electricity Bill
+                    </h3>
+                    {expandedSections.calculatedBill ? (
+                      <ChevronUpIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDownIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    )}
+                  </button>
+                  {expandedSections.calculatedBill && (
+                    <div className="px-4 sm:px-6 py-4">
+                      <div className="p-3 sm:p-4 bg-indigo-50 rounded-md space-y-2">
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Consumption</label>
+                          <p className="text-xs sm:text-sm text-indigo-800">{nocRequest.calculatedElectricityBill.consumption} units</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Rate per Unit</label>
+                          <p className="text-xs sm:text-sm text-indigo-800">₹{nocRequest.calculatedElectricityBill.rate}</p>
+                        </div>
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Total Amount</label>
+                          <p className="text-sm sm:text-base font-semibold text-indigo-900">₹{nocRequest.calculatedElectricityBill.total}</p>
+                        </div>
+                        {nocRequest.calculatedElectricityBill.billPeriodStart && nocRequest.calculatedElectricityBill.billPeriodEnd && (
+                          <div>
+                            <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Bill Period</label>
+                            <p className="text-xs text-indigo-700">
+                              {new Date(nocRequest.calculatedElectricityBill.billPeriodStart).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })} to {new Date(nocRequest.calculatedElectricityBill.billPeriodEnd).toLocaleDateString('en-IN', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-indigo-200">
+                          <p className="text-xs text-indigo-600">
+                            <span className="font-medium">Note:</span> This amount will be automatically deducted from your final monthly electricity bill when it is uploaded.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Warden Remarks */}
               {nocRequest.wardenRemarks && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -384,7 +534,35 @@ const NOCRequestDetails = () => {
                         </div>
                       )}
 
-                      {nocRequest.approvedAt && (
+                      {nocRequest.approvedAt && nocRequest.status === 'Admin Approved - Pending Meter Reading' && (
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                              <CheckCircleIcon className="h-3 w-3 sm:h-4 sm:w-4 text-purple-600" />
+                            </div>
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-xs sm:text-sm font-medium text-gray-900">Admin Approved (Pending Meter Reading)</p>
+                            <p className="text-xs text-gray-500">{formatDate(nocRequest.approvedAt)}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {nocRequest.meterReadings && nocRequest.meterReadings.enteredAt && (
+                        <div className="flex items-start">
+                          <div className="flex-shrink-0">
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                              <CheckCircleIcon className="h-3 w-3 sm:h-4 sm:w-4 text-indigo-600" />
+                            </div>
+                          </div>
+                          <div className="ml-3">
+                            <p className="text-xs sm:text-sm font-medium text-gray-900">Meter Readings Entered</p>
+                            <p className="text-xs text-gray-500">{formatDate(nocRequest.meterReadings.enteredAt)}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {nocRequest.approvedAt && nocRequest.status === 'Approved' && (
                         <div className="flex items-start">
                           <div className="flex-shrink-0">
                             <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-100 rounded-full flex items-center justify-center">
@@ -392,7 +570,7 @@ const NOCRequestDetails = () => {
                             </div>
                           </div>
                           <div className="ml-3">
-                            <p className="text-xs sm:text-sm font-medium text-gray-900">Approved</p>
+                            <p className="text-xs sm:text-sm font-medium text-gray-900">Final Approved & Deactivated</p>
                             <p className="text-xs text-gray-500">{formatDate(nocRequest.approvedAt)}</p>
                           </div>
                         </div>

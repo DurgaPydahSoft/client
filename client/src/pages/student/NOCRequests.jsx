@@ -131,6 +131,12 @@ const NOCRequests = () => {
         return 'bg-yellow-100 text-yellow-800';
       case 'Warden Verified':
         return 'bg-blue-100 text-blue-800';
+      case 'Sent for Correction':
+        return 'bg-orange-100 text-orange-800';
+      case 'Admin Approved - Pending Meter Reading':
+        return 'bg-purple-100 text-purple-800';
+      case 'Ready for Deactivation':
+        return 'bg-indigo-100 text-indigo-800';
       case 'Approved':
         return 'bg-green-100 text-green-800';
       case 'Rejected':
@@ -145,6 +151,12 @@ const NOCRequests = () => {
       case 'Pending':
         return <ClockIcon className="h-4 w-4" />;
       case 'Warden Verified':
+        return <CheckCircleIcon className="h-4 w-4" />;
+      case 'Sent for Correction':
+        return <ExclamationTriangleIcon className="h-4 w-4" />;
+      case 'Admin Approved - Pending Meter Reading':
+        return <ClockIcon className="h-4 w-4" />;
+      case 'Ready for Deactivation':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
@@ -294,6 +306,32 @@ const NOCRequests = () => {
                             <p className="text-xs sm:text-sm text-green-800">
                               <span className="font-medium">Account Status:</span> Deactivated
                             </p>
+                          </div>
+                        )}
+
+                        {/* Calculated Electricity Bill */}
+                        {request.calculatedElectricityBill && request.calculatedElectricityBill.total && (
+                          <div className="mt-3 p-3 bg-indigo-50 rounded-md">
+                            <p className="text-xs sm:text-sm font-medium text-indigo-900 mb-1">
+                              Calculated Electricity Bill (until vacating date):
+                            </p>
+                            <p className="text-xs sm:text-sm text-indigo-800">
+                              <span className="font-medium">Amount:</span> ₹{request.calculatedElectricityBill.total} 
+                              {' '}({request.calculatedElectricityBill.consumption} units × ₹{request.calculatedElectricityBill.rate}/unit)
+                            </p>
+                            {request.calculatedElectricityBill.billPeriodStart && request.calculatedElectricityBill.billPeriodEnd && (
+                              <p className="text-xs text-indigo-600 mt-1">
+                                Period: {new Date(request.calculatedElectricityBill.billPeriodStart).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })} to {new Date(request.calculatedElectricityBill.billPeriodEnd).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            )}
                           </div>
                         )}
                       </div>

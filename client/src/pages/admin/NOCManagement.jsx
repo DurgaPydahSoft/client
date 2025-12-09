@@ -32,7 +32,7 @@ const NOCManagement = () => {
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [action, setAction] = useState(''); // 'approve', 'reject', 'send-for-correction', or 'view'
+  const [action, setAction] = useState(''); // 'approve', 'final-approve', 'reject', 'send-for-correction', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -105,6 +105,9 @@ const NOCManagement = () => {
       if (action === 'approve') {
         url = `/api/noc/admin/${requestId}/approve`;
         payload = { adminRemarks: remarks };
+      } else if (action === 'final-approve') {
+        url = `/api/noc/admin/${requestId}/final-approve`;
+        payload = {}; // No remarks needed for final approval
       } else if (action === 'send-for-correction') {
         url = `/api/noc/admin/${requestId}/send-for-correction`;
         payload = { adminRemarks: remarks };
@@ -117,7 +120,8 @@ const NOCManagement = () => {
       
       if (response.data.success) {
         const actionMessages = {
-          'approve': 'approved',
+          'approve': 'approved (pending meter reading)',
+          'final-approve': 'finalized and student deactivated',
           'send-for-correction': 'sent for correction',
           'reject': 'rejected'
         };
@@ -246,6 +250,10 @@ const NOCManagement = () => {
         return 'bg-blue-100 text-blue-800';
       case 'Sent for Correction':
         return 'bg-orange-100 text-orange-800';
+      case 'Admin Approved - Pending Meter Reading':
+        return 'bg-purple-100 text-purple-800';
+      case 'Ready for Deactivation':
+        return 'bg-indigo-100 text-indigo-800';
       case 'Approved':
         return 'bg-green-100 text-green-800';
       case 'Rejected':
@@ -263,6 +271,10 @@ const NOCManagement = () => {
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Sent for Correction':
         return <ExclamationTriangleIcon className="h-4 w-4" />;
+      case 'Admin Approved - Pending Meter Reading':
+        return <ClockIcon className="h-4 w-4" />;
+      case 'Ready for Deactivation':
+        return <CheckCircleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Rejected':
@@ -323,6 +335,8 @@ const NOCManagement = () => {
                         <option value="Pending">Pending</option>
                         <option value="Warden Verified">Warden Verified</option>
                         <option value="Sent for Correction">Sent for Correction</option>
+                        <option value="Admin Approved - Pending Meter Reading">Admin Approved - Pending Meter Reading</option>
+                        <option value="Ready for Deactivation">Ready for Deactivation</option>
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                       </select>
@@ -552,6 +566,15 @@ const NOCManagement = () => {
                             </button>
                           </>
                         )}
+                        
+                        {request.status === 'Ready for Deactivation' && (
+                          <button
+                            onClick={() => handleAction(request, 'final-approve')}
+                            className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200"
+                          >
+                            Final Approve & Deactivate
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -572,6 +595,7 @@ const NOCManagement = () => {
                   <h3 className="text-lg font-semibold text-gray-900">
                     {action === 'view' ? 'NOC Request Details' : 
                      action === 'approve' ? 'Approve NOC Request' : 
+                     action === 'final-approve' ? 'Final Approve & Deactivate Student' :
                      action === 'send-for-correction' ? 'Send for Correction' :
                      'Reject NOC Request'}
                   </h3>
@@ -690,6 +714,69 @@ const NOCManagement = () => {
                         </div>
                       )}
 
+                      {/* Meter Readings & Calculated Bill */}
+                      {selectedRequest.meterReadings && selectedRequest.meterReadings.meterType && (
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Meter Readings</h4>
+                          <div className="p-4 bg-gray-50 rounded-md space-y-2">
+                            <p className="text-sm text-gray-700">
+                              <span className="font-medium">Meter Type:</span> {selectedRequest.meterReadings.meterType === 'single' ? 'Single Meter' : 'Dual Meter'}
+                            </p>
+                            {selectedRequest.meterReadings.meterType === 'single' ? (
+                              <>
+                                <p className="text-sm text-gray-700">
+                                  <span className="font-medium">Start Units:</span> {selectedRequest.meterReadings.startUnits}
+                                </p>
+                                <p className="text-sm text-gray-700">
+                                  <span className="font-medium">End Units:</span> {selectedRequest.meterReadings.endUnits}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-gray-700">
+                                  <span className="font-medium">Meter 1:</span> {selectedRequest.meterReadings.meter1StartUnits} - {selectedRequest.meterReadings.meter1EndUnits}
+                                </p>
+                                <p className="text-sm text-gray-700">
+                                  <span className="font-medium">Meter 2:</span> {selectedRequest.meterReadings.meter2StartUnits} - {selectedRequest.meterReadings.meter2EndUnits}
+                                </p>
+                              </>
+                            )}
+                            {selectedRequest.meterReadings.readingDate && (
+                              <p className="text-sm text-gray-500">
+                                Reading Date: {new Date(selectedRequest.meterReadings.readingDate).toLocaleDateString('en-IN', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Calculated Electricity Bill */}
+                      {selectedRequest.calculatedElectricityBill && selectedRequest.calculatedElectricityBill.total && (
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 mb-3">Calculated Electricity Bill</h4>
+                          <div className="p-4 bg-green-50 rounded-md space-y-2">
+                            <p className="text-sm text-gray-700">
+                              <span className="font-medium">Consumption:</span> {selectedRequest.calculatedElectricityBill.consumption} units
+                            </p>
+                            <p className="text-sm text-gray-700">
+                              <span className="font-medium">Rate:</span> ₹{selectedRequest.calculatedElectricityBill.rate} per unit
+                            </p>
+                            <p className="text-sm font-semibold text-green-900">
+                              <span className="font-medium">Total Amount:</span> ₹{selectedRequest.calculatedElectricityBill.total}
+                            </p>
+                            {selectedRequest.calculatedElectricityBill.billPeriodStart && selectedRequest.calculatedElectricityBill.billPeriodEnd && (
+                              <p className="text-sm text-gray-500">
+                                Bill Period: {new Date(selectedRequest.calculatedElectricityBill.billPeriodStart).toLocaleDateString('en-IN')} to {new Date(selectedRequest.calculatedElectricityBill.billPeriodEnd).toLocaleDateString('en-IN')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Status */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
@@ -706,11 +793,31 @@ const NOCManagement = () => {
                           <div className="flex">
                             <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2 mt-0.5" />
                             <div>
-                              <h4 className="text-sm font-medium text-yellow-800">Warning</h4>
+                              <h4 className="text-sm font-medium text-yellow-800">First Approval</h4>
                               <p className="mt-1 text-sm text-yellow-700">
-                                Approving this NOC request will deactivate the student's account. 
-                                This action cannot be undone.
+                                Approving this NOC request will send it to warden for meter reading entry. 
+                                The student will be deactivated only after meter readings are entered and final approval is given.
                               </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {action === 'final-approve' && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                          <div className="flex">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
+                            <div>
+                              <h4 className="text-sm font-medium text-red-800">Final Approval Warning</h4>
+                              <p className="mt-1 text-sm text-red-700">
+                                Final approval will deactivate the student's account and vacate their room allocation. 
+                                This action cannot be undone. Make sure meter readings have been entered and the electricity bill has been calculated.
+                              </p>
+                              {selectedRequest.calculatedElectricityBill && selectedRequest.calculatedElectricityBill.total && (
+                                <p className="mt-2 text-sm font-semibold text-red-900">
+                                  Calculated Electricity Bill: ₹{selectedRequest.calculatedElectricityBill.total}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -731,12 +838,13 @@ const NOCManagement = () => {
                         </div>
                       )}
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          {action === 'approve' ? 'Approval Notes (Optional)' : 
-                           action === 'send-for-correction' ? 'Correction Remarks *' :
-                           'Rejection Reason *'}
-                        </label>
+                      {action !== 'final-approve' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {action === 'approve' ? 'Approval Notes (Optional)' : 
+                             action === 'send-for-correction' ? 'Correction Remarks *' :
+                             'Rejection Reason *'}
+                          </label>
                         <textarea
                           value={remarks}
                           onChange={(e) => setRemarks(e.target.value)}
@@ -750,7 +858,8 @@ const NOCManagement = () => {
                           }
                           required={action === 'reject' || action === 'send-for-correction'}
                         />
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -773,13 +882,16 @@ const NOCManagement = () => {
                       className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                         action === 'approve' 
                           ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
+                          : action === 'final-approve'
+                          ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
                           : action === 'send-for-correction'
                           ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
                           : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
                       }`}
                     >
                       {isSubmitting ? 'Processing...' : 
-                       action === 'approve' ? 'Approve & Deactivate' : 
+                       action === 'approve' ? 'Approve (Pending Meter Reading)' : 
+                       action === 'final-approve' ? 'Final Approve & Deactivate' :
                        action === 'send-for-correction' ? 'Send for Correction' :
                        'Reject'}
                     </button>

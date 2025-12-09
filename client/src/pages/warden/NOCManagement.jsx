@@ -28,6 +28,21 @@ const NOCManagement = () => {
   const [checklistItems, setChecklistItems] = useState([]);
   const [checklistResponses, setChecklistResponses] = useState([]);
 
+  // Meter reading state
+  const [showMeterReadingModal, setShowMeterReadingModal] = useState(false);
+  const [meterReadingForm, setMeterReadingForm] = useState({
+    meterType: 'single',
+    startUnits: '',
+    endUnits: '',
+    meter1StartUnits: '',
+    meter1EndUnits: '',
+    meter2StartUnits: '',
+    meter2EndUnits: '',
+    rate: ''
+  });
+  const [isSubmittingMeterReading, setIsSubmittingMeterReading] = useState(false);
+  const [roomInfo, setRoomInfo] = useState(null);
+
   // Create NOC on behalf of student state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [students, setStudents] = useState([]);
@@ -260,6 +275,10 @@ const NOCManagement = () => {
         return 'bg-blue-100 text-blue-800';
       case 'Sent for Correction':
         return 'bg-orange-100 text-orange-800';
+      case 'Admin Approved - Pending Meter Reading':
+        return 'bg-purple-100 text-purple-800';
+      case 'Ready for Deactivation':
+        return 'bg-indigo-100 text-indigo-800';
       case 'Approved':
         return 'bg-green-100 text-green-800';
       case 'Rejected':
@@ -274,6 +293,10 @@ const NOCManagement = () => {
       case 'Pending':
         return <ClockIcon className="h-4 w-4" />;
       case 'Warden Verified':
+        return <CheckCircleIcon className="h-4 w-4" />;
+      case 'Admin Approved - Pending Meter Reading':
+        return <ClockIcon className="h-4 w-4" />;
+      case 'Ready for Deactivation':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
@@ -342,6 +365,8 @@ const NOCManagement = () => {
                       <option value="Pending">Pending</option>
                       <option value="Sent for Correction">Sent for Correction</option>
                       <option value="Warden Verified">Warden Verified</option>
+                      <option value="Admin Approved - Pending Meter Reading">Admin Approved - Pending Meter Reading</option>
+                      <option value="Ready for Deactivation">Ready for Deactivation</option>
                       <option value="Approved">Approved</option>
                       <option value="Rejected">Rejected</option>
                     </select>
@@ -477,6 +502,37 @@ const NOCManagement = () => {
                               Reject
                             </button>
                           </div>
+                        )}
+                        
+                        {request.status === 'Admin Approved - Pending Meter Reading' && (
+                          <button
+                            onClick={async () => {
+                              setSelectedRequest(request);
+                              // Fetch room info to get meter type
+                              try {
+                                const studentRes = await api.get(`/api/admin/students/${request.student?._id || request.student}`);
+                                if (studentRes.data.success && studentRes.data.data.roomNumber) {
+                                  const roomsRes = await api.get(`/api/admin/rooms?gender=${studentRes.data.data.gender}`);
+                                  if (roomsRes.data.success) {
+                                    const room = roomsRes.data.data.rooms.find(r => r.roomNumber === studentRes.data.data.roomNumber);
+                                    if (room) {
+                                      setRoomInfo(room);
+                                      setMeterReadingForm(prev => ({
+                                        ...prev,
+                                        meterType: room.meterType || 'single'
+                                      }));
+                                    }
+                                  }
+                                }
+                              } catch (err) {
+                                console.error('Error fetching room info:', err);
+                              }
+                              setShowMeterReadingModal(true);
+                            }}
+                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors duration-200 whitespace-nowrap"
+                          >
+                            Enter Meter Reading
+                          </button>
                         )}
                       </div>
                     </div>
@@ -806,6 +862,259 @@ const NOCManagement = () => {
                     className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isCreating ? 'Creating...' : 'Create NOC Request'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Meter Reading Modal */}
+          {showMeterReadingModal && selectedRequest && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                    Enter Meter Readings
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    Enter meter readings for {selectedRequest.studentName} ({selectedRequest.rollNumber})
+                  </p>
+                  {selectedRequest.vacatingDate && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vacating Date: {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                <div className="px-4 sm:px-6 py-4 space-y-4">
+                  {/* Meter Type */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Meter Type *
+                    </label>
+                    <select
+                      value={meterReadingForm.meterType}
+                      onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meterType: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                    >
+                      <option value="single">Single Meter</option>
+                      <option value="dual">Dual Meter</option>
+                    </select>
+                  </div>
+
+                  {/* Single Meter Fields */}
+                  {meterReadingForm.meterType === 'single' && (
+                    <>
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                          Start Units *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={meterReadingForm.startUnits}
+                          onChange={(e) => setMeterReadingForm({ ...meterReadingForm, startUnits: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                          placeholder="Enter start units"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                          End Units *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={meterReadingForm.endUnits}
+                          onChange={(e) => setMeterReadingForm({ ...meterReadingForm, endUnits: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                          placeholder="Enter end units"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Dual Meter Fields */}
+                  {meterReadingForm.meterType === 'dual' && (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                            Meter 1 Start Units *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={meterReadingForm.meter1StartUnits}
+                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter1StartUnits: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                            placeholder="Meter 1 start"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                            Meter 1 End Units *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={meterReadingForm.meter1EndUnits}
+                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter1EndUnits: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                            placeholder="Meter 1 end"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                            Meter 2 Start Units *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={meterReadingForm.meter2StartUnits}
+                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter2StartUnits: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                            placeholder="Meter 2 start"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                            Meter 2 End Units *
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={meterReadingForm.meter2EndUnits}
+                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter2EndUnits: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                            placeholder="Meter 2 end"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Rate */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Rate per Unit (Optional - will use default if not provided)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={meterReadingForm.rate}
+                      onChange={(e) => setMeterReadingForm({ ...meterReadingForm, rate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                      placeholder="Enter rate per unit"
+                    />
+                  </div>
+                </div>
+
+                <div className="px-4 sm:px-6 py-4 bg-gray-50 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowMeterReadingModal(false);
+                      setSelectedRequest(null);
+                      setMeterReadingForm({
+                        meterType: 'single',
+                        startUnits: '',
+                        endUnits: '',
+                        meter1StartUnits: '',
+                        meter1EndUnits: '',
+                        meter2StartUnits: '',
+                        meter2EndUnits: '',
+                        rate: ''
+                      });
+                      setRoomInfo(null);
+                    }}
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      // Validate form
+                      if (meterReadingForm.meterType === 'single') {
+                        if (!meterReadingForm.startUnits || !meterReadingForm.endUnits) {
+                          toast.error('Please enter start and end units');
+                          return;
+                        }
+                        if (Number(meterReadingForm.endUnits) < Number(meterReadingForm.startUnits)) {
+                          toast.error('End units must be greater than or equal to start units');
+                          return;
+                        }
+                      } else {
+                        if (!meterReadingForm.meter1StartUnits || !meterReadingForm.meter1EndUnits || 
+                            !meterReadingForm.meter2StartUnits || !meterReadingForm.meter2EndUnits) {
+                          toast.error('Please enter all meter readings');
+                          return;
+                        }
+                        if (Number(meterReadingForm.meter1EndUnits) < Number(meterReadingForm.meter1StartUnits) ||
+                            Number(meterReadingForm.meter2EndUnits) < Number(meterReadingForm.meter2StartUnits)) {
+                          toast.error('End units must be greater than or equal to start units');
+                          return;
+                        }
+                      }
+
+                      setIsSubmittingMeterReading(true);
+                      try {
+                        const payload = {
+                          meterType: meterReadingForm.meterType,
+                          ...(meterReadingForm.meterType === 'single' 
+                            ? { startUnits: Number(meterReadingForm.startUnits), endUnits: Number(meterReadingForm.endUnits) }
+                            : {
+                                meter1StartUnits: Number(meterReadingForm.meter1StartUnits),
+                                meter1EndUnits: Number(meterReadingForm.meter1EndUnits),
+                                meter2StartUnits: Number(meterReadingForm.meter2StartUnits),
+                                meter2EndUnits: Number(meterReadingForm.meter2EndUnits)
+                              }
+                          ),
+                          ...(meterReadingForm.rate ? { rate: Number(meterReadingForm.rate) } : {})
+                        };
+
+                        const response = await api.post(`/api/noc/warden/${selectedRequest.id || selectedRequest._id}/meter-readings`, payload);
+                        
+                        if (response.data.success) {
+                          toast.success('Meter readings entered and bill calculated successfully');
+                          setShowMeterReadingModal(false);
+                          setSelectedRequest(null);
+                          setMeterReadingForm({
+                            meterType: 'single',
+                            startUnits: '',
+                            endUnits: '',
+                            meter1StartUnits: '',
+                            meter1EndUnits: '',
+                            meter2StartUnits: '',
+                            meter2EndUnits: '',
+                            rate: ''
+                          });
+                          setRoomInfo(null);
+                          fetchNOCRequests();
+                        }
+                      } catch (error) {
+                        console.error('Error entering meter readings:', error);
+                        toast.error(error.response?.data?.message || 'Failed to enter meter readings');
+                      } finally {
+                        setIsSubmittingMeterReading(false);
+                      }
+                    }}
+                    disabled={isSubmittingMeterReading}
+                    className={`w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
+                    }`}
+                  >
+                    {isSubmittingMeterReading ? 'Submitting...' : 'Submit Meter Readings'}
                   </button>
                 </div>
               </motion.div>
