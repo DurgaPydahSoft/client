@@ -316,9 +316,17 @@ const NOCRequests = () => {
                               Calculated Electricity Bill (until vacating date):
                             </p>
                             <p className="text-xs sm:text-sm text-indigo-800">
-                              <span className="font-medium">Amount:</span> ₹{request.calculatedElectricityBill.total} 
-                              {' '}({request.calculatedElectricityBill.consumption} units × ₹{request.calculatedElectricityBill.rate}/unit)
+                              <span className="font-medium">Your Share:</span> ₹{request.calculatedElectricityBill.studentShare || request.calculatedElectricityBill.total}
+                              {request.calculatedElectricityBill.numberOfStudents && (
+                                <span className="text-indigo-600"> (Divided among {request.calculatedElectricityBill.numberOfStudents} students)</span>
+                              )}
                             </p>
+                            {request.calculatedElectricityBill.totalRoomBill && (
+                              <p className="text-xs text-indigo-600 mt-1">
+                                <span className="font-medium">Total Room Bill:</span> ₹{request.calculatedElectricityBill.totalRoomBill} 
+                                {' '}({request.calculatedElectricityBill.consumption} units × ₹{request.calculatedElectricityBill.rate}/unit)
+                              </p>
+                            )}
                             {request.calculatedElectricityBill.billPeriodStart && request.calculatedElectricityBill.billPeriodEnd && (
                               <p className="text-xs text-indigo-600 mt-1">
                                 Period: {new Date(request.calculatedElectricityBill.billPeriodStart).toLocaleDateString('en-IN', {

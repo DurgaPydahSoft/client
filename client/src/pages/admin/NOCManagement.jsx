@@ -18,12 +18,15 @@ import {
   PencilIcon,
   TrashIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  InformationCircleIcon,
+  ArrowRightIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const NOCManagement = () => {
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'checklist'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'checklist', or 'process'
   
   // NOC Requests state
   const [nocRequests, setNocRequests] = useState([]);
@@ -54,6 +57,7 @@ const NOCManagement = () => {
     } else if (activeTab === 'checklist') {
       fetchChecklistItems();
     }
+    // Process guide tab doesn't need data fetching
   }, [filter, activeTab]);
 
   const fetchNOCRequests = async () => {
@@ -371,11 +375,417 @@ const NOCManagement = () => {
                   Checklist Configuration
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('process')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'process'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <InformationCircleIcon className="h-4 w-4 mr-2" />
+                  Process Guide
+                </div>
+              </button>
             </div>
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'requests' ? (
+          {activeTab === 'process' ? (
+            /* Process Guide Tab */
+            <div className="space-y-6">
+              {/* Overview Section */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <InformationCircleIcon className="h-6 w-6 text-blue-600 mr-2" />
+                  <h2 className="text-xl font-semibold text-gray-900">NOC Process Overview</h2>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  The NOC (No Objection Certificate) process allows students to formally request permission to vacate the hostel. 
+                  The process involves multiple verification stages and includes automatic calculation and adjustment of electricity bills.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <UserIcon className="h-8 w-8 text-blue-600 mb-2" />
+                    <h3 className="font-semibold text-gray-900">Student</h3>
+                    <p className="text-sm text-gray-600">Initiates the NOC request</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <DocumentTextIcon className="h-8 w-8 text-green-600 mb-2" />
+                    <h3 className="font-semibold text-gray-900">Warden</h3>
+                    <p className="text-sm text-gray-600">Performs verification and enters meter readings</p>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <CogIcon className="h-8 w-8 text-purple-600 mb-2" />
+                    <h3 className="font-semibold text-gray-900">Admin</h3>
+                    <p className="text-sm text-gray-600">Reviews and approves/rejects requests</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Process Flow */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">Process Flow</h2>
+                
+                <div className="space-y-6">
+                  {/* Stage 1 */}
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-semibold">
+                        1
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Student Request Submission</h3>
+                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-orange-600">Pending Warden Verification</span></p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-700">Student submits NOC request with:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                          <li>Reason for leaving</li>
+                          <li>Intended vacating date</li>
+                          <li>Required documents</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+
+                  {/* Stage 2 */}
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 font-semibold">
+                        2
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Warden Verification (First Level)</h3>
+                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-blue-600">Pending Admin Approval</span> or <span className="font-medium text-orange-600">Sent for Correction</span></p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-700">Warden verifies hostel clearance items:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                          <li>Keys returned</li>
+                          <li>Room condition checked</li>
+                          <li>Dues cleared</li>
+                          <li>Other checklist items</li>
+                        </ul>
+                        <p className="text-sm text-gray-700 mt-2">Warden can either forward to admin or send for correction.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+
+                  {/* Stage 3 */}
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 font-semibold">
+                        3
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Admin Review</h3>
+                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-indigo-600">Admin Approved - Pending Meter Reading</span> or <span className="font-medium text-orange-600">Sent for Correction</span></p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-700">Admin reviews the forwarded request and can:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                          <li><strong>Approve:</strong> Request moves to meter reading stage</li>
+                          <li><strong>Send for Correction:</strong> Returns to warden with remarks</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+
+                  {/* Stage 4 */}
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 font-semibold">
+                        4
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Meter Reading Entry</h3>
+                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-yellow-600">Ready for Deactivation</span></p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-700">Warden enters electricity meter readings:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                          <li><strong>Single Meter:</strong> Start units and end units</li>
+                          <li><strong>Dual Meter:</strong> Meter 1 (start/end) and Meter 2 (start/end)</li>
+                          <li>Electricity rate (or uses default)</li>
+                        </ul>
+                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                          <p className="text-sm font-semibold text-blue-900 mb-1">System automatically calculates:</p>
+                          <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                            <li>Consumption (units used)</li>
+                            <li>Bill period (from last bill to vacating date)</li>
+                            <li>Total room bill</li>
+                            <li>Student's share (divided by number of students)</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center">
+                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
+                  </div>
+
+                  {/* Stage 5 */}
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 font-semibold">
+                        5
+                      </div>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900">Final Approval & Student Deactivation</h3>
+                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-green-600">Approved</span></p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
+                        <p className="text-sm text-gray-700">Admin performs final approval. System automatically:</p>
+                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
+                          <li>Deactivates the student account</li>
+                          <li>Vacates the room/bed/locker</li>
+                          <li>Updates student status to inactive</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Electricity Bill Calculation */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center mb-4">
+                  <BoltIcon className="h-6 w-6 text-yellow-600 mr-2" />
+                  <h2 className="text-xl font-semibold text-gray-900">Electricity Bill Calculation</h2>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h3 className="font-semibold text-gray-900 mb-2">How It Works:</h3>
+                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                      <li><strong>Determine Bill Period:</strong> From last bill date (or start of month) to student's vacating date</li>
+                      <li><strong>Calculate Consumption:</strong> End units - Start units (for single meter) or sum of both meters (for dual meter)</li>
+                      <li><strong>Calculate Total Room Bill:</strong> Consumption × Electricity Rate</li>
+                      <li><strong>Count Students:</strong> Number of active students in the room</li>
+                      <li><strong>Calculate Student's Share:</strong> Total Room Bill ÷ Number of Students</li>
+                    </ol>
+                  </div>
+
+                  {/* Scenario 1: Single Student NOC */}
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <h3 className="font-semibold text-blue-900 mb-2">Scenario 1: Single Student NOC (Simple Case)</h3>
+                    <div className="text-sm text-blue-800 space-y-1">
+                      <p><strong>Room:</strong> 321 | <strong>Students:</strong> 3 (A, B, C) | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>Last Bill End Units:</strong> 1000 units</p>
+                      <p><strong>Student A Vacating:</strong> 2024-02-15 | <strong>Meter Reading:</strong> 1050 units</p>
+                      <div className="mt-2 p-2 bg-white rounded border border-blue-200">
+                        <p className="font-semibold">NOC Calculation:</p>
+                        <p>Consumption: 1050 - 1000 = 50 units</p>
+                        <p>Total Room Bill: 50 × ₹5 = ₹250</p>
+                        <p>Student A's Share: ₹250 ÷ 3 = ₹83</p>
+                      </div>
+                      <div className="mt-2 p-2 bg-blue-100 rounded border border-blue-300">
+                        <p className="text-xs font-semibold text-blue-900">When Monthly Bill (₹300) is Uploaded:</p>
+                        <p className="text-xs text-blue-800">NOC Adjustment: ₹83 | Remaining: ₹217</p>
+                        <p className="text-xs text-blue-800">Student B & C pay: ₹217 ÷ 2 = ₹109 each</p>
+                        <p className="text-xs text-blue-800">Student A pays: ₹0 (already paid ₹83 via NOC)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenario 2: Dual Meter */}
+                  <div className="p-4 bg-purple-50 rounded-lg">
+                    <h3 className="font-semibold text-purple-900 mb-2">Scenario 2: Dual Meter Room</h3>
+                    <div className="text-sm text-purple-800 space-y-1">
+                      <p><strong>Room:</strong> 209 | <strong>Meter Type:</strong> Dual | <strong>Students:</strong> 2 (A, B) | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>Last Bill:</strong> Meter 1: 500 units | Meter 2: 300 units</p>
+                      <p><strong>Student A Vacating:</strong> 2024-02-15</p>
+                      <p><strong>Meter Readings:</strong> Meter 1: 550 units | Meter 2: 350 units</p>
+                      <div className="mt-2 p-2 bg-white rounded border border-purple-200">
+                        <p className="font-semibold">NOC Calculation:</p>
+                        <p>Meter 1 Consumption: 550 - 500 = 50 units</p>
+                        <p>Meter 2 Consumption: 350 - 300 = 50 units</p>
+                        <p>Total Consumption: 50 + 50 = 100 units</p>
+                        <p>Total Room Bill: 100 × ₹5 = ₹500</p>
+                        <p>Student A's Share: ₹500 ÷ 2 = ₹250</p>
+                      </div>
+                      <div className="mt-2 p-2 bg-purple-100 rounded border border-purple-300">
+                        <p className="text-xs font-semibold text-purple-900">When Monthly Bill (₹600) is Uploaded:</p>
+                        <p className="text-xs text-purple-800">NOC Adjustment: ₹250 | Remaining: ₹350</p>
+                        <p className="text-xs text-purple-800">Student B pays: ₹350 (only remaining student)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenario 3: Multiple Students with NOC */}
+                  <div className="p-4 bg-indigo-50 rounded-lg">
+                    <h3 className="font-semibold text-indigo-900 mb-2">Scenario 3: Multiple Students with NOC</h3>
+                    <div className="text-sm text-indigo-800 space-y-1">
+                      <p><strong>Room:</strong> 320 | <strong>Students:</strong> 4 (A, B, C, D) | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>Last Bill End Units:</strong> 2000 units</p>
+                      <p><strong>Student A:</strong> Vacating 2024-02-10, Meter: 2050 units</p>
+                      <p><strong>Student B:</strong> Vacating 2024-02-20, Meter: 2100 units</p>
+                      <div className="mt-2 p-2 bg-white rounded border border-indigo-200">
+                        <p className="font-semibold">NOC Calculations:</p>
+                        <p className="text-xs"><strong>Student A:</strong> (2050-2000) × ₹5 ÷ 4 = ₹63</p>
+                        <p className="text-xs"><strong>Student B:</strong> (2100-2050) × ₹5 ÷ 4 = ₹63</p>
+                        <p className="text-xs mt-1"><strong>Total NOC Adjustments:</strong> ₹126</p>
+                      </div>
+                      <div className="mt-2 p-2 bg-indigo-100 rounded border border-indigo-300">
+                        <p className="text-xs font-semibold text-indigo-900">When Monthly Bill (₹400) is Uploaded:</p>
+                        <p className="text-xs text-indigo-800">NOC Adjustments: ₹126 (A: ₹63 + B: ₹63)</p>
+                        <p className="text-xs text-indigo-800">Remaining: ₹400 - ₹126 = ₹274</p>
+                        <p className="text-xs text-indigo-800">Students C & D pay: ₹274 ÷ 2 = ₹137 each</p>
+                        <p className="text-xs text-indigo-800">Students A & B pay: ₹0 (already paid via NOC)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenario 4: Early Month Vacating */}
+                  <div className="p-4 bg-yellow-50 rounded-lg">
+                    <h3 className="font-semibold text-yellow-900 mb-2">Scenario 4: Early Month Vacating</h3>
+                    <div className="text-sm text-yellow-800 space-y-1">
+                      <p><strong>Room:</strong> 101 | <strong>Students:</strong> 3 | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>Last Bill:</strong> 2024-01 (End Units: 1500)</p>
+                      <p><strong>Student A Vacating:</strong> 2024-02-05 (Early in month)</p>
+                      <p><strong>Meter Reading:</strong> 1520 units</p>
+                      <div className="mt-2 p-2 bg-white rounded border border-yellow-200">
+                        <p className="font-semibold">NOC Calculation:</p>
+                        <p>Bill Period: Feb 1-5 (5 days only)</p>
+                        <p>Consumption: 1520 - 1500 = 20 units</p>
+                        <p>Total Room Bill: 20 × ₹5 = ₹100</p>
+                        <p>Student A's Share: ₹100 ÷ 3 = ₹33</p>
+                        <p className="text-xs text-yellow-700 mt-1">Note: Student pays only for 5 days, not full month</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenario 5: Late Month Vacating */}
+                  <div className="p-4 bg-orange-50 rounded-lg">
+                    <h3 className="font-semibold text-orange-900 mb-2">Scenario 5: Late Month Vacating</h3>
+                    <div className="text-sm text-orange-800 space-y-1">
+                      <p><strong>Room:</strong> 205 | <strong>Students:</strong> 2 | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>Last Bill:</strong> 2024-01 (End Units: 800)</p>
+                      <p><strong>Student A Vacating:</strong> 2024-02-28 (Last day of month)</p>
+                      <p><strong>Meter Reading:</strong> 900 units</p>
+                      <div className="mt-2 p-2 bg-white rounded border border-orange-200">
+                        <p className="font-semibold">NOC Calculation:</p>
+                        <p>Bill Period: Feb 1-28 (Full month)</p>
+                        <p>Consumption: 900 - 800 = 100 units</p>
+                        <p>Total Room Bill: 100 × ₹5 = ₹500</p>
+                        <p>Student A's Share: ₹500 ÷ 2 = ₹250</p>
+                        <p className="text-xs text-orange-700 mt-1">Note: Student pays for almost full month</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenario 6: All Students Have NOC */}
+                  <div className="p-4 bg-red-50 rounded-lg">
+                    <h3 className="font-semibold text-red-900 mb-2">Scenario 6: All Students Have NOC</h3>
+                    <div className="text-sm text-red-800 space-y-1">
+                      <p><strong>Room:</strong> 101 | <strong>Students:</strong> 3 (A, B, C) | <strong>Rate:</strong> ₹5/unit</p>
+                      <p><strong>All students have approved NOCs for the same month</strong></p>
+                      <div className="mt-2 p-2 bg-white rounded border border-red-200">
+                        <p className="font-semibold">NOC Adjustments:</p>
+                        <p className="text-xs">Student A: ₹100 | Student B: ₹100 | Student C: ₹100</p>
+                        <p className="text-xs mt-1"><strong>Total NOC Adjustments:</strong> ₹300</p>
+                      </div>
+                      <div className="mt-2 p-2 bg-red-100 rounded border border-red-300">
+                        <p className="text-xs font-semibold text-red-900">When Monthly Bill (₹300) is Uploaded:</p>
+                        <p className="text-xs text-red-800">NOC Adjustments: ₹300 (all students)</p>
+                        <p className="text-xs text-red-800">Remaining: ₹300 - ₹300 = ₹0</p>
+                        <p className="text-xs text-red-800">All students pay: ₹0 (already paid via NOC)</p>
+                        <p className="text-xs text-red-700 mt-1 font-semibold">✓ Perfect match - no additional charges</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-green-50 rounded-lg">
+                    <h3 className="font-semibold text-green-900 mb-2">Adjustment in Final Monthly Bill:</h3>
+                    <p className="text-sm text-green-800 mb-2">When the monthly electricity bill is uploaded:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-sm text-green-800">
+                      <li>System checks for approved NOCs that overlap with the billing period</li>
+                      <li>Subtracts NOC student shares from total room bill</li>
+                      <li>Calculates remaining amount</li>
+                      <li>Divides remaining amount equally among students without NOC</li>
+                    </ol>
+                    <div className="mt-3 p-3 bg-white rounded border border-green-200">
+                      <p className="text-xs font-semibold text-green-900 mb-2">Key Points:</p>
+                      <ul className="list-disc list-inside text-xs text-green-800 space-y-1">
+                        <li>NOC students are charged ₹0 in monthly bill (already paid via NOC)</li>
+                        <li>Remaining students share only the remaining amount</li>
+                        <li>System ensures no double-charging</li>
+                        <li>All calculations are transparent and stored in the database</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Reference */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Status Reference</h2>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Action By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-orange-600">Pending Warden Verification</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Initial request submitted by student</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Warden</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-blue-600">Pending Admin Approval</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Forwarded by warden, awaiting admin review</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Admin</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-indigo-600">Admin Approved - Pending Meter Reading</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Approved by admin, waiting for meter readings</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Warden</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-yellow-600">Ready for Deactivation</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Meter readings entered, bill calculated</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Admin</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-green-600">Approved</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Final approval, student deactivated</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">-</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-orange-600">Sent for Correction</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Issues found, needs correction</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Student/Warden</td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm font-medium text-red-600">Rejected</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">Request rejected</td>
+                        <td className="px-4 py-3 text-sm text-gray-600">-</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'requests' ? (
             <>
           {/* Stats Cards */}
           {stats && (
@@ -765,8 +1175,18 @@ const NOCManagement = () => {
                             <p className="text-sm text-gray-700">
                               <span className="font-medium">Rate:</span> ₹{selectedRequest.calculatedElectricityBill.rate} per unit
                             </p>
+                            {selectedRequest.calculatedElectricityBill.totalRoomBill && (
+                              <p className="text-sm text-gray-700">
+                                <span className="font-medium">Total Room Bill:</span> ₹{selectedRequest.calculatedElectricityBill.totalRoomBill}
+                              </p>
+                            )}
+                            {selectedRequest.calculatedElectricityBill.numberOfStudents && (
+                              <p className="text-sm text-gray-700">
+                                <span className="font-medium">Number of Students:</span> {selectedRequest.calculatedElectricityBill.numberOfStudents} students
+                              </p>
+                            )}
                             <p className="text-sm font-semibold text-green-900">
-                              <span className="font-medium">Total Amount:</span> ₹{selectedRequest.calculatedElectricityBill.total}
+                              <span className="font-medium">Student's Share:</span> ₹{selectedRequest.calculatedElectricityBill.studentShare || selectedRequest.calculatedElectricityBill.total}
                             </p>
                             {selectedRequest.calculatedElectricityBill.billPeriodStart && selectedRequest.calculatedElectricityBill.billPeriodEnd && (
                               <p className="text-sm text-gray-500">
@@ -815,7 +1235,7 @@ const NOCManagement = () => {
                               </p>
                               {selectedRequest.calculatedElectricityBill && selectedRequest.calculatedElectricityBill.total && (
                                 <p className="mt-2 text-sm font-semibold text-red-900">
-                                  Calculated Electricity Bill: ₹{selectedRequest.calculatedElectricityBill.total}
+                                  Calculated Electricity Bill (Student's Share): ₹{selectedRequest.calculatedElectricityBill.studentShare || selectedRequest.calculatedElectricityBill.total}
                                 </p>
                               )}
                             </div>

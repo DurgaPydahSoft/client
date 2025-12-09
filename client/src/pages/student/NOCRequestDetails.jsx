@@ -369,9 +369,23 @@ const NOCRequestDetails = () => {
                           <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Rate per Unit</label>
                           <p className="text-xs sm:text-sm text-indigo-800">₹{nocRequest.calculatedElectricityBill.rate}</p>
                         </div>
+                        {nocRequest.calculatedElectricityBill.totalRoomBill && (
+                          <div>
+                            <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Total Room Bill</label>
+                            <p className="text-xs sm:text-sm text-indigo-800">₹{nocRequest.calculatedElectricityBill.totalRoomBill}</p>
+                          </div>
+                        )}
+                        {nocRequest.calculatedElectricityBill.numberOfStudents && (
+                          <div>
+                            <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Number of Students in Room</label>
+                            <p className="text-xs sm:text-sm text-indigo-800">{nocRequest.calculatedElectricityBill.numberOfStudents} students</p>
+                          </div>
+                        )}
                         <div>
-                          <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Total Amount</label>
-                          <p className="text-sm sm:text-base font-semibold text-indigo-900">₹{nocRequest.calculatedElectricityBill.total}</p>
+                          <label className="block text-xs sm:text-sm font-medium text-indigo-900 mb-1">Your Share (Divided Equally)</label>
+                          <p className="text-sm sm:text-base font-semibold text-indigo-900">
+                            ₹{nocRequest.calculatedElectricityBill.studentShare || nocRequest.calculatedElectricityBill.total}
+                          </p>
                         </div>
                         {nocRequest.calculatedElectricityBill.billPeriodStart && nocRequest.calculatedElectricityBill.billPeriodEnd && (
                           <div>
