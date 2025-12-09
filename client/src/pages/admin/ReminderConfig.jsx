@@ -46,17 +46,23 @@ const ReminderConfig = () => {
     postReminders: {
       email: {
         enabled: true,
+        frequencyType: 'daily', // 'daily', 'alternate', 'custom'
         maxDaysAfterDue: 30,
+        daysAfterDue: [], // For custom mode
         template: 'post_reminder_email'
       },
       push: {
         enabled: true,
+        frequencyType: 'daily',
         maxDaysAfterDue: 30,
+        daysAfterDue: [],
         template: 'post_reminder_push'
       },
       sms: {
         enabled: true,
+        frequencyType: 'daily',
         maxDaysAfterDue: 30,
+        daysAfterDue: [],
         template: 'post_reminder_sms'
       }
     },
@@ -222,26 +228,38 @@ Pydah Hostel Management Team`,
           postReminders: {
             email: {
               enabled: toBoolean(fetchedConfig.postReminders?.email?.enabled, true),
+              frequencyType: fetchedConfig.postReminders?.email?.frequencyType || 
+                (fetchedConfig.postReminders?.email?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.email.daysAfterDue) && fetchedConfig.postReminders.email.daysAfterDue.length > 0
+                  ? 'custom' : 'daily'),
               maxDaysAfterDue: fetchedConfig.postReminders?.email?.maxDaysAfterDue ?? 
                 (fetchedConfig.postReminders?.email?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.email.daysAfterDue) && fetchedConfig.postReminders.email.daysAfterDue.length > 0
                   ? Math.max(...fetchedConfig.postReminders.email.daysAfterDue.filter(d => !isNaN(d) && d > 0))
                   : 30),
+              daysAfterDue: fetchedConfig.postReminders?.email?.daysAfterDue || [],
               template: fetchedConfig.postReminders?.email?.template ?? 'post_reminder_email'
             },
             push: {
               enabled: toBoolean(fetchedConfig.postReminders?.push?.enabled, true),
+              frequencyType: fetchedConfig.postReminders?.push?.frequencyType || 
+                (fetchedConfig.postReminders?.push?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.push.daysAfterDue) && fetchedConfig.postReminders.push.daysAfterDue.length > 0
+                  ? 'custom' : 'daily'),
               maxDaysAfterDue: fetchedConfig.postReminders?.push?.maxDaysAfterDue ?? 
                 (fetchedConfig.postReminders?.push?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.push.daysAfterDue) && fetchedConfig.postReminders.push.daysAfterDue.length > 0
                   ? Math.max(...fetchedConfig.postReminders.push.daysAfterDue.filter(d => !isNaN(d) && d > 0))
                   : 30),
+              daysAfterDue: fetchedConfig.postReminders?.push?.daysAfterDue || [],
               template: fetchedConfig.postReminders?.push?.template ?? 'post_reminder_push'
             },
             sms: {
               enabled: toBoolean(fetchedConfig.postReminders?.sms?.enabled, true),
+              frequencyType: fetchedConfig.postReminders?.sms?.frequencyType || 
+                (fetchedConfig.postReminders?.sms?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.sms.daysAfterDue) && fetchedConfig.postReminders.sms.daysAfterDue.length > 0
+                  ? 'custom' : 'daily'),
               maxDaysAfterDue: fetchedConfig.postReminders?.sms?.maxDaysAfterDue ?? 
                 (fetchedConfig.postReminders?.sms?.daysAfterDue && Array.isArray(fetchedConfig.postReminders.sms.daysAfterDue) && fetchedConfig.postReminders.sms.daysAfterDue.length > 0
                   ? Math.max(...fetchedConfig.postReminders.sms.daysAfterDue.filter(d => !isNaN(d) && d > 0))
                   : 30),
+              daysAfterDue: fetchedConfig.postReminders?.sms?.daysAfterDue || [],
               template: fetchedConfig.postReminders?.sms?.template ?? 'post_reminder_sms'
             }
           },
@@ -493,6 +511,8 @@ Pydah Hostel Management Team`,
     const isPre = section === 'preReminders';
     const days = isPre ? (channelConfig[daysKey] || []) : [];
     const maxDays = !isPre ? (channelConfig.maxDaysAfterDue || 30) : null;
+    const frequencyType = !isPre ? (channelConfig.frequencyType || 'daily') : null;
+    const postDays = !isPre ? (channelConfig.daysAfterDue || []) : [];
 
     const handleDayChange = (index, value) => {
       // Allow empty string for editing
@@ -639,28 +659,168 @@ Pydah Hostel Management Team`,
                 )}
               </>
             ) : (
-              // Post Reminders: Show single max days input
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  Send reminders for up to (days from due date) *
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    max="365"
-                    value={maxDays === '' ? '' : maxDays}
-                    onChange={(e) => handleMaxDaysChange(e.target.value)}
-                    onBlur={handleMaxDaysBlur}
-                    className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
-                    placeholder="Enter days"
-                    required
-                  />
-                  <span className="text-xs text-gray-500">days</span>
+              // Post Reminders: Show frequency type options
+              <div className="space-y-4">
+                {/* Frequency Type Selection */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Reminder Frequency *
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleConfigChange(section, type, 'frequencyType', 'daily');
+                        // Clear custom days when switching to daily
+                        if (frequencyType === 'custom') {
+                          handleConfigChange(section, type, 'daysAfterDue', []);
+                        }
+                      }}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-colors ${
+                        frequencyType === 'daily'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      Daily
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleConfigChange(section, type, 'frequencyType', 'alternate');
+                        // Clear custom days when switching to alternate
+                        if (frequencyType === 'custom') {
+                          handleConfigChange(section, type, 'daysAfterDue', []);
+                        }
+                      }}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-colors ${
+                        frequencyType === 'alternate'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      Alternate Days
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleConfigChange(section, type, 'frequencyType', 'custom')}
+                      className={`px-3 py-2 text-xs font-medium rounded-lg border-2 transition-colors ${
+                        frequencyType === 'custom'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-blue-300'
+                      }`}
+                    >
+                      Custom
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Reminders will be sent for up to {maxDays || 30} days from the due date
-                </p>
+
+                {/* Max Days After Due (for all frequency types) */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    Send reminders for up to (days from due date) *
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={maxDays === '' ? '' : maxDays}
+                      onChange={(e) => handleMaxDaysChange(e.target.value)}
+                      onBlur={handleMaxDaysBlur}
+                      className="w-32 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 font-medium"
+                      placeholder="Enter days"
+                      required
+                    />
+                    <span className="text-xs text-gray-500">days</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {frequencyType === 'daily' && `Reminders will be sent every day for up to ${maxDays || 30} days from the due date`}
+                    {frequencyType === 'alternate' && `Reminders will be sent every alternate day (1st, 3rd, 5th, etc.) for up to ${maxDays || 30} days from the due date`}
+                    {frequencyType === 'custom' && `Reminders will be sent on specific days (configure below) for up to ${maxDays || 30} days from the due date`}
+                  </p>
+                </div>
+
+                {/* Custom Days Configuration (only for custom mode) */}
+                {frequencyType === 'custom' && (
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-medium text-gray-700">
+                        Days after due date (e.g., 1, 3, 7, 14)
+                      </label>
+                      <button
+                        onClick={() => {
+                          const newDays = [...postDays, ''];
+                          handleConfigChange(section, type, 'daysAfterDue', newDays);
+                        }}
+                        type="button"
+                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-medium flex items-center gap-1"
+                      >
+                        <span>+</span>
+                        <span>Add Day</span>
+                      </button>
+                    </div>
+                    {postDays.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {postDays.map((day, index) => (
+                          <div key={index} className="flex items-center gap-1.5 bg-white border border-gray-300 rounded-lg px-2 py-1.5">
+                            <input
+                              type="number"
+                              min="1"
+                              max="365"
+                              value={day === '' ? '' : day}
+                              placeholder="Enter days"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                if (value === '') {
+                                  const newDays = [...postDays];
+                                  newDays[index] = '';
+                                  handleConfigChange(section, type, 'daysAfterDue', newDays);
+                                  return;
+                                }
+                                const numValue = parseInt(value);
+                                if (isNaN(numValue) || numValue < 1 || numValue > 365) {
+                                  return;
+                                }
+                                const newDays = [...postDays];
+                                newDays[index] = numValue;
+                                const validDays = newDays.filter(d => d !== '' && !isNaN(d));
+                                const uniqueDays = [...new Set(validDays)].sort((a, b) => a - b);
+                                handleConfigChange(section, type, 'daysAfterDue', uniqueDays);
+                              }}
+                              onBlur={() => {
+                                const day = postDays[index];
+                                if (day === '' || isNaN(day) || day < 1 || day > 365) {
+                                  const newDays = postDays.filter((_, i) => i !== index);
+                                  const validDays = newDays.filter(d => d !== '' && !isNaN(d));
+                                  handleConfigChange(section, type, 'daysAfterDue', validDays);
+                                }
+                              }}
+                              className="w-20 px-2 py-1 text-xs border-0 focus:ring-2 focus:ring-blue-500 rounded text-gray-900 font-medium placeholder:text-gray-400"
+                            />
+                            <span className="text-xs text-gray-500">days</span>
+                            <button
+                              onClick={() => {
+                                const newDays = postDays.filter((_, i) => i !== index);
+                                const validDays = newDays.filter(d => d !== '' && !isNaN(d));
+                                handleConfigChange(section, type, 'daysAfterDue', validDays);
+                              }}
+                              type="button"
+                              className="ml-1 p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors duration-200"
+                              title="Remove"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-4 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg">
+                        No days configured. Click "Add Day" to add reminder days.
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -745,58 +905,48 @@ Pydah Hostel Management Team`,
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
-              <Cog6ToothIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-              Reminder Configurations
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Configure automated reminder settings for fee payments
-            </p>
-        </div>
-              <button
-            onClick={handleSaveConfig}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-            <CheckCircleIcon className="w-4 h-4" />
-            Save Configuration
-              </button>
-            </div>
-              </div>
-              
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="border-b border-gray-200">
-          <nav className="flex overflow-x-auto -mb-px" aria-label="Tabs">
-            {[
-              { id: 'pre', label: 'Pre Reminders', icon: ClockIcon, activeClass: 'border-green-600 text-green-600' },
-              { id: 'post', label: 'Post Reminders', icon: ExclamationTriangleIcon, activeClass: 'border-red-600 text-red-600' },
-              { id: 'terms', label: 'Term Dates', icon: ClockIcon, activeClass: 'border-purple-600 text-purple-600' }
-            ].map((tab) => {
-              const Icon = tab.icon;
-              return (
+          <div className="flex items-center justify-between">
+            <nav className="flex overflow-x-auto -mb-px flex-1" aria-label="Tabs">
+              {[
+                { id: 'pre', label: 'Pre Reminders', icon: ClockIcon, activeClass: 'border-green-600 text-green-600' },
+                { id: 'post', label: 'Post Reminders', icon: ExclamationTriangleIcon, activeClass: 'border-red-600 text-red-600' },
+                { id: 'terms', label: 'Term Dates', icon: ClockIcon, activeClass: 'border-purple-600 text-purple-600' }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                return (
+                <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`
+                      flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap
+                      ${activeTab === tab.id
+                        ? tab.activeClass
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }
+                    `}
+                  >
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                </button>
+                );
+              })}
+            </nav>
+            <div className="px-4 sm:px-6">
               <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    flex items-center gap-2 px-4 sm:px-6 py-3 sm:py-4 text-sm font-medium border-b-2 transition-colors duration-200 whitespace-nowrap
-                    ${activeTab === tab.id
-                      ? tab.activeClass
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                onClick={handleSaveConfig}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircleIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Save Configuration</span>
+                <span className="sm:hidden">Save</span>
               </button>
-              );
-            })}
-          </nav>
+            </div>
+          </div>
             </div>
             
         {/* Tab Content */}
