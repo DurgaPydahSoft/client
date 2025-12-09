@@ -559,6 +559,16 @@ const StaffGuestsManagement = () => {
     }
   };
 
+  // Helper function to format date as dd/mm/yyyy
+  const formatDateDDMMYYYY = (date) => {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   // Generate PDF for staff/guest admit card with two copies
   const generateStaffAdmitCardPDF = async (staffGuest) => {
     try {
@@ -615,25 +625,29 @@ const StaffGuestsManagement = () => {
           throw new Error('Invalid staffGuest object provided to generateOneCopy');
         }
 
-        const dailyRate = staffGuestWithPhoto.dailyRate || dailyRateSettings.staffDailyRate || 100;
+        // For guests, charges are always 0
+        const isGuest = staffGuestWithPhoto.type === 'guest';
+        const dailyRate = isGuest ? 0 : (staffGuestWithPhoto.dailyRate || dailyRateSettings.staffDailyRate || 100);
         
         // Calculate day count - for monthly staff, calculate days in the selected month
         let dayCount = 0;
-        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
-          const [year, month] = staffGuestWithPhoto.selectedMonth.split('-').map(Number);
-          dayCount = new Date(year, month, 0).getDate(); // Days in the selected month
-        } else if (staffGuestWithPhoto.checkinDate) {
-          // For daily basis, calculate days between checkin and checkout
-          const startDate = new Date(staffGuestWithPhoto.checkinDate);
-          const endDate = staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate) : new Date();
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(0, 0, 0, 0);
-          const timeDiff = endDate.getTime() - startDate.getTime();
-          dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+        if (!isGuest) {
+          if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+            const [year, month] = staffGuestWithPhoto.selectedMonth.split('-').map(Number);
+            dayCount = new Date(year, month, 0).getDate(); // Days in the selected month
+          } else if (staffGuestWithPhoto.checkinDate) {
+            // For daily basis, calculate days between checkin and checkout
+            const startDate = new Date(staffGuestWithPhoto.checkinDate);
+            const endDate = staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate) : new Date();
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(0, 0, 0, 0);
+            const timeDiff = endDate.getTime() - startDate.getTime();
+            dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+          }
         }
         
-        const totalCharges = dailyRate * dayCount;
-        const actualCharges = staffGuestWithPhoto.calculatedCharges || totalCharges;
+        const totalCharges = isGuest ? 0 : (dailyRate * dayCount);
+        const actualCharges = isGuest ? 0 : (staffGuestWithPhoto.calculatedCharges || totalCharges);
         const staffGender = staffGuestWithPhoto.gender?.toLowerCase();
         const hostelName = staffGender === 'female' ? 'Girls Hostel' : 'Boys Hostel';
 
@@ -730,48 +744,57 @@ const StaffGuestsManagement = () => {
         doc.setFont('helvetica', 'bold');
         doc.text('CHARGES SUMMARY:', chargesSummaryX, emergencyY);
 
-        doc.setFont('helvetica', 'normal'); // Set to normal for list items
-        doc.setFontSize(7);
-        doc.text(`Daily Rate: Rs.${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
-        
-        // Show stay type and duration
-        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
-          const monthName = new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-          doc.text(`Stay Type: Monthly Basis`, chargesSummaryX, emergencyY + 10);
-          doc.text(`Valid Month: ${monthName}`, chargesSummaryX, emergencyY + 15);
-          doc.text(`Days in Month: ${dayCount} days`, chargesSummaryX, emergencyY + 20);
+        if (isGuest) {
+          // For guests, show no charges
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.text(`No charges for guests`, chargesSummaryX, emergencyY + 5);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Total Payable: Rs.0`, chargesSummaryX, emergencyY + 10);
+        } else {
+          doc.setFont('helvetica', 'normal'); // Set to normal for list items
+          doc.setFontSize(7);
+          doc.text(`Daily Rate: Rs.${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
           
-          // Show validity expiration warning if expired
-          if (staffGuestWithPhoto.isValidityExpired) {
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(255, 0, 0);
-            doc.text(`⚠️ VALIDITY EXPIRED`, chargesSummaryX, emergencyY + 25);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont('helvetica', 'normal');
+          // Show stay type and duration
+          if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+            const monthName = new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            doc.text(`Stay Type: Monthly Basis`, chargesSummaryX, emergencyY + 10);
+            doc.text(`Valid Month: ${monthName}`, chargesSummaryX, emergencyY + 15);
+            doc.text(`Days in Month: ${dayCount} days`, chargesSummaryX, emergencyY + 20);
+            
+            // Show validity expiration warning if expired
+            if (staffGuestWithPhoto.isValidityExpired) {
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(255, 0, 0);
+              doc.text(`⚠️ VALIDITY EXPIRED`, chargesSummaryX, emergencyY + 25);
+              doc.setTextColor(0, 0, 0);
+              doc.setFont('helvetica', 'normal');
+            }
+          } else {
+            doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
           }
-        } else {
-          doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
-        }
-        
-        // Base Amount position - adjust based on monthly vs daily and expiration
-        let baseAmountY;
-        if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
-          baseAmountY = emergencyY + (staffGuestWithPhoto.isValidityExpired ? 30 : 25);
-        } else {
-          baseAmountY = emergencyY + 15;
-        }
-        doc.text(`Base Amount: Rs.${totalCharges}`, chargesSummaryX, baseAmountY);
+          
+          // Base Amount position - adjust based on monthly vs daily and expiration
+          let baseAmountY;
+          if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+            baseAmountY = emergencyY + (staffGuestWithPhoto.isValidityExpired ? 30 : 25);
+          } else {
+            baseAmountY = emergencyY + 15;
+          }
+          doc.text(`Base Amount: Rs.${totalCharges}`, chargesSummaryX, baseAmountY);
 
-        // Total Payable position - always 5mm below Base Amount
-        const totalPayableY = baseAmountY + 5;
-        
-        if (actualCharges !== totalCharges) {
-          doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, totalPayableY);
-          doc.setFont('helvetica', 'bold');
-          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY + 5);
-        } else {
-          doc.setFont('helvetica', 'bold');
-          doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY);
+          // Total Payable position - always 5mm below Base Amount
+          const totalPayableY = baseAmountY + 5;
+          
+          if (actualCharges !== totalCharges) {
+            doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, totalPayableY);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY + 5);
+          } else {
+            doc.setFont('helvetica', 'bold');
+            doc.text(`- Total Payable: Rs.${actualCharges}`, chargesSummaryX, totalPayableY);
+          }
         }
 
         // Reset to normal font for subsequent text
@@ -835,8 +858,8 @@ const StaffGuestsManagement = () => {
             ['Stay Type:', 'Monthly Basis'],
             ['Valid Month:', String(new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))]
           ] : [
-            ['Check-in:', String(staffGuestWithPhoto.checkinDate ? new Date(staffGuestWithPhoto.checkinDate).toLocaleDateString() : 'N/A')],
-            ['Check-out:', String(staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate).toLocaleDateString() : 'N/A')]
+            ['Check-in:', formatDateDDMMYYYY(staffGuestWithPhoto.checkinDate)],
+            ['Check-out:', formatDateDDMMYYYY(staffGuestWithPhoto.checkoutDate)]
           ]),
           ['Status:', String(staffGuestWithPhoto.isCheckedIn ? 'Checked In' : 'Checked Out')]
         ];
@@ -1656,11 +1679,11 @@ const StaffGuestsManagement = () => {
                           </div>
                           <div className="flex">
                             <span className="font-semibold text-gray-700 w-20">Check-in:</span>
-                            <span className="text-gray-900">{admitCardData.checkinDate ? new Date(admitCardData.checkinDate).toLocaleDateString() : 'N/A'}</span>
+                            <span className="text-gray-900">{formatDateDDMMYYYY(admitCardData.checkinDate)}</span>
                           </div>
                           <div className="flex">
                             <span className="font-semibold text-gray-700 w-20">Check-out:</span>
-                            <span className="text-gray-900">{admitCardData.checkoutDate ? new Date(admitCardData.checkoutDate).toLocaleDateString() : 'N/A'}</span>
+                            <span className="text-gray-900">{formatDateDDMMYYYY(admitCardData.checkoutDate)}</span>
                           </div>
                           <div className="flex">
                             <span className="font-semibold text-gray-700 w-20">Status:</span>
@@ -1689,14 +1712,21 @@ const StaffGuestsManagement = () => {
                         {/* Charges Summary */}
                         <div className="mt-4">
                           <h4 className="text-sm font-bold text-gray-800 mb-2">CHARGES SUMMARY:</h4>
-                          <div className="text-xs text-gray-700 space-y-1">
-                            <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
-                            <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
-                            <p>• Base Amount: ₹{(admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
-                            <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number' 
-                              ? admitCardData.calculatedCharges.toLocaleString('en-IN') 
-                              : (admitCardData.calculatedCharges || 0)}</p>
-                          </div>
+                          {admitCardData.type === 'guest' ? (
+                            <div className="text-xs text-gray-700 space-y-1">
+                              <p>• No charges for guests</p>
+                              <p className="font-bold">• Total Payable: ₹0</p>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-700 space-y-1">
+                              <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
+                              <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
+                              <p>• Base Amount: ₹{(admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
+                              <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number' 
+                                ? admitCardData.calculatedCharges.toLocaleString('en-IN') 
+                                : (admitCardData.calculatedCharges || 0)}</p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
