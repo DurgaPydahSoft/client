@@ -164,6 +164,12 @@ const FeeManagement = () => {
   const [selectedElectricityBill, setSelectedElectricityBill] = useState(null);
   const [pendingElectricityBills, setPendingElectricityBills] = useState([]);
   const [pendingBillsLoading, setPendingBillsLoading] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    termBreakdown: true,
+    additionalFees: false,
+    electricityBills: false
+  });
+  const [studentAdditionalFees, setStudentAdditionalFees] = useState({}); // Configured additional fees for the student
 
   // Fee Reminders State
   const [feeReminders, setFeeReminders] = useState([]);
@@ -2461,6 +2467,12 @@ const FeeManagement = () => {
     setShowBalanceModal(true);
     setBalanceLoading(true);
     setPendingElectricityBills([]); // Reset pending bills
+    // Reset expanded sections
+    setExpandedSections({
+      termBreakdown: true,
+      additionalFees: false,
+      electricityBills: false
+    });
 
     try {
       // Get student's fee structure
@@ -2497,6 +2509,25 @@ const FeeManagement = () => {
 
       // Fetch pending electricity bills for the student
       await fetchPendingElectricityBills(student);
+
+      // Fetch configured additional fees for the student's academic year and category
+      try {
+        const additionalFeesResponse = await api.get(`/api/fee-structures/additional-fees/${student.academicYear}`);
+        if (additionalFeesResponse.data.success) {
+          const allAdditionalFees = additionalFeesResponse.data.data || {};
+          // Filter fees that apply to the student's category
+          const applicableFees = {};
+          Object.entries(allAdditionalFees).forEach(([feeType, feeData]) => {
+            if (feeData.isActive && feeData.categories && feeData.categories.includes(student.category)) {
+              applicableFees[feeType] = feeData;
+            }
+          });
+          setStudentAdditionalFees(applicableFees);
+        }
+      } catch (err) {
+        console.error('Error fetching additional fees:', err);
+        setStudentAdditionalFees({});
+      }
 
     } catch (error) {
       console.error('Error fetching student balance:', error);
@@ -5127,10 +5158,10 @@ const FeeManagement = () => {
 
       {/* Student Balance Modal */}
       {showBalanceModal && selectedStudentBalance && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-blue-900">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-blue-900">
                 Student Balance Details
               </h3>
               <button
@@ -5138,6 +5169,7 @@ const FeeManagement = () => {
                   setShowBalanceModal(false);
                   setSelectedStudentBalance(null);
                   setPendingElectricityBills([]); // Reset pending bills
+                  setStudentAdditionalFees({}); // Reset additional fees
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600"
                 aria-label="Close modal"
@@ -5148,20 +5180,6 @@ const FeeManagement = () => {
               </button>
             </div>
 
-            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Student Information</h4>
-              <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
-                <div>
-                  <p><strong>Name:</strong> {selectedStudentBalance.name}</p>
-                  <p><strong>Roll Number:</strong> {selectedStudentBalance.rollNumber}</p>
-                </div>
-                <div>
-                  <p><strong>Category:</strong> {selectedStudentBalance.category}</p>
-                  <p><strong>Academic Year:</strong> {selectedStudentBalance.academicYear}</p>
-                </div>
-              </div>
-            </div>
-
             {balanceLoading ? (
               <div className="text-center py-8">
                 <LoadingSpinner />
@@ -5169,40 +5187,65 @@ const FeeManagement = () => {
               </div>
             ) : (
               <>
-                {/* Balance Summary */}
+                {/* Student Info and Balance Summary in Same Row */}
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
                   if (!balance) return null;
 
                   return (
-                    <div className="mb-6">
-                      <h4 className="font-medium text-gray-900 mb-3">Balance Summary</h4>
+                    <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Student Information */}
+                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                        <h4 className="font-semibold text-blue-900 mb-3">Student Information</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
+                          <div>
+                            <p className="text-gray-600 mb-1">Name</p>
+                            <p className="font-medium">{selectedStudentBalance.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Roll Number</p>
+                            <p className="font-medium">{selectedStudentBalance.rollNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Category</p>
+                            <p className="font-medium">{selectedStudentBalance.category}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Academic Year</p>
+                            <p className="font-medium">{selectedStudentBalance.academicYear}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance Summary */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Balance Summary</h4>
 
                       {/* Concession Information */}
                       {balance.hasConcession && balance.concessionAmount > 0 && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                          <h5 className="font-medium text-blue-900 mb-2">Concession Applied</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                            <div className="text-center">
-                              <span className="text-gray-600">Original Fee:</span>
-                              <div className="font-bold text-gray-900 line-through">₹{Number(balance.originalTotalFee || 0).toLocaleString()}</div>
+                          <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                            <h5 className="font-semibold text-green-900 mb-2 text-sm">Concession Applied</h5>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Original</span>
+                                <div className="text-sm font-bold text-gray-900 line-through">₹{Number(balance.originalTotalFee || 0).toLocaleString()}</div>
                             </div>
-                            <div className="text-center">
-                              <span className="text-gray-600">Concession:</span>
-                              <div className="font-bold text-green-600">₹{Number(balance.concessionAmount || 0).toLocaleString()}</div>
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Concession</span>
+                                <div className="text-sm font-bold text-green-600">₹{Number(balance.concessionAmount || 0).toLocaleString()}</div>
                             </div>
-                            <div className="text-center">
-                              <span className="text-gray-600">Final Fee:</span>
-                              <div className="font-bold text-blue-600">₹{Number(balance.calculatedTotalFee || 0).toLocaleString()}</div>
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Final</span>
+                                <div className="text-sm font-bold text-blue-600">₹{Number(balance.calculatedTotalFee || 0).toLocaleString()}</div>
                             </div>
                           </div>
                         </div>
                       )}
 
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="text-sm font-medium text-gray-600">
-                            {balance.hasConcession ? 'Final Fee (After Concession)' : 'Total Fee'}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">
+                              {balance.hasConcession ? 'Final Fee' : 'Total Fee'}
                           </div>
                           <div className="text-lg font-bold text-gray-900">
                             {(() => {
@@ -5213,27 +5256,28 @@ const FeeManagement = () => {
                             })()}
                           </div>
                           {balance.hasConcession && balance.originalTotalFee && (
-                            <div className="text-xs text-gray-500 line-through">
-                              Original: ₹{Number(balance.originalTotalFee || 0).toLocaleString()}
+                              <div className="text-xs text-gray-500 line-through mt-1">
+                                ₹{Number(balance.originalTotalFee || 0).toLocaleString()}
                             </div>
                           )}
                         </div>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="text-sm font-medium text-gray-600">Total Paid</div>
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Total Paid</div>
                           <div className="text-lg font-bold text-green-600">
                             ₹{Number(balance.totalPaid || 0).toLocaleString()}
                           </div>
                         </div>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="text-sm font-medium text-gray-600">Total Balance</div>
+                          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Total Balance</div>
                           <div className={`text-lg font-bold ${Number(balance.totalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
                             ₹{Number(balance.totalBalance || 0).toLocaleString()}
                           </div>
                         </div>
-                        <div className="bg-white rounded-lg p-4 border border-gray-200">
-                          <div className="text-sm font-medium text-gray-600">Status</div>
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Status</div>
                           <div className={`text-lg font-bold ${balance.isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
-                            {balance.isFullyPaid ? 'Fully Paid' : 'Payment Pending'}
+                              {balance.isFullyPaid ? 'Fully Paid' : 'Pending'}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -5242,88 +5286,382 @@ const FeeManagement = () => {
                 })()}
 
 
-                {/* Term-wise Breakdown */}
+                {/* Term-wise Breakdown - Expandable */}
                 {(() => {
                   const balance = calculateStudentBalance(selectedStudentBalance);
                   if (!balance) return null;
 
+                  // Calculate term stats
+                  const totalTermBalance = Object.values(balance.termBalances).reduce((sum, term) => sum + term.balance, 0);
+                  const totalTermPaid = Object.values(balance.termBalances).reduce((sum, term) => sum + term.paid, 0);
+                  const totalTermRequired = Object.values(balance.termBalances).reduce((sum, term) => sum + term.required, 0);
+                  const paidTerms = Object.values(balance.termBalances).filter(term => term.balance === 0).length;
+
                   return (
-                    <div className="mb-6">
-                      <h4 className="font-medium text-gray-900 mb-3">Term-wise Breakdown</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Header with Stats */}
+                      <button
+                        onClick={() => setExpandedSections(prev => ({ ...prev, termBreakdown: !prev.termBreakdown }))}
+                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-semibold text-gray-900 text-lg">Term-wise Breakdown</h4>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Total Balance:</span>
+                              <span className={`font-bold ${totalTermBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                ₹{totalTermBalance.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Paid Terms:</span>
+                              <span className="font-bold text-green-600">{paidTerms}/3</span>
+                            </div>
+                            {balance.totalLateFee > 0 && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-orange-600">Late Fee:</span>
+                                <span className="font-bold text-orange-600">₹{balance.totalLateFee.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {expandedSections.termBreakdown ? (
+                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                        )}
+                      </button>
+
+                      {/* Expanded Content */}
+                      {expandedSections.termBreakdown && (
+                        <div className="p-4 bg-white">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         {Object.entries(balance.termBalances).map(([term, termData]) => {
-                          // Get original term fee for comparison
                           const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] ||
                             Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
-                          
-                          // Get late fee for this term
                           const termLateFee = balance.lateFees?.[term] || 0;
 
                           return (
-                            <div key={term} className="bg-white rounded-lg p-4 border border-gray-200">
-                              <div className="text-sm font-medium text-gray-600 mb-2">
+                                <div key={term} className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                  <div className="text-base font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
                                 {term.replace('term', 'Term ')}
                               </div>
-                              <div className="space-y-2 text-sm">
-                                
-                                <div className="flex justify-between">
-                                  <span>Required:</span>
-                                  <span className="font-medium">₹{termData.required.toLocaleString()}</span>
+                                  <div className="space-y-3 text-sm">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-600">Required:</span>
+                                      <span className="font-semibold text-gray-900">₹{termData.required.toLocaleString()}</span>
                                 </div>
-                                
-                                <div className="flex justify-between">
-                                  <span>Paid:</span>
-                                  <span className="font-medium text-green-600">₹{termData.paid.toLocaleString()}</span>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-600">Paid:</span>
+                                      <span className="font-semibold text-green-600">₹{termData.paid.toLocaleString()}</span>
                                 </div>
-                                
-                                <div className="flex justify-between">
-                                  <span>Balance:</span>
-                                  <span className={`font-medium ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                      <span className="text-gray-600 font-medium">Balance:</span>
+                                      <span className={`font-bold text-lg ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                                     ₹{termData.balance.toLocaleString()}
                                   </span>
                                 </div>
-                                
                                 {termLateFee > 0 && (
-                                  <div className="flex justify-between pt-2 border-t border-gray-200">
-                                    <span className="text-orange-600 font-medium">Late Fee:</span>
-                                    <span className="font-medium text-orange-600">₹{termLateFee.toLocaleString()}</span>
+                                      <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-orange-200 bg-orange-50 rounded p-2">
+                                        <span className="text-orange-700 font-medium">Late Fee:</span>
+                                        <span className="font-bold text-orange-700">₹{termLateFee.toLocaleString()}</span>
                                   </div>
                                 )}
                               </div>
                             </div>
                           );
                         })}
-                        
-                        {/* Total Late Fee Summary */}
+                          </div>
                         {balance.totalLateFee > 0 && (
-                          <div className="col-span-full mt-4 bg-orange-50 rounded-lg p-4 border border-orange-200">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium text-orange-800">Total Late Fee:</span>
-                              <span className="text-lg font-bold text-orange-700">₹{balance.totalLateFee.toLocaleString()}</span>
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-2 border-orange-200">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-base font-semibold text-orange-800">Total Late Fee:</span>
+                                <span className="text-xl font-bold text-orange-700">₹{balance.totalLateFee.toLocaleString()}</span>
                             </div>
-                            <p className="text-xs text-orange-600 mt-1">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
+                              <p className="text-xs text-orange-600">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
                           </div>
                         )}
                       </div>
+                      )}
                     </div>
                   );
                 })()}
 
-                {/* Pending Electricity Bills */}
-                <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                {/* Additional Fees - Expandable */}
+                {(() => {
+                  // Get configured additional fees for the student
+                  const configuredFees = studentAdditionalFees || {};
+                  const configuredFeeTypes = Object.keys(configuredFees);
+                  
+                  // Calculate additional fees stats from payments
+                  const additionalFeePayments = studentPayments.filter(p => p.paymentType === 'additional_fee' && p.status === 'success');
+                  const totalAdditionalFeesPaid = additionalFeePayments.reduce((sum, p) => sum + p.amount, 0);
+                  
+                  // Calculate total due and paid for each configured fee
+                  const feesWithStatus = configuredFeeTypes.map(feeType => {
+                    const feeConfig = configuredFees[feeType];
+                    const feePayments = additionalFeePayments.filter(p => p.additionalFeeType === feeType);
+                    const totalPaid = feePayments.reduce((sum, p) => sum + p.amount, 0);
+                    const required = feeConfig.amount || 0;
+                    const balance = Math.max(0, required - totalPaid);
+                    const isPaid = balance === 0 && totalPaid > 0;
+                    
+                    return {
+                      feeType,
+                      feeConfig,
+                      required,
+                      totalPaid,
+                      balance,
+                      isPaid,
+                      payments: feePayments
+                    };
+                  });
+                  
+                  // Calculate totals
+                  const totalRequired = feesWithStatus.reduce((sum, f) => sum + f.required, 0);
+                  const totalDue = feesWithStatus.reduce((sum, f) => sum + f.balance, 0);
+                  const paidFees = feesWithStatus.filter(f => f.isPaid).length;
+                  
+                  // Also include fees that were paid but not configured (for backward compatibility)
+                  const paidButNotConfigured = additionalFeePayments.filter(p => 
+                    !configuredFeeTypes.includes(p.additionalFeeType)
+                  );
+                  
+                  // Group unconfigured payments by type
+                  const unconfiguredFeesByType = paidButNotConfigured.reduce((acc, payment) => {
+                    const type = payment.additionalFeeType || 'Unknown';
+                    if (!acc[type]) {
+                      acc[type] = { total: 0, count: 0, payments: [] };
+                    }
+                    acc[type].total += payment.amount;
+                    acc[type].count += 1;
+                    acc[type].payments.push(payment);
+                    return acc;
+                  }, {});
+
+                  return (
+                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Header with Stats */}
+                      <button
+                        onClick={() => setExpandedSections(prev => ({ ...prev, additionalFees: !prev.additionalFees }))}
+                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-semibold text-gray-900 text-lg flex items-center">
+                            <span className="mr-2">💰</span>
+                            Additional Fees
+                          </h4>
+                          <div className="flex items-center gap-4 text-sm">
+                            {configuredFeeTypes.length > 0 ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Total Due:</span>
+                                  <span className={`font-bold ${totalDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{totalDue.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Paid:</span>
+                                  <span className="font-bold text-green-600">{paidFees}/{configuredFeeTypes.length}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Total Paid:</span>
+                                  <span className="font-bold text-green-600">₹{totalAdditionalFeesPaid.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Transactions:</span>
+                                  <span className="font-bold text-gray-700">{additionalFeePayments.length}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {expandedSections.additionalFees ? (
+                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                        )}
+                      </button>
+
+                      {/* Expanded Content */}
+                      {expandedSections.additionalFees && (
+                        <div className="p-4 bg-white">
+                          {configuredFeeTypes.length === 0 && additionalFeePayments.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500">
+                              <p className="text-sm">No additional fees configured or payments recorded</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {/* Configured Fees */}
+                              {feesWithStatus.length > 0 && (
+                                <>
+                                  {feesWithStatus.map(({ feeType, feeConfig, required, totalPaid, balance, isPaid, payments }) => (
+                                    <div key={feeType} className={`rounded-lg p-4 border-2 ${
+                                      isPaid 
+                                        ? 'bg-green-50 border-green-200' 
+                                        : balance > 0 
+                                        ? 'bg-red-50 border-red-200' 
+                                        : 'bg-gray-50 border-gray-200'
+                                    }`}>
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div className="flex-1">
+                                          <h5 className="font-semibold text-gray-900 mb-1">
+                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          </h5>
+                                          {feeConfig.description && (
+                                            <p className="text-xs text-gray-600">{feeConfig.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="text-right ml-4">
+                                          {isPaid ? (
+                                            <div className="flex items-center gap-2">
+                                              <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                                              <div>
+                                                <div className="text-sm font-bold text-green-600">Paid</div>
+                                                <div className="text-xs text-gray-500">₹{totalPaid.toLocaleString()}</div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div>
+                                              <div className="text-sm text-gray-600">Required: ₹{required.toLocaleString()}</div>
+                                              {totalPaid > 0 && (
+                                                <div className="text-sm text-green-600">Paid: ₹{totalPaid.toLocaleString()}</div>
+                                              )}
+                                              <div className={`text-lg font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                Balance: ₹{balance.toLocaleString()}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Payment History for this fee */}
+                                      {payments.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                          <div className="text-xs font-medium text-gray-600 mb-2">Payment History:</div>
+                                          <div className="space-y-1">
+                                            {payments.map((payment) => (
+                                              <div key={payment._id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-100 text-xs">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-gray-600">
+                                                    {new Date(payment.paymentDate).toLocaleDateString()}
+                                                  </span>
+                                                  <span className="text-gray-500">{payment.paymentMethod}</span>
+                                                  {payment.transactionId && (
+                                                    <span className="text-gray-400 font-mono text-xs">{payment.transactionId}</span>
+                                                  )}
+                                                </div>
+                                                <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                              
+                              {/* Unconfigured Fees (for backward compatibility) */}
+                              {Object.keys(unconfiguredFeesByType).length > 0 && (
+                                <div className="mt-4 pt-4 border-t-2 border-gray-300">
+                                  <h5 className="font-semibold text-gray-700 mb-3 text-sm">Other Fee Payments (Not Configured)</h5>
+                                  <div className="space-y-3">
+                                    {Object.entries(unconfiguredFeesByType).map(([feeType, data]) => (
+                                      <div key={feeType} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <h6 className="font-medium text-gray-900 text-sm">
+                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          </h6>
+                                          <div className="text-right">
+                                            <div className="text-sm font-bold text-green-600">₹{data.total.toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500">{data.count} payment{data.count !== 1 ? 's' : ''}</div>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          {data.payments.map((payment) => (
+                                            <div key={payment._id} className="flex items-center justify-between bg-white p-1.5 rounded border border-gray-100 text-xs">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-gray-600">
+                                                  {new Date(payment.paymentDate).toLocaleDateString()}
+                                                </span>
+                                                <span className="text-gray-500">{payment.paymentMethod}</span>
+                                              </div>
+                                              <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Pending Electricity Bills - Expandable */}
+                <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Header with Stats */}
+                  <button
+                    onClick={() => setExpandedSections(prev => ({ ...prev, electricityBills: !prev.electricityBills }))}
+                    className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <h4 className="font-semibold text-gray-900 text-lg flex items-center">
                     <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
-                    Pending Electricity Bills
+                        Electricity Bills
                   </h4>
                   {pendingBillsLoading ? (
-                    <div className="text-center py-4">
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <LoadingSpinner size="sm" />
+                          <span>Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-600">Pending Bills:</span>
+                            <span className={`font-bold ${pendingElectricityBills.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {pendingElectricityBills.length}
+                            </span>
+                          </div>
+                          {pendingElectricityBills.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Total Pending:</span>
+                              <span className="font-bold text-red-600">
+                                ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {expandedSections.electricityBills ? (
+                      <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                    ) : (
+                      <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                    )}
+                  </button>
+
+                  {/* Expanded Content */}
+                  {expandedSections.electricityBills && (
+                    <div className="p-4 bg-white">
+                      {pendingBillsLoading ? (
+                        <div className="text-center py-6">
                       <LoadingSpinner />
                       <p className="mt-2 text-sm text-gray-500">Loading electricity bills...</p>
                     </div>
                   ) : pendingElectricityBills.length === 0 ? (
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                       <div className="flex items-center justify-center text-green-700">
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -5332,14 +5670,14 @@ const FeeManagement = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-4">
                       <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {pendingElectricityBills.map((bill) => (
-                          <div key={bill._id} className="bg-white p-4 rounded-lg border border-gray-200 hover:border-yellow-400 transition-colors">
-                            <div className="flex items-start justify-between">
+                              <div key={bill._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-yellow-400 hover:shadow-md transition-all">
+                                <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-sm font-medium text-gray-900">
+                                      <span className="text-sm font-semibold text-gray-900">
                                     {(() => {
                                       const [year, month] = bill.month.split('-');
                                       const date = new Date(parseInt(year), parseInt(month) - 1, 1);
@@ -5353,39 +5691,23 @@ const FeeManagement = () => {
                                     Unpaid
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-3 gap-3 text-sm text-gray-600">
+                                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                                   <div>
                                     <span className="text-gray-500">Room:</span>
-                                    <span className="ml-2 font-medium">{bill.roomNumber}</span>
+                                        <span className="ml-1 font-medium">{bill.roomNumber}</span>
                                   </div>
                                   <div>
                                     <span className="text-gray-500">Consumption:</span>
-                                    <span className="ml-2 font-medium">{bill.consumption} units</span>
+                                        <span className="ml-1 font-medium">{bill.consumption} units</span>
                                   </div>
-                                  {/* {bill.startUnits > 0 && bill.endUnits > 0 && (
-                                    <>
-                                      <div>
-                                        <span className="text-gray-500">Start Units:</span>
-                                        <span className="ml-2 font-medium">{bill.startUnits}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-gray-500">End Units:</span>
-                                        <span className="ml-2 font-medium">{bill.endUnits}</span>
-                                      </div>
-                                    </>
-                                  )} */}
-                                  {/* <div>
-                                    <span className="text-gray-500">Rate:</span>
-                                    <span className="ml-2 font-medium">₹{bill.rate}/unit</span>
-                                  </div> */}
-                                  <div>
+                                      <div className="col-span-2">
                                     <span className="text-gray-500">Total Bill:</span>
-                                    <span className="ml-2 font-medium">₹{bill.totalBill.toLocaleString()}</span>
+                                        <span className="ml-1 font-medium">₹{bill.totalBill.toLocaleString()}</span>
                                   </div>
                                 </div>
                               </div>
                               <div className="ml-4 text-right">
-                                <div className="text-lg font-bold text-red-600">
+                                    <div className="text-xl font-bold text-red-600">
                                   ₹{bill.amount.toLocaleString()}
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">Student Share</div>
@@ -5394,33 +5716,35 @@ const FeeManagement = () => {
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="pt-3 border-t-2 border-gray-300">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-gray-700">Total Pending:</span>
-                          <span className="text-lg font-bold text-red-600">
+                              <span className="text-base font-semibold text-gray-700">Total Pending:</span>
+                              <span className="text-xl font-bold text-red-600">
                             ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
                           </span>
                         </div>
                       </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
                 {/* Payment History */}
                 <div className="mb-6">
-                  <h4 className="font-medium text-gray-900 mb-3">Payment History</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Payment History</h4>
                   {studentPayments.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500">
-                      <ReceiptRefundIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                      <p>No payments recorded yet</p>
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
+                      <ReceiptRefundIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm">No payments recorded yet</p>
                     </div>
                   ) : (
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="space-y-3">
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
                         {studentPayments.map((payment) => (
-                          <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                          <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                   payment.paymentType === 'electricity'
                                     ? 'bg-yellow-100 text-yellow-800'
@@ -5434,24 +5758,37 @@ const FeeManagement = () => {
                                     ? '💰 Additional Fee'
                                     : '🏠 Hostel Fee'}
                                 </span>
-                                <span className="font-medium">
+                                <span className="font-medium text-sm">
                                   {payment.paymentType === 'electricity'
                                     ? `Bill: ${payment.billMonth || 'N/A'}`
                                     : payment.paymentType === 'additional_fee'
                                     ? payment.additionalFeeType ? payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Additional Fee'
                                     : payment.term?.replace('term', 'Term ') || 'N/A'}
                                 </span>
-                                <span className="text-sm text-gray-500">
+                                <span className="text-xs text-gray-500">
                                   {new Date(payment.paymentDate).toLocaleDateString()}
                                 </span>
                               </div>
-                              <div className="text-sm text-gray-600">
-                                {payment.paymentMethod} • {payment.notes || 'No notes'}
+                              <div className="text-xs text-gray-600 flex items-center gap-2">
+                                <span>{payment.paymentMethod}</span>
+                                {payment.notes && <span>•</span>}
+                                <span className="truncate">{payment.notes || ''}</span>
                               </div>
+                              {payment.transactionId && (
+                                <div className="text-xs text-gray-400 mt-1 font-mono">
+                                  Txn: {payment.transactionId}
                             </div>
-                            <div className="text-right">
-                              <div className="font-medium text-green-600">₹{payment.amount.toLocaleString()}</div>
-                              <div className="text-xs text-gray-500">{payment.transactionId}</div>
+                              )}
+                            </div>
+                            <div className="text-right ml-4 flex-shrink-0">
+                              <div className="font-semibold text-green-600 text-lg">₹{payment.amount.toLocaleString()}</div>
+                              <div className={`text-xs mt-1 ${
+                                payment.status === 'success' ? 'text-green-600' : 
+                                payment.status === 'pending' ? 'text-yellow-600' : 
+                                'text-red-600'
+                              }`}>
+                                {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || 'Success'}
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -5461,14 +5798,15 @@ const FeeManagement = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3">
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => {
                       setShowBalanceModal(false);
                       setSelectedStudentBalance(null);
                       setPendingElectricityBills([]); // Reset pending bills
+                      setStudentAdditionalFees({}); // Reset additional fees
                     }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
                   >
                     Close
                   </button>
@@ -5477,7 +5815,7 @@ const FeeManagement = () => {
                       setShowBalanceModal(false);
                       openPaymentModal(selectedStudentBalance);
                     }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
                   >
                     Record Payment
                   </button>
