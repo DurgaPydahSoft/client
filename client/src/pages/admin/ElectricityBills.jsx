@@ -17,7 +17,8 @@ import {
   Squares2X2Icon,
   LockClosedIcon,
   DocumentChartBarIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  PrinterIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -82,6 +83,7 @@ const ElectricityBills = () => {
   const [defaultRate, setDefaultRate] = useState('');
   const [loadingDefaultRate, setLoadingDefaultRate] = useState(false);
   const [savingDefaultRate, setSavingDefaultRate] = useState(false);
+  const [showPrintReport, setShowPrintReport] = useState(false);
 
   const fetchRooms = async () => {
     try {
@@ -468,6 +470,33 @@ const ElectricityBills = () => {
   useEffect(() => {
     fetchDefaultRate();
   }, []);
+
+  // Handle print report - opens modal
+  const handleGenerateReport = () => {
+    setShowPrintReport(true);
+  };
+
+  // Handle actual print
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Format month for display
+  const formatMonth = (monthStr) => {
+    if (!monthStr) return 'All Months';
+    const date = new Date(monthStr + '-01');
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  // Get filter summary text
+  const getFilterSummary = () => {
+    const parts = [];
+    if (filters.gender) parts.push(filters.gender === 'Male' ? 'Boys Hostel' : 'Girls Hostel');
+    if (filters.category) parts.push(`Category: ${filters.category}`);
+    if (reportsMonthFilter) parts.push(`Month: ${formatMonth(reportsMonthFilter)}`);
+    if (reportsPaymentFilter) parts.push(`Payment: ${reportsPaymentFilter.charAt(0).toUpperCase() + reportsPaymentFilter.slice(1)}`);
+    return parts.length > 0 ? parts.join(' | ') : 'All Rooms';
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -1451,7 +1480,7 @@ const ElectricityBills = () => {
         <div className="space-y-3">
           {/* Compact Filters */}
           <div className="bg-white rounded-lg shadow-sm p-3">
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2">
               <select
                 name="gender"
                 value={filters.gender}
@@ -1515,6 +1544,15 @@ const ElectricityBills = () => {
                 <span className="font-medium">{reportsData.length}</span>
                 <span className="ml-1">room(s)</span>
               </div>
+              <button
+                onClick={handleGenerateReport}
+                disabled={reportsLoading || reportsData.length === 0}
+                className="col-span-2 sm:col-span-1 flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Generate Report</span>
+                <span className="sm:hidden">Report</span>
+              </button>
             </div>
           </div>
 
@@ -1613,6 +1651,380 @@ const ElectricityBills = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Print Report Modal */}
+      {showPrintReport && (
+        <>
+          {/* Print-only styles */}
+          <style>{`
+            @media print {
+              @page {
+                margin: 1cm;
+              }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body * {
+                visibility: hidden;
+              }
+              .print-report-container {
+                display: block !important;
+                visibility: visible !important;
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                margin: 0;
+                padding: 20px;
+                background: white;
+              }
+              .print-report-container * {
+                visibility: visible !important;
+              }
+              .print-report {
+                position: relative;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                background: white;
+                color: black;
+              }
+              .no-print {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              .print-overlay {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              .print-content {
+                display: none !important;
+                visibility: hidden !important;
+              }
+              .print-report table {
+                width: 100%;
+                border-collapse: collapse;
+                page-break-inside: auto;
+                margin: 10px 0;
+              }
+              .print-report th,
+              .print-report td {
+                border: 1px solid #000;
+                padding: 8px;
+                text-align: left;
+              }
+              .print-report th {
+                background-color: #f3f4f6 !important;
+                font-weight: bold;
+              }
+              .print-report tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+              }
+              .print-report thead {
+                display: table-header-group;
+              }
+              .print-report tfoot {
+                display: table-footer-group;
+              }
+              .print-report tbody tr:nth-child(even) {
+                background-color: #f9fafb !important;
+              }
+            }
+            @media screen {
+              .print-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 50;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+              }
+              .print-content {
+                background: white;
+                border-radius: 8px;
+                max-width: 1200px;
+                width: 100%;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+              }
+            }
+          `}</style>
+
+          {/* Screen view - Modal */}
+          <div className="print-overlay no-print" onClick={() => setShowPrintReport(false)}>
+            <div className="print-content" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-gray-900">Electricity Bills Report</h2>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handlePrint}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <PrinterIcon className="w-5 h-5" />
+                      Print
+                    </button>
+                    <button
+                      onClick={() => setShowPrintReport(false)}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                      Close
+                    </button>
+                  </div>
+                </div>
+
+                {/* Print Report Content - Screen Preview */}
+                <div className="print-report">
+                  {/* Header */}
+                  <div className="mb-6 text-center border-b-2 border-gray-300 pb-4">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Electricity Bills Report</h1>
+                    <p className="text-sm text-gray-600 mb-1">Pydah Hostel Management System</p>
+                    <p className="text-sm text-gray-600">Generated on: {new Date().toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}</p>
+                    <p className="text-sm font-medium text-gray-700 mt-2">Filters: {getFilterSummary()}</p>
+                  </div>
+
+                  {/* Summary Statistics */}
+                  <div className="mb-6 grid grid-cols-3 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                      <p className="text-xs text-gray-600 mb-1">Total Rooms</p>
+                      <p className="text-2xl font-bold text-blue-700">{reportsData.length}</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                      <p className="text-xs text-gray-600 mb-1">Total Consumption</p>
+                      <p className="text-2xl font-bold text-green-700">
+                        {reportsData.reduce((sum, room) => sum + room.totalConsumption, 0).toLocaleString()} units
+                      </p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                      <p className="text-xs text-gray-600 mb-1">Total Amount</p>
+                      <p className="text-2xl font-bold text-purple-700">
+                        ₹{reportsData.reduce((sum, room) => sum + room.totalAmount, 0).toLocaleString('en-IN', { 
+                          minimumFractionDigits: 0, 
+                          maximumFractionDigits: 0 
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Report Table */}
+                  <table className="min-w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Room</th>
+                        <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Category</th>
+                        <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Gender</th>
+                        <th className="border border-gray-300 px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Consumption (Units)</th>
+                        <th className="border border-gray-300 px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Total Amount (₹)</th>
+                        <th className="border border-gray-300 px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Bills Count</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportsData.length === 0 ? (
+                        <tr>
+                          <td colSpan="6" className="border border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+                            No data available
+                          </td>
+                        </tr>
+                      ) : (
+                        reportsData.map((roomData, index) => {
+                          return (
+                            <tr key={roomData.roomNumber} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                              <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-gray-900">
+                                {roomData.roomNumber}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {roomData.category}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                                {roomData.gender}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-right text-gray-900">
+                                {roomData.totalConsumption.toLocaleString()}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-right font-semibold text-green-700">
+                                ₹{roomData.totalAmount.toLocaleString('en-IN', { 
+                                  minimumFractionDigits: 2, 
+                                  maximumFractionDigits: 2 
+                                })}
+                              </td>
+                              <td className="border border-gray-300 px-4 py-3 text-sm text-center text-gray-700">
+                                {roomData.totalBills}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                    {reportsData.length > 0 && (
+                      <tfoot>
+                        <tr className="bg-gray-100 font-bold">
+                          <td colSpan="3" className="border border-gray-300 px-4 py-3 text-sm text-gray-900">
+                            TOTAL
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-right text-gray-900">
+                            {reportsData.reduce((sum, room) => sum + room.totalConsumption, 0).toLocaleString()}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-right text-green-700">
+                            ₹{reportsData.reduce((sum, room) => sum + room.totalAmount, 0).toLocaleString('en-IN', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-center text-gray-900">
+                            {reportsData.reduce((sum, room) => sum + room.totalBills, 0)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+
+                  {/* Footer */}
+                  <div className="mt-6 pt-4 border-t border-gray-300 text-xs text-gray-500 text-center">
+                    <p>This is a computer-generated report. No signature required.</p>
+                    <p className="mt-1">Page 1 of 1</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Print-only container - Hidden on screen, visible when printing */}
+          <div className="print-report-container" style={{ display: 'none' }}>
+            <div className="print-report">
+              {/* Header */}
+              <div className="mb-6 text-center border-b-2 border-gray-300 pb-4">
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">Electricity Bills Report</h1>
+                <p className="text-sm text-gray-600 mb-1">Pydah Hostel Management System</p>
+                <p className="text-sm text-gray-600">Generated on: {new Date().toLocaleDateString('en-US', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}</p>
+                <p className="text-sm font-medium text-gray-700 mt-2">Filters: {getFilterSummary()}</p>
+              </div>
+
+              {/* Summary Statistics */}
+              <div className="mb-6 grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-xs text-gray-600 mb-1">Total Rooms</p>
+                  <p className="text-2xl font-bold text-blue-700">{reportsData.length}</p>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <p className="text-xs text-gray-600 mb-1">Total Consumption</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {reportsData.reduce((sum, room) => sum + room.totalConsumption, 0).toLocaleString()} units
+                  </p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <p className="text-xs text-gray-600 mb-1">Total Amount</p>
+                  <p className="text-2xl font-bold text-purple-700">
+                    ₹{reportsData.reduce((sum, room) => sum + room.totalAmount, 0).toLocaleString('en-IN', { 
+                      minimumFractionDigits: 0, 
+                      maximumFractionDigits: 0 
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              {/* Report Table */}
+              <table className="min-w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Room</th>
+                    <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Category</th>
+                    <th className="border border-gray-300 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Gender</th>
+                    <th className="border border-gray-300 px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Consumption (Units)</th>
+                    <th className="border border-gray-300 px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Total Amount (₹)</th>
+                    <th className="border border-gray-300 px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Bills Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportsData.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="border border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+                        No data available
+                      </td>
+                    </tr>
+                  ) : (
+                    reportsData.map((roomData, index) => {
+                      return (
+                        <tr key={roomData.roomNumber} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="border border-gray-300 px-4 py-3 text-sm font-medium text-gray-900">
+                            {roomData.roomNumber}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                            {roomData.category}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-gray-700">
+                            {roomData.gender}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-right text-gray-900">
+                            {roomData.totalConsumption.toLocaleString()}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-right font-semibold text-green-700">
+                            ₹{roomData.totalAmount.toLocaleString('en-IN', { 
+                              minimumFractionDigits: 2, 
+                              maximumFractionDigits: 2 
+                            })}
+                          </td>
+                          <td className="border border-gray-300 px-4 py-3 text-sm text-center text-gray-700">
+                            {roomData.totalBills}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                {reportsData.length > 0 && (
+                  <tfoot>
+                    <tr className="bg-gray-100 font-bold">
+                      <td colSpan="3" className="border border-gray-300 px-4 py-3 text-sm text-gray-900">
+                        TOTAL
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-sm text-right text-gray-900">
+                        {reportsData.reduce((sum, room) => sum + room.totalConsumption, 0).toLocaleString()}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-sm text-right text-green-700">
+                        ₹{reportsData.reduce((sum, room) => sum + room.totalAmount, 0).toLocaleString('en-IN', { 
+                          minimumFractionDigits: 2, 
+                          maximumFractionDigits: 2 
+                        })}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-sm text-center text-gray-900">
+                        {reportsData.reduce((sum, room) => sum + room.totalBills, 0)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+
+              {/* Footer */}
+              <div className="mt-6 pt-4 border-t border-gray-300 text-xs text-gray-500 text-center">
+                <p>This is a computer-generated report. No signature required.</p>
+                <p className="mt-1">Page 1 of 1</p>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Settings Tab */}

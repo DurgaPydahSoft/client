@@ -615,11 +615,11 @@ const NOCManagement = () => {
                       <div>
                         <h4 className="text-md font-semibold text-gray-900 mb-3">NOC Request Details</h4>
                         <div className="space-y-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                            <div className="p-4 bg-gray-50 rounded-md">
-                              <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRequest.reason}</p>
-                            </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                          <div className="p-4 bg-gray-50 rounded-md">
+                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRequest.reason}</p>
+                          </div>
                           </div>
                           {selectedRequest.vacatingDate && (
                             <div>
