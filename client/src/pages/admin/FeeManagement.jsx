@@ -142,12 +142,14 @@ const FeeManagement = () => {
   const [additionalFeesLoading, setAdditionalFeesLoading] = useState(false);
   const [showAdditionalFeeModal, setShowAdditionalFeeModal] = useState(false);
   const [selectedAdditionalFee, setSelectedAdditionalFee] = useState(null);
+  const [availableCategories, setAvailableCategories] = useState(['A+', 'A', 'B+', 'B']); // Fetched from database
   const [additionalFeeForm, setAdditionalFeeForm] = useState({
     feeType: '',
-    amount: 0,
+    amount: 0, // Keep for backward compatibility
     description: '',
     isActive: true,
-    categories: ['A+', 'A', 'B+', 'B'] // Default to all categories
+    categories: ['A+', 'A', 'B+', 'B'], // Default to all categories
+    categoryAmounts: {} // Category-specific amounts: { 'A+': 1000, 'A': 1000, 'B': 2000 }
   });
   const [additionalFeesFilter, setAdditionalFeesFilter] = useState({
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
@@ -238,17 +240,34 @@ const FeeManagement = () => {
   };
 
 
+  // Fetch available categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.get('/api/rooms/categories');
+        if (response.data.success) {
+          setAvailableCategories(response.data.data || ['A+', 'A', 'B+', 'B']);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        // Fallback to default categories
+        setAvailableCategories(['A+', 'A', 'B+', 'B']);
+      }
+    };
+    fetchCategories();
+  }, []);
+
   // Get available categories based on gender (dynamic room mapping)
   const getAvailableCategories = (gender = null) => {
-    // Base categories available
-    const baseCategories = ['A+', 'A', 'B+', 'B'];
+    // Use fetched categories from database
+    const baseCategories = availableCategories;
 
     // If gender is specified, filter based on available room categories
     if (gender) {
       if (gender === 'Male') {
-        return ['A+', 'A', 'B+', 'B']; // Male categories
+        return baseCategories.filter(cat => ['A+', 'A', 'B+', 'B'].includes(cat));
       } else if (gender === 'Female') {
-        return ['A+', 'A', 'B']; // Female categories
+        return baseCategories.filter(cat => ['A+', 'A', 'B', 'C'].includes(cat));
       }
     }
 
@@ -1709,15 +1728,35 @@ const FeeManagement = () => {
   const openAdditionalFeeModal = (feeType = null) => {
     if (feeType && additionalFees[feeType]) {
       // Edit mode
+      const feeData = additionalFees[feeType];
       setSelectedAdditionalFee(feeType);
+      
+      // Handle categoryAmounts (new format) or amount (old format for backward compatibility)
+      let categoryAmounts = {};
+      if (feeData.categoryAmounts && typeof feeData.categoryAmounts === 'object') {
+        // New format: categoryAmounts object
+        Object.keys(feeData.categoryAmounts).forEach(cat => {
+          categoryAmounts[cat] = feeData.categoryAmounts[cat] || 0;
+        });
+      } else if (feeData.amount !== undefined) {
+        // Old format: single amount - apply to all selected categories
+        const categories = Array.isArray(feeData.categories) && feeData.categories.length > 0
+          ? feeData.categories
+          : availableCategories;
+        categories.forEach(cat => {
+          categoryAmounts[cat] = feeData.amount || 0;
+        });
+      }
+      
       setAdditionalFeeForm({
         feeType: feeType,
-        amount: additionalFees[feeType].amount || 0,
-        description: additionalFees[feeType].description || '',
-        isActive: additionalFees[feeType].isActive !== undefined ? additionalFees[feeType].isActive : true,
-        categories: Array.isArray(additionalFees[feeType].categories) && additionalFees[feeType].categories.length > 0
-          ? additionalFees[feeType].categories
-          : ['A+', 'A', 'B+', 'B'] // Default to all categories if not specified
+        amount: feeData.amount || 0, // Keep for backward compatibility
+        description: feeData.description || '',
+        isActive: feeData.isActive !== undefined ? feeData.isActive : true,
+        categories: Array.isArray(feeData.categories) && feeData.categories.length > 0
+          ? feeData.categories
+          : availableCategories, // Default to all available categories
+        categoryAmounts: categoryAmounts
       });
     } else {
       // Add mode
@@ -1727,7 +1766,8 @@ const FeeManagement = () => {
         amount: 0,
         description: '',
         isActive: true,
-        categories: ['A+', 'A', 'B+', 'B'] // Default to all categories
+        categories: availableCategories, // Default to all available categories
+        categoryAmounts: {}
       });
     }
     setShowAdditionalFeeModal(true);
@@ -1753,8 +1793,23 @@ const FeeManagement = () => {
       return;
     }
 
-    if (additionalFeeForm.amount < 0) {
-      toast.error('Amount must be a non-negative number');
+    // Validate category amounts
+    let hasValidAmount = false;
+    const categoryAmounts = {};
+    additionalFeeForm.categories.forEach(cat => {
+      const amount = Number(additionalFeeForm.categoryAmounts[cat]) || 0;
+      if (amount < 0) {
+        toast.error(`Amount for category ${cat} must be a non-negative number`);
+        return;
+      }
+      if (amount > 0) {
+        hasValidAmount = true;
+      }
+      categoryAmounts[cat] = amount;
+    });
+
+    if (!hasValidAmount) {
+      toast.error('Please enter at least one amount greater than 0 for the selected categories');
       return;
     }
 
@@ -1774,14 +1829,21 @@ const FeeManagement = () => {
         delete updatedAdditionalFees[selectedAdditionalFee];
       }
 
-      // Add or update the fee
+      // Calculate average amount for backward compatibility
+      const amounts = Object.values(categoryAmounts).filter(amt => amt > 0);
+      const averageAmount = amounts.length > 0 
+        ? amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length 
+        : 0;
+
+      // Add or update the fee with category-specific amounts
       updatedAdditionalFees[additionalFeeForm.feeType.trim()] = {
-        amount: parseFloat(additionalFeeForm.amount) || 0,
+        categoryAmounts: categoryAmounts, // Category-specific amounts
+        amount: averageAmount, // Keep for backward compatibility (average of category amounts)
         description: additionalFeeForm.description || '',
         isActive: additionalFeeForm.isActive !== undefined ? additionalFeeForm.isActive : true,
         categories: Array.isArray(additionalFeeForm.categories) && additionalFeeForm.categories.length > 0
           ? additionalFeeForm.categories
-          : ['A+', 'A', 'B+', 'B'] // Default to all categories if not specified
+          : availableCategories // Default to all available categories
       };
 
       const response = await api.post('/api/fee-structures/additional-fees', {
@@ -1799,7 +1861,8 @@ const FeeManagement = () => {
           amount: 0,
           description: '',
           isActive: true,
-          categories: ['A+', 'A', 'B+', 'B']
+          categories: availableCategories,
+          categoryAmounts: {}
         });
       } else {
         toast.error(response.data.message || 'Failed to save additional fee');
@@ -5402,7 +5465,17 @@ const FeeManagement = () => {
                     const feeConfig = configuredFees[feeType];
                     const feePayments = additionalFeePayments.filter(p => p.additionalFeeType === feeType);
                     const totalPaid = feePayments.reduce((sum, p) => sum + p.amount, 0);
-                    const required = feeConfig.amount || 0;
+                    
+                    // Get required amount - use categoryAmounts if available, otherwise use amount
+                    let required = 0;
+                    if (feeConfig.categoryAmounts && typeof feeConfig.categoryAmounts === 'object') {
+                      // Use category-specific amount for the student's category
+                      required = feeConfig.categoryAmounts[selectedStudentBalance.category] || 0;
+                    } else {
+                      // Fallback to single amount
+                      required = feeConfig.amount || 0;
+                    }
+                    
                     const balance = Math.max(0, required - totalPaid);
                     const isPaid = balance === 0 && totalPaid > 0;
                     
@@ -7537,7 +7610,7 @@ const FeeManagement = () => {
       {/* Additional Fee Modal */}
       {showAdditionalFeeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 {selectedAdditionalFee ? 'Edit Additional Fee' : 'Add Additional Fee'}
@@ -7551,7 +7624,8 @@ const FeeManagement = () => {
                     amount: 0,
                     description: '',
                     isActive: true,
-                    categories: ['A+', 'A', 'B+', 'B']
+                    categories: availableCategories,
+                    categoryAmounts: {}
                   });
                 }}
                 className="text-gray-400 hover:text-gray-600"
@@ -7584,22 +7658,6 @@ const FeeManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (₹) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={additionalFeeForm.amount}
-                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Enter amount"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description (Optional)
                   </label>
                   <textarea
@@ -7613,39 +7671,77 @@ const FeeManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Apply to Categories <span className="text-red-500">*</span>
+                    Category-Specific Amounts <span className="text-red-500">*</span>
                   </label>
-                  <p className="text-xs text-gray-500 mb-2">
-                    Select which student categories this fee applies to
+                  <p className="text-xs text-gray-500 mb-3">
+                    Select categories and enter the amount for each category (e.g., A+ and A = ₹1000, B = ₹2000)
                   </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['A+', 'A', 'B+', 'B'].map((category) => (
-                      <label key={category} className="flex items-center space-x-2 cursor-pointer">
+                  <div className="space-y-3">
+                    {availableCategories.map((category) => {
+                      const isSelected = additionalFeeForm.categories.includes(category);
+                      return (
+                        <div key={category} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
                         <input
                           type="checkbox"
-                          checked={additionalFeeForm.categories.includes(category)}
+                            checked={isSelected}
                           onChange={(e) => {
                             if (e.target.checked) {
                               setAdditionalFeeForm(prev => ({
                                 ...prev,
-                                categories: [...prev.categories, category]
+                                  categories: [...prev.categories, category],
+                                  categoryAmounts: {
+                                    ...prev.categoryAmounts,
+                                    [category]: prev.categoryAmounts[category] || 0
+                                  }
                               }));
                             } else {
-                              setAdditionalFeeForm(prev => ({
+                                setAdditionalFeeForm(prev => {
+                                  const newCategoryAmounts = { ...prev.categoryAmounts };
+                                  delete newCategoryAmounts[category];
+                                  return {
                                 ...prev,
-                                categories: prev.categories.filter(cat => cat !== category)
-                              }));
+                                    categories: prev.categories.filter(cat => cat !== category),
+                                    categoryAmounts: newCategoryAmounts
+                                  };
+                                });
                             }
                           }}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <span className="text-sm text-gray-700">{category}</span>
-                      </label>
-                    ))}
+                          <span className="text-sm font-medium text-gray-700 w-12">{category}</span>
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-500 mb-1">Amount (₹)</label>
+                            <input
+                              type="number"
+                              value={additionalFeeForm.categoryAmounts[category] || ''}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? '' : parseFloat(e.target.value) || 0;
+                                setAdditionalFeeForm(prev => ({
+                                  ...prev,
+                                  categoryAmounts: {
+                                    ...prev.categoryAmounts,
+                                    [category]: value
+                                  }
+                                }));
+                              }}
+                              disabled={!isSelected}
+                              min="0"
+                              step="0.01"
+                              placeholder="Enter amount"
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${
+                                isSelected 
+                                  ? 'border-gray-300 bg-white' 
+                                  : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                   {additionalFeeForm.categories.length === 0 && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Please select at least one category
+                    <p className="text-xs text-red-500 mt-2">
+                      Please select at least one category and enter amounts
                     </p>
                   )}
                 </div>
@@ -7674,7 +7770,9 @@ const FeeManagement = () => {
                       feeType: '',
                       amount: 0,
                       description: '',
-                      isActive: true
+                      isActive: true,
+                      categories: availableCategories,
+                      categoryAmounts: {}
                     });
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
