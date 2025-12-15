@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -30,7 +30,9 @@ const initialForm = {
   batch: '',
   academicYear: '',
   email: '',
-  concession: 0
+  concession: 0,
+  hostel: '',
+  hostelCategory: ''
 };
 
 const StudentRegistrationSQL = () => {
@@ -60,12 +62,29 @@ const StudentRegistrationSQL = () => {
   const [branches, setBranches] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  // Deduplicate branches by _id or name
+  const branchOptions = useMemo(() => {
+    const seen = new Set();
+    return branches.filter(b => {
+      const key = b?._id || b?.name;
+      if (!key) return false;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [branches]);
 
   // Room availability
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [bedLockerAvailability, setBedLockerAvailability] = useState(null);
   const [loadingBedLocker, setLoadingBedLocker] = useState(false);
+
+  // Hostel hierarchy
+  const [hostels, setHostels] = useState([]);
+  const [hostelCategories, setHostelCategories] = useState([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);
+  const [loadingHostelCategories, setLoadingHostelCategories] = useState(false);
 
   // Fee structure
   const [feeStructure, setFeeStructure] = useState(null);
@@ -77,10 +96,50 @@ const StudentRegistrationSQL = () => {
     total: 0
   });
 
-  // Fetch courses on mount
+  // Fetch courses & hostels on mount
   useEffect(() => {
     fetchCourses();
+    fetchHostels();
   }, []);
+
+  // Fetch hostels
+  const fetchHostels = async () => {
+    setLoadingHostels(true);
+    try {
+      const res = await api.get('/api/hostels');
+      if (res.data.success) {
+        setHostels(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching hostels:', err);
+      toast.error('Error fetching hostels');
+    } finally {
+      setLoadingHostels(false);
+    }
+  };
+
+  // Fetch categories for a hostel
+  const fetchHostelCategories = async (hostelId) => {
+    if (!hostelId) {
+      setHostelCategories([]);
+      return [];
+    }
+    setLoadingHostelCategories(true);
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        const data = res.data.data || [];
+        setHostelCategories(data);
+        return data;
+      }
+    } catch (err) {
+      console.error('Error fetching hostel categories:', err);
+      toast.error('Error fetching hostel categories');
+    } finally {
+      setLoadingHostelCategories(false);
+    }
+    return [];
+  };
 
   // Fetch courses
   const fetchCourses = async () => {
@@ -119,14 +178,21 @@ const StudentRegistrationSQL = () => {
   };
 
   // Fetch rooms with availability
-  const fetchRoomsWithAvailability = async (gender, category) => {
-    if (!gender || !category) {
+  const fetchRoomsWithAvailability = async (hostelId, categoryIdOrName) => {
+    if (!hostelId || !categoryIdOrName) {
       setRoomsWithAvailability([]);
       return;
     }
     setLoadingRooms(true);
     try {
-      const params = new URLSearchParams({ gender, category });
+      // Resolve category id if name provided
+      let finalCategoryId = categoryIdOrName;
+      if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
+        const list = hostelCategories.length ? hostelCategories : await fetchHostelCategories(hostelId);
+        const match = list.find(c => c._id === categoryIdOrName || (c.name || '').toLowerCase() === (categoryIdOrName || '').toLowerCase());
+        if (match) finalCategoryId = match._id;
+      }
+      const params = new URLSearchParams({ hostel: hostelId, category: finalCategoryId });
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
       if (res.data.success) {
         setRoomsWithAvailability(res.data.data.rooms || []);
@@ -233,7 +299,9 @@ const StudentRegistrationSQL = () => {
           localGuardianName: form.localGuardianName,
           localGuardianPhone: form.localGuardianPhone,
           academicYear: form.academicYear,
-          concession: form.concession
+          concession: form.concession,
+          hostel: form.hostel,
+          hostelCategory: form.hostelCategory
         };
 
         setForm(mappedForm);
@@ -289,14 +357,21 @@ const StudentRegistrationSQL = () => {
       }
       if (name === 'gender') {
         newForm.category = '';
-        newForm.roomNumber = '';
-        newForm.bedNumber = '';
-        newForm.lockerNumber = '';
       }
-      if (name === 'category') {
+      if (name === 'hostel') {
+        newForm.hostelCategory = '';
         newForm.roomNumber = '';
         newForm.bedNumber = '';
         newForm.lockerNumber = '';
+        fetchHostelCategories(fieldValue);
+      }
+      if (name === 'hostelCategory') {
+        newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
+        if (newForm.hostel && fieldValue) {
+          fetchRoomsWithAvailability(newForm.hostel, fieldValue);
+        }
       }
       if (name === 'roomNumber') {
         newForm.bedNumber = '';
@@ -421,20 +496,20 @@ const StudentRegistrationSQL = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-      if (res.data.success) {
-        toast.success('Student registered successfully');
-        // Reset form
-        setForm(initialForm);
-        setIdentifier('');
-        setSqlDataFetched(false);
-        setStudentPhoto(null);
-        setGuardianPhoto1(null);
-        setGuardianPhoto2(null);
-        setStudentPhotoPreview(null);
-        setGuardianPhoto1Preview(null);
-        setGuardianPhoto2Preview(null);
-        navigate('/admin/students?tab=list');
-      }
+        if (res.data.success) {
+          toast.success('Student registered successfully');
+          // Reset form
+          setForm(initialForm);
+          setIdentifier('');
+          setSqlDataFetched(false);
+          setStudentPhoto(null);
+          setGuardianPhoto1(null);
+          setGuardianPhoto2(null);
+          setStudentPhotoPreview(null);
+          setGuardianPhoto1Preview(null);
+          setGuardianPhoto2Preview(null);
+          // Stay on the same page; do not navigate away
+        }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to register student');
     } finally {
@@ -442,12 +517,14 @@ const StudentRegistrationSQL = () => {
     }
   };
 
-  // Fetch rooms when gender/category changes
+  // Fetch rooms when hostel/category changes
   useEffect(() => {
-    if (form.gender && form.category) {
-      fetchRoomsWithAvailability(form.gender, form.category);
+    if (form.hostel && form.hostelCategory) {
+      fetchRoomsWithAvailability(form.hostel, form.hostelCategory);
+    } else {
+      setRoomsWithAvailability([]);
     }
-  }, [form.gender, form.category]);
+  }, [form.hostel, form.hostelCategory]);
 
   // Fetch fee structure when relevant fields change
   useEffect(() => {
@@ -651,7 +728,7 @@ const StudentRegistrationSQL = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">{loadingBranches ? 'Loading...' : 'Select Branch'}</option>
-                  {branches.map(branch => (
+                  {branchOptions.map(branch => (
                     <option key={branch._id} value={branch._id}>{branch.name}</option>
                   ))}
                 </select>
@@ -695,21 +772,34 @@ const StudentRegistrationSQL = () => {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Hostel Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hostel *</label>
                 <select
-                  name="category"
-                  value={form.category}
+                  name="hostel"
+                  value={form.hostel}
                   onChange={handleFormChange}
                   required
-                  disabled={!form.gender}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  disabled={loadingHostels}
+                >
+                  <option value="">{loadingHostels ? 'Loading...' : 'Select Hostel'}</option>
+                  {hostels.map(h => (
+                    <option key={h._id} value={h._id}>{h.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Hostel Category *</label>
+                <select
+                  name="hostelCategory"
+                  value={form.hostelCategory}
+                  onChange={handleFormChange}
+                  required
+                  disabled={!form.hostel || loadingHostelCategories}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Category</option>
-                  {form.gender === 'Male' && ['A+', 'A', 'B+', 'B'].map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                  {form.gender === 'Female' && ['A+', 'A', 'B'].map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
+                  <option value="">{loadingHostelCategories ? 'Loading...' : 'Select Category'}</option>
+                  {hostelCategories.map(cat => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
@@ -720,10 +810,10 @@ const StudentRegistrationSQL = () => {
                   value={form.roomNumber}
                   onChange={handleFormChange}
                   required
-                  disabled={!form.gender || !form.category || loadingRooms}
+                  disabled={!form.hostel || !form.hostelCategory || loadingRooms}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select Room</option>
+                  <option value="">{loadingRooms ? 'Loading rooms...' : 'Select Room'}</option>
                   {roomsWithAvailability.map(room => (
                     <option key={room._id} value={room.roomNumber}>
                       Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
