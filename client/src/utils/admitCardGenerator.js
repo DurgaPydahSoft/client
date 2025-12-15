@@ -5,10 +5,10 @@ import api from './axios';
 // Cache for fee structures
 let feeStructureCache = {};
 
-// Fetch fee structure for a student
-export const fetchFeeStructure = async (studentCourse, studentYear, studentCategory, studentAcademicYear) => {
+// Fetch fee structure for a student (SQL course/branch)
+export const fetchFeeStructure = async (studentCourse, studentBranch, studentYear, studentCategory, studentAcademicYear) => {
   try {
-    const cacheKey = `${studentAcademicYear}-${studentCourse}-${studentYear}-${studentCategory}`;
+    const cacheKey = `${studentAcademicYear}-${studentCourse}-${studentBranch}-${studentYear}-${studentCategory}`;
 
     // Check cache first
     if (feeStructureCache[cacheKey]) {
@@ -16,7 +16,7 @@ export const fetchFeeStructure = async (studentCourse, studentYear, studentCateg
       return feeStructureCache[cacheKey];
     }
 
-    const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${studentYear}/${studentCategory}`);
+    const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${encodeURIComponent(studentBranch)}/${studentYear}/${studentCategory}`);
 
     if (response.data.success) {
       const feeStructure = response.data.data;
@@ -69,7 +69,13 @@ export const generateAdmitCardPDF = async (student, passwordFromURL = null) => {
     const studentAcademicYear = student.academicYear || '2024-2025';
 
     // Fetch fee structure for the student's course, year, category and academic year
-    const feeStructure = await fetchFeeStructure(student.courseId || student.course?._id, student.year, student.category || 'A', studentAcademicYear);
+    const feeStructure = await fetchFeeStructure(
+      student.courseId || student.course?._id || student.course,
+      student.branch || student.branchName,
+      student.year,
+      student.category || 'A',
+      studentAcademicYear
+    );
 
     // Fetch student password
     let studentPassword = null;

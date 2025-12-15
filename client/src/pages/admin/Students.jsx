@@ -25,6 +25,7 @@ const TABS = [
 const initialForm = {
   name: '',
   rollNumber: '',
+  admissionNumber: '', // Add admission number field
   gender: '',
   course: '',
   year: '',
@@ -61,6 +62,9 @@ const BATCHES = [
   '2030-2034'
 ];
 
+// Helper to normalize text values for safe comparisons
+const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
 // Helper to normalize course names for frontend matching (same as backend)
 const normalizeCourseName = (courseName) => {
   if (!courseName) return courseName;
@@ -90,7 +94,9 @@ const generateBatches = (courseId, courses) => {
   const batches = [];
 
   // Determine course duration from dynamic course data
-  const course = courses.find(c => c._id === courseId);
+  const course = courses.find(
+    c => c._id === courseId || normalizeText(c.name) === normalizeText(courseId)
+  );
   const duration = course ? course.duration : 4; // Default to 4 years
 
   // Generate batches starting from 2022 for next 10 years
@@ -284,8 +290,29 @@ const Students = () => {
   // Dynamic course and branch data
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+
+  // SQL database integration states
+  const [fetchingFromSQL, setFetchingFromSQL] = useState(false);
+  const [sqlFetchError, setSqlFetchError] = useState(null);
+  const [sqlDataFetched, setSqlDataFetched] = useState(false);
+
+  // Derived dropdown options
+  const courseOptions = useMemo(() => {
+    const names = courses.map(c => c.name).filter(Boolean);
+    return Array.from(new Set(names)).sort();
+  }, [courses]);
+
+  const branchOptions = useMemo(() => {
+    const targetCourse = filters.course;
+    const filtered = targetCourse
+      ? allBranches.filter(branch => normalizeText(branch.course?.name || branch.courseName || branch.course) === normalizeText(targetCourse))
+      : allBranches;
+    const names = filtered.map(b => b.name).filter(Boolean);
+    return Array.from(new Set(names)).sort();
+  }, [allBranches, filters.course]);
 
 
   // Debounce search term
@@ -404,19 +431,22 @@ const Students = () => {
     }
   };
 
-  // Fetch branches for a specific course
-  const fetchBranches = async (courseId) => {
-    if (!courseId) {
-      setBranches([]);
-      return;
-    }
-
-
+  // Fetch branches (all from SQL) and optionally filter by course name
+  const fetchBranches = async (courseIdOrName = '') => {
     setLoadingBranches(true);
     try {
-      const res = await api.get(`/api/course-management/branches/${courseId}`);
+      // Fetch all branches from SQL-backed endpoint
+      const res = await api.get('/api/course-management/branches');
       if (res.data.success) {
-        setBranches(res.data.data);
+        const all = res.data.data || [];
+        setAllBranches(all);
+
+        const courseName = getCourseName(courseIdOrName) || courseIdOrName;
+        const filtered = courseName
+          ? all.filter(branch => normalizeText(branch.course?.name || branch.courseName || branch.course) === normalizeText(courseName))
+          : all;
+
+        setBranches(filtered);
       } else {
         console.error('❌ Failed to fetch branches:', res.data.message);
         toast.error('Failed to fetch branches');
@@ -433,20 +463,28 @@ const Students = () => {
 
   // Get course duration for batch generation
   const getCourseDuration = (courseId) => {
-    const course = courses.find(c => c._id === courseId);
+    const course = courses.find(
+      c => c._id === courseId || normalizeText(c.name) === normalizeText(courseId)
+    );
     return course ? course.duration : 4; // Default to 4 years
   };
 
   // Get course name by ID
   const getCourseName = (courseId) => {
-    const course = courses.find(c => c._id === courseId);
-    return course ? course.name : '';
+    if (!courseId) return '';
+    const course = courses.find(
+      c => c._id === courseId || normalizeText(c.name) === normalizeText(courseId)
+    );
+    return course ? course.name : (typeof courseId === 'string' ? courseId : '');
   };
 
   // Get branch name by ID
   const getBranchName = (branchId) => {
-    const branch = branches.find(b => b._id === branchId);
-    return branch ? branch.name : '';
+    if (!branchId) return '';
+    const branch = (branches.length ? branches : allBranches).find(
+      b => b._id === branchId || normalizeText(b.name) === normalizeText(branchId)
+    );
+    return branch ? branch.name : (typeof branchId === 'string' ? branchId : '');
   };
 
   // Fetch rooms with bed availability
@@ -596,9 +634,9 @@ const Students = () => {
 
   };
 
-  // Fetch fee structure when course, year, category and academic year are selected
-  const fetchFeeStructure = async (course, year, category, academicYear) => {
-    if (!course || !year || !category || !academicYear) {
+  // Fetch fee structure when course, branch, year, category and academic year are selected
+  const fetchFeeStructure = async (course, branch, year, category, academicYear) => {
+    if (!course || !branch || !year || !category || !academicYear) {
       setFeeStructure(null);
       setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
       return;
@@ -606,7 +644,7 @@ const Students = () => {
 
     try {
       setLoadingFeeStructure(true);
-      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${course}/${year}/${category}`);
+      const response = await api.get(`/api/fee-structures/admit-card/${encodeURIComponent(academicYear)}/${encodeURIComponent(course)}/${encodeURIComponent(branch)}/${year}/${encodeURIComponent(category)}`);
 
       if (response.data.success) {
         const feeData = response.data.data;
@@ -737,6 +775,7 @@ const Students = () => {
   useEffect(() => {
     checkEmailServiceStatus();
     fetchCourses();
+    fetchBranches();
   }, []);
 
   // Check for prefilled data from preregistration and URL parameters
@@ -857,7 +896,7 @@ const Students = () => {
   // Fetch fee structure when course, year, category or academic year changes
   useEffect(() => {
     if (form.course && form.year && form.category && form.academicYear) {
-      fetchFeeStructure(form.course, form.year, form.category, form.academicYear);
+      fetchFeeStructure(form.course, form.branch, form.year, form.category, form.academicYear);
     } else {
       setFeeStructure(null);
       setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
@@ -3032,9 +3071,9 @@ const Students = () => {
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
-                {courses.map(course => (
-                  <option key={course._id} value={course._id}>
-                    {course.name} ({course.code})
+                {courseOptions.map(courseName => (
+                  <option key={courseName} value={courseName}>
+                    {courseName}
                   </option>
                 ))}
               </select>
@@ -3048,9 +3087,9 @@ const Students = () => {
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
-                {branches.map(branch => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name} ({branch.code})
+                {branchOptions.map(branchName => (
+                  <option key={branchName} value={branchName}>
+                    {branchName}
                   </option>
                 ))}
               </select>
@@ -3260,7 +3299,7 @@ const Students = () => {
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {student.course?.name || getCourseName(student.course)}
+                              {student.course || student.course?.name || getCourseName(student.course)}
                             </td>
                             <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex flex-col">
@@ -5607,15 +5646,15 @@ const Students = () => {
     });
     setConcessionRequestModal(true);
     // Fetch fee structure for preview
-    if (student.academicYear && student.course && student.year && student.category) {
+    if (student.academicYear && student.course && student.branch && student.year && student.category) {
       const courseId = student.course?._id || student.course;
-      fetchConcessionFeeStructure(student.academicYear, courseId, student.year, student.category);
+      fetchConcessionFeeStructure(student.academicYear, courseId, student.branch, student.year, student.category);
     }
   };
 
   // Fetch fee structure for concession preview
-  const fetchConcessionFeeStructure = async (academicYear, courseId, year, category) => {
-    if (!academicYear || !courseId || !year || !category) {
+  const fetchConcessionFeeStructure = async (academicYear, courseId, branchName, year, category) => {
+    if (!academicYear || !courseId || !branchName || !year || !category) {
       setConcessionFeeStructure(null);
       setConcessionCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
       return;
@@ -5623,7 +5662,7 @@ const Students = () => {
 
     try {
       setLoadingConcessionFeeStructure(true);
-      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${courseId}/${year}/${category}`);
+      const response = await api.get(`/api/fee-structures/admit-card/${academicYear}/${courseId}/${encodeURIComponent(branchName)}/${year}/${category}`);
 
       if (response.data.success) {
         const feeData = response.data.data;

@@ -48,14 +48,14 @@ const TakeAttendance = () => {
   };
   
   const [loading, setLoading] = useState(true);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [students, setStudents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getCurrentISTDate());
   const [attendanceData, setAttendanceData] = useState({});
   const [filters, setFilters] = useState({
-    course: '',
-    branch: '',
     gender: '',
+    hostel: '',
     category: '',
     roomNumber: ''
   });
@@ -64,9 +64,6 @@ const TakeAttendance = () => {
     totalStudents: 0,
     attendanceTaken: 0
   });
-  const [courses, setCourses] = useState([]);
-  const [allBranches, setAllBranches] = useState([]);
-  const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [availableRooms, setAvailableRooms] = useState([]);
@@ -240,30 +237,39 @@ const TakeAttendance = () => {
     return () => clearTimeout(timer);
   }, [roomInput]);
 
-  useEffect(() => {
-    fetchStudents();
-  }, [selectedDate, filters]);
+  // Hostel and category state (needed before fetchStudentsData)
+  const [hostels, setHostels] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedHostel, setSelectedHostel] = useState(null);
 
-  // Filter students based on search query
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  useEffect(() => {
-    fetchFilters();
-  }, []);
-
-  // Fetch rooms when category changes
-  useEffect(() => {
-    if (filters.category) {
-      fetchRooms();
-    } else {
-      setAvailableRooms([]);
+  // Helper functions (needed before fetchStudentsData)
+  const getId = (objOrId) => (typeof objOrId === 'object' && objOrId?._id ? objOrId._id : objOrId);
+  const getHostelLabel = (hostel) => {
+    if (!hostel) return '';
+    if (typeof hostel === 'string') return hostel;
+    return hostel.name || hostel.hostelName || hostel._id || '';
+  };
+  const getCategoryLabel = (category) => {
+    if (!category) return 'Unknown';
+    if (typeof category === 'string') return category;
+    // Ensure we always return a string, not an object
+    try {
+      const label = category.name || category.categoryName;
+      if (label && typeof label === 'string') {
+        return label;
+      }
+      // If name doesn't exist or is not a string, try _id
+      if (category._id) {
+        return String(category._id);
+      }
+      return 'Unknown';
+    } catch (error) {
+      console.error('Error getting category label:', error, category);
+      return 'Unknown';
     }
-  }, [filters.category]);
+  };
 
-  // Helper to map hostelType to gender
+  // Helper to map hostelType to gender (for backward compatibility with student filtering)
   const getWardenGender = () => {
     if (!user?.hostelType) return undefined;
     if (user.hostelType.toLowerCase() === 'boys') return 'Male';
@@ -271,34 +277,27 @@ const TakeAttendance = () => {
     return undefined;
   };
 
-  const fetchRooms = async () => {
-    if (!filters.category) return;
-    
-    setLoadingRooms(true);
-    try {
-      const wardenGender = getWardenGender();
-      const params = {
-        gender: wardenGender,
-        category: filters.category
-      };
-      
-      const response = await api.get('/api/admin/rooms', { params });
-      
-      if (response.data.success) {
-        const rooms = response.data.data.rooms || [];
-        setAvailableRooms(rooms);
-        console.log('🔍 Fetched rooms for category:', filters.category, 'gender:', wardenGender, 'count:', rooms.length);
-      }
-    } catch (error) {
-      console.error('Error fetching rooms:', error);
-      toast.error('Failed to fetch rooms');
-    } finally {
-      setLoadingRooms(false);
-    }
-  };
+  // Track if this is the initial load
+  const isInitialLoadRef = React.useRef(true);
+  
+  // Use refs to store latest values to avoid dependency issues
+  const categoriesRef = React.useRef(categories);
+  
+  // Update refs when values change
+  React.useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
 
-  const fetchStudents = async () => {
-    setLoading(true);
+  // Reusable function to fetch students
+  const fetchStudentsData = useCallback(async (useFullLoading = false) => {
+    const isInitial = isInitialLoadRef.current;
+    if (useFullLoading || isInitial) {
+      setLoading(true);
+      if (isInitial) isInitialLoadRef.current = false;
+    } else {
+      setLoadingStudents(true);
+    }
+    
     try {
       console.log('🔍 Fetching students for date:', selectedDate, 'Current IST date:', getCurrentISTDate());
       const params = new URLSearchParams({
@@ -309,11 +308,21 @@ const TakeAttendance = () => {
       const wardenGender = getWardenGender();
       if (wardenGender) {
         params.append('gender', wardenGender);
-        console.log('🔍 Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
+        console.log('🔍 Warden hostelType:', user?.hostelType, '| Gender for filter:', wardenGender);
       }
 
-      // Add other filters that don't involve course/branch IDs
-      if (filters.category) params.append('category', filters.category);
+      // Convert category ID to category name for backend
+      if (filters.category) {
+        const selectedCategory = categoriesRef.current.find(cat => {
+          const categoryId = getId(cat._id || cat);
+          return categoryId === filters.category;
+        });
+        if (selectedCategory) {
+          const categoryName = getCategoryLabel(selectedCategory);
+          params.append('category', categoryName);
+        }
+      }
+      
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
 
       console.log('🔍 API params:', params.toString());
@@ -327,6 +336,7 @@ const TakeAttendance = () => {
         let students = response.data.data.students;
         
         // Frontend filtering - ensure only students of warden's gender are shown
+        // (Backend should already filter, but double-check for safety)
         if (wardenGender) {
           students = students.filter(student => 
             student.gender === wardenGender
@@ -334,20 +344,8 @@ const TakeAttendance = () => {
           console.log('🔍 After gender filtering:', students.length, 'students');
         }
 
-        // Frontend filtering for course and branch
-        if (filters.course) {
-          students = students.filter(student => 
-            student.course?._id === filters.course || student.course === filters.course
-          );
-          console.log('🔍 After course filtering:', students.length, 'students');
-        }
-
-        if (filters.branch) {
-          students = students.filter(student => 
-            student.branch?._id === filters.branch || student.branch === filters.branch
-          );
-          console.log('🔍 After branch filtering:', students.length, 'students');
-        }
+        // Note: Course and branch filtering is now done on the backend
+        // No need for frontend filtering since backend handles it correctly
         
         setStudents(students);
         setStats({
@@ -371,9 +369,129 @@ const TakeAttendance = () => {
       console.error('Error fetching students:', error);
       toast.error('Failed to fetch students');
     } finally {
-      setLoading(false);
+      if (useFullLoading || isInitial) {
+        setLoading(false);
+      } else {
+        setLoadingStudents(false);
+      }
+    }
+  }, [selectedDate, filters, user?.hostelType]);
+
+  useEffect(() => {
+    fetchStudentsData();
+  }, [fetchStudentsData]);
+
+  // Filter students based on search query
+  const filteredStudents = students.filter(student => 
+    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const fetchHostels = async () => {
+    try {
+      const res = await api.get('/api/hostels');
+      if (res.data.success) {
+        const allHostels = res.data.data || [];
+        
+        // Filter hostels based on warden's hostelType - only show their assigned hostel
+        if (user?.hostelType) {
+          const hostelName = user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel';
+          const matchingHostel = allHostels.find(h => 
+            h.name === hostelName || 
+            h.name?.toLowerCase().includes(user.hostelType.toLowerCase())
+          );
+          
+          // Only set the matching hostel (warden should only see their hostel)
+          if (matchingHostel) {
+            setHostels([matchingHostel]); // Only show their assigned hostel
+            setSelectedHostel(matchingHostel);
+            const hostelId = getId(matchingHostel._id || matchingHostel);
+            setFilters(prev => ({ ...prev, hostel: hostelId }));
+            fetchCategoriesByHostel(hostelId);
+          } else {
+            setHostels([]);
+          }
+        } else {
+          // If no hostelType, show all (shouldn't happen for wardens)
+          setHostels(allHostels);
+        }
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching hostels:', error);
+      toast.error('Failed to fetch hostels');
     }
   };
+
+  const fetchCategoriesByHostel = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        const fetchedCategories = res.data.data || [];
+        // Ensure all categories are valid objects with required fields
+        const validCategories = fetchedCategories.filter(cat => {
+          return cat && (cat._id || cat.id) && (cat.name || cat.categoryName);
+        });
+        setCategories(validCategories);
+        console.log('🏠 Fetched categories:', validCategories.length, validCategories);
+      } else {
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching categories:', error);
+      toast.error('Failed to fetch categories');
+      setCategories([]);
+    }
+  };
+
+  useEffect(() => {
+    fetchHostels();
+  }, []);
+
+  useEffect(() => {
+    if (filters.hostel) {
+      fetchCategoriesByHostel(filters.hostel);
+    }
+  }, [filters.hostel]);
+
+  // Fetch rooms when category changes
+  useEffect(() => {
+    if (filters.category && filters.hostel) {
+      fetchRooms();
+    } else {
+      setAvailableRooms([]);
+    }
+  }, [filters.category, filters.hostel]);
+
+  const fetchRooms = async () => {
+    if (!filters.category || !filters.hostel) return;
+    
+    setLoadingRooms(true);
+    try {
+      const params = {
+        hostel: filters.hostel,
+        category: filters.category
+      };
+      
+      const response = await api.get('/api/admin/rooms', { params });
+      
+      if (response.data.success) {
+        const rooms = response.data.data.rooms || [];
+        setAvailableRooms(rooms);
+        console.log('🔍 Fetched rooms for hostel:', filters.hostel, 'category:', filters.category, 'count:', rooms.length);
+      }
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      toast.error('Failed to fetch rooms');
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  // fetchStudents is now handled in the useEffect above
 
   const handleAttendanceChange = (studentId, session, value) => {
     setAttendanceData(prev => ({
@@ -395,28 +513,6 @@ const TakeAttendance = () => {
     }));
   };
 
-  const fetchFilters = async () => {
-    setLoadingFilters(true);
-    try {
-      // Fetch courses
-      const coursesResponse = await api.get('/api/course-management/courses');
-      if (coursesResponse.data.success) {
-        setCourses(coursesResponse.data.data);
-      }
-
-      // Fetch all branches
-      const branchesResponse = await api.get('/api/course-management/branches');
-      if (branchesResponse.data.success) {
-        setAllBranches(branchesResponse.data.data);
-        setFilteredBranches([]); // Initially no branches selected
-      }
-    } catch (error) {
-      console.error('Error fetching filters:', error);
-      toast.error('Failed to fetch filter options');
-    } finally {
-      setLoadingFilters(false);
-    }
-  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -440,6 +536,20 @@ const TakeAttendance = () => {
         ...prev,
         branch: ''
       }));
+    }
+    
+    // If hostel changes, fetch categories and clear category selection
+    if (name === 'hostel') {
+      if (value) {
+        fetchCategoriesByHostel(value);
+      } else {
+        setCategories([]);
+      }
+      setFilters(prev => ({
+        ...prev,
+        category: ''
+      }));
+      setAvailableRooms([]);
     }
   };
 
@@ -488,7 +598,7 @@ const TakeAttendance = () => {
         toast.success(`Attendance saved for ${response.data.data.successful} students`, {
           id: 'attendance-progress'
         });
-        fetchStudents(); // Refresh data
+        fetchStudentsData(); // Refresh data
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
@@ -561,11 +671,7 @@ const TakeAttendance = () => {
   };
 
   // Helper function to get category options based on gender
-  const getCategoryOptions = (gender) => {
-    return gender === 'Male' 
-      ? ['A+', 'A', 'B+', 'B']
-      : ['A+', 'A', 'B', 'C'];
-  };
+  // Removed getCategoryOptions - now using hostel-based categories from state
 
   if (loading) {
     return <LoadingSpinner />;
@@ -723,46 +829,32 @@ const TakeAttendance = () => {
           {showMobileFilters && (
             <div className="lg:hidden mb-4 p-3 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Course Filter */}
+                {/* Hostel Filter - Disabled for wardens (auto-selected based on hostelType) */}
                 <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
-                    Course
-                  </label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Hostel</label>
                   <select
-                    name="course"
-                    value={filters.course}
+                    name="hostel"
+                    value={filters.hostel}
                     onChange={handleFilterChange}
-                    disabled={loadingFilters}
+                    disabled={hostels.length <= 1}
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
                   >
-                    <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
-                    {courses.map((course) => (
-                      <option key={course._id} value={course._id}>
-                        {course.name} ({course.code})
+                    {hostels.length === 0 ? (
+                      <option value="">No Hostel Assigned</option>
+                    ) : hostels.length === 1 ? (
+                      <option value={getId(hostels[0]._id || hostels[0])}>
+                        {getHostelLabel(hostels[0])}
                       </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Branch Filter */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch</label>
-                  <select
-                    name="branch"
-                    value={filters.branch}
-                    onChange={handleFilterChange}
-                    disabled={loadingFilters || !filters.course}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
-                  >
-                    <option value="">
-                      {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
-                    </option>
-                    {filteredBranches.map((branch) => (
-                      <option key={branch._id} value={branch._id}>
-                        {branch.name} ({branch.code})
-                      </option>
-                    ))}
+                    ) : (
+                      <>
+                        <option value="">All Hostels</option>
+                        {hostels.map(h => (
+                          <option key={h._id || h.id || h.name} value={getId(h._id || h)}>
+                            {getHostelLabel(h)}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -773,12 +865,41 @@ const TakeAttendance = () => {
                     name="category"
                     value={filters.category}
                     onChange={handleFilterChange}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                    disabled={!filters.hostel}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
                   >
                     <option value="">All Categories</option>
-                    {getCategoryOptions(getWardenGender()).map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
+                    {categories && Array.isArray(categories) && categories
+                      .filter(c => {
+                        if (!c) return false;
+                        try {
+                          const categoryHostelId = getId(c.hostel?._id || c.hostel);
+                          return categoryHostelId === filters.hostel;
+                        } catch (error) {
+                          console.error('Error filtering category:', error, c);
+                          return false;
+                        }
+                      })
+                      .map(category => {
+                        if (!category) return null;
+                        try {
+                          const categoryId = getId(category._id || category);
+                          const categoryLabel = getCategoryLabel(category);
+                          // Ensure both key and value are strings
+                          const key = String(categoryId || 'unknown');
+                          const label = String(categoryLabel || 'Unknown');
+                          return (
+                            <option key={key} value={key}>
+                              {label}
+                            </option>
+                          );
+                        } catch (error) {
+                          console.error('Error rendering category option:', error, category);
+                          return null;
+                        }
+                      })
+                      .filter(Boolean) // Remove any null entries
+                    }
                   </select>
                 </div>
 
@@ -795,7 +916,7 @@ const TakeAttendance = () => {
                     <option value="">{loadingRooms ? 'Loading...' : availableRooms.length === 0 ? 'No rooms available' : 'Select a room'}</option>
                     {availableRooms.map((room) => (
                       <option key={room._id} value={room.roomNumber}>
-                        {room.roomNumber} ({room.category})
+                        {room.roomNumber} {room.category ? `(${getCategoryLabel(room.category)})` : ''}
                       </option>
                     ))}
                   </select>
@@ -831,46 +952,32 @@ const TakeAttendance = () => {
               </p>
             </div>
 
-            {/* Course Filter */}
+            {/* Hostel Filter - Disabled for wardens (auto-selected based on hostelType) */}
             <div className="sm:col-span-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />
-                Course
-              </label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Hostel</label>
               <select
-                name="course"
-                value={filters.course}
+                name="hostel"
+                value={filters.hostel}
                 onChange={handleFilterChange}
-                disabled={loadingFilters}
+                disabled={hostels.length <= 1}
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
               >
-                <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
-                {courses.map((course) => (
-                  <option key={course._id} value={course._id}>
-                    {course.name} ({course.code})
+                {hostels.length === 0 ? (
+                  <option value="">No Hostel Assigned</option>
+                ) : hostels.length === 1 ? (
+                  <option value={getId(hostels[0]._id || hostels[0])}>
+                    {getHostelLabel(hostels[0])}
                   </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Branch Filter */}
-            <div className="sm:col-span-1">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
-              <select
-                name="branch"
-                value={filters.branch}
-                onChange={handleFilterChange}
-                disabled={loadingFilters || !filters.course}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
-              >
-                <option value="">
-                  {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
-                </option>
-                {filteredBranches.map((branch) => (
-                  <option key={branch._id} value={branch._id}>
-                    {branch.name} ({branch.code})
-                  </option>
-                ))}
+                ) : (
+                  <>
+                    <option value="">All Hostels</option>
+                    {hostels.map(h => (
+                      <option key={h._id || h.id || h.name} value={getId(h._id || h)}>
+                        {getHostelLabel(h)}
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
             </div>
 
@@ -881,12 +988,41 @@ const TakeAttendance = () => {
                 name="category"
                 value={filters.category}
                 onChange={handleFilterChange}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                disabled={!filters.hostel}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100"
               >
                 <option value="">All Categories</option>
-                {getCategoryOptions(getWardenGender()).map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
+                {categories && Array.isArray(categories) && categories
+                  .filter(c => {
+                    if (!c) return false;
+                    try {
+                      const categoryHostelId = getId(c.hostel?._id || c.hostel);
+                      return categoryHostelId === filters.hostel;
+                    } catch (error) {
+                      console.error('Error filtering category:', error, c);
+                      return false;
+                    }
+                  })
+                  .map(category => {
+                    if (!category) return null;
+                    try {
+                      const categoryId = getId(category._id || category);
+                      const categoryLabel = getCategoryLabel(category);
+                      // Ensure both key and value are strings
+                      const key = String(categoryId || 'unknown');
+                      const label = String(categoryLabel || 'Unknown');
+                      return (
+                        <option key={key} value={key}>
+                          {label}
+                        </option>
+                      );
+                    } catch (error) {
+                      console.error('Error rendering category option:', error, category);
+                      return null;
+                    }
+                  })
+                  .filter(Boolean) // Remove any null entries
+                }
               </select>
             </div>
 
@@ -903,7 +1039,7 @@ const TakeAttendance = () => {
                 <option value="">{loadingRooms ? 'Loading...' : availableRooms.length === 0 ? 'No rooms available' : 'Select a room'}</option>
                 {availableRooms.map((room) => (
                   <option key={room._id} value={room.roomNumber}>
-                    {room.roomNumber} ({room.category})
+                    {room.roomNumber} {room.category ? `(${getCategoryLabel(room.category)})` : ''}
                   </option>
                 ))}
               </select>
@@ -1012,12 +1148,27 @@ const TakeAttendance = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden"
+          className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden relative"
         >
+          {/* Loading Overlay for Table Section */}
+          {loadingStudents && (
+            <div className="absolute inset-0 bg-white bg-opacity-75 z-10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-sm text-gray-600">Loading students...</p>
+              </div>
+            </div>
+          )}
           <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-semibold text-gray-900">
               Students ({filteredStudents.length}{searchQuery ? ` of ${students.length}` : ''})
+              {loadingStudents && (
+                <span className="ml-2 inline-flex items-center text-xs text-blue-600">
+                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                  Updating...
+                </span>
+              )}
             </h2>
               <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1">

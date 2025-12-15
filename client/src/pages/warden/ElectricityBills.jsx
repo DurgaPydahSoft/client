@@ -41,8 +41,11 @@ const ElectricityBills = () => {
   
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hostels, setHostels] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedHostel, setSelectedHostel] = useState(null);
   const [filters, setFilters] = useState({
-    gender: '',
+    hostel: '',
     category: ''
   });
   const [bulkBillData, setBulkBillData] = useState([]);
@@ -50,6 +53,70 @@ const ElectricityBills = () => {
   const [bulkRate, setBulkRate] = useState('');
   const [isSavingBulk, setIsSavingBulk] = useState(false);
   const [savingRoomId, setSavingRoomId] = useState(null);
+
+  // Helper functions
+  const getId = (objOrId) => (typeof objOrId === 'object' && objOrId?._id ? objOrId._id : objOrId);
+  const getHostelLabel = (hostel) => {
+    if (!hostel) return '';
+    if (typeof hostel === 'string') return hostel;
+    return hostel.name || hostel.hostelName || hostel._id || '';
+  };
+  const getCategoryLabel = (category) => {
+    if (!category) return '';
+    if (typeof category === 'string') return category;
+    return category.name || category.categoryName || category._id || '';
+  };
+
+  const fetchHostels = async () => {
+    try {
+      const res = await api.get('/api/hostels');
+      if (res.data.success) {
+        const allHostels = res.data.data || [];
+        
+        // Filter hostels based on warden's hostelType - only show their assigned hostel
+        if (user?.hostelType) {
+          const hostelName = user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel';
+          const matchingHostel = allHostels.find(h => 
+            h.name === hostelName || 
+            h.name?.toLowerCase().includes(user.hostelType.toLowerCase())
+          );
+          
+          // Only set the matching hostel (warden should only see their hostel)
+          if (matchingHostel) {
+            setHostels([matchingHostel]); // Only show their assigned hostel
+            setSelectedHostel(matchingHostel);
+            const hostelId = getId(matchingHostel._id || matchingHostel);
+            setFilters(prev => ({ ...prev, hostel: hostelId }));
+            fetchCategoriesByHostel(hostelId);
+          } else {
+            setHostels([]);
+          }
+        } else {
+          // If no hostelType, show all (shouldn't happen for wardens)
+          setHostels(allHostels);
+        }
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching hostels:', error);
+      toast.error('Failed to fetch hostels');
+    }
+  };
+
+  const fetchCategoriesByHostel = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        setCategories(res.data.data || []);
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching categories:', error);
+      toast.error('Failed to fetch categories');
+    }
+  };
 
   const fetchRooms = async () => {
     try {
@@ -68,13 +135,19 @@ const ElectricityBills = () => {
         const bulkData = fetchedRooms.map(room => {
           const isDualMeter = room.meterType === 'dual';
           const lastBill = room.lastBill;
+          const hostelId = getId(room.hostel);
+          const categoryId = getId(room.category);
+          const hostelLabel = getHostelLabel(room.hostel);
+          const categoryLabel = getCategoryLabel(room.category);
           
           if (isDualMeter) {
             return {
               roomId: room._id,
               roomNumber: room.roomNumber,
-              gender: room.gender,
-              category: room.category,
+              hostel: hostelId,
+              hostelLabel,
+              category: categoryId,
+              categoryLabel,
               meterType: 'dual',
               meter1StartUnits: lastBill?.meter1EndUnits || '',
               meter1EndUnits: '',
@@ -87,8 +160,10 @@ const ElectricityBills = () => {
             return {
               roomId: room._id,
               roomNumber: room.roomNumber,
-              gender: room.gender,
-              category: room.category,
+              hostel: hostelId,
+              hostelLabel,
+              category: categoryId,
+              categoryLabel,
               meterType: 'single',
               startUnits: lastBill?.endUnits || '',
               endUnits: '',
@@ -123,15 +198,32 @@ const ElectricityBills = () => {
   };
 
   useEffect(() => {
-    fetchRooms();
+    fetchHostels();
+  }, []);
+
+  useEffect(() => {
+    if (filters.hostel) {
+      fetchCategoriesByHostel(filters.hostel);
+    }
+  }, [filters.hostel]);
+
+  useEffect(() => {
+    if (filters.hostel) {
+      fetchRooms();
+    }
   }, [filters]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFilters(prev => {
+      const newFilters = { ...prev, [name]: value };
+      // Reset category when hostel changes
+      if (name === 'hostel') {
+        newFilters.category = '';
+        setCategories([]);
+      }
+      return newFilters;
+    });
   };
 
   const handleSaveBulkBills = async () => {
@@ -312,7 +404,7 @@ const ElectricityBills = () => {
             <p className="text-xs text-gray-600">Filtered</p>
             <p className="text-lg font-semibold text-green-600">
               {bulkBillData.filter(bill => {
-                if (filters.gender && bill.gender !== filters.gender) return false;
+                if (filters.hostel && bill.hostel !== filters.hostel) return false;
                 if (filters.category && bill.category !== filters.category) return false;
                 return true;
               }).length}
@@ -355,17 +447,31 @@ const ElectricityBills = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Gender
+              Hostel
             </label>
             <select
-              name="gender"
-              value={filters.gender}
+              name="hostel"
+              value={filters.hostel}
               onChange={handleFilterChange}
-              className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              disabled={hostels.length <= 1}
+              className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             >
-              <option value="">All Genders</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
+              {hostels.length === 0 ? (
+                <option value="">No Hostel Assigned</option>
+              ) : hostels.length === 1 ? (
+                <option value={getId(hostels[0]._id || hostels[0])}>
+                  {getHostelLabel(hostels[0])}
+                </option>
+              ) : (
+                <>
+                  <option value="">All Hostels</option>
+                  {hostels.map(h => (
+                    <option key={h._id || h.id || h.name} value={getId(h._id || h)}>
+                      {getHostelLabel(h)}
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
           <div>
@@ -376,33 +482,17 @@ const ElectricityBills = () => {
               name="category"
               value={filters.category}
               onChange={handleFilterChange}
-              disabled={!filters.gender}
+              disabled={!filters.hostel}
               className="w-full px-2 sm:px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-gray-100"
             >
               <option value="">All Categories</option>
-              {filters.gender === 'Male' ? (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B+">B+</option>
-                  <option value="B">B</option>
-                </>
-              ) : filters.gender === 'Female' ? (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </>
-              ) : (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B+">B+</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </>
-              )}
+              {categories
+                .filter(c => getId(c.hostel?._id || c.hostel) === filters.hostel)
+                .map(c => (
+                  <option key={c._id} value={getId(c._id || c)}>
+                    {getCategoryLabel(c)}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
@@ -467,7 +557,7 @@ const ElectricityBills = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {bulkBillData
                 .filter(bill => {
-                  if (filters.gender && bill.gender !== filters.gender) return false;
+                  if (filters.hostel && bill.hostel !== filters.hostel) return false;
                   if (filters.category && bill.category !== filters.category) return false;
                   return true;
                 })
@@ -544,7 +634,9 @@ const ElectricityBills = () => {
                         <div className="flex flex-col">
                           <span className="font-semibold">{bill.roomNumber}</span>
                           <div className="flex items-center gap-1 mt-1">
-                            <span className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</span>
+                            <span className="text-xs text-gray-500">
+                              {bill.hostelLabel || getHostelLabel(hostels.find(h => getId(h._id || h) === bill.hostel) || bill.hostel) || '-'} / {bill.categoryLabel || getCategoryLabel(categories.find(c => getId(c._id || c) === bill.category) || bill.category) || '-'}
+                            </span>
                             {isDualMeter && (
                               <span className="px-1.5 py-0.5 text-xs text-white bg-blue-600 rounded-full">Dual</span>
                             )}
@@ -650,7 +742,6 @@ const ElectricityBills = () => {
         <div className="sm:hidden space-y-3">
           {bulkBillData
             .filter(bill => {
-              if (filters.gender && bill.gender !== filters.gender) return false;
               if (filters.category && bill.category !== filters.category) return false;
               return true;
             })
@@ -740,7 +831,7 @@ const ElectricityBills = () => {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900 text-base">Room {bill.roomNumber}</h3>
-                        <p className="text-xs text-gray-500">{bill.gender.charAt(0)}/{bill.category}</p>
+                        <p className="text-xs text-gray-500">{bill.hostelLabel || '-'} / {bill.categoryLabel || '-'}</p>
                       </div>
                     </div>
                     {isAlreadyBilled && (

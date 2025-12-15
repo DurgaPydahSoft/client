@@ -48,6 +48,7 @@ const RoomManagement = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addTab, setAddTab] = useState('room'); // 'hostel' | 'category' | 'room'
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -55,16 +56,20 @@ const RoomManagement = () => {
   const [roomStaff, setRoomStaff] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [filters, setFilters] = useState({
-    gender: '',
+    hostel: '',
     category: ''
   });
   const [formData, setFormData] = useState({
-    gender: '',
+    hostel: '',
     category: '',
     roomNumber: '',
     bedCount: 1,
     meterType: 'single'
   });
+  const [hostelForm, setHostelForm] = useState({ name: '', description: '' });
+  const [categoryForm, setCategoryForm] = useState({ hostel: '', name: '', description: '' });
+  const [hostels, setHostels] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [showBillModal, setShowBillModal] = useState(false);
   const [billForm, setBillForm] = useState({ month: '', startUnits: '', endUnits: '', rate: '' });
   const [billHistory, setBillHistory] = useState([]);
@@ -79,6 +84,39 @@ const RoomManagement = () => {
   const [editRealTimePreview, setEditRealTimePreview] = useState(null);
   const [roomStats, setRoomStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(true);
+
+  const getCategoriesForHostel = (hostelId) => {
+    if (!hostelId) return [];
+    return categories.filter(c => (c.hostel?._id || c.hostel) === hostelId);
+  };
+
+  const fetchHostels = async () => {
+    try {
+      const res = await api.get('/api/hostels');
+      if (res.data.success) {
+        setHostels(res.data.data || []);
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching hostels:', error);
+      toast.error('Failed to fetch hostels');
+    }
+  };
+
+  const fetchCategoriesByHostel = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        setCategories(res.data.data || []);
+      }
+    } catch (error) {
+      console.error('🏠 Error fetching categories:', error);
+      toast.error('Failed to fetch categories');
+    }
+  };
 
   const fetchRooms = async () => {
     try {
@@ -123,6 +161,10 @@ const RoomManagement = () => {
 
 
   useEffect(() => {
+    fetchHostels();
+  }, []);
+
+  useEffect(() => {
     fetchRooms();
     fetchRoomStats();
   }, [filters]);
@@ -148,6 +190,23 @@ const RoomManagement = () => {
       ...prev,
       [name]: name === 'bedCount' ? Number(value) : value
     }));
+    if (name === 'hostel') {
+      fetchCategoriesByHostel(value);
+      setFormData(prev => ({ ...prev, category: '' }));
+    }
+  };
+
+  const handleHostelFormChange = (e) => {
+    const { name, value } = e.target;
+    setHostelForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCategoryFormChange = (e) => {
+    const { name, value } = e.target;
+    setCategoryForm(prev => ({ ...prev, [name]: value }));
+    if (name === 'hostel') {
+      fetchCategoriesByHostel(value);
+    }
   };
 
   const handleFilterChange = (e) => {
@@ -156,6 +215,10 @@ const RoomManagement = () => {
       ...prev,
       [name]: value
     }));
+    if (name === 'hostel') {
+      fetchCategoriesByHostel(value);
+      setFilters(prev => ({ ...prev, category: '' }));
+    }
   };
 
   const handleAddRoom = async (e) => {
@@ -170,10 +233,56 @@ const RoomManagement = () => {
       await api.post('/api/admin/rooms', formData);
       toast.success('Room added successfully');
       setShowAddModal(false);
-      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
+      setFormData({ hostel: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
       fetchRooms();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to add room');
+    }
+  };
+
+  const handleCreateHostelSubmit = async (e) => {
+    e.preventDefault();
+    if (!hostelForm.name.trim()) {
+      toast.error('Hostel name is required');
+      return;
+    }
+    try {
+      const res = await api.post('/api/hostels', { name: hostelForm.name.trim(), description: hostelForm.description });
+      if (res.data.success) {
+        toast.success('Hostel created');
+        await fetchHostels();
+        setHostelForm({ name: '', description: '' });
+        setFormData(prev => ({ ...prev, hostel: res.data.data._id, category: '' }));
+        setCategoryForm(prev => ({ ...prev, hostel: res.data.data._id }));
+        fetchCategoriesByHostel(res.data.data._id);
+        setAddTab('category');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create hostel');
+    }
+  };
+
+  const handleCreateCategorySubmit = async (e) => {
+    e.preventDefault();
+    if (!categoryForm.hostel) {
+      toast.error('Select a hostel');
+      return;
+    }
+    if (!categoryForm.name.trim()) {
+      toast.error('Category name is required');
+      return;
+    }
+    try {
+      const res = await api.post(`/api/hostels/${categoryForm.hostel}/categories`, { name: categoryForm.name.trim(), description: categoryForm.description });
+      if (res.data.success) {
+        toast.success('Category created');
+        await fetchCategoriesByHostel(categoryForm.hostel);
+        setCategoryForm({ hostel: categoryForm.hostel, name: '', description: '' });
+        setFormData(prev => ({ ...prev, hostel: categoryForm.hostel, category: res.data.data._id }));
+        setAddTab('room');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create category');
     }
   };
 
@@ -190,7 +299,7 @@ const RoomManagement = () => {
       toast.success('Room updated successfully');
       setShowEditModal(false);
       setSelectedRoom(null);
-      setFormData({ gender: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
+      setFormData({ hostel: '', category: '', roomNumber: '', bedCount: 1, meterType: 'single' });
       fetchRooms();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update room');
@@ -217,31 +326,28 @@ const RoomManagement = () => {
   const openEditModal = (room) => {
     setSelectedRoom(room);
     setFormData({
-      gender: room.gender,
-      category: room.category,
+      hostel: room.hostel?._id || room.hostel,
+      category: room.category?._id || room.category,
       roomNumber: room.roomNumber,
       bedCount: room.bedCount || 1,
       meterType: room.meterType || 'single'
     });
+    fetchCategoriesByHostel(room.hostel?._id || room.hostel);
     setShowEditModal(true);
-  };
-
-  const getCategoryOptions = (gender) => {
-    return gender === 'Male'
-      ? ['A+', 'A', 'B+', 'B']
-      : ['A+', 'A', 'B'];
   };
 
   // Filter rooms based on selected filters
   const filteredRooms = rooms.filter(room => {
-    if (filters.gender && room.gender !== filters.gender) return false;
-    if (filters.category && room.category !== filters.category) return false;
+    if (filters.hostel && (room.hostel?._id || room.hostel) !== filters.hostel) return false;
+    if (filters.category && (room.category?._id || room.category) !== filters.category) return false;
     return true;
   });
 
-  // Group rooms by gender and category
+  // Group rooms by hostel and category
   const groupedRooms = filteredRooms.reduce((acc, room) => {
-    const key = `${room.gender}-${room.category}`;
+    const hostelName = room.hostel?.name || 'Unassigned Hostel';
+    const categoryName = room.category?.name || 'Uncategorized';
+    const key = `${hostelName}||${categoryName}`;
     if (!acc[key]) {
       acc[key] = [];
     }
@@ -637,10 +743,10 @@ const RoomManagement = () => {
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'bg-gray-400 text-gray-200 cursor-not-allowed'
             }`}
-          title={!canAddRoom ? 'You need full access to add rooms' : 'Add new room'}
+          title={!canAddRoom ? 'You need full access to add' : 'Add hostel/category/room'}
         >
           {!canAddRoom ? <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
-          Add Room
+          Add
         </button>
       </div>
 
@@ -697,33 +803,31 @@ const RoomManagement = () => {
             </div>
           </div>
 
-          {/* Stats by Gender */}
+          {/* Stats by Hostel */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {roomStats.byGender.map((genderStat) => (
-              <div key={genderStat.gender} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{genderStat.gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'}</h3>
+            {roomStats.byHostel?.map((hostelStat) => (
+              <div key={hostelStat.hostelId} className="border border-gray-200 rounded-lg p-3 sm:p-4">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 sm:mb-3">{hostelStat.hostelName}</h3>
 
-                {/* Gender Summary */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
                   <div className="text-center">
-                    <div className="text-lg sm:text-xl font-bold text-blue-600">{genderStat.totalBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-blue-600">{hostelStat.totalBeds}</div>
                     <div className="text-xs text-gray-600">Total Beds</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg sm:text-xl font-bold text-green-600">{genderStat.filledBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-green-600">{hostelStat.filledBeds}</div>
                     <div className="text-xs text-gray-600">Filled</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg sm:text-xl font-bold text-gray-600">{genderStat.availableBeds}</div>
+                    <div className="text-lg sm:text-xl font-bold text-gray-600">{hostelStat.availableBeds}</div>
                     <div className="text-xs text-gray-600">Available</div>
                   </div>
                 </div>
 
-                {/* Category Breakdown */}
                 <div className="space-y-1.5 sm:space-y-2">
-                  {genderStat.categories.map((category) => (
-                    <div key={category.category} className="flex justify-between items-center text-xs sm:text-sm">
-                      <span className="font-medium text-gray-700">Category {category.category}</span>
+                  {hostelStat.categories.map((category) => (
+                    <div key={category.categoryId} className="flex justify-between items-center text-xs sm:text-sm">
+                      <span className="font-medium text-gray-700">{category.categoryName}</span>
                       <span className="text-gray-600">
                         {category.filledBeds}/{category.totalBeds} beds
                       </span>
@@ -741,17 +845,18 @@ const RoomManagement = () => {
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
           <div className="flex-1">
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-              Hostel Type
+              Hostel
             </label>
             <select
-              name="gender"
-              value={filters.gender}
+              name="hostel"
+              value={filters.hostel}
               onChange={handleFilterChange}
               className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
             >
-              <option value="">All Hostel Types</option>
-              <option value="Male">Boys Hostel</option>
-              <option value="Female">Girls Hostel</option>
+              <option value="">All Hostels</option>
+              {hostels.map(h => (
+                <option key={h._id} value={h._id}>{h.name}</option>
+              ))}
             </select>
           </div>
           <div className="flex-1">
@@ -762,33 +867,12 @@ const RoomManagement = () => {
               name="category"
               value={filters.category}
               onChange={handleFilterChange}
-              disabled={!filters.gender}
-              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 text-xs sm:text-sm"
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
             >
               <option value="">All Categories</option>
-              {filters.gender === 'Male' ? (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B+">B+</option>
-                  <option value="B">B</option>
-                </>
-              ) : filters.gender === 'Female' ? (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </>
-              ) : (
-                <>
-                  <option value="A+">A+</option>
-                  <option value="A">A</option>
-                  <option value="B+">B+</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                </>
-              )}
+                    {getCategoriesForHostel(filters.hostel).map(cat => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -797,11 +881,11 @@ const RoomManagement = () => {
       {/* Room Management Table */}
       <div className="space-y-6 sm:space-y-8">
         {Object.entries(groupedRooms).map(([key, rooms]) => {
-          const [gender, category] = key.split('-');
+          const [hostelName, categoryName] = key.split('||');
           return (
             <div key={key} className="space-y-3 sm:space-y-4">
               <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-                {gender?.toLowerCase() === 'male' ? 'Boys Hostel' : 'Girls Hostel'} - Category {category}
+                {hostelName} - Category {categoryName}
               </h2>
               <div className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
@@ -916,7 +1000,7 @@ const RoomManagement = () => {
         })}
       </div>
 
-      {/* Add Room Modal */}
+      {/* Add Modal */}
       <AnimatePresence>
         {showAddModal && (
           <motion.div
@@ -929,10 +1013,10 @@ const RoomManagement = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-md"
+              className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-3 sm:mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold">Add New Room</h2>
+                <h2 className="text-lg sm:text-xl font-semibold">Add</h2>
                 <button
                   onClick={() => setShowAddModal(false)}
                   className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -940,107 +1024,319 @@ const RoomManagement = () => {
                   <XMarkIcon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </button>
               </div>
-              <form onSubmit={handleAddRoom} className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Gender
-                  </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                  >
-                    <option value="">Select Category</option>
-                    {getCategoryOptions(formData.gender).map(category => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Room Number
-                  </label>
-                  <input
-                    type="text"
-                    name="roomNumber"
-                    value={formData.roomNumber}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                    placeholder="Enter room number"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Bed Count
-                  </label>
-                  <input
-                    type="number"
-                    name="bedCount"
-                    min={1}
-                    value={formData.bedCount}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                    placeholder="Enter bed count"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Meter Type
-                  </label>
-                  <select
-                    name="meterType"
-                    value={formData.meterType}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                  >
-                    <option value="single">Single Meter</option>
-                    <option value="dual">Dual Meter</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {formData.meterType === 'dual' 
-                      ? 'This room has two electricity meters. You will need to enter readings for both meters when billing.'
-                      : 'This room has a single electricity meter.'}
-                  </p>
-                </div>
-                <div className="flex justify-end gap-2 sm:gap-3">
+
+              {/* Tabs */}
+              <div className="flex gap-2 mb-4">
+                {['hostel', 'category', 'room'].map(tab => (
                   <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
+                    key={tab}
+                    onClick={() => setAddTab(tab)}
+                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm ${addTab === tab ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                   >
-                    Cancel
+                    {tab === 'hostel' ? 'Hostel' : tab === 'category' ? 'Category' : 'Room'}
                   </button>
-                  <button
-                    type="submit"
-                    className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
-                  >
-                    Add Room
-                  </button>
+                ))}
+              </div>
+
+              {/* Hostel Form */}
+              {addTab === 'hostel' && (
+                <div className="space-y-3 sm:space-y-4">
+                  <form onSubmit={handleCreateHostelSubmit} className="space-y-3 sm:space-y-4">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Hostel Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={hostelForm.name}
+                        onChange={handleHostelFormChange}
+                        required
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Description (optional)
+                      </label>
+                      <textarea
+                        name="description"
+                        value={hostelForm.description}
+                        onChange={handleHostelFormChange}
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 sm:gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddModal(false)}
+                        className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
+                      >
+                        Create Hostel
+                      </button>
+                    </div>
+                  </form>
+                  {hostels.length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                      <div className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">Available Hostels</div>
+                      <ul className="space-y-1 text-xs sm:text-sm text-gray-700 max-h-32 overflow-auto">
+                        {hostels.map(h => (
+                          <li key={h._id} className="flex justify-between">
+                            <span>{h.name}</span>
+                            <span className="text-gray-500 text-[11px] sm:text-xs">{h.isActive ? 'Active' : 'Inactive'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
-              </form>
+              )}
+
+              {/* Category Form */}
+              {addTab === 'category' && (
+                <div className="space-y-3 sm:space-y-4">
+                  <form onSubmit={handleCreateCategorySubmit} className="space-y-3 sm:space-y-4">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Hostel
+                      </label>
+                      <select
+                        name="hostel"
+                        value={categoryForm.hostel}
+                        onChange={handleCategoryFormChange}
+                        required
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      >
+                        <option value="">Select Hostel</option>
+                        {hostels.map(h => (
+                          <option key={h._id} value={h._id}>{h.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Category Name
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={categoryForm.name}
+                        onChange={handleCategoryFormChange}
+                        required
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Description (optional)
+                      </label>
+                      <textarea
+                        name="description"
+                        value={categoryForm.description}
+                        onChange={handleCategoryFormChange}
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                        rows={2}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 sm:gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddModal(false)}
+                        className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
+                        disabled={!categoryForm.hostel}
+                      >
+                        Create Category
+                      </button>
+                    </div>
+                  </form>
+                  {categoryForm.hostel && getCategoriesForHostel(categoryForm.hostel).length > 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                      <div className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">Available Categories</div>
+                      <ul className="space-y-1 text-xs sm:text-sm text-gray-700 max-h-32 overflow-auto">
+                        {getCategoriesForHostel(categoryForm.hostel).map(cat => (
+                          <li key={cat._id} className="flex justify-between">
+                            <span>{cat.name}</span>
+                            <span className="text-gray-500 text-[11px] sm:text-xs">{cat.isActive ? 'Active' : 'Inactive'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Room Form */}
+              {addTab === 'room' && (
+                <form onSubmit={handleAddRoom} className="space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Hostel
+                      </label>
+                      <select
+                        name="hostel"
+                        value={formData.hostel}
+                        onChange={handleFormChange}
+                        required
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      >
+                        <option value="">Select Hostel</option>
+                        {hostels.map(h => (
+                          <option key={h._id} value={h._id}>{h.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <select
+                        name="category"
+                        value={formData.category}
+                        onChange={handleFormChange}
+                        required
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      >
+                        <option value="">Select Category</option>
+                        {getCategoriesForHostel(formData.hostel).map(cat => (
+                          <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {hostels.length > 0 && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                        <div className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">Available Hostels</div>
+                        <ul className="space-y-1 text-xs sm:text-sm text-gray-700 max-h-24 overflow-auto">
+                          {hostels.map(h => (
+                            <li key={h._id} className="flex justify-between">
+                              <span>{h.name}</span>
+                              <span className="text-gray-500 text-[11px] sm:text-xs">{h.isActive ? 'Active' : 'Inactive'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {formData.hostel && getCategoriesForHostel(formData.hostel).length > 0 && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                        <div className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">Available Categories</div>
+                        <ul className="space-y-1 text-xs sm:text-sm text-gray-700 max-h-24 overflow-auto">
+                          {getCategoriesForHostel(formData.hostel).map(cat => (
+                            <li key={cat._id} className="flex justify-between">
+                              <span>{cat.name}</span>
+                              <span className="text-gray-500 text-[11px] sm:text-xs">{cat.isActive ? 'Active' : 'Inactive'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {formData.hostel && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3">
+                        <div className="text-xs sm:text-sm font-semibold text-gray-800 mb-1">Available Rooms</div>
+                        <ul className="space-y-1 text-xs sm:text-sm text-gray-700 max-h-24 overflow-auto">
+                          {rooms
+                            .filter(r => {
+                              const rHostel = r.hostel?._id || r.hostel;
+                              const rCategory = r.category?._id || r.category;
+                              const hostelMatch = rHostel === formData.hostel;
+                              if (!hostelMatch) return false;
+                              if (formData.category) {
+                                return rCategory === formData.category;
+                              }
+                              return true;
+                            })
+                            .map(r => (
+                              <li key={r._id} className="flex justify-between">
+                                <span>{r.roomNumber}</span>
+                                <span className="text-gray-500 text-[11px] sm:text-xs">
+                                  {r.category?.name || r.categoryName || 'N/A'}
+                                </span>
+                              </li>
+                            ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Room Number
+                    </label>
+                    <input
+                      type="text"
+                      name="roomNumber"
+                      value={formData.roomNumber}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      placeholder="Enter room number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Bed Count
+                    </label>
+                    <input
+                      type="number"
+                      name="bedCount"
+                      min={1}
+                      value={formData.bedCount}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                      placeholder="Enter bed count"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      Meter Type
+                    </label>
+                    <select
+                      name="meterType"
+                      value={formData.meterType}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                    >
+                      <option value="single">Single Meter</option>
+                      <option value="dual">Dual Meter</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.meterType === 'dual' 
+                        ? 'This room has two electricity meters. You will need to enter readings for both meters when billing.'
+                        : 'This room has a single electricity meter.'}
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-2 sm:gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      className="px-3 sm:px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-xs sm:text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs sm:text-sm"
+                    >
+                      Add Room
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </motion.div>
         )}
@@ -1073,36 +1369,56 @@ const RoomManagement = () => {
               <form onSubmit={handleEditRoom} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Gender
+                    Hostel
                   </label>
-                  <select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      name="hostel"
+                      value={formData.hostel}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                    >
+                      <option value="">Select Hostel</option>
+                      {hostels.map(h => (
+                        <option key={h._id} value={h._id}>{h.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleCreateHostel}
+                      className="px-2 sm:px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs sm:text-sm hover:bg-green-200"
+                    >
+                      New
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                     Category
                   </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleFormChange}
-                    required
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
-                  >
-                    {getCategoryOptions(formData.gender).map(category => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex gap-2">
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleFormChange}
+                      required
+                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
+                    >
+                      <option value="">Select Category</option>
+                      {getCategoriesForHostel(formData.hostel).map(cat => (
+                        <option key={cat._id} value={cat._id}>{cat.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      className="px-2 sm:px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs sm:text-sm hover:bg-blue-200"
+                      disabled={!formData.hostel}
+                    >
+                      New
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
@@ -1194,7 +1510,7 @@ const RoomManagement = () => {
                     Room {selectedRoom.roomNumber} Details
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-500">
-                    {selectedRoom.gender} - Category {selectedRoom.category}
+                    {(selectedRoom.hostel?.name || selectedRoom.hostel || 'Hostel')} • {(selectedRoom.category?.name || selectedRoom.category || 'Category')}
                   </p>
                 </div>
                 <button
@@ -1226,12 +1542,12 @@ const RoomManagement = () => {
                           <span className="font-medium">{selectedRoom.roomNumber}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Gender:</span>
-                          <span className="font-medium">{selectedRoom.gender}</span>
+                          <span className="text-gray-600">Hostel:</span>
+                          <span className="font-medium">{selectedRoom.hostel?.name || selectedRoom.hostel || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Category:</span>
-                          <span className="font-medium">{selectedRoom.category}</span>
+                          <span className="font-medium">{selectedRoom.category?.name || selectedRoom.category || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total Beds:</span>

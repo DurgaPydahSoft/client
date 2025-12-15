@@ -67,22 +67,30 @@ const FeeManagement = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  // Generate current academic year
+  const getCurrentAcademicYear = () => {
+    const currentYear = new Date().getFullYear();
+    return `${currentYear}-${currentYear + 1}`;
+  };
+
   const [filters, setFilters] = useState({
     search: '',
-    academicYear: '',
+    hostel: '',
+    academicYear: getCurrentAcademicYear(), // Default to current academic year
     category: '',
-    gender: '',
     course: '',
     year: ''
   });
   
+  // Hostels state for filter dropdown
+  const [hostels, setHostels] = useState([]);
+  
   // Debounce search to reduce API calls
   const debouncedSearch = useDebounce(filters.search, 500);
 
-  // Fee Structure Management
+  // Fee Structure Data (used for dues/payment calculations)
   const [feeStructures, setFeeStructures] = useState([]);
   const [courses, setCourses] = useState(coursesFromContext || []); // Use from context if available
-  const [courseYears, setCourseYears] = useState([]);
   const [duesCourseYears, setDuesCourseYears] = useState([]); // Separate state for dues tab course years
   
   // Update courses when context updates
@@ -91,35 +99,7 @@ const FeeManagement = () => {
       setCourses(coursesFromContext);
     }
   }, [coursesFromContext]);
-  const [showFeeStructureModal, setShowFeeStructureModal] = useState(false);
-  const [selectedFeeStructure, setSelectedFeeStructure] = useState(null);
-  const [feeStructureForm, setFeeStructureForm] = useState({
-    academicYear: '',
-    course: '',
-    year: '',
-    category: '',
-    totalFee: 0
-  });
-  const [bulkFeeForm, setBulkFeeForm] = useState({
-    academicYear: '',
-    course: '',
-    year: '',
-    categories: {
-      'A+': { totalFee: 0, exists: false },
-      'A': { totalFee: 0, exists: false },
-      'B+': { totalFee: 0, exists: false },
-      'B': { totalFee: 0, exists: false },
-    }
-  });
-  const [feeStructureLoading, setFeeStructureLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('dues'); // 'dues', 'structure', 'additional-fees', 'payments', 'reminders', or 'reminder-config'
-  const [feeStructureFilter, setFeeStructureFilter] = useState({
-    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
-    course: '',
-    year: ''
-  });
-  const [selectedYearsToApply, setSelectedYearsToApply] = useState([]); // Years selected to apply the same fee values
-  const [isEditMode, setIsEditMode] = useState(false); // Track if we're in edit mode
+  const [activeTab, setActiveTab] = useState('dues'); // 'dues', 'payments', 'reminders', 'reminder-config', or 'concessions'
 
   // Payment Tracking State
   const [payments, setPayments] = useState([]);
@@ -137,23 +117,8 @@ const FeeManagement = () => {
     utrNumber: '', // UTR number for online payments
     additionalFeeType: '' // For additional fees
   });
-  // Additional Fees Setup State
+  // Additional Fees Data (used in payments and balances)
   const [additionalFees, setAdditionalFees] = useState({});
-  const [additionalFeesLoading, setAdditionalFeesLoading] = useState(false);
-  const [showAdditionalFeeModal, setShowAdditionalFeeModal] = useState(false);
-  const [selectedAdditionalFee, setSelectedAdditionalFee] = useState(null);
-  const [availableCategories, setAvailableCategories] = useState(['A+', 'A', 'B+', 'B']); // Fetched from database
-  const [additionalFeeForm, setAdditionalFeeForm] = useState({
-    feeType: '',
-    amount: 0, // Keep for backward compatibility
-    description: '',
-    isActive: true,
-    categories: ['A+', 'A', 'B+', 'B'], // Default to all categories
-    categoryAmounts: {} // Category-specific amounts: { 'A+': 1000, 'A': 1000, 'B': 2000 }
-  });
-  const [additionalFeesFilter, setAdditionalFeesFilter] = useState({
-    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
-  });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
   const [selectedStudentBalance, setSelectedStudentBalance] = useState(null);
@@ -240,40 +205,6 @@ const FeeManagement = () => {
   };
 
 
-  // Fetch available categories from database
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await api.get('/api/rooms/categories');
-        if (response.data.success) {
-          setAvailableCategories(response.data.data || ['A+', 'A', 'B+', 'B']);
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        // Fallback to default categories
-        setAvailableCategories(['A+', 'A', 'B+', 'B']);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  // Get available categories based on gender (dynamic room mapping)
-  const getAvailableCategories = (gender = null) => {
-    // Use fetched categories from database
-    const baseCategories = availableCategories;
-
-    // If gender is specified, filter based on available room categories
-    if (gender) {
-      if (gender === 'Male') {
-        return baseCategories.filter(cat => ['A+', 'A', 'B+', 'B'].includes(cat));
-      } else if (gender === 'Female') {
-        return baseCategories.filter(cat => ['A+', 'A', 'B', 'C'].includes(cat));
-      }
-    }
-
-    return baseCategories;
-  };
-
   // Cache for term due dates to avoid repeated API calls
   // Note: Due dates are configured per course/academicYear/yearOfStudy (shared across all categories)
   // Fee structures are per course/academicYear/year/category (different fees per category)
@@ -281,18 +212,29 @@ const FeeManagement = () => {
   const termDueDatesCache = useRef(new Map());
   const CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache
 
+  // Helper function to get course name (handles both string and object formats)
+  // After SQL migration, course is stored as a string (course name)
+  const getCourseName = (course) => {
+    if (!course) return 'Unknown Course';
+    if (typeof course === 'string') return course;
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'object' && course._id) return 'Unknown Course';
+    return 'Unknown Course';
+  };
+
   // Helper function to get student term due dates from backend with caching
   // Due dates are linked to fee structures via: course, academicYear, yearOfStudy
   // Fee structures are linked via: course, academicYear, year, category
   // Due dates are shared across all categories for the same course/year/academicYear
   const getStudentTermDueDates = useCallback(async (student) => {
-    if (!student?.course?._id || !student?.academicYear || !student?.year) {
+    const courseName = getCourseName(student?.course);
+    if (!courseName || courseName === 'Unknown Course' || !student?.academicYear || !student?.year) {
       console.warn('⚠️ Cannot fetch due dates: Missing student course, academicYear, or year');
       return null;
     }
 
-    // Create cache key from course, academicYear, and year (category not needed - due dates are shared)
-    const cacheKey = `${student.course._id}-${student.academicYear}-${student.year}`;
+    // Create cache key from course name, academicYear, and year (category not needed - due dates are shared)
+    const cacheKey = `${courseName}-${student.academicYear}-${student.year}`;
     
     // Check cache first
     const cached = termDueDatesCache.current.get(cacheKey);
@@ -303,7 +245,8 @@ const FeeManagement = () => {
     try {
       // Fetch due dates from reminder config
       // Note: semesterStartDate is used as a fallback if semester dates aren't configured
-      const response = await api.get(`/api/reminder-config/calculate-term-due-dates/${student.course._id}/${student.academicYear}/${student.year}`, {
+      // Backend expects course name (string) after SQL migration
+      const response = await api.get(`/api/reminder-config/calculate-term-due-dates/${encodeURIComponent(courseName)}/${student.academicYear}/${student.year}`, {
         params: { semesterStartDate: new Date().toISOString() }
       });
       
@@ -325,7 +268,7 @@ const FeeManagement = () => {
     } catch (error) {
       // Due dates not configured for this course/academicYear/year combination
       // This is acceptable - the system will show all balances if no due dates are configured
-      console.log(`ℹ️ No due dates configured for ${student.name} (${student.course?.name || 'Unknown Course'}, Year ${student.year}, ${student.academicYear})`);
+      console.log(`ℹ️ No due dates configured for ${student.name} (${getCourseName(student.course)}, Year ${student.year}, ${student.academicYear})`);
       
       // Cache null result to avoid repeated failed calls
       termDueDatesCache.current.set(cacheKey, {
@@ -394,27 +337,140 @@ const FeeManagement = () => {
   };
 
   // Fetch fee structure for a specific student course, year, category and academic year
-  // Fee structures are linked by: academicYear, course, year, category
+  // Fee structures are linked by: academicYear, course, year, hostelId (optional), categoryId (optional), category (legacy)
   // Note: Due dates are configured separately per course/academicYear/year (shared across categories)
   // This means all categories (A+, A, B+, B, C) have the same due dates but different fee amounts
-  const getFeeStructureForStudent = (course, year, category, academicYear) => {
-    const structure = feeStructures.find(structure => {
-      // Handle both cases: course as object (with _id) or course as string (course name)
-      let courseMatch = false;
-      if (typeof course === 'object' && course._id) {
-        // Student course is an object with _id
-        courseMatch = structure.course?._id === course._id || structure.course === course._id;
-      } else if (typeof course === 'string') {
-        // Student course is a string (course name or ID)
-        courseMatch = structure.course?.name === course || structure.course === course;
-      }
-      
-      const yearMatch = structure.year === year;
-      const categoryMatch = structure.category === category;
-      const academicYearMatch = structure.academicYear === academicYear;
-      
-      return courseMatch && yearMatch && categoryMatch && academicYearMatch;
+  const getFeeStructureForStudent = (course, year, category, academicYear, studentHostel = null, studentHostelCategory = null) => {
+    // Get course name from student (handles both string and object)
+    const studentCourseName = getCourseName(course);
+    
+    // Normalize course names for comparison (trim and handle case)
+    const normalizeCourseName = (name) => {
+      if (!name) return '';
+      return String(name).trim();
+    };
+    
+    const normalizedStudentCourse = normalizeCourseName(studentCourseName);
+    
+    // Helper to extract ID from object or string
+    const extractId = (id) => {
+      if (!id) return null;
+      if (typeof id === 'string') return id;
+      if (typeof id === 'object' && id._id) return String(id._id);
+      return String(id);
+    };
+    
+    // Extract student hostel and category IDs
+    const studentHostelId = extractId(studentHostel);
+    const studentHostelCategoryId = extractId(studentHostelCategory);
+    
+    // Debug logging only if no structures loaded
+    if (feeStructures.length === 0) {
+      console.warn('⚠️ No fee structures loaded for academic year:', academicYear);
+      return undefined;
+    }
+    
+    // First, filter by academic year and course to reduce search space
+    const candidateStructures = feeStructures.filter(s => {
+      const normalizedStructCourse = normalizeCourseName(s.course);
+      return normalizedStructCourse === normalizedStudentCourse && s.academicYear === academicYear;
     });
+    
+    if (candidateStructures.length === 0) {
+      // Only log if we have structures but none match this course
+      console.warn(`⚠️ No fee structures found for course "${normalizedStudentCourse}" in academic year "${academicYear}"`, {
+        availableCourses: [...new Set(feeStructures.map(s => s.course))],
+        availableYears: [...new Set(feeStructures.map(s => s.academicYear))]
+      });
+      return undefined;
+    }
+    
+    // Now match by year, hostel, categoryId, and category
+    const structure = candidateStructures.find(structure => {
+      // Match year - must be exact match
+      const yearMatch = Number(structure.year) === Number(year);
+      if (!yearMatch) return false;
+      
+      // Match hostelId - if fee structure has a hostelId, it must match student's hostel
+      // If fee structure has no hostelId (null), it applies to all hostels
+      let hostelMatch = true; // Default: applies to all hostels
+      if (structure.hostelId) {
+        const structureHostelId = extractId(structure.hostelId);
+        // If structure has hostelId, student must have matching hostel
+        if (studentHostelId) {
+          hostelMatch = structureHostelId === studentHostelId;
+        } else {
+          // Structure requires a hostel, but student has no hostel - no match
+          hostelMatch = false;
+        }
+      }
+      // If structure has no hostelId, it applies to all hostels (hostelMatch = true)
+      
+      if (!hostelMatch) return false;
+      
+      // Match categoryId - if fee structure has a categoryId, it must match student's hostelCategory
+      // If fee structure has no categoryId (null), it applies to all categories within the hostel
+      let categoryIdMatch = true; // Default: applies to all categories
+      if (structure.categoryId) {
+        const structureCategoryId = extractId(structure.categoryId);
+        // If structure has categoryId, student must have matching hostelCategory
+        if (studentHostelCategoryId) {
+          categoryIdMatch = structureCategoryId === studentHostelCategoryId;
+        } else {
+          // Structure requires a categoryId, but student has no hostelCategory - no match
+          categoryIdMatch = false;
+        }
+      }
+      // If structure has no categoryId, it applies to all categories (categoryIdMatch = true)
+      
+      if (!categoryIdMatch) return false;
+      
+      // Match category (legacy string field) - handle both legacy category (string) and new categoryId (object with name)
+      // This ensures the category name matches the student's category string
+      let categoryMatch = true; // Default: applies to all categories
+      if (structure.categoryId) {
+        // New format: categoryId is populated as object with name property
+        // The categoryId's name should match the student's category string
+        const categoryName = typeof structure.categoryId === 'object' && structure.categoryId?.name 
+          ? structure.categoryId.name 
+          : null;
+        if (categoryName) {
+          // If categoryId has a name, it must match the student's category string
+          categoryMatch = categoryName === category;
+        } else {
+          // categoryId matched above, but no name available - assume match (shouldn't happen if populated correctly)
+          categoryMatch = true;
+        }
+      } else if (structure.category) {
+        // Legacy format: category is a string (e.g., "A+", "A", "B+", "B", "C")
+        // Must match student's category string exactly
+        categoryMatch = structure.category === category;
+      }
+      // If no categoryId and no category field, applies to all categories (categoryMatch = true)
+      
+      return categoryMatch;
+    });
+
+    // Only log warning if we had candidate structures but none matched
+    if (!structure && candidateStructures.length > 0) {
+      console.warn(`⚠️ No matching fee structure found for:`, {
+        course: normalizedStudentCourse,
+        year,
+        category,
+        academicYear,
+        studentHostel: studentHostelId,
+        studentHostelCategory: studentHostelCategoryId,
+        availableStructuresForCourse: candidateStructures.map(s => ({
+          year: s.year,
+          hostelId: extractId(s.hostelId),
+          categoryId: extractId(s.categoryId),
+          category: s.category,
+          categoryIdName: s.categoryId?.name,
+          amount: s.amount,
+          totalFee: s.totalFee
+        }))
+      });
+    }
 
     return structure;
   };
@@ -458,10 +514,23 @@ const FeeManagement = () => {
     });
 
     if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (filters.hostel && filters.hostel.trim()) {
+      // Extract hostel ID if it's an object, otherwise use as-is
+      const hostelId = typeof filters.hostel === 'object' ? filters.hostel._id : filters.hostel;
+      params.append('hostel', hostelId);
+    }
     if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
     if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
-    if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
-    if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+    // Convert course ID to course name for filtering (after SQL migration, students store course as string name)
+    if (filters.course && filters.course.trim()) {
+      const selectedCourse = courses.find(c => String(c._id) === String(filters.course) || c._id === filters.course || c.name === filters.course);
+      if (selectedCourse) {
+        params.append('course', selectedCourse.name); // Send course name, not ID
+      } else {
+        // If course not found in local state, try sending as-is (might be name already)
+        params.append('course', filters.course.trim());
+      }
+    }
     if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
 
     const response = await api.get(`/api/admin/students?${params}`);
@@ -473,11 +542,11 @@ const FeeManagement = () => {
       return { students: studentsData, totalCount };
     }
     return { students: [], totalCount: 0 };
-  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
+  }, [currentPage, debouncedSearch, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year, courses]);
 
   // Use React Query for students table - enables parallel fetching with payments
   const { data: studentsTableData, isLoading: studentsTableLoading, refetch: refetchStudentsTable } = useQuery({
-    queryKey: ['students-table', currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year],
+    queryKey: ['students-table', currentPage, debouncedSearch, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year],
     queryFn: fetchStudentsForTable,
     staleTime: 30 * 1000, // 30 seconds
     cacheTime: 2 * 60 * 1000, // 2 minutes
@@ -530,10 +599,23 @@ const FeeManagement = () => {
       });
 
       if (debouncedSearch && debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+      if (filters.hostel && filters.hostel.trim()) {
+        // Extract hostel ID if it's an object, otherwise use as-is
+        const hostelId = typeof filters.hostel === 'object' ? filters.hostel._id : filters.hostel;
+        params.append('hostel', hostelId);
+      }
       if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
       if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
-      if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
-      if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+      // Convert course ID to course name for filtering (after SQL migration, students store course as string name)
+      if (filters.course && filters.course.trim()) {
+        const selectedCourse = courses.find(c => String(c._id) === String(filters.course) || c._id === filters.course || c.name === filters.course);
+        if (selectedCourse) {
+          params.append('course', selectedCourse.name); // Send course name, not ID
+        } else {
+          // If course not found in local state, try sending as-is (might be name already)
+          params.append('course', filters.course.trim());
+        }
+      }
       if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
 
       const response = await api.get(`/api/admin/students?${params}`);
@@ -554,54 +636,7 @@ const FeeManagement = () => {
       setTableLoading(false);
       setLoading(false);
     }
-  }, [currentPage, debouncedSearch, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
-
-  // Fetch course years function - defined before useEffects that use it
-  const fetchCourseYears = useCallback(async (courseId) => {
-    if (!courseId) {
-      setCourseYears([]);
-      return;
-    }
-    
-    try {
-      const response = await api.get(`/api/fee-structures/courses/${courseId}/years`);
-      if (response.data.success) {
-        setCourseYears(response.data.data.years);
-      }
-    } catch (err) {
-      console.error('Error fetching course years:', err);
-      setCourseYears([]);
-    }
-  }, []);
-
-  // Fetch course years when course changes
-  useEffect(() => {
-    if (feeStructureForm.course) {
-      fetchCourseYears(feeStructureForm.course);
-      // Only reset year and category when course changes if we're not editing an existing structure
-      if (!selectedFeeStructure && !isEditMode) {
-        setFeeStructureForm(prev => ({ ...prev, year: '', category: '' }));
-      }
-    } else {
-      setCourseYears([]);
-    }
-  }, [feeStructureForm.course, selectedFeeStructure, isEditMode, fetchCourseYears]);
-
-  // Reset category when year changes (but not when editing)
-  useEffect(() => {
-    if (feeStructureForm.year && !selectedFeeStructure && !isEditMode) {
-      setFeeStructureForm(prev => ({ ...prev, category: '' }));
-    }
-  }, [feeStructureForm.year, selectedFeeStructure, isEditMode]);
-
-  // Fetch course years when course filter changes
-  useEffect(() => {
-    if (feeStructureFilter.course) {
-      fetchCourseYears(feeStructureFilter.course);
-    } else {
-      setCourseYears([]);
-    }
-  }, [feeStructureFilter.course, fetchCourseYears]);
+  }, [currentPage, debouncedSearch, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year, courses]);
 
   // Fetch course years for dues tab when course filter changes
   useEffect(() => {
@@ -686,7 +721,16 @@ const FeeManagement = () => {
     if (filters.academicYear && filters.academicYear.trim()) params.append('academicYear', filters.academicYear.trim());
     if (filters.category && filters.category.trim()) params.append('category', filters.category.trim());
     if (filters.gender && filters.gender.trim()) params.append('gender', filters.gender.trim());
-    if (filters.course && filters.course.trim()) params.append('course', filters.course.trim());
+    // Convert course ID to course name for filtering (after SQL migration, students store course as string name)
+    if (filters.course && filters.course.trim()) {
+      const selectedCourse = courses.find(c => String(c._id) === String(filters.course) || c._id === filters.course || c.name === filters.course);
+      if (selectedCourse) {
+        params.append('course', selectedCourse.name); // Send course name, not ID
+      } else {
+        // If course not found in local state, try sending as-is (might be name already)
+        params.append('course', filters.course.trim());
+      }
+    }
     if (filters.year && filters.year.trim()) params.append('year', parseInt(filters.year.trim()));
 
     const response = await api.get(`/api/admin/students?${params}`);
@@ -695,11 +739,11 @@ const FeeManagement = () => {
       return response.data.data.students || response.data.data || [];
     }
     return [];
-  }, [debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
+  }, [debouncedSearchForStats, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year, courses]);
 
   // Use React Query to cache students for stats - OPTIMIZED: Fetch immediately when dues tab is active
   const { data: cachedStudentsForStats, isLoading: studentsStatsLoading, refetch: refetchStudentsForStats } = useQuery({
-    queryKey: ['students-for-stats', debouncedSearchForStats, filters.academicYear, filters.category, filters.gender, filters.course, filters.year],
+    queryKey: ['students-for-stats', debouncedSearchForStats, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year],
     queryFn: fetchStudentsForStats,
     staleTime: 1 * 60 * 1000, // 1 minute - stats should be relatively fresh
     cacheTime: 5 * 60 * 1000, // 5 minutes cache
@@ -776,7 +820,14 @@ const FeeManagement = () => {
 
   // Memoize calculateStudentBalance to avoid recalculating for same student
   const calculateStudentBalance = useCallback((student, paymentsOverride = null) => {
-    const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+    const feeStructure = getFeeStructureForStudent(
+      student.course, 
+      student.year, 
+      student.category, 
+      student.academicYear,
+      student.hostel, // Pass student's hostel ObjectId
+      student.hostelCategory // Pass student's hostelCategory ObjectId
+    );
     if (!feeStructure) return null;
 
     // Use override payments if provided, otherwise use state payments
@@ -976,7 +1027,14 @@ const FeeManagement = () => {
         
         // Memoize fee structure lookups
         const studentsWithFees = allStudentsData.filter(student => {
-          const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+          const feeStructure = getFeeStructureForStudent(
+            student.course, 
+            student.year, 
+            student.category, 
+            student.academicYear,
+            student.hostel,
+            student.hostelCategory
+          );
           return feeStructure !== undefined;
         }).length;
         const studentsWithoutFees = totalStudents - studentsWithFees;
@@ -1009,8 +1067,9 @@ const FeeManagement = () => {
     // OPTIMIZATION: Group students by course/year/academicYear to batch term due dates calls
     const studentsByKey = new Map();
     for (const student of allStudentsData) {
-      if (student.course?._id && student.academicYear && student.year) {
-        const key = `${student.course._id}-${student.academicYear}-${student.year}`;
+      const courseName = getCourseName(student.course);
+      if (courseName && courseName !== 'Unknown Course' && student.academicYear && student.year) {
+        const key = `${courseName}-${student.academicYear}-${student.year}`;
         if (!studentsByKey.has(key)) {
           studentsByKey.set(key, []);
         }
@@ -1036,7 +1095,14 @@ const FeeManagement = () => {
         
         // Batch process students - use existing payments from state
         for (const student of allStudentsData) {
-          const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+          const feeStructure = getFeeStructureForStudent(
+            student.course, 
+            student.year, 
+            student.category, 
+            student.academicYear,
+            student.hostel,
+            student.hostelCategory
+          );
           if (feeStructure) {
             const originalFee = feeStructure.totalFee;
             const calculatedFee = student.totalCalculatedFee || originalFee;
@@ -1050,7 +1116,8 @@ const FeeManagement = () => {
               
             if (studentBalance) {
           // Get term due dates from cache (already fetched above)
-          const cacheKey = `${student.course._id}-${student.academicYear}-${student.year}`;
+          const courseName = getCourseName(student.course);
+          const cacheKey = `${courseName}-${student.academicYear}-${student.year}`;
           const termDueDates = termDueDatesMap.get(cacheKey) || null;
               
               // Apply date-based filtering
@@ -1120,7 +1187,7 @@ const FeeManagement = () => {
     }
 
     // Create a unique key for this calculation to prevent duplicate calculations
-    const calculationKey = `${cachedStudentsForStats.length}-${cachedPayments?.length || 0}-${filters.academicYear}-${filters.category}-${filters.gender}-${filters.course}-${filters.year}`;
+    const calculationKey = `${cachedStudentsForStats.length}-${cachedPayments?.length || 0}-${filters.hostel}-${filters.academicYear}-${filters.category}-${filters.course}-${filters.year}`;
     
     // Skip if we just calculated with the same data
     if (lastCalculationKey.current === calculationKey) {
@@ -1153,7 +1220,7 @@ const FeeManagement = () => {
         clearTimeout(statsCalculationTimeout.current);
       }
     };
-  }, [cachedStudentsForStats, cachedPayments, activeTab, calculateStatsFromStudents, filters.academicYear, filters.category, filters.gender, filters.course, filters.year]);
+  }, [cachedStudentsForStats, cachedPayments, activeTab, calculateStatsFromStudents, filters.hostel, filters.academicYear, filters.category, filters.course, filters.year]);
 
 
 
@@ -1196,7 +1263,7 @@ const FeeManagement = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ search: '', academicYear: '', category: '', gender: '', course: '', year: '' });
+    setFilters({ search: '', hostel: '', academicYear: getCurrentAcademicYear(), category: '', course: '', year: '' });
     setCurrentPage(1);
   };
 
@@ -1226,40 +1293,93 @@ const FeeManagement = () => {
     }
   }, [fetchCourses, coursesFromContext]);
 
+  // Fetch hostels on component mount
+  const fetchHostels = useCallback(async () => {
+    try {
+      const response = await api.get('/api/hostels');
+      if (response.data.success) {
+        setHostels(response.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching hostels:', err);
+      toast.error('Failed to load hostels');
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHostels();
+  }, [fetchHostels]);
+
   // OPTIMIZED: Use React Query to cache fee structures
+  // IMPORTANT: Fetch ALL fee structures for the academic year (without course/year filters)
+  // This ensures we have all structures available for matching students, regardless of current filters
   const fetchFeeStructures = useCallback(async () => {
-    // Build query parameters
+    // Build query parameters - academicYear is required by backend
     const queryParams = new URLSearchParams();
-    if (feeStructureFilter.academicYear) {
-      queryParams.append('academicYear', feeStructureFilter.academicYear);
-    }
-    if (feeStructureFilter.course) {
-      queryParams.append('course', feeStructureFilter.course);
-    }
-    if (feeStructureFilter.year) {
-      queryParams.append('year', feeStructureFilter.year);
-    }
+    
+    // Use current academic year as default if not set
+    // IMPORTANT: We fetch ALL fee structures for the academic year, not filtered by course/year
+    // This allows proper matching of students to fee structures regardless of current filter selection
+    const academicYear = filters.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    queryParams.append('academicYear', academicYear);
+    
+    // NOTE: We intentionally do NOT filter by course or year here
+    // This ensures all fee structures for the academic year are available for matching
+    // The matching logic in getFeeStructureForStudent will handle filtering by course/year/category
 
     const queryString = queryParams.toString();
     const url = `/api/fee-structures${queryString ? `?${queryString}` : ''}`;
     
+    console.log('🔍 Fetching fee structures from:', url);
     const response = await api.get(url);
 
     if (response.data.success && Array.isArray(response.data.data)) {
-      // Note: Additional fees are now fetched separately in the Additional Fees Setup tab
-      return response.data.data;
+      const fetchedStructures = response.data.data;
+      console.log('✅ Fee structures fetched:', fetchedStructures.length, 'structures for academic year:', academicYear);
+      
+      if (fetchedStructures.length > 0) {
+        // Log summary of what was fetched
+        const coursesByYear = {};
+        fetchedStructures.forEach(s => {
+          const key = `${s.course} - Year ${s.year}`;
+          if (!coursesByYear[key]) {
+            coursesByYear[key] = { 
+              course: s.course, 
+              year: s.year, 
+              categories: new Set(),
+              count: 0 
+            };
+          }
+          coursesByYear[key].count++;
+          if (s.category) coursesByYear[key].categories.add(s.category);
+          if (s.categoryId?.name) coursesByYear[key].categories.add(s.categoryId.name);
+        });
+        
+        console.log('📊 Fee structures summary:', Object.values(coursesByYear).map(s => ({
+          course: s.course,
+          year: s.year,
+          categories: Array.from(s.categories),
+          structures: s.count
+        })));
+      } else {
+        console.warn('⚠️ No fee structures found for academic year:', academicYear);
+      }
+      return fetchedStructures;
     } else {
+      console.warn('⚠️ Fee structures fetch failed or returned non-array:', response.data);
       return [];
     }
-  }, [feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year]);
+  }, [filters.academicYear, courses]);
 
   // Use React Query for fee structures
+  // NOTE: Query key only includes academicYear, not course/year filters
+  // This ensures we fetch all fee structures for the academic year for proper matching
   const { data: cachedFeeStructures, isLoading: feeStructuresQueryLoading, refetch: refetchFeeStructures } = useQuery({
-    queryKey: ['fee-structures', feeStructureFilter.academicYear, feeStructureFilter.course, feeStructureFilter.year],
+    queryKey: ['fee-structures', filters.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`],
     queryFn: fetchFeeStructures,
     staleTime: 3 * 60 * 1000, // 3 minutes
     cacheTime: 10 * 60 * 1000, // 10 minutes
-    enabled: activeTab === 'structure' || activeTab === 'dues', // Only fetch when needed
+    enabled: activeTab === 'dues', // Only fetch when showing dues (management moved)
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
@@ -1268,428 +1388,8 @@ const FeeManagement = () => {
   useEffect(() => {
     if (cachedFeeStructures) {
       setFeeStructures(cachedFeeStructures);
-      setFeeStructureLoading(false);
     }
   }, [cachedFeeStructures]);
-
-  // Update loading state
-  useEffect(() => {
-    setFeeStructureLoading(feeStructuresQueryLoading);
-  }, [feeStructuresQueryLoading]);
-
-  const handleFeeStructureSubmit = async (e) => {
-    e.preventDefault();
-
-    // Check if this is bulk creation
-    if (bulkFeeForm.course && bulkFeeForm.year) {
-      return await handleBulkFeeStructureSubmit();
-    }
-
-    // Validate form data for single creation
-    if (!feeStructureForm.academicYear || !feeStructureForm.course || !feeStructureForm.year || !feeStructureForm.category || !feeStructureForm.totalFee) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    if (feeStructureForm.totalFee <= 0) {
-      toast.error('Total fee must be greater than 0');
-      return;
-    }
-
-    try {
-      setFeeStructureLoading(true);
-
-      // Calculate term fees on frontend for validation
-      const termFees = calculateTermFees(feeStructureForm.totalFee);
-
-      // Get the course to know its duration
-      const course = courses.find(c => c._id === feeStructureForm.course);
-      if (!course) {
-        toast.error('Course not found');
-        return;
-      }
-
-      // Determine which years to save (current year + selected years)
-      const currentYear = parseInt(feeStructureForm.year);
-      const yearsToSave = [currentYear, ...selectedYearsToApply].filter((year, index, self) => self.indexOf(year) === index); // Remove duplicates
-
-      console.log('🔍 Frontend: Years to save:', yearsToSave);
-
-      // Save fee structure for each selected year
-      const savePromises = yearsToSave.map(async (year) => {
-        const feeData = {
-          academicYear: feeStructureForm.academicYear,
-          course: feeStructureForm.course,
-          year: year,
-          category: feeStructureForm.category,
-          totalFee: feeStructureForm.totalFee,
-          term1Fee: termFees.term1Fee,
-          term2Fee: termFees.term2Fee,
-          term3Fee: termFees.term3Fee
-        };
-
-        console.log(`🔍 Frontend: Saving fee structure for Year ${year}:`, feeData);
-        return api.post('/api/fee-structures', feeData);
-      });
-
-      // Wait for all saves to complete
-      const responses = await Promise.allSettled(savePromises);
-      
-      // Check results
-      const successful = responses.filter(r => r.status === 'fulfilled' && r.value.data.success).length;
-      const failed = responses.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.data.success)).length;
-
-      if (successful > 0) {
-        const courseName = course.name || 'Unknown Course';
-        const action = selectedFeeStructure ? 'updated' : 'saved';
-        if (yearsToSave.length === 1) {
-          toast.success(`Fee structure for ${courseName} Year ${currentYear} ${feeStructureForm.category} category (${feeStructureForm.academicYear}) ${action} successfully!`);
-        } else {
-          toast.success(`Fee structure ${action} successfully for ${successful} year(s)!${failed > 0 ? ` ${failed} failed.` : ''}`);
-        }
-        
-        setShowFeeStructureModal(false);
-        setSelectedFeeStructure(null);
-        setIsEditMode(false);
-        setSelectedYearsToApply([]);
-        setFeeStructureForm({
-          academicYear: '',
-          course: '',
-          year: '',
-          category: '',
-          totalFee: 0
-        });
-
-        // Refresh both fee structures and students to update linking
-        await Promise.all([
-          refetchFeeStructures(),
-          refetchStudentsTable()
-        ]);
-
-        // Recalculate stats - will trigger automatically via React Query cache invalidation
-        if (activeTab === 'dues') {
-          refetchStudentsForStats();
-        }
-      } else {
-        console.error('🔍 Frontend: All saves failed');
-        setError('Failed to save fee structure(s)');
-        toast.error('Failed to save fee structure(s). Please try again.');
-      }
-    } catch (err) {
-      console.error('Error saving fee structure:', err);
-      setError(err.response?.data?.message || 'Failed to save fee structure');
-      toast.error(err.response?.data?.message || 'Failed to save fee structure');
-    } finally {
-      setFeeStructureLoading(false);
-    }
-  };
-
-  const handleBulkFeeStructureSubmit = async () => {
-    // Validate all categories have fees
-    const categories = Object.entries(bulkFeeForm.categories).map(([category, data]) => ({
-      category,
-      totalFee: data.totalFee
-    }));
-
-    const missingCategories = categories.filter(cat => !cat.totalFee || cat.totalFee <= 0);
-    if (missingCategories.length > 0) {
-      toast.error(`Please provide fees for all categories: ${missingCategories.map(c => c.category).join(', ')}`);
-      return;
-    }
-
-    try {
-      setFeeStructureLoading(true);
-
-      const bulkData = {
-        academicYear: bulkFeeForm.academicYear,
-        course: bulkFeeForm.course,
-        year: parseInt(bulkFeeForm.year),
-        categories: categories
-      };
-
-      console.log('🔍 Frontend: Sending bulk fee data to backend:', bulkData);
-
-      const response = await api.post('/api/fee-structures', bulkData);
-
-      console.log('🔍 Frontend: Bulk response from backend:', response.data);
-
-      if (response.data.success) {
-        const courseName = courses.find(c => c._id === bulkData.course)?.name || 'Unknown Course';
-        toast.success(`Successfully created/updated ${response.data.data.length} fee structures for ${courseName} Year ${bulkData.year}!`);
-        
-        setShowFeeStructureModal(false);
-        setSelectedFeeStructure(null);
-        setIsEditMode(false);
-        
-        // Reset forms
-        setFeeStructureForm({
-          academicYear: '',
-          course: '',
-          year: '',
-          category: '',
-          totalFee: 0
-        });
-        setBulkFeeForm({
-          academicYear: '',
-          course: '',
-          year: '',
-          categories: {
-            'A+': { totalFee: 0, exists: false },
-            'A': { totalFee: 0, exists: false },
-            'B+': { totalFee: 0, exists: false },
-            'B': { totalFee: 0, exists: false },
-          }
-        });
-
-        // Refresh data
-        await Promise.all([
-          refetchFeeStructures(),
-          refetchStudentsTable()
-        ]);
-
-        // Recalculate stats - will trigger automatically via React Query cache invalidation
-        if (activeTab === 'dues') {
-          refetchStudentsForStats();
-        }
-      } else {
-        console.error('🔍 Frontend: Backend returned error:', response.data);
-        setError(response.data.message || 'Failed to save fee structures');
-      }
-    } catch (err) {
-      console.error('Error saving bulk fee structures:', err);
-      setError(err.response?.data?.message || 'Failed to save fee structures');
-    } finally {
-      setFeeStructureLoading(false);
-    }
-  };
-
-  // Get available years for a course (excluding years where ALL categories exist)
-  const getAvailableYearsForCreation = (courseId, academicYear) => {
-    if (!courseId || !academicYear) return [];
-
-    // Get the course to know its duration
-    const course = courses.find(c => c._id === courseId);
-    if (!course) return [];
-
-    // If editing, include the current year
-    if (selectedFeeStructure && selectedFeeStructure.course?._id === courseId) {
-      return Array.from({ length: course.duration }, (_, i) => i + 1);
-    }
-
-    // Get all possible categories
-    const allCategories = getAvailableCategories();
-    
-    // Check each year to see if ALL categories already exist
-    const availableYears = Array.from({ length: course.duration }, (_, i) => i + 1)
-      .filter(year => {
-        // Get existing categories for this year
-        const existingCategories = feeStructures
-          .filter(structure => 
-            structure.academicYear === academicYear &&
-            (structure.course?._id === courseId || structure.course === courseId) &&
-            structure.year === year
-          )
-          .map(structure => structure.category);
-        
-        // Year is available if not ALL categories exist
-        return existingCategories.length < allCategories.length;
-      });
-
-    return availableYears;
-  };
-
-  // Get available categories (excluding already created ones)
-  const getAvailableCategoriesForCreation = () => {
-    const allCategories = getAvailableCategories();
-    const academicYear = feeStructureForm.academicYear || feeStructureFilter.academicYear || '2024-2025';
-    const courseId = feeStructureForm.course;
-    const year = feeStructureForm.year;
-
-    // If no course selected, return all categories
-    if (!courseId) {
-      return allCategories;
-    }
-
-    // If editing, include all categories (including current one)
-    if (selectedFeeStructure || isEditMode) {
-      return allCategories;
-    }
-
-    // For add mode: Always show all categories regardless of year selection
-    // This prevents categories from disappearing when year is selected
-    // Backend will handle duplicate check if user tries to create existing structure
-    // Better UX - user can always see all available categories
-    return allCategories;
-  };
-
-  const openFeeStructureModal = (structure = null) => {
-    if (structure) {
-      console.log('🔍 Opening edit modal for structure:', structure);
-      setSelectedFeeStructure(structure);
-      setIsEditMode(false); // Not in edit mode yet, showing details view
-      
-      // Extract course ID properly - handle both populated and non-populated references
-      const courseId = structure.course?._id || structure.course || '';
-      // Convert year to string to match dropdown format
-      const yearValue = structure.year ? String(structure.year) : '';
-      
-      const formData = {
-        academicYear: structure.academicYear || '',
-        course: String(courseId || ''),
-        year: yearValue,
-        category: structure.category || '',
-        totalFee: (structure.totalFee || 0) || ((structure.term1Fee || 0) + (structure.term2Fee || 0) + (structure.term3Fee || 0))
-      };
-      
-      console.log('🔍 Setting form data:', formData);
-      console.log('🔍 Course ID extracted:', courseId, 'Type:', typeof courseId);
-      console.log('🔍 Year value:', yearValue, 'Type:', typeof yearValue);
-      setFeeStructureForm(formData);
-      
-      // Reset bulk form to ensure single edit mode is shown
-      setBulkFeeForm({
-        academicYear: '',
-        course: '',
-        year: '',
-        categories: {
-          'A+': { totalFee: 0, exists: false },
-          'A': { totalFee: 0, exists: false },
-          'B+': { totalFee: 0, exists: false },
-          'B': { totalFee: 0, exists: false },
-        }
-      });
-      
-      // Reset selected years when opening edit modal
-      setSelectedYearsToApply([]);
-    } else {
-      setSelectedFeeStructure(null);
-      setIsEditMode(false); // Not in edit mode, adding new
-      setFeeStructureForm({
-        academicYear: feeStructureFilter.academicYear || '2024-2025',
-        course: '',
-        year: '',
-        category: '',
-        totalFee: 0
-      });
-      
-      // Reset bulk form
-      setBulkFeeForm({
-        academicYear: feeStructureFilter.academicYear || '2024-2025',
-        course: '',
-        year: '',
-        categories: {
-          'A+': { totalFee: 0, exists: false },
-          'A': { totalFee: 0, exists: false },
-          'B+': { totalFee: 0, exists: false },
-          'B': { totalFee: 0, exists: false },
-        }
-      });
-      
-      // Reset selected years
-      setSelectedYearsToApply([]);
-    }
-
-    setShowFeeStructureModal(true);
-  };
-
-  // Check existing fee structures for bulk creation
-  const checkExistingFeeStructures = (academicYear, course, year) => {
-    if (!academicYear || !course || !year) return;
-
-    const existingStructures = feeStructures.filter(structure => 
-      structure.academicYear === academicYear &&
-      structure.course?._id === course &&
-      structure.year === parseInt(year)
-    );
-
-    const updatedCategories = { ...bulkFeeForm.categories };
-    
-    // Reset all categories
-    Object.keys(updatedCategories).forEach(category => {
-      updatedCategories[category] = { totalFee: 0, exists: false };
-    });
-
-    // Populate existing data
-    existingStructures.forEach(structure => {
-      if (updatedCategories[structure.category]) {
-        updatedCategories[structure.category] = {
-          totalFee: structure.totalFee,
-          exists: true
-        };
-      }
-    });
-
-    setBulkFeeForm(prev => ({
-      ...prev,
-      academicYear,
-      course,
-      year,
-      categories: updatedCategories
-    }));
-  };
-
-  const deleteFeeStructure = async (academicYear, course, year, category) => {
-    const courseName = courses.find(c => c._id === course)?.name || 'Unknown Course';
-    if (!window.confirm(`Are you sure you want to delete fee structure for ${courseName} Year ${year} ${category} category?`)) {
-      return;
-    }
-
-    try {
-      setFeeStructureLoading(true);
-      const response = await api.delete(`/api/fee-structures/${academicYear}/${course}/${year}/${category}`);
-
-      if (response.data.success) {
-        toast.success('Fee structure deleted successfully');
-        fetchFeeStructures();
-      } else {
-        setError('Failed to delete fee structure');
-      }
-    } catch (err) {
-      console.error('Error deleting fee structure:', err);
-      setError(err.response?.data?.message || 'Failed to delete fee structure');
-    } finally {
-      setFeeStructureLoading(false);
-    }
-  };
-
-
-
-  const handleFeeStructureFilterChange = (key, value) => {
-    setFeeStructureFilter(prev => ({ ...prev, [key]: value }));
-  };
-
-  // ==================== ADDITIONAL FEES SETUP FUNCTIONS ====================
-  
-  // Fetch additional fees for an academic year
-  const fetchAdditionalFees = useCallback(async () => {
-    if (!additionalFeesFilter.academicYear) {
-      setAdditionalFees({});
-      return;
-    }
-
-    try {
-      setAdditionalFeesLoading(true);
-      const response = await api.get(`/api/fee-structures/additional-fees/${additionalFeesFilter.academicYear}`);
-      
-      if (response.data.success) {
-        setAdditionalFees(response.data.data || {});
-      } else {
-        setAdditionalFees({});
-      }
-    } catch (err) {
-      console.error('Error fetching additional fees:', err);
-      setAdditionalFees({});
-    } finally {
-      setAdditionalFeesLoading(false);
-    }
-  }, [additionalFeesFilter.academicYear]);
-
-  // Fetch additional fees when tab is active or filter changes
-  useEffect(() => {
-    if (activeTab === 'additional-fees') {
-      fetchAdditionalFees();
-    }
-  }, [activeTab, additionalFeesFilter.academicYear, fetchAdditionalFees]);
 
   // Fetch additional fees when payment modal opens and payment type is additional_fee
   useEffect(() => {
@@ -1724,224 +1424,17 @@ const FeeManagement = () => {
     }
   }, [showPaymentModal, selectedStudentForPayment, paymentForm.paymentType]);
 
-  // Open modal to add/edit additional fee
-  const openAdditionalFeeModal = (feeType = null) => {
-    if (feeType && additionalFees[feeType]) {
-      // Edit mode
-      const feeData = additionalFees[feeType];
-      setSelectedAdditionalFee(feeType);
-      
-      // Handle categoryAmounts (new format) or amount (old format for backward compatibility)
-      let categoryAmounts = {};
-      if (feeData.categoryAmounts && typeof feeData.categoryAmounts === 'object') {
-        // New format: categoryAmounts object
-        Object.keys(feeData.categoryAmounts).forEach(cat => {
-          categoryAmounts[cat] = feeData.categoryAmounts[cat] || 0;
-        });
-      } else if (feeData.amount !== undefined) {
-        // Old format: single amount - apply to all selected categories
-        const categories = Array.isArray(feeData.categories) && feeData.categories.length > 0
-          ? feeData.categories
-          : availableCategories;
-        categories.forEach(cat => {
-          categoryAmounts[cat] = feeData.amount || 0;
-        });
-      }
-      
-      setAdditionalFeeForm({
-        feeType: feeType,
-        amount: feeData.amount || 0, // Keep for backward compatibility
-        description: feeData.description || '',
-        isActive: feeData.isActive !== undefined ? feeData.isActive : true,
-        categories: Array.isArray(feeData.categories) && feeData.categories.length > 0
-          ? feeData.categories
-          : availableCategories, // Default to all available categories
-        categoryAmounts: categoryAmounts
-      });
-    } else {
-      // Add mode
-      setSelectedAdditionalFee(null);
-      setAdditionalFeeForm({
-        feeType: '',
-        amount: 0,
-        description: '',
-        isActive: true,
-        categories: availableCategories, // Default to all available categories
-        categoryAmounts: {}
-      });
-    }
-    setShowAdditionalFeeModal(true);
-  };
-
-  // Handle additional fee form submit
-  const handleAdditionalFeeSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!additionalFeesFilter.academicYear) {
-      toast.error('Please select an academic year');
-      return;
-    }
-
-    if (!additionalFeeForm.feeType || !additionalFeeForm.feeType.trim()) {
-      toast.error('Please enter a fee type name');
-      return;
-    }
-
-    // Validate fee type name (alphanumeric with underscores, max 50 chars)
-    if (!/^[a-zA-Z0-9_]+$/.test(additionalFeeForm.feeType.trim()) || additionalFeeForm.feeType.trim().length > 50) {
-      toast.error('Fee type name must be alphanumeric with underscores only, max 50 characters');
-      return;
-    }
-
-    // Validate category amounts
-    let hasValidAmount = false;
-    const categoryAmounts = {};
-    additionalFeeForm.categories.forEach(cat => {
-      const amount = Number(additionalFeeForm.categoryAmounts[cat]) || 0;
-      if (amount < 0) {
-        toast.error(`Amount for category ${cat} must be a non-negative number`);
-        return;
-      }
-      if (amount > 0) {
-        hasValidAmount = true;
-      }
-      categoryAmounts[cat] = amount;
-    });
-
-    if (!hasValidAmount) {
-      toast.error('Please enter at least one amount greater than 0 for the selected categories');
-      return;
-    }
-
-    if (!additionalFeeForm.categories || additionalFeeForm.categories.length === 0) {
-      toast.error('Please select at least one category');
-      return;
-    }
-
-    try {
-      setAdditionalFeesLoading(true);
-
-      // Prepare updated additional fees object
-      const updatedAdditionalFees = { ...additionalFees };
-      
-      if (selectedAdditionalFee && selectedAdditionalFee !== additionalFeeForm.feeType.trim()) {
-        // Fee type name changed - remove old and add new
-        delete updatedAdditionalFees[selectedAdditionalFee];
-      }
-
-      // Calculate average amount for backward compatibility
-      const amounts = Object.values(categoryAmounts).filter(amt => amt > 0);
-      const averageAmount = amounts.length > 0 
-        ? amounts.reduce((sum, amt) => sum + amt, 0) / amounts.length 
-        : 0;
-
-      // Add or update the fee with category-specific amounts
-      updatedAdditionalFees[additionalFeeForm.feeType.trim()] = {
-        categoryAmounts: categoryAmounts, // Category-specific amounts
-        amount: averageAmount, // Keep for backward compatibility (average of category amounts)
-        description: additionalFeeForm.description || '',
-        isActive: additionalFeeForm.isActive !== undefined ? additionalFeeForm.isActive : true,
-        categories: Array.isArray(additionalFeeForm.categories) && additionalFeeForm.categories.length > 0
-          ? additionalFeeForm.categories
-          : availableCategories // Default to all available categories
-      };
-
-      const response = await api.post('/api/fee-structures/additional-fees', {
-        academicYear: additionalFeesFilter.academicYear,
-        additionalFees: updatedAdditionalFees
-      });
-
-      if (response.data.success) {
-        toast.success(`Additional fee ${selectedAdditionalFee ? 'updated' : 'created'} successfully`);
-        setAdditionalFees(updatedAdditionalFees);
-        setShowAdditionalFeeModal(false);
-        setSelectedAdditionalFee(null);
-        setAdditionalFeeForm({
-          feeType: '',
-          amount: 0,
-          description: '',
-          isActive: true,
-          categories: availableCategories,
-          categoryAmounts: {}
-        });
-      } else {
-        toast.error(response.data.message || 'Failed to save additional fee');
-      }
-    } catch (err) {
-      console.error('Error saving additional fee:', err);
-      toast.error(err.response?.data?.message || 'Failed to save additional fee');
-    } finally {
-      setAdditionalFeesLoading(false);
-    }
-  };
-
-  // Delete additional fee
-  const deleteAdditionalFee = async (feeType) => {
-    if (!window.confirm(`Are you sure you want to delete the "${feeType}" additional fee?`)) {
-      return;
-    }
-
-    try {
-      setAdditionalFeesLoading(true);
-
-      const updatedAdditionalFees = { ...additionalFees };
-      delete updatedAdditionalFees[feeType];
-
-      const response = await api.post('/api/fee-structures/additional-fees', {
-        academicYear: additionalFeesFilter.academicYear,
-        additionalFees: updatedAdditionalFees
-      });
-
-      if (response.data.success) {
-        toast.success('Additional fee deleted successfully');
-        setAdditionalFees(updatedAdditionalFees);
-      } else {
-        toast.error(response.data.message || 'Failed to delete additional fee');
-      }
-    } catch (err) {
-      console.error('Error deleting additional fee:', err);
-      toast.error(err.response?.data?.message || 'Failed to delete additional fee');
-    } finally {
-      setAdditionalFeesLoading(false);
-    }
-  };
-
-  // Toggle additional fee active status
-  const toggleAdditionalFeeStatus = async (feeType) => {
-    try {
-      setAdditionalFeesLoading(true);
-
-      const updatedAdditionalFees = { ...additionalFees };
-      if (updatedAdditionalFees[feeType]) {
-        updatedAdditionalFees[feeType] = {
-          ...updatedAdditionalFees[feeType],
-          isActive: !updatedAdditionalFees[feeType].isActive
-        };
-      }
-
-      const response = await api.post('/api/fee-structures/additional-fees', {
-        academicYear: additionalFeesFilter.academicYear,
-        additionalFees: updatedAdditionalFees
-      });
-
-      if (response.data.success) {
-        toast.success(`Additional fee ${updatedAdditionalFees[feeType].isActive ? 'activated' : 'deactivated'} successfully`);
-        setAdditionalFees(updatedAdditionalFees);
-      } else {
-        toast.error(response.data.message || 'Failed to update additional fee');
-      }
-    } catch (err) {
-      console.error('Error toggling additional fee status:', err);
-      toast.error(err.response?.data?.message || 'Failed to update additional fee');
-    } finally {
-      setAdditionalFeesLoading(false);
-    }
-  };
-
   // Payment Tracking Functions
   const openPaymentModal = async (student) => {
     setSelectedStudentForPayment(student);
-    const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+    const feeStructure = getFeeStructureForStudent(
+      student.course, 
+      student.year, 
+      student.category, 
+      student.academicYear,
+      student.hostel,
+      student.hostelCategory
+    );
 
     if (!feeStructure) {
       toast.error('No fee structure found for this student');
@@ -2539,7 +2032,14 @@ const FeeManagement = () => {
 
     try {
       // Get student's fee structure
-      const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+      const feeStructure = getFeeStructureForStudent(
+        student.course, 
+        student.year, 
+        student.category, 
+        student.academicYear,
+        student.hostel,
+        student.hostelCategory
+      );
 
       if (!feeStructure) {
         toast.error('No fee structure found for this student');
@@ -2667,14 +2167,6 @@ const FeeManagement = () => {
   useEffect(() => {
     setDebouncedReminderSearch(debouncedReminderSearchValue);
   }, [debouncedReminderSearchValue]);
-
-  // Refresh fee structures when filters change
-  useEffect(() => {
-    if (feeStructureFilter.academicYear || feeStructureFilter.category) {
-      // Filters are applied client-side, no need to refetch
-      console.log('🔍 Fee structure filters changed:', feeStructureFilter);
-    }
-  }, [feeStructureFilter]);
 
   // ==================== FEE REMINDERS FUNCTIONS ====================
 
@@ -3065,7 +2557,7 @@ const FeeManagement = () => {
         
         if (concessionApprovalFilters.course && concessionApprovalFilters.course.trim()) {
           students = students.filter(s => {
-            const courseName = typeof s.course === 'string' ? s.course : s.course?.name || '';
+            const courseName = getCourseName(s.course);
             return courseName.toLowerCase().includes(concessionApprovalFilters.course.trim().toLowerCase());
           });
         }
@@ -3115,7 +2607,7 @@ const FeeManagement = () => {
         
         if (concessionApprovalFilters.course && concessionApprovalFilters.course.trim()) {
           students = students.filter(s => {
-            const courseName = typeof s.course === 'string' ? s.course : s.course?.name || '';
+            const courseName = getCourseName(s.course);
             return courseName.toLowerCase().includes(concessionApprovalFilters.course.trim().toLowerCase());
           });
         }
@@ -3389,7 +2881,7 @@ const FeeManagement = () => {
                     <div className="space-y-2 text-sm mb-4">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Course:</span>
-                        <span className="font-medium">{typeof student.course === 'string' ? student.course : student.course?.name || 'N/A'} - Year {student.year}</span>
+                        <span className="font-medium">{getCourseName(student.course)} - Year {student.year}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Original Fee:</span>
@@ -3537,7 +3029,7 @@ const FeeManagement = () => {
                               </td>
                               <td className="px-4 py-4 whitespace-nowrap">
                                 <div className="text-sm text-gray-900">
-                                  {typeof student.course === 'string' ? student.course : student.course?.name || 'N/A'}
+                                  {getCourseName(student.course)}
                                 </div>
                                 <div className="text-sm text-gray-500">Year {student.year}</div>
                               </td>
@@ -3705,84 +3197,68 @@ const FeeManagement = () => {
   return (
     <div className="min-h-screen ">
       <div className=" mx-auto">
-        {/* Header */}
+        {/* Header with Tabs */}
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
-            Hostel Fee Management
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Manage student fee payments and track payment status
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-4 sm:mb-6">
-          <div className="border-b border-gray-200 overflow-x-auto">
-            <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 min-w-max">
-              <button
-                onClick={() => setActiveTab('dues')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'dues'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-              >
-                Dues
-              </button>
-              {canManageConcessions && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
+                Hostel Fee Management
+              </h1>
+              <p className="text-sm sm:text-base text-gray-600">
+                Manage student fee payments and track payment status
+              </p>
+            </div>
+            
+            {/* Tab Navigation in Header */}
+            <div className="border-b border-gray-200 overflow-x-auto">
+              <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 min-w-max">
                 <button
-                  onClick={() => setActiveTab('concessions')}
+                  onClick={() => setActiveTab('dues')}
+                  className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'dues'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                >
+                  Dues
+                </button>
+                {canManageConcessions && (
+                  <button
+                    onClick={() => setActiveTab('concessions')}
+                    className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                      activeTab === 'concessions'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <CheckCircleIcon className="w-4 h-4 mr-1 inline" />
+                    Concessions
+                  </button>
+                )}
+               
+                <button
+                  onClick={() => setActiveTab('reminders')}
                   className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                    activeTab === 'concessions'
+                    activeTab === 'reminders'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  <CheckCircleIcon className="w-4 h-4 mr-1 inline" />
-                  Concessions
+                  Fee Reminders
                 </button>
-              )}
-              <button
-                onClick={() => setActiveTab('structure')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'structure'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                <button
+                  onClick={() => setActiveTab('reminder-config')}
+                  className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                    activeTab === 'reminder-config'
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
-              >
-                Fee Structure
-              </button>
-              <button
-                onClick={() => setActiveTab('additional-fees')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${activeTab === 'additional-fees'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-              >
-                Additional Fees Setup
-              </button>
-             
-              <button
-                onClick={() => setActiveTab('reminders')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'reminders'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Fee Reminders
-              </button>
-              <button
-                onClick={() => setActiveTab('reminder-config')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-                  activeTab === 'reminder-config'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {/* <Cog6ToothIcon className="w-4 h-4 mr-1" /> */}
-                Reminder Config
-              </button>
-              
-            </nav>
+                >
+                  {/* <Cog6ToothIcon className="w-4 h-4 mr-1" /> */}
+                  Reminder Config
+                </button>
+                
+              </nav>
+            </div>
           </div>
         </div>
 
@@ -3895,11 +3371,21 @@ const FeeManagement = () => {
             {/* Filters */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
               <select
+                value={filters.hostel}
+                onChange={(e) => handleFilterChange('hostel', e.target.value)}
+                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              >
+                <option value="">All Hostels</option>
+                {hostels.map(hostel => (
+                  <option key={hostel._id} value={hostel._id}>{hostel.name}</option>
+                ))}
+              </select>
+
+              <select
                 value={filters.academicYear}
                 onChange={(e) => handleFilterChange('academicYear', e.target.value)}
                 className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               >
-                <option value="">All Academic Years</option>
                 {generateAcademicYears().map(year => (
                   <option key={year} value={year}>{year}</option>
                 ))}
@@ -3940,16 +3426,6 @@ const FeeManagement = () => {
                 <option value="A">A</option>
                 <option value="B+">B+</option>
                 <option value="B">B</option>
-              </select>
-
-              <select
-                value={filters.gender}
-                onChange={(e) => handleFilterChange('gender', e.target.value)}
-                className="px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">All Genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
               </select>
 
               <div className="flex gap-2 col-span-2 sm:col-span-1">
@@ -4055,14 +3531,14 @@ const FeeManagement = () => {
                               </div>
                               <div className="text-xs text-gray-400">
                                 {student.roomNumber && `Room: ${student.roomNumber}`}
-                                {student.gender && ` • ${student.gender}`}
+                                {student.hostel.name && ` • ${student.hostel.name}`}
                               </div>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <div>
                               <div className="font-medium">
-                                {student.course?.name || 'Unknown Course'}
+                                {getCourseName(student.course)}
                               </div>
                               <div className="text-xs text-gray-500">
                                 Year {student.year || 'Unknown'}
@@ -4072,7 +3548,14 @@ const FeeManagement = () => {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {(() => {
                               if (student.category) {
-                                const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+                                const feeStructure = getFeeStructureForStudent(
+                                  student.course, 
+                                  student.year, 
+                                  student.category, 
+                                  student.academicYear,
+                                  student.hostel,
+                                  student.hostelCategory
+                                );
                                 if (feeStructure) {
                                   const hasConcession = student.concession && student.concession > 0;
                                   return (
@@ -4116,7 +3599,9 @@ const FeeManagement = () => {
                                 student.course,
                                 student.year,
                                 student.category,
-                                student.academicYear
+                                student.academicYear,
+                                student.hostel,
+                                student.hostelCategory
                               );
                               if (feeStructure) {
                                 const hasConcession = student.concession && student.concession > 0;
@@ -4142,7 +3627,7 @@ const FeeManagement = () => {
                               return (
                                 <div className="text-red-500 text-xs">
                                   <div className="font-medium">No fee structure</div>
-                                  <div className="text-gray-400">Course: {student.course?.name || 'Unknown'}</div>
+                                  <div className="text-gray-400">Course: {getCourseName(student.course)}</div>
                                   <div className="text-gray-400">Year: {student.year || 'Unknown'}</div>
                                   <div className="text-gray-400">Category: {student.category || 'Unknown'}</div>
                                   <div className="text-gray-400">Academic Year: {student.academicYear || 'Unknown'}</div>
@@ -4269,7 +3754,7 @@ const FeeManagement = () => {
                       <div className="mb-3">
                         <div className="text-xs text-gray-500 mb-1">Course & Year</div>
                         <div className="text-sm font-medium text-gray-900">
-                          {student.course?.name || 'Unknown Course'}
+                          {getCourseName(student.course)}
                         </div>
                         <div className="text-xs text-gray-500">
                           Year {student.year || 'Unknown'}
@@ -4319,7 +3804,14 @@ const FeeManagement = () => {
                           <div className="text-xs text-gray-500 mb-1">Category</div>
                           {(() => {
                             if (student.category) {
-                              const feeStructure = getFeeStructureForStudent(student.course, student.year, student.category, student.academicYear);
+                              const feeStructure = getFeeStructureForStudent(
+                                student.course, 
+                                student.year, 
+                                student.category, 
+                                student.academicYear,
+                                student.hostel,
+                                student.hostelCategory
+                              );
                               if (feeStructure) {
                                 const hasConcession = student.concession && student.concession > 0;
                                 return (
@@ -4357,7 +3849,9 @@ const FeeManagement = () => {
                               student.course,
                               student.year,
                               student.category,
-                              student.academicYear
+                              student.academicYear,
+                              student.hostel,
+                              student.hostelCategory
                             );
                             if (feeStructure) {
                               const hasConcession = student.concession && student.concession > 0;
@@ -4449,2131 +3943,6 @@ const FeeManagement = () => {
         </>
       )}
 
-      {activeTab === 'structure' && (
-        <>
-          {/* Fee Structure Management */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-              <h2 className="text-base sm:text-lg font-semibold text-gray-900">Fee Structure Management</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openFeeStructureModal()}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
-                  disabled={courses.length === 0}
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Add Fee Structure</span>
-                  <span className="sm:hidden">Add</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Filters - Mobile Optimized */}
-            <div className="mb-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-                {/* Academic Year Filter */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Academic Year
-                  </label>
-                  <select
-                    value={feeStructureFilter.academicYear}
-                    onChange={(e) => handleFeeStructureFilterChange('academicYear', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  >
-                    <option value="">All Academic Years</option>
-                    {generateAcademicYears().map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Course Filter */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Course
-                  </label>
-                  <select
-                    value={feeStructureFilter.course || ''}
-                    onChange={(e) => handleFeeStructureFilterChange('course', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  >
-                    <option value="">All Courses</option>
-                    {courses.map(course => (
-                      <option key={course._id} value={course._id}>{course.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Year Filter */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Year
-                  </label>
-                  <select
-                    value={feeStructureFilter.year || ''}
-                    onChange={(e) => handleFeeStructureFilterChange('year', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    disabled={!feeStructureFilter.course}
-                  >
-                    <option value="">All Years</option>
-                    {courseYears.map(year => (
-                      <option key={year} value={year}>Year {year}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Category Filter */}
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
-                    Category
-                  </label>
-                  <select
-                    value={feeStructureFilter.category || ''}
-                    onChange={(e) => handleFeeStructureFilterChange('category', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  >
-                    <option value="">All Categories</option>
-                    {[...new Set(feeStructures.map(s => s.category))].sort().map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Summary and Clear Button */}
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="text-xs sm:text-sm text-gray-600">
-                {(() => {
-                  let filteredCount = feeStructures.length;
-                  if (feeStructureFilter.academicYear) {
-                    filteredCount = feeStructures.filter(s => s.academicYear === feeStructureFilter.academicYear).length;
-                  }
-                  if (feeStructureFilter.course) {
-                    filteredCount = feeStructures.filter(s => s.course?._id === feeStructureFilter.course).length;
-                  }
-                  if (feeStructureFilter.year) {
-                    filteredCount = feeStructures.filter(s => s.year === parseInt(feeStructureFilter.year)).length;
-                  }
-                  if (feeStructureFilter.category) {
-                    filteredCount = feeStructures.filter(s => s.category === feeStructureFilter.category).length;
-                  }
-                  return `Showing ${filteredCount} of ${feeStructures.length} fee structures`;
-                })()}
-              </div>
-              <button
-                onClick={() => setFeeStructureFilter({ academicYear: '', course: '', year: '', category: '' })}
-                className="px-3 py-1.5 sm:py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-50 text-xs sm:text-sm"
-              >
-                Clear Filters
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              {(() => {
-                // Check if any structures match the current filters
-                let filteredStructures = feeStructures;
-                if (feeStructureFilter.academicYear) {
-                  filteredStructures = filteredStructures.filter(s => s.academicYear === feeStructureFilter.academicYear);
-                }
-                if (feeStructureFilter.course) {
-                  filteredStructures = filteredStructures.filter(s => s.course?._id === feeStructureFilter.course);
-                }
-                if (feeStructureFilter.year) {
-                  filteredStructures = filteredStructures.filter(s => s.year === parseInt(feeStructureFilter.year));
-                }
-
-                if (filteredStructures.length === 0 && (feeStructureFilter.academicYear || feeStructureFilter.course || feeStructureFilter.year)) {
-                  return (
-                    <div className="text-center py-8">
-                      <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <p className="text-gray-500">No fee structures found matching the current filters</p>
-                      <p className="text-sm text-gray-400 mt-2">
-                        Try adjusting your filters or create new fee structures.
-                      </p>
-                    </div>
-                  );
-                }
-
-                // Group structures by academic year, course, and year
-                const groupedStructures = filteredStructures.reduce((acc, structure) => {
-                  const key = `${structure.academicYear}-${structure.course?._id || structure.course}-${structure.year}`;
-                  if (!acc[key]) {
-                    acc[key] = {
-                      academicYear: structure.academicYear,
-                      course: structure.course,
-                      year: structure.year,
-                      categories: {}
-                    };
-                  }
-                  acc[key].categories[structure.category] = structure;
-                  return acc;
-                }, {});
-
-                const categories = ['A+', 'A', 'B+', 'B'];
-
-                return (
-                  <>
-                    {/* Desktop Table View */}
-                    <div className="hidden lg:block">
-                      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                                Academic Year
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                                Course
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                                Year
-                              </th>
-                              {categories.map(category => (
-                                <th key={category} className="px-3 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200 last:border-r-0">
-                                  <div className="flex flex-col items-center">
-                                    <span className="text-lg font-bold text-gray-800">{category}</span>
-                                    <span className="text-xs text-gray-500 font-normal">Category</span>
-                                  </div>
-                                </th>
-                              ))}
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {Object.values(groupedStructures).map((group, groupIndex) => (
-                              <tr key={`${group.academicYear}-${group.course?._id || group.course}-${group.year}-${groupIndex}`} className="hover:bg-gray-50 transition-colors duration-150">
-                                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                                  <div className="flex items-center">
-                                    <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
-                                    {group.academicYear}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                                  <div className="flex items-center">
-                                    <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                                    {group.course?.name || 'Unknown Course'}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                                  <div className="flex items-center justify-center">
-                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      Year {group.year}
-                                    </span>
-                                  </div>
-                                </td>
-                                {categories.map(category => {
-                                  const structure = group.categories[category];
-                                  return (
-                                    <td key={category} className="px-3 py-4 text-center border-r border-gray-200 last:border-r-0">
-                                      {structure ? (
-                                        <div 
-                                          className="cursor-pointer group"
-                                          onClick={() => openFeeStructureModal(structure)}
-                                        >
-                                          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200 hover:border-green-300 transition-all duration-200 hover:shadow-md relative group">
-                                            <div className="text-lg font-bold text-green-700 group-hover:text-green-800">
-                                              ₹{structure.totalFee.toLocaleString()}
-                                            </div>
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                              <span className="text-white text-sm font-medium">Click to view details</span>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="text-gray-400 text-sm py-2">
-                                          <div className="w-16 h-16 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
-                                            <span className="text-xs text-gray-400">N/A</span>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </td>
-                                  );
-                                })}
-                                <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center">
-                                  <div className="flex justify-center gap-2">
-                                    <button
-                                      onClick={() => {
-                                        // Delete all structures in this group
-                                        if (window.confirm(`Are you sure you want to delete all fee structures for ${group.course?.name} Year ${group.year}?`)) {
-                                          Object.values(group.categories).forEach(structure => {
-                                            deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category);
-                                          });
-                                        }
-                                      }}
-                                      className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors duration-200"
-                                      title="Delete All"
-                                    >
-                                      <TrashIcon className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Mobile Card View */}
-                    <div className="lg:hidden space-y-4">
-                      {Object.values(groupedStructures).map((group, groupIndex) => (
-                        <div 
-                          key={`${group.academicYear}-${group.course?._id || group.course}-${group.year}-${groupIndex}`}
-                          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
-                        >
-                          {/* Header Section */}
-                          <div className="mb-4 pb-4 border-b border-gray-200">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <div className="flex items-center mb-1">
-                                  <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
-                                  <span className="text-sm font-semibold text-gray-900">{group.academicYear}</span>
-                                </div>
-                                <div className="flex items-center mb-1">
-                                  <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                                  <span className="text-sm font-medium text-gray-700">{group.course?.name || 'Unknown Course'}</span>
-                                </div>
-                                <div className="mt-2">
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                    Year {group.year}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  if (window.confirm(`Are you sure you want to delete all fee structures for ${group.course?.name} Year ${group.year}?`)) {
-                                    Object.values(group.categories).forEach(structure => {
-                                      deleteFeeStructure(structure.academicYear, structure.course?._id || structure.course, structure.year, structure.category);
-                                    });
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-900 p-2 rounded hover:bg-red-50 transition-colors duration-200"
-                                title="Delete All"
-                              >
-                                <TrashIcon className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Categories - Single Column on Mobile */}
-                          <div className="space-y-2">
-                            {categories.map(category => {
-                              const structure = group.categories[category];
-                              return (
-                                <div 
-                                  key={category}
-                                  className={`border rounded-lg p-3 transition-all duration-200 ${
-                                    structure 
-                                      ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 cursor-pointer hover:shadow-md hover:border-green-300' 
-                                      : 'border-gray-200 bg-gray-50'
-                                  }`}
-                                  onClick={() => structure && openFeeStructureModal(structure)}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <div className="text-sm font-semibold text-gray-700">
-                                        Category {category}
-                                      </div>
-                                    </div>
-                                    {structure ? (
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-base sm:text-lg font-bold text-green-700">
-                                          ₹{structure.totalFee.toLocaleString()}
-                                        </div>
-                                        <div className="text-xs text-gray-500 hidden sm:block">
-                                          Tap to view
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <div className="text-gray-400 text-sm">
-                                        <span className="text-xs">N/A</span>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        </>
-      )}
-
-
-
-
-      {/* Payment Modal */}
-      {showPaymentModal && selectedStudentForPayment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                Record Fee Payment
-              </h3>
-              <button
-                onClick={handleClosePaymentModal}
-                className="p-1 text-gray-400 hover:text-gray-600"
-                aria-label="Close modal"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-              {/* Student Details */}
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900 mb-3">Student Details</h4>
-                <div className="text-sm text-blue-800 space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <span className="font-medium min-w-[100px]">Name:</span>
-                    <span className="font-semibold">{selectedStudentForPayment.name}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <span className="font-medium min-w-[100px]">Roll Number:</span>
-                    <span className="font-semibold">{selectedStudentForPayment.rollNumber}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <span className="font-medium min-w-[100px]">Category:</span>
-                    <span className="font-semibold">{selectedStudentForPayment.category}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <span className="font-medium min-w-[100px]">Room No:</span>
-                    <span className="font-semibold">{selectedStudentForPayment.roomNumber}</span>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                    <span className="font-medium min-w-[100px]">Academic Year:</span>
-                    <span className="font-semibold">{selectedStudentForPayment.academicYear}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Fee Information with Concession */}
-              {(() => {
-                const feeStructure = getFeeStructureForStudent(selectedStudentForPayment.course, selectedStudentForPayment.year, selectedStudentForPayment.category, selectedStudentForPayment.academicYear);
-                if (feeStructure) {
-                  const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
-                  const originalTotal = feeStructure.totalFee;
-                  const calculatedTotal = selectedStudentForPayment.totalCalculatedFee || originalTotal;
-
-                  return (
-                    <div className="p-3 bg-green-50 rounded-lg">
-                      <h4 className="font-medium text-green-900 mb-3">Fee Information</h4>
-                      <div className="text-sm text-green-800 space-y-2">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                          <span className="font-medium min-w-[120px]">Original Total:</span>
-                          <span className="font-semibold">₹{originalTotal.toLocaleString()}</span>
-                        </div>
-                        {hasConcession && (
-                          <>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                              <span className="font-medium min-w-[120px]">Concession:</span>
-                              <span className="font-semibold text-green-700">₹{selectedStudentForPayment.concession.toLocaleString()}</span>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                              <span className="font-medium min-w-[120px]">Final Amount:</span>
-                              <span className="font-semibold text-blue-700">₹{calculatedTotal.toLocaleString()}</span>
-                            </div>
-                          </>
-                        )}
-                        <div className="mt-3 pt-3 border-t border-green-200">
-                          <p className="font-medium mb-2">Term Breakdown:</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                            <div className="bg-white p-2 rounded border border-green-200">
-                              <span className="font-medium block text-gray-700">Term 1:</span>
-                              <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ?
-                                  (selectedStudentForPayment.calculatedTerm1Fee || Math.round(originalTotal * 0.4)).toLocaleString() :
-                                  (feeStructure.term1Fee || Math.round(originalTotal * 0.4)).toLocaleString()
-                                }
-                              </span>
-                            </div>
-                            <div className="bg-white p-2 rounded border border-green-200">
-                              <span className="font-medium block text-gray-700">Term 2:</span>
-                              <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ?
-                                  (selectedStudentForPayment.calculatedTerm2Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
-                                  (feeStructure.term2Fee || Math.round(originalTotal * 0.3)).toLocaleString()
-                                }
-                              </span>
-                            </div>
-                            <div className="bg-white p-2 rounded border border-green-200">
-                              <span className="font-medium block text-gray-700">Term 3:</span>
-                              <span className="text-green-700 font-semibold">
-                                ₹{hasConcession ?
-                                  (selectedStudentForPayment.calculatedTerm3Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
-                                  (feeStructure.term3Fee || Math.round(originalTotal * 0.3)).toLocaleString()
-                                }
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-
-            <form onSubmit={handlePaymentSubmit}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Type
-                    </label>
-                    <select
-                      value={paymentForm.paymentType}
-                      onChange={(e) => setPaymentForm(prev => ({
-                        ...prev,
-                        paymentType: e.target.value,
-                        term: '',
-                        billId: '',
-                        month: '',
-                        amount: ''
-                      }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      required
-                    >
-                      <option value="hostel_fee">Hostel Fee</option>
-                      <option value="electricity">Electricity Bill</option>
-                      <option value="additional_fee">Additional Fee</option>
-                    </select>
-                  </div>
-
-                  {paymentForm.paymentType === 'additional_fee' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fee Type <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={paymentForm.additionalFeeType}
-                        onChange={(e) => {
-                          const selectedFeeType = e.target.value;
-                          setPaymentForm(prev => ({ ...prev, additionalFeeType: selectedFeeType }));
-                          // Set amount to the configured fee amount if available
-                          if (selectedFeeType && additionalFees[selectedFeeType]) {
-                            const feeData = additionalFees[selectedFeeType];
-                            if (feeData.amount > 0) {
-                              setPaymentForm(prev => ({ ...prev, amount: feeData.amount.toString() }));
-                            }
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        required
-                      >
-                        <option value="">Select Fee Type</option>
-                        {Object.entries(additionalFees)
-                          .filter(([feeType, feeData]) => {
-                            // Filter by student's category and active status
-                            if (!feeData.isActive) return false;
-                            if (!selectedStudentForPayment) return true;
-                            const studentCategory = selectedStudentForPayment.category;
-                            return feeData.categories && feeData.categories.includes(studentCategory);
-                          })
-                          .map(([feeType, feeData]) => (
-                            <option key={feeType} value={feeType}>
-                              {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {feeData.amount > 0 ? `(₹${feeData.amount.toLocaleString()})` : ''}
-                            </option>
-                          ))}
-                      </select>
-                      {paymentForm.additionalFeeType && additionalFees[paymentForm.additionalFeeType] && (
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-500">
-                            Configured amount: ₹{additionalFees[paymentForm.additionalFeeType].amount.toLocaleString()}
-                          </p>
-                          {additionalFees[paymentForm.additionalFeeType].description && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              {additionalFees[paymentForm.additionalFeeType].description}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {Object.keys(additionalFees).filter((feeType) => {
-                        const feeData = additionalFees[feeType];
-                        if (!feeData.isActive) return false;
-                        if (!selectedStudentForPayment) return false;
-                        const studentCategory = selectedStudentForPayment.category;
-                        return feeData.categories && feeData.categories.includes(studentCategory);
-                      }).length === 0 && (
-                        <p className="text-xs text-red-500 mt-1">
-                          No additional fees configured for {selectedStudentForPayment?.category} category in {selectedStudentForPayment?.academicYear}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Payment Method
-                    </label>
-                    <select
-                      value={paymentForm.paymentMethod}
-                      onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      required
-                    >
-                      <option value="Cash">Cash</option>
-                      <option value="Online">Online</option>
-                    </select>
-                  </div>
-
-                  {paymentForm.paymentMethod === 'Online' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        UTR Number <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={paymentForm.utrNumber}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, utrNumber: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        placeholder="Enter UTR/Transaction ID"
-                        required
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Unique Transaction Reference number from your bank
-                      </p>
-                    </div>
-                  )}
-
-                  {paymentForm.paymentType === 'electricity' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Select Month
-                      </label>
-                      <select
-                        value={paymentForm.month}
-                        onChange={async (e) => {
-                          const selectedMonth = e.target.value;
-                          setPaymentForm(prev => ({
-                            ...prev,
-                            month: selectedMonth,
-                            billId: '',
-                            amount: ''
-                          }));
-                          setSelectedElectricityBill(null);
-
-                          if (selectedMonth && selectedStudentForPayment) {
-                            await fetchElectricityBillForMonth(selectedStudentForPayment, selectedMonth);
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                        required
-                      >
-                        <option value="">Select Month</option>
-                        {availableMonths.map(month => (
-                          <option key={month} value={month}>
-                            {new Date(month).toLocaleDateString('en-US', {
-                              year: 'numeric',
-                              month: 'long'
-                            })}
-                          </option>
-                        ))}
-                        {availableMonths.length === 0 && !electricityBillsLoading && (
-                          <option value="" disabled>No unpaid bills found</option>
-                        )}
-                      </select>
-                      {electricityBillsLoading && (
-                        <p className="text-xs text-gray-500 mt-1">Loading...</p>
-                      )}
-                      {!electricityBillsLoading && availableMonths.length === 0 && (
-                        <p className="text-sm text-green-600 mt-1">✅ All electricity bills are paid</p>
-                      )}
-                    </div>
-                  )}
-
-                  {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
-                    <div className="col-span-full">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-blue-900 mb-2">Bill Details</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <span className="text-gray-600">Month:</span>
-                            <span className="ml-2 font-medium">
-                              {new Date(selectedElectricityBill.month).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long'
-                              })}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Your Share:</span>
-                            <span className="ml-2 font-medium text-green-600">₹{selectedElectricityBill.amount}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Total Bill:</span>
-                            <span className="ml-2 font-medium">₹{selectedElectricityBill.totalBill}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Consumption:</span>
-                            <span className="ml-2 font-medium">{selectedElectricityBill.consumption} units</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={paymentForm.amount}
-                      onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      required
-                      min="1"
-                      step="0.01"
-                      placeholder={paymentForm.paymentType === 'electricity' && selectedElectricityBill ?
-                        `Enter amount (Bill: ₹${selectedElectricityBill.amount})` :
-                        "Enter payment amount"
-                      }
-                    />
-                    {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentForm(prev => ({ ...prev, amount: selectedElectricityBill.amount.toString() }))}
-                          className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                        >
-                          Pay Full Bill (₹{selectedElectricityBill.amount})
-                        </button>
-                      </div>
-                    )}
-                    {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
-                      // Note: This will be updated to async when payment modal is opened
-                      const balance = null; // Will be calculated when modal opens
-                      const totalBalance = 0; // Will be updated when modal opens
-                      return totalBalance > 0 ? (
-                        <div className="mt-2 space-y-1">
-                          <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: totalBalance.toString() }))}
-                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                            >
-                              Pay Full (₹{totalBalance})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(totalBalance / 2).toString() }))}
-                              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
-                            >
-                              Pay Half (₹{Math.round(totalBalance / 2)})
-                            </button>
-                          </div>
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                </div>
-
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes (Optional)
-                  </label>
-                  <textarea
-                    value={paymentForm.notes}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    rows="3"
-                    placeholder="Any additional notes about this payment"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={handleClosePaymentModal}
-                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={paymentLoading || (paymentForm.paymentType === 'electricity' && (!selectedElectricityBill || availableMonths.length === 0))}
-                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                >
-                  {paymentLoading ? 'Recording...' : 'Record Payment'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Student Balance Modal */}
-      {showBalanceModal && selectedStudentBalance && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold text-blue-900">
-                Student Balance Details
-              </h3>
-              <button
-                onClick={() => {
-                  setShowBalanceModal(false);
-                  setSelectedStudentBalance(null);
-                  setPendingElectricityBills([]); // Reset pending bills
-                  setStudentAdditionalFees({}); // Reset additional fees
-                }}
-                className="p-1 text-gray-400 hover:text-gray-600"
-                aria-label="Close modal"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {balanceLoading ? (
-              <div className="text-center py-8">
-                <LoadingSpinner />
-                <p className="mt-2 text-gray-500">Loading balance details...</p>
-              </div>
-            ) : (
-              <>
-                {/* Student Info and Balance Summary in Same Row */}
-                {(() => {
-                  const balance = calculateStudentBalance(selectedStudentBalance);
-                  if (!balance) return null;
-
-                  return (
-                    <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Student Information */}
-                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-3">Student Information</h4>
-                        <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
-                          <div>
-                            <p className="text-gray-600 mb-1">Name</p>
-                            <p className="font-medium">{selectedStudentBalance.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">Roll Number</p>
-                            <p className="font-medium">{selectedStudentBalance.rollNumber}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">Category</p>
-                            <p className="font-medium">{selectedStudentBalance.category}</p>
-                          </div>
-                          <div>
-                            <p className="text-gray-600 mb-1">Academic Year</p>
-                            <p className="font-medium">{selectedStudentBalance.academicYear}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Balance Summary */}
-                      <div>
-                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Balance Summary</h4>
-
-                      {/* Concession Information */}
-                      {balance.hasConcession && balance.concessionAmount > 0 && (
-                          <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
-                            <h5 className="font-semibold text-green-900 mb-2 text-sm">Concession Applied</h5>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
-                                <span className="text-xs text-gray-600 block mb-1">Original</span>
-                                <div className="text-sm font-bold text-gray-900 line-through">₹{Number(balance.originalTotalFee || 0).toLocaleString()}</div>
-                            </div>
-                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
-                                <span className="text-xs text-gray-600 block mb-1">Concession</span>
-                                <div className="text-sm font-bold text-green-600">₹{Number(balance.concessionAmount || 0).toLocaleString()}</div>
-                            </div>
-                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
-                                <span className="text-xs text-gray-600 block mb-1">Final</span>
-                                <div className="text-sm font-bold text-blue-600">₹{Number(balance.calculatedTotalFee || 0).toLocaleString()}</div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200 shadow-sm">
-                            <div className="text-xs font-medium text-gray-600 mb-1">
-                              {balance.hasConcession ? 'Final Fee' : 'Total Fee'}
-                          </div>
-                          <div className="text-lg font-bold text-gray-900">
-                            {(() => {
-                              const totalFee = balance.hasConcession 
-                                ? (Number(balance.calculatedTotalFee) || 0) 
-                                : (Number(balance.feeStructure?.totalFee) || 0);
-                              return `₹${totalFee.toLocaleString()}`;
-                            })()}
-                          </div>
-                          {balance.hasConcession && balance.originalTotalFee && (
-                              <div className="text-xs text-gray-500 line-through mt-1">
-                                ₹{Number(balance.originalTotalFee || 0).toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200 shadow-sm">
-                            <div className="text-xs font-medium text-gray-600 mb-1">Total Paid</div>
-                          <div className="text-lg font-bold text-green-600">
-                            ₹{Number(balance.totalPaid || 0).toLocaleString()}
-                          </div>
-                        </div>
-                          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200 shadow-sm">
-                            <div className="text-xs font-medium text-gray-600 mb-1">Total Balance</div>
-                          <div className={`text-lg font-bold ${Number(balance.totalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            ₹{Number(balance.totalBalance || 0).toLocaleString()}
-                          </div>
-                        </div>
-                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200 shadow-sm">
-                            <div className="text-xs font-medium text-gray-600 mb-1">Status</div>
-                          <div className={`text-lg font-bold ${balance.isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
-                              {balance.isFullyPaid ? 'Fully Paid' : 'Pending'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-
-                {/* Term-wise Breakdown - Expandable */}
-                {(() => {
-                  const balance = calculateStudentBalance(selectedStudentBalance);
-                  if (!balance) return null;
-
-                  // Calculate term stats
-                  const totalTermBalance = Object.values(balance.termBalances).reduce((sum, term) => sum + term.balance, 0);
-                  const totalTermPaid = Object.values(balance.termBalances).reduce((sum, term) => sum + term.paid, 0);
-                  const totalTermRequired = Object.values(balance.termBalances).reduce((sum, term) => sum + term.required, 0);
-                  const paidTerms = Object.values(balance.termBalances).filter(term => term.balance === 0).length;
-
-                  return (
-                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                      {/* Header with Stats */}
-                      <button
-                        onClick={() => setExpandedSections(prev => ({ ...prev, termBreakdown: !prev.termBreakdown }))}
-                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <h4 className="font-semibold text-gray-900 text-lg">Term-wise Breakdown</h4>
-                          <div className="flex items-center gap-4 text-sm">
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-600">Total Balance:</span>
-                              <span className={`font-bold ${totalTermBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                ₹{totalTermBalance.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-600">Paid Terms:</span>
-                              <span className="font-bold text-green-600">{paidTerms}/3</span>
-                            </div>
-                            {balance.totalLateFee > 0 && (
-                              <div className="flex items-center gap-1">
-                                <span className="text-orange-600">Late Fee:</span>
-                                <span className="font-bold text-orange-600">₹{balance.totalLateFee.toLocaleString()}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {expandedSections.termBreakdown ? (
-                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
-                        ) : (
-                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
-                        )}
-                      </button>
-
-                      {/* Expanded Content */}
-                      {expandedSections.termBreakdown && (
-                        <div className="p-4 bg-white">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        {Object.entries(balance.termBalances).map(([term, termData]) => {
-                          const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] ||
-                            Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
-                          const termLateFee = balance.lateFees?.[term] || 0;
-
-                          return (
-                                <div key={term} className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                                  <div className="text-base font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
-                                {term.replace('term', 'Term ')}
-                              </div>
-                                  <div className="space-y-3 text-sm">
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-gray-600">Required:</span>
-                                      <span className="font-semibold text-gray-900">₹{termData.required.toLocaleString()}</span>
-                                </div>
-                                    <div className="flex justify-between items-center">
-                                      <span className="text-gray-600">Paid:</span>
-                                      <span className="font-semibold text-green-600">₹{termData.paid.toLocaleString()}</span>
-                                </div>
-                                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
-                                      <span className="text-gray-600 font-medium">Balance:</span>
-                                      <span className={`font-bold text-lg ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                    ₹{termData.balance.toLocaleString()}
-                                  </span>
-                                </div>
-                                {termLateFee > 0 && (
-                                      <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-orange-200 bg-orange-50 rounded p-2">
-                                        <span className="text-orange-700 font-medium">Late Fee:</span>
-                                        <span className="font-bold text-orange-700">₹{termLateFee.toLocaleString()}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                          </div>
-                        {balance.totalLateFee > 0 && (
-                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-2 border-orange-200">
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-base font-semibold text-orange-800">Total Late Fee:</span>
-                                <span className="text-xl font-bold text-orange-700">₹{balance.totalLateFee.toLocaleString()}</span>
-                            </div>
-                              <p className="text-xs text-orange-600">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
-                          </div>
-                        )}
-                      </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Additional Fees - Expandable */}
-                {(() => {
-                  // Get configured additional fees for the student
-                  const configuredFees = studentAdditionalFees || {};
-                  const configuredFeeTypes = Object.keys(configuredFees);
-                  
-                  // Calculate additional fees stats from payments
-                  const additionalFeePayments = studentPayments.filter(p => p.paymentType === 'additional_fee' && p.status === 'success');
-                  const totalAdditionalFeesPaid = additionalFeePayments.reduce((sum, p) => sum + p.amount, 0);
-                  
-                  // Calculate total due and paid for each configured fee
-                  const feesWithStatus = configuredFeeTypes.map(feeType => {
-                    const feeConfig = configuredFees[feeType];
-                    const feePayments = additionalFeePayments.filter(p => p.additionalFeeType === feeType);
-                    const totalPaid = feePayments.reduce((sum, p) => sum + p.amount, 0);
-                    
-                    // Get required amount - use categoryAmounts if available, otherwise use amount
-                    let required = 0;
-                    if (feeConfig.categoryAmounts && typeof feeConfig.categoryAmounts === 'object') {
-                      // Use category-specific amount for the student's category
-                      required = feeConfig.categoryAmounts[selectedStudentBalance.category] || 0;
-                    } else {
-                      // Fallback to single amount
-                      required = feeConfig.amount || 0;
-                    }
-                    
-                    const balance = Math.max(0, required - totalPaid);
-                    const isPaid = balance === 0 && totalPaid > 0;
-                    
-                    return {
-                      feeType,
-                      feeConfig,
-                      required,
-                      totalPaid,
-                      balance,
-                      isPaid,
-                      payments: feePayments
-                    };
-                  });
-                  
-                  // Calculate totals
-                  const totalRequired = feesWithStatus.reduce((sum, f) => sum + f.required, 0);
-                  const totalDue = feesWithStatus.reduce((sum, f) => sum + f.balance, 0);
-                  const paidFees = feesWithStatus.filter(f => f.isPaid).length;
-                  
-                  // Also include fees that were paid but not configured (for backward compatibility)
-                  const paidButNotConfigured = additionalFeePayments.filter(p => 
-                    !configuredFeeTypes.includes(p.additionalFeeType)
-                  );
-                  
-                  // Group unconfigured payments by type
-                  const unconfiguredFeesByType = paidButNotConfigured.reduce((acc, payment) => {
-                    const type = payment.additionalFeeType || 'Unknown';
-                    if (!acc[type]) {
-                      acc[type] = { total: 0, count: 0, payments: [] };
-                    }
-                    acc[type].total += payment.amount;
-                    acc[type].count += 1;
-                    acc[type].payments.push(payment);
-                    return acc;
-                  }, {});
-
-                  return (
-                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                      {/* Header with Stats */}
-                      <button
-                        onClick={() => setExpandedSections(prev => ({ ...prev, additionalFees: !prev.additionalFees }))}
-                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          <h4 className="font-semibold text-gray-900 text-lg flex items-center">
-                            <span className="mr-2">💰</span>
-                            Additional Fees
-                          </h4>
-                          <div className="flex items-center gap-4 text-sm">
-                            {configuredFeeTypes.length > 0 ? (
-                              <>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-600">Total Due:</span>
-                                  <span className={`font-bold ${totalDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                    ₹{totalDue.toLocaleString()}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-600">Paid:</span>
-                                  <span className="font-bold text-green-600">{paidFees}/{configuredFeeTypes.length}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-600">Total Paid:</span>
-                                  <span className="font-bold text-green-600">₹{totalAdditionalFeesPaid.toLocaleString()}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-gray-600">Transactions:</span>
-                                  <span className="font-bold text-gray-700">{additionalFeePayments.length}</span>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {expandedSections.additionalFees ? (
-                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
-                        ) : (
-                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
-                        )}
-                      </button>
-
-                      {/* Expanded Content */}
-                      {expandedSections.additionalFees && (
-                        <div className="p-4 bg-white">
-                          {configuredFeeTypes.length === 0 && additionalFeePayments.length === 0 ? (
-                            <div className="text-center py-6 text-gray-500">
-                              <p className="text-sm">No additional fees configured or payments recorded</p>
-                            </div>
-                          ) : (
-                            <div className="space-y-4">
-                              {/* Configured Fees */}
-                              {feesWithStatus.length > 0 && (
-                                <>
-                                  {feesWithStatus.map(({ feeType, feeConfig, required, totalPaid, balance, isPaid, payments }) => (
-                                    <div key={feeType} className={`rounded-lg p-4 border-2 ${
-                                      isPaid 
-                                        ? 'bg-green-50 border-green-200' 
-                                        : balance > 0 
-                                        ? 'bg-red-50 border-red-200' 
-                                        : 'bg-gray-50 border-gray-200'
-                                    }`}>
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div className="flex-1">
-                                          <h5 className="font-semibold text-gray-900 mb-1">
-                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                          </h5>
-                                          {feeConfig.description && (
-                                            <p className="text-xs text-gray-600">{feeConfig.description}</p>
-                                          )}
-                                        </div>
-                                        <div className="text-right ml-4">
-                                          {isPaid ? (
-                                            <div className="flex items-center gap-2">
-                                              <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                                              <div>
-                                                <div className="text-sm font-bold text-green-600">Paid</div>
-                                                <div className="text-xs text-gray-500">₹{totalPaid.toLocaleString()}</div>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div>
-                                              <div className="text-sm text-gray-600">Required: ₹{required.toLocaleString()}</div>
-                                              {totalPaid > 0 && (
-                                                <div className="text-sm text-green-600">Paid: ₹{totalPaid.toLocaleString()}</div>
-                                              )}
-                                              <div className={`text-lg font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                                Balance: ₹{balance.toLocaleString()}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      
-                                      {/* Payment History for this fee */}
-                                      {payments.length > 0 && (
-                                        <div className="mt-3 pt-3 border-t border-gray-200">
-                                          <div className="text-xs font-medium text-gray-600 mb-2">Payment History:</div>
-                                          <div className="space-y-1">
-                                            {payments.map((payment) => (
-                                              <div key={payment._id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-100 text-xs">
-                                                <div className="flex items-center gap-2">
-                                                  <span className="text-gray-600">
-                                                    {new Date(payment.paymentDate).toLocaleDateString()}
-                                                  </span>
-                                                  <span className="text-gray-500">{payment.paymentMethod}</span>
-                                                  {payment.transactionId && (
-                                                    <span className="text-gray-400 font-mono text-xs">{payment.transactionId}</span>
-                                                  )}
-                                                </div>
-                                                <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </>
-                              )}
-                              
-                              {/* Unconfigured Fees (for backward compatibility) */}
-                              {Object.keys(unconfiguredFeesByType).length > 0 && (
-                                <div className="mt-4 pt-4 border-t-2 border-gray-300">
-                                  <h5 className="font-semibold text-gray-700 mb-3 text-sm">Other Fee Payments (Not Configured)</h5>
-                                  <div className="space-y-3">
-                                    {Object.entries(unconfiguredFeesByType).map(([feeType, data]) => (
-                                      <div key={feeType} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                        <div className="flex items-center justify-between mb-2">
-                                          <h6 className="font-medium text-gray-900 text-sm">
-                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                          </h6>
-                                          <div className="text-right">
-                                            <div className="text-sm font-bold text-green-600">₹{data.total.toLocaleString()}</div>
-                                            <div className="text-xs text-gray-500">{data.count} payment{data.count !== 1 ? 's' : ''}</div>
-                                          </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                          {data.payments.map((payment) => (
-                                            <div key={payment._id} className="flex items-center justify-between bg-white p-1.5 rounded border border-gray-100 text-xs">
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-gray-600">
-                                                  {new Date(payment.paymentDate).toLocaleDateString()}
-                                                </span>
-                                                <span className="text-gray-500">{payment.paymentMethod}</span>
-                                              </div>
-                                              <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Pending Electricity Bills - Expandable */}
-                <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Header with Stats */}
-                  <button
-                    onClick={() => setExpandedSections(prev => ({ ...prev, electricityBills: !prev.electricityBills }))}
-                    className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <h4 className="font-semibold text-gray-900 text-lg flex items-center">
-                    <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                        Electricity Bills
-                  </h4>
-                  {pendingBillsLoading ? (
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <LoadingSpinner size="sm" />
-                          <span>Loading...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-4 text-sm">
-                          <div className="flex items-center gap-1">
-                            <span className="text-gray-600">Pending Bills:</span>
-                            <span className={`font-bold ${pendingElectricityBills.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                              {pendingElectricityBills.length}
-                            </span>
-                          </div>
-                          {pendingElectricityBills.length > 0 && (
-                            <div className="flex items-center gap-1">
-                              <span className="text-gray-600">Total Pending:</span>
-                              <span className="font-bold text-red-600">
-                                ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    {expandedSections.electricityBills ? (
-                      <ChevronUpIcon className="w-5 h-5 text-gray-600" />
-                    ) : (
-                      <ChevronDownIcon className="w-5 h-5 text-gray-600" />
-                    )}
-                  </button>
-
-                  {/* Expanded Content */}
-                  {expandedSections.electricityBills && (
-                    <div className="p-4 bg-white">
-                      {pendingBillsLoading ? (
-                        <div className="text-center py-6">
-                      <LoadingSpinner />
-                      <p className="mt-2 text-sm text-gray-500">Loading electricity bills...</p>
-                    </div>
-                  ) : pendingElectricityBills.length === 0 ? (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                      <div className="flex items-center justify-center text-green-700">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-sm font-medium">All electricity bills are paid</span>
-                      </div>
-                    </div>
-                  ) : (
-                      <div className="space-y-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {pendingElectricityBills.map((bill) => (
-                              <div key={bill._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-yellow-400 hover:shadow-md transition-all">
-                                <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                      <span className="text-sm font-semibold text-gray-900">
-                                    {(() => {
-                                      const [year, month] = bill.month.split('-');
-                                      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-                                      return date.toLocaleDateString('en-US', { 
-                                        month: 'long', 
-                                        year: 'numeric' 
-                                      });
-                                    })()}
-                                  </span>
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                                    Unpaid
-                                  </span>
-                                </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                                  <div>
-                                    <span className="text-gray-500">Room:</span>
-                                        <span className="ml-1 font-medium">{bill.roomNumber}</span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">Consumption:</span>
-                                        <span className="ml-1 font-medium">{bill.consumption} units</span>
-                                  </div>
-                                      <div className="col-span-2">
-                                    <span className="text-gray-500">Total Bill:</span>
-                                        <span className="ml-1 font-medium">₹{bill.totalBill.toLocaleString()}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="ml-4 text-right">
-                                    <div className="text-xl font-bold text-red-600">
-                                  ₹{bill.amount.toLocaleString()}
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">Student Share</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                          <div className="pt-3 border-t-2 border-gray-300">
-                        <div className="flex justify-between items-center">
-                              <span className="text-base font-semibold text-gray-700">Total Pending:</span>
-                              <span className="text-xl font-bold text-red-600">
-                            ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Payment History */}
-                <div className="mb-6">
-                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Payment History</h4>
-                  {studentPayments.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
-                      <ReceiptRefundIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                      <p className="text-sm">No payments recorded yet</p>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {studentPayments.map((payment) => (
-                          <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                                  payment.paymentType === 'electricity'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : payment.paymentType === 'additional_fee'
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-blue-100 text-blue-800'
-                                }`}>
-                                  {payment.paymentType === 'electricity' 
-                                    ? '⚡ Electricity' 
-                                    : payment.paymentType === 'additional_fee'
-                                    ? '💰 Additional Fee'
-                                    : '🏠 Hostel Fee'}
-                                </span>
-                                <span className="font-medium text-sm">
-                                  {payment.paymentType === 'electricity'
-                                    ? `Bill: ${payment.billMonth || 'N/A'}`
-                                    : payment.paymentType === 'additional_fee'
-                                    ? payment.additionalFeeType ? payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Additional Fee'
-                                    : payment.term?.replace('term', 'Term ') || 'N/A'}
-                                </span>
-                                <span className="text-xs text-gray-500">
-                                  {new Date(payment.paymentDate).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-600 flex items-center gap-2">
-                                <span>{payment.paymentMethod}</span>
-                                {payment.notes && <span>•</span>}
-                                <span className="truncate">{payment.notes || ''}</span>
-                              </div>
-                              {payment.transactionId && (
-                                <div className="text-xs text-gray-400 mt-1 font-mono">
-                                  Txn: {payment.transactionId}
-                            </div>
-                              )}
-                            </div>
-                            <div className="text-right ml-4 flex-shrink-0">
-                              <div className="font-semibold text-green-600 text-lg">₹{payment.amount.toLocaleString()}</div>
-                              <div className={`text-xs mt-1 ${
-                                payment.status === 'success' ? 'text-green-600' : 
-                                payment.status === 'pending' ? 'text-yellow-600' : 
-                                'text-red-600'
-                              }`}>
-                                {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || 'Success'}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => {
-                      setShowBalanceModal(false);
-                      setSelectedStudentBalance(null);
-                      setPendingElectricityBills([]); // Reset pending bills
-                      setStudentAdditionalFees({}); // Reset additional fees
-                    }}
-                    className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowBalanceModal(false);
-                      openPaymentModal(selectedStudentBalance);
-                    }}
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
-                  >
-                    Record Payment
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Fee Structure Modal */}
-      {showFeeStructureModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`bg-white rounded-lg p-6 w-full ${selectedFeeStructure ? 'max-w-4xl max-h-[90vh] overflow-y-auto' : 'max-w-4xl max-h-[90vh] overflow-y-auto'}`}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium text-gray-900">
-                {selectedFeeStructure ? 'Fee Structure Details' : (isEditMode ? 'Edit Fee Structure' : 'Add Fee Structure')}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowFeeStructureModal(false);
-                  setIsEditMode(false);
-                }}
-                className="p-1 text-gray-400 hover:text-gray-600"
-                aria-label="Close modal"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {selectedFeeStructure ? (
-              // Detailed View Mode
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <AcademicCapIcon className="w-5 h-5 text-blue-600 mr-2" />
-                    Basic Information
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-blue-100">
-                      <div className="text-sm font-medium text-gray-500 mb-1">Academic Year</div>
-                      <div className="text-lg font-semibold text-gray-900">{selectedFeeStructure.academicYear}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-blue-100">
-                      <div className="text-sm font-medium text-gray-500 mb-1">Course</div>
-                      <div className="text-lg font-semibold text-gray-900">{selectedFeeStructure.course?.name || 'Unknown Course'}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-blue-100">
-                      <div className="text-sm font-medium text-gray-500 mb-1">Year of Study</div>
-                      <div className="text-lg font-semibold text-gray-900">Year {selectedFeeStructure.year}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-blue-100">
-                      <div className="text-sm font-medium text-gray-500 mb-1">Category</div>
-                      <div className="text-lg font-semibold text-gray-900">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                          {selectedFeeStructure.category}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fee Breakdown */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-6 border border-green-200">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <CurrencyDollarIcon className="w-5 h-5 text-green-600 mr-2" />
-                    Fee Breakdown
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
-                      <div className="text-sm font-medium text-gray-500 mb-2">Total Fee</div>
-                      <div className="text-2xl font-bold text-green-700">₹{selectedFeeStructure.totalFee.toLocaleString()}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
-                      <div className="text-sm font-medium text-gray-500 mb-2">Term 1 (40%)</div>
-                      <div className="text-xl font-bold text-blue-700">₹{(selectedFeeStructure.term1Fee || Math.round(selectedFeeStructure.totalFee * 0.4)).toLocaleString()}</div>
-                      <div className="text-xs text-gray-500 mt-1">Due: Start of Academic Year</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
-                      <div className="text-sm font-medium text-gray-500 mb-2">Term 2 (30%)</div>
-                      <div className="text-xl font-bold text-orange-700">₹{(selectedFeeStructure.term2Fee || Math.round(selectedFeeStructure.totalFee * 0.3)).toLocaleString()}</div>
-                      <div className="text-xs text-gray-500 mt-1">Due: Mid Academic Year</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-4 border border-green-100 text-center">
-                      <div className="text-sm font-medium text-gray-500 mb-2">Term 3 (30%)</div>
-                      <div className="text-xl font-bold text-purple-700">₹{(selectedFeeStructure.term3Fee || Math.round(selectedFeeStructure.totalFee * 0.3)).toLocaleString()}</div>
-                      <div className="text-xs text-gray-500 mt-1">Due: End of Academic Year</div>
-                    </div>
-                  </div>
-                </div>
-                {/* Actions */}
-                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => setShowFeeStructureModal(false)}
-                    className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      // Switch to edit mode
-                      // Extract course ID properly - handle both populated and non-populated references
-                      const courseId = selectedFeeStructure.course?._id || selectedFeeStructure.course || '';
-                      // Convert year to string to match dropdown format
-                      const yearValue = selectedFeeStructure.year ? String(selectedFeeStructure.year) : '';
-                      const totalFeeValue = selectedFeeStructure.totalFee || 0;
-                      
-                      // Verify course exists in courses array
-                      const courseExists = courses.find(c => c._id === courseId || String(c._id) === String(courseId));
-                      if (!courseExists && courseId) {
-                        console.warn('⚠️ Course not found in courses array:', courseId);
-                      }
-                      
-                      console.log('🔍 Setting edit form:', {
-                        academicYear: selectedFeeStructure.academicYear,
-                        course: courseId,
-                        year: yearValue,
-                        category: selectedFeeStructure.category,
-                        totalFee: totalFeeValue,
-                        courseExists: !!courseExists
-                      });
-                      
-                      setFeeStructureForm({
-                        academicYear: selectedFeeStructure.academicYear || '',
-                        course: String(courseId || ''),
-                        year: yearValue,
-                        category: selectedFeeStructure.category || '',
-                        totalFee: totalFeeValue
-                      });
-                      // Reset bulk form to ensure single edit mode is detected
-                      setBulkFeeForm({
-                        academicYear: '',
-                        course: '',
-                        year: '',
-                        categories: {
-                          'A+': { totalFee: 0, exists: false },
-                          'A': { totalFee: 0, exists: false },
-                          'B+': { totalFee: 0, exists: false },
-                          'B': { totalFee: 0, exists: false },
-                        }
-                      });
-                      // Reset selected years when switching to edit mode
-                      setSelectedYearsToApply([]);
-                      // Set edit mode flag
-                      setIsEditMode(true);
-                      // Set selectedFeeStructure to null to switch to form view
-                      // The category dropdown will use isEditMode to show all categories
-                      setSelectedFeeStructure(null);
-                    }}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                  >
-                    Edit Structure
-                  </button>
-                  <button
-                    onClick={() => deleteFeeStructure(selectedFeeStructure.academicYear, selectedFeeStructure.course?._id || selectedFeeStructure.course, selectedFeeStructure.year, selectedFeeStructure.category)}
-                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
-                  >
-                    Delete Structure
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Add/Edit Fee Structure Mode
-              <form onSubmit={handleFeeStructureSubmit}>
-                <div className="space-y-4">
-                  {/* Check if we're in single mode (edit mode OR add mode with course/year OR bulk form is empty) or bulk mode (bulkFeeForm has course and year) */}
-                  {(!bulkFeeForm.course || bulkFeeForm.course === '') ? (
-                    // Single Fee Structure Add/Edit Mode
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Academic Year
-                          </label>
-                          <select
-                            value={feeStructureForm.academicYear}
-                            onChange={(e) => {
-                              setFeeStructureForm(prev => ({ ...prev, academicYear: e.target.value }));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select Academic Year</option>
-                            {generateAcademicYears().map(year => (
-                              <option key={year} value={year}>{year}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Course
-                          </label>
-                          <select
-                            value={String(feeStructureForm.course || '')}
-                            onChange={(e) => {
-                              setFeeStructureForm(prev => ({ ...prev, course: e.target.value, year: '' }));
-                              setSelectedYearsToApply([]);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select Course</option>
-                            {courses.map(course => (
-                              <option key={course._id} value={String(course._id)}>{course.name}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Year of Study
-                          </label>
-                          <select
-                            value={feeStructureForm.year}
-                            onChange={(e) => {
-                              setFeeStructureForm(prev => ({ ...prev, year: e.target.value }));
-                              setSelectedYearsToApply([]);
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                            disabled={!feeStructureForm.course}
-                          >
-                            <option value="">
-                              {!feeStructureForm.course 
-                                ? 'Select Course first'
-                                : 'Select Year'
-                              }
-                            </option>
-                            {(() => {
-                              // Normalize course ID comparison (handle both ObjectId and string)
-                              const selectedCourse = courses.find(c => 
-                                String(c._id) === String(feeStructureForm.course) || 
-                                c._id === feeStructureForm.course
-                              );
-                              return selectedCourse && Array.from({ length: selectedCourse.duration }, (_, i) => i + 1).map(year => (
-                                <option key={year} value={String(year)}>Year {year}</option>
-                              ));
-                            })()}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Category
-                          </label>
-                          <select
-                            value={feeStructureForm.category}
-                            onChange={(e) => {
-                              setFeeStructureForm(prev => ({ ...prev, category: e.target.value }));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select Category</option>
-                            {(() => {
-                              // When editing, show all categories (including current one)
-                              // When creating new, filter out existing categories
-                              const categories = isEditMode || selectedFeeStructure 
-                                ? getAvailableCategories() 
-                                : getAvailableCategoriesForCreation();
-                              return categories.map(category => (
-                                <option key={category} value={category}>{category}</option>
-                              ));
-                            })()}
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Total Fee (₹)
-                          </label>
-                          <input
-                            type="number"
-                            value={feeStructureForm.totalFee || ''}
-                            onChange={(e) => {
-                              setFeeStructureForm(prev => ({ ...prev, totalFee: parseFloat(e.target.value) || 0 }));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter total fee"
-                            min="0"
-                            required
-                          />
-                          {feeStructureForm.totalFee > 0 && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              <div className="flex justify-between">
-                                <span>T1: ₹{Math.round(feeStructureForm.totalFee * 0.4).toLocaleString()}</span>
-                                <span>T2: ₹{Math.round(feeStructureForm.totalFee * 0.3).toLocaleString()}</span>
-                              </div>
-                              <div className="text-center mt-1">
-                                T3: ₹{Math.round(feeStructureForm.totalFee * 0.3).toLocaleString()}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Apply to Other Years Section - Show when course/year are selected (works for both add and edit) */}
-                      {(() => {
-                        // Normalize course ID comparison
-                        const selectedCourse = courses.find(c => 
-                          String(c._id) === String(feeStructureForm.course) || 
-                          c._id === feeStructureForm.course
-                        );
-                        return feeStructureForm.course && feeStructureForm.year && selectedCourse && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                            <AcademicCapIcon className="w-4 h-4 text-blue-600 mr-2" />
-                            Apply Same Values to Other Years
-                          </h4>
-                          <p className="text-xs text-gray-600 mb-3">
-                            Select additional years to apply the same fee structure values. The current year (Year {feeStructureForm.year}) will always be saved.
-                          </p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {Array.from({ length: selectedCourse.duration }, (_, i) => i + 1)
-                              .filter(year => {
-                                const currentYear = parseInt(feeStructureForm.year) || 0;
-                                return year !== currentYear;
-                              })
-                              .map(year => (
-                                <label key={year} className="flex items-center space-x-2 cursor-pointer">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedYearsToApply.includes(year)}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedYearsToApply(prev => [...prev, year]);
-                                      } else {
-                                        setSelectedYearsToApply(prev => prev.filter(y => y !== year));
-                                      }
-                                    }}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                                  />
-                                  <span className="text-sm text-gray-700">Year {year}</span>
-                                </label>
-                              ))
-                            }
-                          </div>
-                          {selectedYearsToApply.length > 0 && (
-                            <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
-                              Will apply to: Year {feeStructureForm.year} (current) {selectedYearsToApply.length > 0 && `+ ${selectedYearsToApply.length} other year(s)`}
-                            </div>
-                          )}
-                        </div>
-                      );
-                      })()}
-                    </>
-                  ) : (
-                    // Bulk Creation Mode
-                    <>
-                      {/* First row - Academic Year, Course, Year of Study */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Academic Year
-                          </label>
-                          <select
-                            value={bulkFeeForm.academicYear}
-                            onChange={(e) => {
-                              setBulkFeeForm(prev => ({ ...prev, academicYear: e.target.value }));
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Select Academic Year</option>
-                            {generateAcademicYears().map(year => (
-                              <option key={year} value={year}>{year}</option>
-                            ))}
-                          </select>
-                        </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Course
-                      </label>
-                      <select
-                        value={bulkFeeForm.course}
-                        onChange={(e) => {
-                          setBulkFeeForm(prev => ({ ...prev, course: e.target.value, year: '' }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                      >
-                        <option value="">Select Course</option>
-                        {courses.map(course => (
-                          <option key={course._id} value={course._id}>{course.name}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Year of Study
-                      </label>
-                      <select
-                        value={bulkFeeForm.year}
-                        onChange={(e) => {
-                          setBulkFeeForm(prev => ({ ...prev, year: e.target.value }));
-                          // Check for existing fee structures when year is selected
-                          if (e.target.value && bulkFeeForm.course && bulkFeeForm.academicYear) {
-                            checkExistingFeeStructures(bulkFeeForm.academicYear, bulkFeeForm.course, e.target.value);
-                          }
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        required
-                        disabled={!bulkFeeForm.course}
-                      >
-                        <option value="">
-                          {!bulkFeeForm.course 
-                            ? 'Select Course first'
-                            : 'Select Year'
-                          }
-                        </option>
-                        {bulkFeeForm.course && courses.find(c => c._id === bulkFeeForm.course) && 
-                          Array.from({ length: courses.find(c => c._id === bulkFeeForm.course).duration }, (_, i) => i + 1).map(year => (
-                            <option key={year} value={year}>Year {year}</option>
-                          ))
-                        }
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Bulk Creation Form - Show when course and year are selected */}
-                  {bulkFeeForm.course && bulkFeeForm.year ? (
-                    <div className="space-y-4">
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                          <UserGroupIcon className="w-5 h-5 text-green-600 mr-2" />
-                          Set Fees for All Categories
-                        </h4>
-                        <p className="text-sm text-gray-600 mb-4">
-                          Set individual total fees for each category. Term fees will be automatically calculated (40%, 30%, 30%).
-                        </p>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {Object.entries(bulkFeeForm.categories).map(([category, data]) => (
-                            <div key={category} className="bg-white rounded-lg p-4 border border-green-100">
-                              <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-medium text-gray-700">
-                                  Category {category}
-                                </label>
-                                {data.exists && (
-                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                                    Existing
-                                  </span>
-                                )}
-                              </div>
-                              <input
-                                type="number"
-                                value={data.totalFee || ''}
-                                onChange={(e) => {
-                                  const value = parseInt(e.target.value) || 0;
-                                  setBulkFeeForm(prev => ({
-                                    ...prev,
-                                    categories: {
-                                      ...prev.categories,
-                                      [category]: { ...data, totalFee: value }
-                                    }
-                                  }));
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                placeholder="Enter total fee"
-                                min="0"
-                                required
-                              />
-                              {data.totalFee > 0 && (
-                                <div className="mt-2 text-xs text-gray-500">
-                                  <div className="flex justify-between">
-                                    <span>T1: ₹{Math.round(data.totalFee * 0.4).toLocaleString()}</span>
-                                    <span>T2: ₹{Math.round(data.totalFee * 0.3).toLocaleString()}</span>
-                                  </div>
-                                  <div className="text-center mt-1">
-                                    T3: ₹{Math.round(data.totalFee * 0.3).toLocaleString()}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <UserGroupIcon className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                      <p>Please select Course and Year to set fees for all categories</p>
-                    </div>
-                  )}
-                    </>
-                  )}
-                </div>
-
-                <div className="flex justify-end space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowFeeStructureModal(false);
-                      setIsEditMode(false);
-                    }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={feeStructureLoading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {feeStructureLoading ? 'Saving...' : 'Save'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Additional Fees Setup Tab Content */}
-      {activeTab === 'additional-fees' && (
-        <>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-              <div>
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900">Additional Fees Setup</h2>
-                <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                  Configure additional fees (caution deposit, diesel charges, etc.) common for all students per academic year
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openAdditionalFeeModal()}
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
-                >
-                  <PlusIcon className="w-4 h-4" />
-                  <span className="hidden sm:inline">Add Additional Fee</span>
-                  <span className="sm:hidden">Add</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Academic Year Filter */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Academic Year
-              </label>
-              <select
-                value={additionalFeesFilter.academicYear}
-                onChange={(e) => setAdditionalFeesFilter(prev => ({ ...prev, academicYear: e.target.value }))}
-                className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-              >
-                <option value="">Select Academic Year</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Additional Fees List */}
-            {additionalFeesLoading ? (
-              <div className="flex justify-center items-center py-12">
-                <LoadingSpinner />
-                <p className="ml-3 text-gray-500">Loading additional fees...</p>
-              </div>
-            ) : !additionalFeesFilter.academicYear ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 text-lg">Please select an academic year to view additional fees</p>
-              </div>
-            ) : Object.keys(additionalFees).length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                <PlusIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500 text-lg mb-2">No additional fees configured</p>
-                <p className="text-sm text-gray-400 mb-4">Click "Add Additional Fee" to create a new fee type</p>
-                <button
-                  onClick={() => openAdditionalFeeModal()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                >
-                  Add Additional Fee
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.entries(additionalFees).map(([feeType, feeData]) => (
-                  <div
-                    key={feeType}
-                    className={`bg-white rounded-lg border-2 p-4 ${
-                      feeData.isActive ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50 opacity-60'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <h3 className="text-base font-semibold text-gray-900 capitalize">
-                          {feeType.replace(/_/g, ' ')}
-                        </h3>
-                        {feeData.description && (
-                          <p className="text-xs text-gray-600 mt-1">{feeData.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          feeData.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {feeData.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <p className="text-sm font-medium text-gray-700 mb-1">Categories:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {Array.isArray(feeData.categories) && feeData.categories.length > 0 ? (
-                          feeData.categories.map((cat) => (
-                            <span
-                              key={cat}
-                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {cat}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-500">All categories</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mb-4">
-                      <div className="text-2xl font-bold text-blue-600">
-                        ₹{feeData.amount?.toLocaleString() || 0}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">Amount per student</div>
-                    </div>
-                    
-                    <div className="mb-3">
-                      <p className="text-xs font-medium text-gray-700 mb-1">Applies to Categories:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {Array.isArray(feeData.categories) && feeData.categories.length > 0 ? (
-                          feeData.categories.map((cat) => (
-                            <span
-                              key={cat}
-                              className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                            >
-                              {cat}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs text-gray-500">All categories</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 pt-3 border-t border-gray-200">
-                      <button
-                        onClick={() => openAdditionalFeeModal(feeType)}
-                        className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => toggleAdditionalFeeStatus(feeType)}
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
-                          feeData.isActive
-                            ? 'bg-yellow-600 text-white hover:bg-yellow-700'
-                            : 'bg-green-600 text-white hover:bg-green-700'
-                        }`}
-                      >
-                        {feeData.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                      <button
-                        onClick={() => deleteAdditionalFee(feeType)}
-                        className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </>
-      )}
-
-      {/* Payments Tab Content */}
       {activeTab === 'payments' && (
         <>
           {/* Payment Overview */}
@@ -7518,6 +4887,1176 @@ const FeeManagement = () => {
         </div>
       )}
 
+      {/* Student Balance Modal */}
+      {showBalanceModal && selectedStudentBalance && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-blue-900">
+                Student Balance Details
+              </h3>
+              <button
+                onClick={() => {
+                  setShowBalanceModal(false);
+                  setSelectedStudentBalance(null);
+                  setPendingElectricityBills([]); // Reset pending bills
+                  setStudentAdditionalFees({}); // Reset additional fees
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {balanceLoading ? (
+              <div className="text-center py-8">
+                <LoadingSpinner />
+                <p className="mt-2 text-gray-500">Loading balance details...</p>
+              </div>
+            ) : (
+              <>
+                {/* Student Info and Balance Summary in Same Row */}
+                {(() => {
+                  const balance = calculateStudentBalance(selectedStudentBalance);
+                  if (!balance) return null;
+
+                  return (
+                    <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Student Information */}
+                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                        <h4 className="font-semibold text-blue-900 mb-3">Student Information</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-blue-800">
+                          <div>
+                            <p className="text-gray-600 mb-1">Name</p>
+                            <p className="font-medium">{selectedStudentBalance.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Roll Number</p>
+                            <p className="font-medium">{selectedStudentBalance.rollNumber}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Category</p>
+                            <p className="font-medium">{selectedStudentBalance.category}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-600 mb-1">Academic Year</p>
+                            <p className="font-medium">{selectedStudentBalance.academicYear}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Balance Summary */}
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 text-lg">Balance Summary</h4>
+
+                      {/* Concession Information */}
+                      {balance.hasConcession && balance.concessionAmount > 0 && (
+                          <div className="mb-4 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                            <h5 className="font-semibold text-green-900 mb-2 text-sm">Concession Applied</h5>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Original</span>
+                                <div className="text-sm font-bold text-gray-900 line-through">₹{Number(balance.originalTotalFee || 0).toLocaleString()}</div>
+                            </div>
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Concession</span>
+                                <div className="text-sm font-bold text-green-600">₹{Number(balance.concessionAmount || 0).toLocaleString()}</div>
+                            </div>
+                              <div className="bg-white rounded-lg p-2 text-center border border-green-100">
+                                <span className="text-xs text-gray-600 block mb-1">Final</span>
+                                <div className="text-sm font-bold text-blue-600">₹{Number(balance.calculatedTotalFee || 0).toLocaleString()}</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">
+                              {balance.hasConcession ? 'Final Fee' : 'Total Fee'}
+                          </div>
+                          <div className="text-lg font-bold text-gray-900">
+                            {(() => {
+                              const totalFee = balance.hasConcession 
+                                ? (Number(balance.calculatedTotalFee) || 0) 
+                                : (Number(balance.feeStructure?.totalFee) || 0);
+                              return `₹${totalFee.toLocaleString()}`;
+                            })()}
+                          </div>
+                          {balance.hasConcession && balance.originalTotalFee && (
+                              <div className="text-xs text-gray-500 line-through mt-1">
+                                ₹{Number(balance.originalTotalFee || 0).toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Total Paid</div>
+                          <div className="text-lg font-bold text-green-600">
+                            ₹{Number(balance.totalPaid || 0).toLocaleString()}
+                          </div>
+                        </div>
+                          <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Total Balance</div>
+                          <div className={`text-lg font-bold ${Number(balance.totalBalance || 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            ₹{Number(balance.totalBalance || 0).toLocaleString()}
+                          </div>
+                        </div>
+                          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200 shadow-sm">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Status</div>
+                          <div className={`text-lg font-bold ${balance.isFullyPaid ? 'text-green-600' : 'text-orange-600'}`}>
+                              {balance.isFullyPaid ? 'Fully Paid' : 'Pending'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+
+                {/* Term-wise Breakdown - Expandable */}
+                {(() => {
+                  const balance = calculateStudentBalance(selectedStudentBalance);
+                  if (!balance) return null;
+
+                  // Calculate term stats
+                  const totalTermBalance = Object.values(balance.termBalances).reduce((sum, term) => sum + term.balance, 0);
+                  const totalTermPaid = Object.values(balance.termBalances).reduce((sum, term) => sum + term.paid, 0);
+                  const totalTermRequired = Object.values(balance.termBalances).reduce((sum, term) => sum + term.required, 0);
+                  const paidTerms = Object.values(balance.termBalances).filter(term => term.balance === 0).length;
+
+                  return (
+                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Header with Stats */}
+                      <button
+                        onClick={() => setExpandedSections(prev => ({ ...prev, termBreakdown: !prev.termBreakdown }))}
+                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-semibold text-gray-900 text-lg">Term-wise Breakdown</h4>
+                          <div className="flex items-center gap-4 text-sm">
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Total Balance:</span>
+                              <span className={`font-bold ${totalTermBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                ₹{totalTermBalance.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Paid Terms:</span>
+                              <span className="font-bold text-green-600">{paidTerms}/3</span>
+                            </div>
+                            {balance.totalLateFee > 0 && (
+                              <div className="flex items-center gap-1">
+                                <span className="text-orange-600">Late Fee:</span>
+                                <span className="font-bold text-orange-600">₹{balance.totalLateFee.toLocaleString()}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {expandedSections.termBreakdown ? (
+                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                        )}
+                      </button>
+
+                      {/* Expanded Content */}
+                      {expandedSections.termBreakdown && (
+                        <div className="p-4 bg-white">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        {Object.entries(balance.termBalances).map(([term, termData]) => {
+                          const originalTermFee = balance.feeStructure[term === 'term1' ? 'term1Fee' : term === 'term2' ? 'term2Fee' : 'term3Fee'] ||
+                            Math.round(balance.feeStructure.totalFee * (term === 'term1' ? 0.4 : 0.3));
+                          const termLateFee = balance.lateFees?.[term] || 0;
+
+                          return (
+                                <div key={term} className="bg-gradient-to-br from-gray-50 to-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                                  <div className="text-base font-semibold text-gray-900 mb-3 pb-2 border-b border-gray-200">
+                                {term.replace('term', 'Term ')}
+                              </div>
+                                  <div className="space-y-3 text-sm">
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-600">Required:</span>
+                                      <span className="font-semibold text-gray-900">₹{termData.required.toLocaleString()}</span>
+                                </div>
+                                    <div className="flex justify-between items-center">
+                                      <span className="text-gray-600">Paid:</span>
+                                      <span className="font-semibold text-green-600">₹{termData.paid.toLocaleString()}</span>
+                                </div>
+                                    <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                                      <span className="text-gray-600 font-medium">Balance:</span>
+                                      <span className={`font-bold text-lg ${termData.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{termData.balance.toLocaleString()}
+                                  </span>
+                                </div>
+                                {termLateFee > 0 && (
+                                      <div className="flex justify-between items-center pt-2 mt-2 border-t-2 border-orange-200 bg-orange-50 rounded p-2">
+                                        <span className="text-orange-700 font-medium">Late Fee:</span>
+                                        <span className="font-bold text-orange-700">₹{termLateFee.toLocaleString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                          </div>
+                        {balance.totalLateFee > 0 && (
+                            <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg p-4 border-2 border-orange-200">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="text-base font-semibold text-orange-800">Total Late Fee:</span>
+                                <span className="text-xl font-bold text-orange-700">₹{balance.totalLateFee.toLocaleString()}</span>
+                            </div>
+                              <p className="text-xs text-orange-600">Late fees are separate from fee balance and must be paid in addition to outstanding fees.</p>
+                          </div>
+                        )}
+                      </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Additional Fees - Expandable */}
+                {(() => {
+                  // Get configured additional fees for the student
+                  const configuredFees = studentAdditionalFees || {};
+                  const configuredFeeTypes = Object.keys(configuredFees);
+                  
+                  // Calculate additional fees stats from payments
+                  const additionalFeePayments = studentPayments.filter(p => p.paymentType === 'additional_fee' && p.status === 'success');
+                  const totalAdditionalFeesPaid = additionalFeePayments.reduce((sum, p) => sum + p.amount, 0);
+                  
+                  // Calculate total due and paid for each configured fee
+                  const feesWithStatus = configuredFeeTypes.map(feeType => {
+                    const feeConfig = configuredFees[feeType];
+                    const feePayments = additionalFeePayments.filter(p => p.additionalFeeType === feeType);
+                    const totalPaid = feePayments.reduce((sum, p) => sum + p.amount, 0);
+                    
+                    // Get required amount - use categoryAmounts if available, otherwise use amount
+                    let required = 0;
+                    if (feeConfig.categoryAmounts && typeof feeConfig.categoryAmounts === 'object') {
+                      // Use category-specific amount for the student's category
+                      required = feeConfig.categoryAmounts[selectedStudentBalance.category] || 0;
+                    } else {
+                      // Fallback to single amount
+                      required = feeConfig.amount || 0;
+                    }
+                    
+                    const balance = Math.max(0, required - totalPaid);
+                    const isPaid = balance === 0 && totalPaid > 0;
+                    
+                    return {
+                      feeType,
+                      feeConfig,
+                      required,
+                      totalPaid,
+                      balance,
+                      isPaid,
+                      payments: feePayments
+                    };
+                  });
+                  
+                  // Calculate totals
+                  const totalRequired = feesWithStatus.reduce((sum, f) => sum + f.required, 0);
+                  const totalDue = feesWithStatus.reduce((sum, f) => sum + f.balance, 0);
+                  const paidFees = feesWithStatus.filter(f => f.isPaid).length;
+                  
+                  // Also include fees that were paid but not configured (for backward compatibility)
+                  const paidButNotConfigured = additionalFeePayments.filter(p => 
+                    !configuredFeeTypes.includes(p.additionalFeeType)
+                  );
+                  
+                  // Group unconfigured payments by type
+                  const unconfiguredFeesByType = paidButNotConfigured.reduce((acc, payment) => {
+                    const type = payment.additionalFeeType || 'Unknown';
+                    if (!acc[type]) {
+                      acc[type] = { total: 0, count: 0, payments: [] };
+                    }
+                    acc[type].total += payment.amount;
+                    acc[type].count += 1;
+                    acc[type].payments.push(payment);
+                    return acc;
+                  }, {});
+
+                  return (
+                    <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                      {/* Header with Stats */}
+                      <button
+                        onClick={() => setExpandedSections(prev => ({ ...prev, additionalFees: !prev.additionalFees }))}
+                        className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-semibold text-gray-900 text-lg flex items-center">
+                            <span className="mr-2">💰</span>
+                            Additional Fees
+                          </h4>
+                          <div className="flex items-center gap-4 text-sm">
+                            {configuredFeeTypes.length > 0 ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Total Due:</span>
+                                  <span className={`font-bold ${totalDue > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{totalDue.toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Paid:</span>
+                                  <span className="font-bold text-green-600">{paidFees}/{configuredFeeTypes.length}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Total Paid:</span>
+                                  <span className="font-bold text-green-600">₹{totalAdditionalFeesPaid.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-gray-600">Transactions:</span>
+                                  <span className="font-bold text-gray-700">{additionalFeePayments.length}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {expandedSections.additionalFees ? (
+                          <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                        ) : (
+                          <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                        )}
+                      </button>
+
+                      {/* Expanded Content */}
+                      {expandedSections.additionalFees && (
+                        <div className="p-4 bg-white">
+                          {configuredFeeTypes.length === 0 && additionalFeePayments.length === 0 ? (
+                            <div className="text-center py-6 text-gray-500">
+                              <p className="text-sm">No additional fees configured or payments recorded</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {/* Configured Fees */}
+                              {feesWithStatus.length > 0 && (
+                                <>
+                                  {feesWithStatus.map(({ feeType, feeConfig, required, totalPaid, balance, isPaid, payments }) => (
+                                    <div key={feeType} className={`rounded-lg p-4 border-2 ${
+                                      isPaid 
+                                        ? 'bg-green-50 border-green-200' 
+                                        : balance > 0 
+                                        ? 'bg-red-50 border-red-200' 
+                                        : 'bg-gray-50 border-gray-200'
+                                    }`}>
+                                      <div className="flex items-center justify-between mb-3">
+                                        <div className="flex-1">
+                                          <h5 className="font-semibold text-gray-900 mb-1">
+                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          </h5>
+                                          {feeConfig.description && (
+                                            <p className="text-xs text-gray-600">{feeConfig.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="text-right ml-4">
+                                          {isPaid ? (
+                                            <div className="flex items-center gap-2">
+                                              <CheckCircleIcon className="w-5 h-5 text-green-600" />
+                                              <div>
+                                                <div className="text-sm font-bold text-green-600">Paid</div>
+                                                <div className="text-xs text-gray-500">₹{totalPaid.toLocaleString()}</div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div>
+                                              <div className="text-sm text-gray-600">Required: ₹{required.toLocaleString()}</div>
+                                              {totalPaid > 0 && (
+                                                <div className="text-sm text-green-600">Paid: ₹{totalPaid.toLocaleString()}</div>
+                                              )}
+                                              <div className={`text-lg font-bold ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                Balance: ₹{balance.toLocaleString()}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Payment History for this fee */}
+                                      {payments.length > 0 && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                          <div className="text-xs font-medium text-gray-600 mb-2">Payment History:</div>
+                                          <div className="space-y-1">
+                                            {payments.map((payment) => (
+                                              <div key={payment._id} className="flex items-center justify-between bg-white p-2 rounded border border-gray-100 text-xs">
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-gray-600">
+                                                    {new Date(payment.paymentDate).toLocaleDateString()}
+                                                  </span>
+                                                  <span className="text-gray-500">{payment.paymentMethod}</span>
+                                                  {payment.transactionId && (
+                                                    <span className="text-gray-400 font-mono text-xs">{payment.transactionId}</span>
+                                                  )}
+                                                </div>
+                                                <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </>
+                              )}
+                              
+                              {/* Unconfigured Fees (for backward compatibility) */}
+                              {Object.keys(unconfiguredFeesByType).length > 0 && (
+                                <div className="mt-4 pt-4 border-t-2 border-gray-300">
+                                  <h5 className="font-semibold text-gray-700 mb-3 text-sm">Other Fee Payments (Not Configured)</h5>
+                                  <div className="space-y-3">
+                                    {Object.entries(unconfiguredFeesByType).map(([feeType, data]) => (
+                                      <div key={feeType} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                        <div className="flex items-center justify-between mb-2">
+                                          <h6 className="font-medium text-gray-900 text-sm">
+                                            {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                          </h6>
+                                          <div className="text-right">
+                                            <div className="text-sm font-bold text-green-600">₹{data.total.toLocaleString()}</div>
+                                            <div className="text-xs text-gray-500">{data.count} payment{data.count !== 1 ? 's' : ''}</div>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          {data.payments.map((payment) => (
+                                            <div key={payment._id} className="flex items-center justify-between bg-white p-1.5 rounded border border-gray-100 text-xs">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-gray-600">
+                                                  {new Date(payment.paymentDate).toLocaleDateString()}
+                                                </span>
+                                                <span className="text-gray-500">{payment.paymentMethod}</span>
+                                              </div>
+                                              <div className="font-semibold text-green-600">₹{payment.amount.toLocaleString()}</div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Pending Electricity Bills - Expandable */}
+                <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
+                  {/* Header with Stats */}
+                  <button
+                    onClick={() => setExpandedSections(prev => ({ ...prev, electricityBills: !prev.electricityBills }))}
+                    className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <h4 className="font-semibold text-gray-900 text-lg flex items-center">
+                    <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                        Electricity Bills
+                  </h4>
+                  {pendingBillsLoading ? (
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <LoadingSpinner size="sm" />
+                          <span>Loading...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-600">Pending Bills:</span>
+                            <span className={`font-bold ${pendingElectricityBills.length > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                              {pendingElectricityBills.length}
+                            </span>
+                          </div>
+                          {pendingElectricityBills.length > 0 && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-gray-600">Total Pending:</span>
+                              <span className="font-bold text-red-600">
+                                ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {expandedSections.electricityBills ? (
+                      <ChevronUpIcon className="w-5 h-5 text-gray-600" />
+                    ) : (
+                      <ChevronDownIcon className="w-5 h-5 text-gray-600" />
+                    )}
+                  </button>
+
+                  {/* Expanded Content */}
+                  {expandedSections.electricityBills && (
+                    <div className="p-4 bg-white">
+                      {pendingBillsLoading ? (
+                        <div className="text-center py-6">
+                      <LoadingSpinner />
+                      <p className="mt-2 text-sm text-gray-500">Loading electricity bills...</p>
+                    </div>
+                  ) : pendingElectricityBills.length === 0 ? (
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
+                      <div className="flex items-center justify-center text-green-700">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm font-medium">All electricity bills are paid</span>
+                      </div>
+                    </div>
+                  ) : (
+                      <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {pendingElectricityBills.map((bill) => (
+                              <div key={bill._id} className="bg-gray-50 p-4 rounded-lg border border-gray-200 hover:border-yellow-400 hover:shadow-md transition-all">
+                                <div className="flex items-start justify-between mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                      <span className="text-sm font-semibold text-gray-900">
+                                    {(() => {
+                                      const [year, month] = bill.month.split('-');
+                                      const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+                                      return date.toLocaleDateString('en-US', { 
+                                        month: 'long', 
+                                        year: 'numeric' 
+                                      });
+                                    })()}
+                                  </span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Unpaid
+                                  </span>
+                                </div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                                  <div>
+                                    <span className="text-gray-500">Room:</span>
+                                        <span className="ml-1 font-medium">{bill.roomNumber}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500">Consumption:</span>
+                                        <span className="ml-1 font-medium">{bill.consumption} units</span>
+                                  </div>
+                                      <div className="col-span-2">
+                                    <span className="text-gray-500">Total Bill:</span>
+                                        <span className="ml-1 font-medium">₹{bill.totalBill.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="ml-4 text-right">
+                                    <div className="text-xl font-bold text-red-600">
+                                  ₹{bill.amount.toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">Student Share</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                          <div className="pt-3 border-t-2 border-gray-300">
+                        <div className="flex justify-between items-center">
+                              <span className="text-base font-semibold text-gray-700">Total Pending:</span>
+                              <span className="text-xl font-bold text-red-600">
+                            ₹{pendingElectricityBills.reduce((sum, bill) => sum + bill.amount, 0).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Payment History */}
+                <div className="mb-6">
+                  <h4 className="font-semibold text-gray-900 mb-4 text-lg">Payment History</h4>
+                  {studentPayments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-gray-200">
+                      <ReceiptRefundIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                      <p className="text-sm">No payments recorded yet</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {studentPayments.map((payment) => (
+                          <div key={payment._id} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  payment.paymentType === 'electricity'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : payment.paymentType === 'additional_fee'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {payment.paymentType === 'electricity' 
+                                    ? '⚡ Electricity' 
+                                    : payment.paymentType === 'additional_fee'
+                                    ? '💰 Additional Fee'
+                                    : '🏠 Hostel Fee'}
+                                </span>
+                                <span className="font-medium text-sm">
+                                  {payment.paymentType === 'electricity'
+                                    ? `Bill: ${payment.billMonth || 'N/A'}`
+                                    : payment.paymentType === 'additional_fee'
+                                    ? payment.additionalFeeType ? payment.additionalFeeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Additional Fee'
+                                    : payment.term?.replace('term', 'Term ') || 'N/A'}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {new Date(payment.paymentDate).toLocaleDateString()}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-600 flex items-center gap-2">
+                                <span>{payment.paymentMethod}</span>
+                                {payment.notes && <span>•</span>}
+                                <span className="truncate">{payment.notes || ''}</span>
+                              </div>
+                              {payment.transactionId && (
+                                <div className="text-xs text-gray-400 mt-1 font-mono">
+                                  Txn: {payment.transactionId}
+                            </div>
+                              )}
+                            </div>
+                            <div className="text-right ml-4 flex-shrink-0">
+                              <div className="font-semibold text-green-600 text-lg">₹{payment.amount.toLocaleString()}</div>
+                              <div className={`text-xs mt-1 ${
+                                payment.status === 'success' ? 'text-green-600' : 
+                                payment.status === 'pending' ? 'text-yellow-600' : 
+                                'text-red-600'
+                              }`}>
+                                {payment.status?.charAt(0).toUpperCase() + payment.status?.slice(1) || 'Success'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      setShowBalanceModal(false);
+                      setSelectedStudentBalance(null);
+                      setPendingElectricityBills([]); // Reset pending bills
+                      setStudentAdditionalFees({}); // Reset additional fees
+                    }}
+                    className="px-6 py-2.5 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowBalanceModal(false);
+                      openPaymentModal(selectedStudentBalance);
+                    }}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors shadow-sm"
+                  >
+                    Record Payment
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+
+{/* Payment Modal */}
+{showPaymentModal && selectedStudentForPayment && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-lg sm:max-w-xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Record Fee Payment
+              </h3>
+              <button
+                onClick={handleClosePaymentModal}
+                className="p-1 text-gray-400 hover:text-gray-600"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+              {/* Student Details */}
+              <div className="p-3 bg-blue-50 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-3">Student Details</h4>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Name:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.name}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Roll Number:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.rollNumber}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Category:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.category}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Room No:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.roomNumber}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                    <span className="font-medium min-w-[100px]">Academic Year:</span>
+                    <span className="font-semibold">{selectedStudentForPayment.academicYear}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Fee Information with Concession */}
+              {(() => {
+                const feeStructure = getFeeStructureForStudent(selectedStudentForPayment.course, selectedStudentForPayment.year, selectedStudentForPayment.category, selectedStudentForPayment.academicYear);
+                  const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
+                
+                // Always render the section, even if fee structure is not found
+                if (feeStructure) {
+                  const originalTotal = feeStructure.totalFee;
+                  const calculatedTotal = selectedStudentForPayment.totalCalculatedFee || originalTotal;
+
+                  return (
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <h4 className="font-medium text-green-900 mb-3">Fee Information</h4>
+                      <div className="text-sm text-green-800 space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                          <span className="font-medium min-w-[120px]">Original Total:</span>
+                          <span className="font-semibold">₹{originalTotal.toLocaleString()}</span>
+                        </div>
+                        {hasConcession && (
+                          <>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                              <span className="font-medium min-w-[120px]">Concession:</span>
+                              <span className="font-semibold text-green-700">₹{selectedStudentForPayment.concession.toLocaleString()}</span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                              <span className="font-medium min-w-[120px]">Final Amount:</span>
+                              <span className="font-semibold text-blue-700">₹{calculatedTotal.toLocaleString()}</span>
+                            </div>
+                          </>
+                        )}
+                        <div className="mt-3 pt-3 border-t border-green-200">
+                          <p className="font-medium mb-2">Term Breakdown:</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 1:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ?
+                                  (selectedStudentForPayment.calculatedTerm1Fee || Math.round(originalTotal * 0.4)).toLocaleString() :
+                                  (feeStructure.term1Fee || Math.round(originalTotal * 0.4)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 2:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ?
+                                  (selectedStudentForPayment.calculatedTerm2Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
+                                  (feeStructure.term2Fee || Math.round(originalTotal * 0.3)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                            <div className="bg-white p-2 rounded border border-green-200">
+                              <span className="font-medium block text-gray-700">Term 3:</span>
+                              <span className="text-green-700 font-semibold">
+                                ₹{hasConcession ?
+                                  (selectedStudentForPayment.calculatedTerm3Fee || Math.round(originalTotal * 0.3)).toLocaleString() :
+                                  (feeStructure.term3Fee || Math.round(originalTotal * 0.3)).toLocaleString()
+                                }
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // Fallback when fee structure is not found - still show the section
+                  const calculatedTotal = selectedStudentForPayment.totalCalculatedFee || 0;
+                  const originalTotal = calculatedTotal + (selectedStudentForPayment.concession || 0);
+                  
+                  return (
+                    <div className="p-3 bg-green-50 rounded-lg">
+                      <h4 className="font-medium text-green-900 mb-3">Fee Information</h4>
+                      <div className="text-sm text-green-800 space-y-2">
+                        {calculatedTotal > 0 ? (
+                          <>
+                            {originalTotal > calculatedTotal && (
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                                <span className="font-medium min-w-[120px]">Original Total:</span>
+                                <span className="font-semibold">₹{originalTotal.toLocaleString()}</span>
+                              </div>
+                            )}
+                            {hasConcession && (
+                              <>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="font-medium min-w-[120px]">Concession:</span>
+                                  <span className="font-semibold text-green-700">₹{selectedStudentForPayment.concession.toLocaleString()}</span>
+                                </div>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="font-medium min-w-[120px]">Final Amount:</span>
+                                  <span className="font-semibold text-blue-700">₹{calculatedTotal.toLocaleString()}</span>
+                                </div>
+                              </>
+                            )}
+                            {!hasConcession && calculatedTotal > 0 && (
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                                <span className="font-medium min-w-[120px]">Total Fee:</span>
+                                <span className="font-semibold text-blue-700">₹{calculatedTotal.toLocaleString()}</span>
+                              </div>
+                            )}
+                            {(selectedStudentForPayment.calculatedTerm1Fee || selectedStudentForPayment.calculatedTerm2Fee || selectedStudentForPayment.calculatedTerm3Fee) && (
+                              <div className="mt-3 pt-3 border-t border-green-200">
+                                <p className="font-medium mb-2">Term Breakdown:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                                  {selectedStudentForPayment.calculatedTerm1Fee && (
+                                    <div className="bg-white p-2 rounded border border-green-200">
+                                      <span className="font-medium block text-gray-700">Term 1:</span>
+                                      <span className="text-green-700 font-semibold">
+                                        ₹{selectedStudentForPayment.calculatedTerm1Fee.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {selectedStudentForPayment.calculatedTerm2Fee && (
+                                    <div className="bg-white p-2 rounded border border-green-200">
+                                      <span className="font-medium block text-gray-700">Term 2:</span>
+                                      <span className="text-green-700 font-semibold">
+                                        ₹{selectedStudentForPayment.calculatedTerm2Fee.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {selectedStudentForPayment.calculatedTerm3Fee && (
+                                    <div className="bg-white p-2 rounded border border-green-200">
+                                      <span className="font-medium block text-gray-700">Term 3:</span>
+                                      <span className="text-green-700 font-semibold">
+                                        ₹{selectedStudentForPayment.calculatedTerm3Fee.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-amber-700 bg-amber-50 p-3 rounded border border-amber-200">
+                            <p className="text-sm">
+                              <span className="font-medium">⚠️ Fee structure not configured</span>
+                              <br />
+                              <span className="text-xs mt-1 block">
+                                No fee structure found for {selectedStudentForPayment.course} - Year {selectedStudentForPayment.year} ({selectedStudentForPayment.category}) in {selectedStudentForPayment.academicYear}
+                              </span>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+
+            <form onSubmit={handlePaymentSubmit}>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Type
+                    </label>
+                    <select
+                      value={paymentForm.paymentType}
+                      onChange={(e) => setPaymentForm(prev => ({
+                        ...prev,
+                        paymentType: e.target.value,
+                        term: '',
+                        billId: '',
+                        month: '',
+                        amount: ''
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                    >
+                      <option value="hostel_fee">Hostel Fee</option>
+                      <option value="electricity">Electricity Bill</option>
+                      <option value="additional_fee">Additional Fee</option>
+                    </select>
+                  </div>
+
+                  {paymentForm.paymentType === 'additional_fee' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fee Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={paymentForm.additionalFeeType}
+                        onChange={(e) => {
+                          const selectedFeeType = e.target.value;
+                          setPaymentForm(prev => ({ ...prev, additionalFeeType: selectedFeeType }));
+                          // Set amount to the configured fee amount if available
+                          if (selectedFeeType && additionalFees[selectedFeeType]) {
+                            const feeData = additionalFees[selectedFeeType];
+                            if (feeData.amount > 0) {
+                              setPaymentForm(prev => ({ ...prev, amount: feeData.amount.toString() }));
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        required
+                      >
+                        <option value="">Select Fee Type</option>
+                        {Object.entries(additionalFees)
+                          .filter(([feeType, feeData]) => {
+                            // Filter by student's category and active status
+                            if (!feeData.isActive) return false;
+                            if (!selectedStudentForPayment) return true;
+                            const studentCategory = selectedStudentForPayment.category;
+                            return feeData.categories && feeData.categories.includes(studentCategory);
+                          })
+                          .map(([feeType, feeData]) => (
+                            <option key={feeType} value={feeType}>
+                              {feeType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} {feeData.amount > 0 ? `(₹${feeData.amount.toLocaleString()})` : ''}
+                            </option>
+                          ))}
+                      </select>
+                      {paymentForm.additionalFeeType && additionalFees[paymentForm.additionalFeeType] && (
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500">
+                            Configured amount: ₹{additionalFees[paymentForm.additionalFeeType].amount.toLocaleString()}
+                          </p>
+                          {additionalFees[paymentForm.additionalFeeType].description && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {additionalFees[paymentForm.additionalFeeType].description}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {Object.keys(additionalFees).filter((feeType) => {
+                        const feeData = additionalFees[feeType];
+                        if (!feeData.isActive) return false;
+                        if (!selectedStudentForPayment) return false;
+                        const studentCategory = selectedStudentForPayment.category;
+                        return feeData.categories && feeData.categories.includes(studentCategory);
+                      }).length === 0 && (
+                        <p className="text-xs text-red-500 mt-1">
+                          No additional fees configured for {selectedStudentForPayment?.category} category in {selectedStudentForPayment?.academicYear}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={paymentForm.paymentMethod}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Online">Online</option>
+                    </select>
+                  </div>
+
+                  {paymentForm.paymentMethod === 'Online' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        UTR Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm.utrNumber}
+                        onChange={(e) => setPaymentForm(prev => ({ ...prev, utrNumber: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Enter UTR/Transaction ID"
+                        required
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Unique Transaction Reference number from your bank
+                      </p>
+                    </div>
+                  )}
+
+                  {paymentForm.paymentType === 'electricity' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Select Month
+                      </label>
+                      <select
+                        value={paymentForm.month}
+                        onChange={async (e) => {
+                          const selectedMonth = e.target.value;
+                          setPaymentForm(prev => ({
+                            ...prev,
+                            month: selectedMonth,
+                            billId: '',
+                            amount: ''
+                          }));
+                          setSelectedElectricityBill(null);
+
+                          if (selectedMonth && selectedStudentForPayment) {
+                            await fetchElectricityBillForMonth(selectedStudentForPayment, selectedMonth);
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        required
+                      >
+                        <option value="">Select Month</option>
+                        {availableMonths.map(month => (
+                          <option key={month} value={month}>
+                            {new Date(month).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long'
+                            })}
+                          </option>
+                        ))}
+                        {availableMonths.length === 0 && !electricityBillsLoading && (
+                          <option value="" disabled>No unpaid bills found</option>
+                        )}
+                      </select>
+                      {electricityBillsLoading && (
+                        <p className="text-xs text-gray-500 mt-1">Loading...</p>
+                      )}
+                      {!electricityBillsLoading && availableMonths.length === 0 && (
+                        <p className="text-sm text-green-600 mt-1">✅ All electricity bills are paid</p>
+                      )}
+                    </div>
+                  )}
+
+                  {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
+                    <div className="col-span-full">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">Bill Details</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600">Month:</span>
+                            <span className="ml-2 font-medium">
+                              {new Date(selectedElectricityBill.month).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long'
+                              })}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Your Share:</span>
+                            <span className="ml-2 font-medium text-green-600">₹{selectedElectricityBill.amount}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Total Bill:</span>
+                            <span className="ml-2 font-medium">₹{selectedElectricityBill.totalBill}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">Consumption:</span>
+                            <span className="ml-2 font-medium">{selectedElectricityBill.consumption} units</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      value={paymentForm.amount}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                      min="1"
+                      step="0.01"
+                      placeholder={paymentForm.paymentType === 'electricity' && selectedElectricityBill ?
+                        `Enter amount (Bill: ₹${selectedElectricityBill.amount})` :
+                        "Enter payment amount"
+                      }
+                    />
+                    {paymentForm.paymentType === 'electricity' && selectedElectricityBill && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setPaymentForm(prev => ({ ...prev, amount: selectedElectricityBill.amount.toString() }))}
+                          className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                        >
+                          Pay Full Bill (₹{selectedElectricityBill.amount})
+                        </button>
+                      </div>
+                    )}
+                    {paymentForm.paymentType === 'hostel_fee' && selectedStudentForPayment && (() => {
+                      // Note: This will be updated to async when payment modal is opened
+                      const balance = null; // Will be calculated when modal opens
+                      const totalBalance = 0; // Will be updated when modal opens
+                      return totalBalance > 0 ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs text-gray-600">Total Balance: ₹{totalBalance}</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: totalBalance.toString() }))}
+                              className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                            >
+                              Pay Full (₹{totalBalance})
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPaymentForm(prev => ({ ...prev, amount: Math.round(totalBalance / 2).toString() }))}
+                              className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                            >
+                              Pay Half (₹{Math.round(totalBalance / 2)})
+                            </button>
+                          </div>
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                </div>
+
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes (Optional)
+                  </label>
+                  <textarea
+                    value={paymentForm.notes}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    rows="3"
+                    placeholder="Any additional notes about this payment"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={handleClosePaymentModal}
+                  className="w-full sm:w-auto px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={paymentLoading || (paymentForm.paymentType === 'electricity' && (!selectedElectricityBill || availableMonths.length === 0))}
+                  className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+                >
+                  {paymentLoading ? 'Recording...' : 'Record Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Concession Approve Modal */}
       {approveModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -7608,190 +6147,6 @@ const FeeManagement = () => {
       )}
 
       {/* Additional Fee Modal */}
-      {showAdditionalFeeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                {selectedAdditionalFee ? 'Edit Additional Fee' : 'Add Additional Fee'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAdditionalFeeModal(false);
-                  setSelectedAdditionalFee(null);
-                  setAdditionalFeeForm({
-                    feeType: '',
-                    amount: 0,
-                    description: '',
-                    isActive: true,
-                    categories: availableCategories,
-                    categoryAmounts: {}
-                  });
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleAdditionalFeeSubmit}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fee Type Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={additionalFeeForm.feeType}
-                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, feeType: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="e.g., caution_deposit, diesel_charges, maintenance_fee"
-                    required
-                    disabled={!!selectedAdditionalFee}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Use lowercase with underscores (e.g., caution_deposit, diesel_charges)
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={additionalFeeForm.description}
-                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                    placeholder="Enter description for this fee type"
-                    rows={3}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category-Specific Amounts <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Select categories and enter the amount for each category (e.g., A+ and A = ₹1000, B = ₹2000)
-                  </p>
-                  <div className="space-y-3">
-                    {availableCategories.map((category) => {
-                      const isSelected = additionalFeeForm.categories.includes(category);
-                      return (
-                        <div key={category} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
-                        <input
-                          type="checkbox"
-                            checked={isSelected}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setAdditionalFeeForm(prev => ({
-                                ...prev,
-                                  categories: [...prev.categories, category],
-                                  categoryAmounts: {
-                                    ...prev.categoryAmounts,
-                                    [category]: prev.categoryAmounts[category] || 0
-                                  }
-                              }));
-                            } else {
-                                setAdditionalFeeForm(prev => {
-                                  const newCategoryAmounts = { ...prev.categoryAmounts };
-                                  delete newCategoryAmounts[category];
-                                  return {
-                                ...prev,
-                                    categories: prev.categories.filter(cat => cat !== category),
-                                    categoryAmounts: newCategoryAmounts
-                                  };
-                                });
-                            }
-                          }}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                          <span className="text-sm font-medium text-gray-700 w-12">{category}</span>
-                          <div className="flex-1">
-                            <label className="block text-xs text-gray-500 mb-1">Amount (₹)</label>
-                            <input
-                              type="number"
-                              value={additionalFeeForm.categoryAmounts[category] || ''}
-                              onChange={(e) => {
-                                const value = e.target.value === '' ? '' : parseFloat(e.target.value) || 0;
-                                setAdditionalFeeForm(prev => ({
-                                  ...prev,
-                                  categoryAmounts: {
-                                    ...prev.categoryAmounts,
-                                    [category]: value
-                                  }
-                                }));
-                              }}
-                              disabled={!isSelected}
-                              min="0"
-                              step="0.01"
-                              placeholder="Enter amount"
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm ${
-                                isSelected 
-                                  ? 'border-gray-300 bg-white' 
-                                  : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                              }`}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {additionalFeeForm.categories.length === 0 && (
-                    <p className="text-xs text-red-500 mt-2">
-                      Please select at least one category and enter amounts
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={additionalFeeForm.isActive}
-                    onChange={(e) => setAdditionalFeeForm(prev => ({ ...prev, isActive: e.target.checked }))}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                    Active (fee will be available for payment)
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAdditionalFeeModal(false);
-                    setSelectedAdditionalFee(null);
-                    setAdditionalFeeForm({
-                      feeType: '',
-                      amount: 0,
-                      description: '',
-                      isActive: true,
-                      categories: availableCategories,
-                      categoryAmounts: {}
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={additionalFeesLoading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-                >
-                  {additionalFeesLoading ? 'Saving...' : (selectedAdditionalFee ? 'Update' : 'Create')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Concession Reject Modal */}
       {rejectModal.open && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

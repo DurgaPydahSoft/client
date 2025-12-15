@@ -32,7 +32,7 @@ const Attendance = () => {
       <SEO title="Attendance Management - Admin Dashboard" />
 
       <div className="mx-auto">
-        {/* Header */}
+        {/* Header with Tabs */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -48,43 +48,36 @@ const Attendance = () => {
                 Manage student attendance records and daily attendance marking
               </p>
             </div>
-          </div>
-        </motion.div>
+            
+            {/* Tab Navigation in Header */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
 
-        {/* Tab Navigation */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg shadow-sm p-1 mb-4 sm:mb-6"
-        >
-          <div className="flex space-x-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${isActive
-                      ? tab.id === 'take'
-                        ? 'bg-emerald-100 text-emerald-700 shadow-md border-2 border-emerald-300'
-                        : 'bg-orange-100 text-orange-700 shadow-md border-2 border-orange-300'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 hover:shadow-sm'
-                    }`}
-                >
-                  <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isActive
-                      ? tab.id === 'take' ? 'text-emerald-600' : 'text-orange-600'
-                      : ''
-                    }`} />
-                  <span className="hidden sm:inline">{tab.name}</span>
-                  <span className="sm:hidden">
-                    {tab.id === 'take' ? 'Mark' : 'View'}
-                  </span>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-300 ${isActive
+                        ? tab.id === 'take'
+                          ? 'bg-emerald-100 text-emerald-700 shadow-md border-2 border-emerald-300'
+                          : 'bg-orange-100 text-orange-700 shadow-md border-2 border-orange-300'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-white hover:shadow-sm'
+                      }`}
+                  >
+                    <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isActive
+                        ? tab.id === 'take' ? 'text-emerald-600' : 'text-orange-600'
+                        : ''
+                      }`} />
+                    <span className="hidden sm:inline">{tab.name}</span>
+                    <span className="sm:hidden">
+                      {tab.id === 'take' ? 'Mark' : 'View'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </motion.div>
 

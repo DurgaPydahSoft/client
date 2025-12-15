@@ -77,7 +77,10 @@ const StaffGuestsManagement = () => {
     checkoutDate: '',
     stayType: 'daily',
     selectedMonth: getCurrentMonth(),
-    roomNumber: '',
+    hostelId: '',
+    categoryId: '',
+    roomId: '',
+    roomNumber: '', // Legacy support
     bedNumber: '',
     dailyRate: '',
     chargeType: 'per_day',
@@ -85,7 +88,11 @@ const StaffGuestsManagement = () => {
     photo: null,
     existingPhoto: null
   });
+  const [hostels, setHostels] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
 
   // Attendance-related state
@@ -125,27 +132,53 @@ const StaffGuestsManagement = () => {
     }
   }, [activeTab, attendanceFilters, attendanceSearchTerm]);
 
-  // Fetch rooms when gender changes for staff type
-  useEffect(() => {
-    if (formData.type === 'staff' && formData.gender && showForm) {
-      fetchRoomsForStaff();
-    } else {
-      setRoomsWithAvailability([]);
+  const fetchHostels = async () => {
+    setLoadingHostels(true);
+    try {
+      const response = await api.get('/api/hostels');
+      if (response.data.success) {
+        setHostels(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching hostels:', error);
+      toast.error('Failed to fetch hostels');
+    } finally {
+      setLoadingHostels(false);
     }
-  }, [formData.type, formData.gender, showForm]);
+  };
 
-  const fetchRoomsForStaff = async () => {
-    if (!formData.gender) {
+  const fetchCategories = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return;
+    }
+    setLoadingCategories(true);
+    try {
+      const response = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (response.data.success) {
+        setCategories(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      toast.error('Failed to fetch categories');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const fetchRoomsForStaff = React.useCallback(async () => {
+    if (!formData.categoryId || !formData.hostelId) {
       setRoomsWithAvailability([]);
       return;
     }
 
     setLoadingRooms(true);
     try {
-      // For staff, we fetch all rooms matching gender (category is not required for staff)
+      // Fetch rooms based on hostel and category
       const response = await api.get('/api/admin/rooms/bed-availability', {
         params: {
-          gender: formData.gender
+          hostel: formData.hostelId,
+          category: formData.categoryId
         }
       });
       if (response.data.success) {
@@ -157,7 +190,42 @@ const StaffGuestsManagement = () => {
     } finally {
       setLoadingRooms(false);
     }
-  };
+  }, [formData.hostelId, formData.categoryId]);
+
+  // Fetch hostels when form opens
+  useEffect(() => {
+    if (showForm) {
+      fetchHostels();
+    }
+  }, [showForm]);
+
+  // Fetch categories when hostel changes
+  useEffect(() => {
+    if (formData.hostelId && showForm) {
+      fetchCategories(formData.hostelId);
+    } else {
+      setCategories([]);
+      setRoomsWithAvailability([]);
+    }
+    // Reset category and room when hostel changes
+    if (showForm) {
+      setFormData(prev => ({ ...prev, categoryId: '', roomId: '', roomNumber: '' }));
+    }
+  }, [formData.hostelId, showForm]);
+
+  // Fetch rooms when category changes
+  useEffect(() => {
+    if (formData.type === 'staff' && formData.categoryId && showForm) {
+      fetchRoomsForStaff();
+    } else {
+      setRoomsWithAvailability([]);
+    }
+    // Reset room when category changes
+    if (showForm && formData.categoryId) {
+      setFormData(prev => ({ ...prev, roomId: '', roomNumber: '' }));
+    }
+  }, [formData.type, formData.categoryId, formData.hostelId, showForm, fetchRoomsForStaff]);
+
 
   const fetchStaffGuests = async () => {
     try {
@@ -321,16 +389,19 @@ const StaffGuestsManagement = () => {
         purpose: '',
         checkinDate: '',
         checkoutDate: '',
-      stayType: 'daily',
-      selectedMonth: getCurrentMonth(),
-      roomNumber: '',
-      bedNumber: '',
-      dailyRate: '',
-      chargeType: 'per_day',
-      monthlyFixedAmount: '',
-      photo: null,
-      existingPhoto: null
-    });
+        stayType: 'daily',
+        selectedMonth: getCurrentMonth(),
+        hostelId: '',
+        categoryId: '',
+        roomId: '',
+        roomNumber: '',
+        bedNumber: '',
+        dailyRate: '',
+        chargeType: 'per_day',
+        monthlyFixedAmount: '',
+        photo: null,
+        existingPhoto: null
+      });
     fetchStaffGuests();
     fetchStats();
     } catch (error) {
@@ -339,9 +410,11 @@ const StaffGuestsManagement = () => {
     }
   };
 
-  const handleEdit = (staffGuest) => {
+  const handleEdit = async (staffGuest) => {
     setEditingStaffGuest(staffGuest);
-    setFormData({
+    
+    // Populate form with existing data
+    const initialFormData = {
       name: staffGuest.name,
       type: staffGuest.type,
       gender: staffGuest.gender,
@@ -354,6 +427,9 @@ const StaffGuestsManagement = () => {
       checkoutDate: staffGuest.checkoutDate ? new Date(staffGuest.checkoutDate).toISOString().split('T')[0] : '',
       stayType: staffGuest.stayType || 'daily',
       selectedMonth: staffGuest.selectedMonth || '',
+      hostelId: staffGuest.hostelId ? staffGuest.hostelId.toString() : '',
+      categoryId: staffGuest.categoryId ? staffGuest.categoryId.toString() : '',
+      roomId: staffGuest.roomId ? staffGuest.roomId.toString() : '',
       roomNumber: staffGuest.roomNumber || '',
       bedNumber: staffGuest.bedNumber || '',
       dailyRate: staffGuest.dailyRate || '',
@@ -361,8 +437,19 @@ const StaffGuestsManagement = () => {
       monthlyFixedAmount: staffGuest.monthlyFixedAmount || '',
       photo: null, // New photo file (if selected)
       existingPhoto: staffGuest.photo // Keep existing photo URL
-    });
+    };
+    
+    setFormData(initialFormData);
     setShowForm(true);
+    
+    // Fetch hostels and populate categories/rooms if hostelId exists
+    if (initialFormData.hostelId) {
+      await fetchHostels();
+      await fetchCategories(initialFormData.hostelId);
+      if (initialFormData.categoryId) {
+        await fetchRoomsForStaff();
+      }
+    }
   };
 
   const handleDelete = async (id, onSuccess) => {
@@ -405,6 +492,9 @@ const StaffGuestsManagement = () => {
       checkoutDate: '',
       stayType: 'daily',
       selectedMonth: getCurrentMonth(),
+      hostelId: '',
+      categoryId: '',
+      roomId: '',
       roomNumber: '',
       bedNumber: '',
       dailyRate: '',
@@ -416,6 +506,7 @@ const StaffGuestsManagement = () => {
     setEditingStaffGuest(null);
     setShowForm(false);
     setRoomsWithAvailability([]);
+    setCategories([]);
   };
 
   // Attendance helper functions
@@ -2078,18 +2169,79 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      {/* Room Allocation - Only for Staff */}
+                      {/* Room Allocation - Only for Staff - New Hierarchy */}
                       {formData.type === 'staff' && (
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Room Number
+                              Hostel *
                             </label>
                             <select
-                              name="roomNumber"
-                              value={formData.roomNumber}
+                              name="hostelId"
+                              value={formData.hostelId}
                               onChange={handleInputChange}
-                              disabled={!formData.gender || loadingRooms}
+                              disabled={loadingHostels}
+                              required
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            >
+                              <option value="">Select Hostel</option>
+                              {loadingHostels ? (
+                                <option value="" disabled>Loading hostels...</option>
+                              ) : (
+                                hostels.filter(h => h.isActive).map(hostel => (
+                                  <option key={hostel._id} value={hostel._id}>
+                                    {hostel.name}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Category *
+                            </label>
+                            <select
+                              name="categoryId"
+                              value={formData.categoryId}
+                              onChange={handleInputChange}
+                              disabled={!formData.hostelId || loadingCategories}
+                              required
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                            >
+                              <option value="">Select Category</option>
+                              {loadingCategories ? (
+                                <option value="" disabled>Loading categories...</option>
+                              ) : (
+                                categories.filter(c => c.isActive).map(category => (
+                                  <option key={category._id} value={category._id}>
+                                    {category.name}
+                                  </option>
+                                ))
+                              )}
+                            </select>
+                            {!formData.hostelId && (
+                              <p className="text-xs text-gray-500 mt-1">Please select a hostel first</p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Room *
+                            </label>
+                            <select
+                              name="roomId"
+                              value={formData.roomId}
+                              onChange={(e) => {
+                                const selectedRoom = roomsWithAvailability.find(r => r._id === e.target.value);
+                                setFormData(prev => ({
+                                  ...prev,
+                                  roomId: e.target.value,
+                                  roomNumber: selectedRoom ? selectedRoom.roomNumber : ''
+                                }));
+                              }}
+                              disabled={!formData.categoryId || loadingRooms}
+                              required
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
                             >
                               <option value="">Select Room</option>
@@ -2097,15 +2249,20 @@ const StaffGuestsManagement = () => {
                                 <option value="" disabled>Loading rooms...</option>
                               ) : (
                                 roomsWithAvailability.map(room => (
-                                  <option key={room._id} value={room.roomNumber}>
+                                  <option key={room._id} value={room._id}>
                                     Room {room.roomNumber} ({room.totalOccupancy || 0}/{room.bedCount} beds) - {room.availableBeds || 0} available
                                   </option>
                                 ))
                               )}
                             </select>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formData.roomNumber ? `Selected: Room ${formData.roomNumber}` : 'Select a room to allocate to this staff member'}
-                            </p>
+                            {!formData.categoryId && (
+                              <p className="text-xs text-gray-500 mt-1">Please select a category first</p>
+                            )}
+                            {formData.roomId && (
+                              <p className="text-xs text-green-600 mt-1">
+                                Selected: {roomsWithAvailability.find(r => r._id === formData.roomId)?.roomNumber || 'Room'}
+                              </p>
+                            )}
                           </div>
 
                           <div>

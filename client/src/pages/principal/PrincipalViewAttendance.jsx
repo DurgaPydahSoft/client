@@ -136,14 +136,21 @@ const PrincipalViewAttendance = () => {
   const fetchFilters = async () => {
     setLoadingFilters(true);
     try {
-      const courseId = typeof user.course === 'object' ? user.course._id : user.course;
+      // Get course name (now stored as string)
+      const courseName = typeof user.course === 'object' ? user.course.name : user.course;
+      if (!courseName) {
+        setFilteredBranches([]);
+        return;
+      }
+      
+      // Fetch all branches from SQL
       const res = await api.get('/api/course-management/branches');
       if (res.data.success) {
-        // Filter branches for this course only
-        const filtered = res.data.data.filter(branch =>
-          branch.course === courseId ||
-          (typeof branch.course === 'object' && branch.course._id === courseId)
-        );
+        // Filter branches for this course by name
+        const filtered = res.data.data.filter(branch => {
+          const branchCourseName = branch.course?.name || branch.courseName || branch.course;
+          return branchCourseName === courseName;
+        });
         setFilteredBranches(filtered);
       } else {
         setFilteredBranches([]);

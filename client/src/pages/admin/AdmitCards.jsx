@@ -186,7 +186,7 @@ const AdmitCards = () => {
         const studentAcademicYear = studentData.academicYear || '2024-2025';
 
         // Fetch fee structure using student's course, year, category and academic year
-        const feeStructure = await fetchFeeStructure(studentData.courseId, studentData.year, studentData.category || 'A', studentAcademicYear);
+        const feeStructure = await fetchFeeStructure(studentData.courseId, studentData.branch || studentData.branchName, studentData.year, studentData.category || 'A', studentAcademicYear);
 
         setPreviewModal({
           open: true,
@@ -272,9 +272,9 @@ const AdmitCards = () => {
 
 
   // Fetch fee structure for a student
-  const fetchFeeStructure = async (studentCourse, studentYear, studentCategory, studentAcademicYear) => {
+  const fetchFeeStructure = async (studentCourse, studentBranch, studentYear, studentCategory, studentAcademicYear) => {
     try {
-      const cacheKey = `${studentAcademicYear}-${studentCourse}-${studentYear}-${studentCategory}`;
+      const cacheKey = `${studentAcademicYear}-${studentCourse}-${studentBranch}-${studentYear}-${studentCategory}`;
 
       // Check cache first
       if (feeStructureCache[cacheKey]) {
@@ -283,7 +283,7 @@ const AdmitCards = () => {
       }
 
 
-      const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${studentYear}/${studentCategory}`);
+      const response = await api.get(`/api/fee-structures/admit-card/${studentAcademicYear}/${studentCourse}/${encodeURIComponent(studentBranch)}/${studentYear}/${studentCategory}`);
 
       if (response.data.success) {
         const feeStructure = response.data.data;
@@ -334,7 +334,7 @@ const AdmitCards = () => {
       const studentAcademicYear = student.academicYear || '2024-2025';
 
       // Fetch fee structure for the student's course, year, category and academic year
-      const feeStructure = await fetchFeeStructure(student.courseId, student.year, student.category || 'A', studentAcademicYear);
+      const feeStructure = await fetchFeeStructure(student.courseId, student.branch || student.branchName, student.year, student.category || 'A', studentAcademicYear);
 
       // Fetch student password
       let studentPassword = null;

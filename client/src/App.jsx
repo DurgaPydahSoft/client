@@ -32,6 +32,7 @@ const UploadPastPayments = lazy(() => import('./pages/public/UploadPastPayments'
 
 // Admin components
 const Students = lazy(() => import('./pages/admin/Students'));
+const StudentRegistrationSQL = lazy(() => import('./pages/admin/StudentRegistrationSQL'));
 const AdmitCards = lazy(() => import('./pages/admin/AdmitCards'));
 const PreRegistrationRequests = lazy(() => import('./pages/admin/PreRegistrationRequests'));
 const Complaints = lazy(() => import('./pages/admin/Complaints'));
@@ -48,6 +49,7 @@ const AdminManagement = lazy(() => import('./pages/admin/AdminManagement'));
 const CourseManagement = lazy(() => import('./pages/admin/CourseManagement'));
 const Attendance = lazy(() => import('./pages/admin/Attendance'));
 const AdminFeeManagement = lazy(() => import('./pages/admin/FeeManagement'));
+const AdminFeeStructureManagement = lazy(() => import('./pages/admin/FeeStructureManagement'));
 const PaymentRecords = lazy(() => import('./pages/admin/PaymentRecords'));
 const FeatureControls = lazy(() => import('./pages/admin/FeatureControls'));
 const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
@@ -176,6 +178,11 @@ function App() {
                       <Students />
                     </ProtectedSection>
                   } />
+                  <Route path="students/register-from-sql" element={
+                    <ProtectedSection permission="student_management" sectionName="Register Student from SQL">
+                      <StudentRegistrationSQL />
+                    </ProtectedSection>
+                  } />
                   <Route path="students/admit-cards" element={
                     <ProtectedSection permission="student_management" sectionName="Admit Cards">
                       <AdmitCards />
@@ -245,6 +252,11 @@ function App() {
                   <Route path="fee-management" element={
                     <ProtectedSection permission="fee_management" sectionName="Fee Management">
                       <AdminFeeManagement />
+                    </ProtectedSection>
+                  } />
+                  <Route path="fee-management/structure" element={
+                    <ProtectedSection permission="fee_management" sectionName="Fee Structure Management">
+                      <AdminFeeStructureManagement />
                     </ProtectedSection>
                   } />
                   <Route path="fee-management/payment-records" element={

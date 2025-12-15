@@ -142,6 +142,7 @@ const AdminManagement = () => {
     permissionAccessLevels: {}, // New field for access levels
     hostelType: '',
     course: '',
+    branch: '', // Branch for principal (optional)
     leaveManagementCourses: [], // New field for course selection
     passwordDeliveryMethod: '', // New field for password delivery
     email: '', // New field for email
@@ -159,6 +160,8 @@ const AdminManagement = () => {
     assignedCourses: []
   });
   const [courses, setCourses] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [filteredBranches, setFilteredBranches] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -244,13 +247,13 @@ const AdminManagement = () => {
     }
   };
 
-  // Handle course selection for leave management
-  const handleCourseSelection = (courseId, checked) => {
+  // Handle course selection for leave management - store course names
+  const handleCourseSelection = (courseName, checked) => {
     setFormData(prev => ({
       ...prev,
       leaveManagementCourses: checked
-        ? [...prev.leaveManagementCourses, courseId]
-        : prev.leaveManagementCourses.filter(id => id !== courseId)
+        ? [...prev.leaveManagementCourses, courseName]
+        : prev.leaveManagementCourses.filter(name => name !== courseName)
     }));
   };
 
@@ -297,13 +300,13 @@ const AdminManagement = () => {
     }));
   };
 
-  // Handle role course assignment
-  const handleRoleCourseSelection = (courseId, checked) => {
-    console.log('🔧 Role course selection:', { courseId, checked });
+  // Handle role course assignment - store course names
+  const handleRoleCourseSelection = (courseName, checked) => {
+    console.log('🔧 Role course selection:', { courseName, checked });
     setRoleFormData(prev => {
       const newAssignedCourses = checked
-        ? [...prev.assignedCourses, courseId]
-        : prev.assignedCourses.filter(id => id !== courseId);
+        ? [...prev.assignedCourses, courseName]
+        : prev.assignedCourses.filter(name => name !== courseName);
 
       console.log('🔧 Updated assigned courses:', newAssignedCourses);
 
@@ -370,6 +373,7 @@ const AdminManagement = () => {
           username: formData.username,
           password: formData.password,
           course: formData.course,
+          branch: formData.branch || undefined, // Optional branch
           email: formData.principalEmail 
         };
       }
@@ -409,12 +413,14 @@ const AdminManagement = () => {
           permissionAccessLevels: {},
           hostelType: '',
           course: '',
+          branch: '',
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
           phoneNumber: '',
           principalEmail: ''
         });
+        setFilteredBranches([]);
         fetchData();
       }
     } catch (error) {
@@ -453,6 +459,9 @@ const AdminManagement = () => {
         if (formData.course) {
           updateData.course = formData.course;
         }
+        if (formData.branch !== undefined) {
+          updateData.branch = formData.branch || undefined; // Can be empty to clear
+        }
         // Always include email for principals (can be empty to clear it)
         updateData.email = formData.principalEmail;
       }
@@ -490,12 +499,14 @@ const AdminManagement = () => {
           permissionAccessLevels: {},
           hostelType: '',
           course: '',
+          branch: '',
           leaveManagementCourses: [],
           passwordDeliveryMethod: '',
           email: '',
           phoneNumber: '',
           principalEmail: ''
         });
+        setFilteredBranches([]);
         fetchData();
       }
     } catch (error) {
@@ -539,9 +550,9 @@ const AdminManagement = () => {
     setSelectedAdmin(admin);
     setRoleType(admin.role === 'custom' ? 'custom' : 'sub_admin');
 
-    // Convert leaveManagementCourses to proper format for editing
+    // Convert leaveManagementCourses to proper format for editing (now stores course names)
     const leaveManagementCourses = admin.leaveManagementCourses ? admin.leaveManagementCourses.map(course =>
-      typeof course === 'object' ? course._id : course
+      typeof course === 'object' ? course.name : course // If object, get name; otherwise it's already a name
     ) : [];
 
     console.log('🔧 Editing admin with leave management courses:', leaveManagementCourses);
@@ -552,7 +563,8 @@ const AdminManagement = () => {
       permissions: admin.permissions || [],
       permissionAccessLevels: admin.permissionAccessLevels || {},
       hostelType: admin.hostelType || '',
-      course: admin.course?._id || admin.course || '',
+      course: admin.course?.name || admin.course || '', // Course is now a string (name)
+      branch: admin.branch || '', // Branch is now a string (name)
       leaveManagementCourses: leaveManagementCourses,
       // Don't include password delivery fields for editing
       passwordDeliveryMethod: '',
@@ -610,20 +622,21 @@ const AdminManagement = () => {
     setSelectedAdmin(null);
     setSelectedRole(null);
     setRoleType('sub_admin');
-    setFormData({
-      username: '',
-      password: '',
-      permissions: [],
-      permissionAccessLevels: {},
-      hostelType: '',
-      course: '',
-      leaveManagementCourses: [],
-      passwordDeliveryMethod: '',
-      email: '',
-      phoneNumber: '',
-      customRoleId: '',
-      principalEmail: ''
-    });
+        setFormData({
+          username: '',
+          password: '',
+          permissions: [],
+          permissionAccessLevels: {},
+          hostelType: '',
+          course: '',
+          branch: '',
+          leaveManagementCourses: [],
+          passwordDeliveryMethod: '',
+          email: '',
+          phoneNumber: '',
+          customRoleId: '',
+          principalEmail: ''
+        });
     setPasswordResetData({
       newPassword: '',
       confirmPassword: ''
@@ -686,9 +699,9 @@ const AdminManagement = () => {
   const openRoleModal = (role = null) => {
     if (role) {
       setSelectedRole(role);
-      // Convert assignedCourses to proper format for editing
+      // Convert assignedCourses to proper format for editing (now stores course names)
       const assignedCourses = role.assignedCourses ? role.assignedCourses.map(course =>
-        typeof course === 'object' ? course._id : course
+        typeof course === 'object' ? course.name : course // If object, get name; otherwise it's already a name
       ) : [];
 
       console.log('🔧 Editing role with assigned courses:', assignedCourses);
@@ -758,6 +771,34 @@ const AdminManagement = () => {
         });
     }
   }, [activeTab, showAddModal, showEditModal, showRoleModal]);
+
+  // Fetch branches when course is selected for principal
+  useEffect(() => {
+    if (activeTab === 'principals' && (showAddModal || showEditModal) && formData.course) {
+      console.log('🔍 Fetching branches for course:', formData.course);
+      // Find course ID from course name
+      const selectedCourse = courses.find(c => c.name === formData.course);
+      if (selectedCourse) {
+        api.get(`/api/course-management/branches/${selectedCourse._id}`)
+          .then(res => {
+            console.log('✅ Branches fetched successfully:', res.data);
+            if (res.data.success) {
+              setFilteredBranches(res.data.data);
+            } else {
+              setFilteredBranches([]);
+            }
+          })
+          .catch(error => {
+            console.error('❌ Error fetching branches:', error);
+            setFilteredBranches([]);
+          });
+      } else {
+        setFilteredBranches([]);
+      }
+    } else {
+      setFilteredBranches([]);
+    }
+  }, [formData.course, activeTab, showAddModal, showEditModal, courses]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -1405,13 +1446,13 @@ const AdminManagement = () => {
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-24 overflow-y-auto">
                                     {courses.length > 0 ? (
                                       courses.map(course => {
-                                        const isChecked = formData.leaveManagementCourses.includes(course._id);
+                                        const isChecked = formData.leaveManagementCourses.includes(course.name);
                                         return (
                                           <label key={course._id} className="flex items-center gap-2">
                                             <input
                                               type="checkbox"
                                               checked={isChecked}
-                                              onChange={(e) => handleCourseSelection(course._id, e.target.checked)}
+                                              onChange={(e) => handleCourseSelection(course.name, e.target.checked)}
                                               className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                             <span className="text-xs text-blue-700 truncate">{course.name}</span>
@@ -1646,7 +1687,7 @@ const AdminManagement = () => {
                         <option value="">Select Course ({courses.length} available)</option>
                         {courses.length > 0 ? (
                           courses.map(course => (
-                            <option key={course._id} value={course._id}>
+                            <option key={course._id} value={course.name}>
                               {course.name} ({course.code})
                             </option>
                           ))
@@ -1654,6 +1695,36 @@ const AdminManagement = () => {
                           <option value="" disabled>Loading courses...</option>
                         )}
                       </select>
+                    </div>
+                    
+                    {/* Branch field for principal (optional) */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Branch <span className="text-gray-500 text-xs">(Optional - leave empty for all branches)</span>
+                      </label>
+                      <select
+                        name="branch"
+                        value={formData.branch}
+                        onChange={handleFormChange}
+                        disabled={!formData.course}
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                      >
+                        <option value="">All Branches</option>
+                        {filteredBranches.length > 0 ? (
+                          filteredBranches.map(branch => (
+                            <option key={branch._id} value={branch.name}>
+                              {branch.name} ({branch.code})
+                            </option>
+                          ))
+                        ) : (
+                          <option value="" disabled>
+                            {formData.course ? 'Loading branches...' : 'Select course first'}
+                          </option>
+                        )}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {formData.branch ? `Principal will only see students from ${formData.branch} branch` : 'Principal will see students from all branches of the selected course'}
+                      </p>
                     </div>
                     
                     {/* Email field for principal */}
@@ -1836,14 +1907,14 @@ const AdminManagement = () => {
                                   <>
                                     <p className="text-xs text-purple-600 mb-2">Available courses: {courses.length}</p>
                                     {courses.map(course => {
-                                      const isChecked = roleFormData.assignedCourses.includes(course._id);
-                                      console.log(`🔧 Course ${course.name} (${course._id}) checked:`, isChecked);
+                                      const isChecked = roleFormData.assignedCourses.includes(course.name);
+                                      console.log(`🔧 Course ${course.name} checked:`, isChecked);
                                       return (
                                         <label key={course._id} className="flex items-center gap-1 sm:gap-2">
                                           <input
                                             type="checkbox"
                                             checked={isChecked}
-                                            onChange={(e) => handleRoleCourseSelection(course._id, e.target.checked)}
+                                            onChange={(e) => handleRoleCourseSelection(course.name, e.target.checked)}
                                             className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
                                           />
                                           <span className="text-xs text-purple-700 truncate">{course.name}</span>

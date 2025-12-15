@@ -33,6 +33,9 @@ import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 import { hasPermission } from '../../utils/permissionUtils';
 
+// Normalize text for consistent grouping (handles plain strings or nested objects)
+const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
 // Enhanced StatCard component with trend indicators
 const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, onClick, animateDelay = 0 }) => {
   const [isAnimating, setIsAnimating] = React.useState(true);
@@ -279,10 +282,14 @@ const DashboardHome = () => {
           
           // Group by course
           const byCourse = students.reduce((acc, student) => {
-            const course = student.course?.name || student.course || 'Unknown';
-            acc[course] = (acc[course] || 0) + 1;
-    return acc;
-      }, {});
+            const courseRaw = student.course?.name || student.course || 'Unknown';
+            const key = normalizeText(courseRaw) || 'UNKNOWN';
+            if (!acc[key]) {
+              acc[key] = { name: courseRaw || 'Unknown', count: 0 };
+            }
+            acc[key].count += 1;
+            return acc;
+          }, {});
           
           setStats(prev => ({
             ...prev,
@@ -291,7 +298,7 @@ const DashboardHome = () => {
               active: activeStudents.length,
               inactive: students.length - activeStudents.length,
               newThisWeek,
-              byCourse: Object.entries(byCourse).map(([name, count]) => ({ name, count }))
+              byCourse: Object.values(byCourse).sort((a, b) => b.count - a.count)
             }
           }));
         }

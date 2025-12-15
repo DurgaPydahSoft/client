@@ -23,7 +23,8 @@ const CourseManagement = () => {
   const { user } = useAuth();
   
   // Check if user can perform write actions (create, edit, delete)
-  const canWrite = user?.role === 'super_admin' || canPerformAction(user, 'course_management', 'edit');
+  // DISABLED: Courses and branches are now managed in SQL database
+  const canWrite = false; // Always false - courses/branches managed in SQL
   const [activeTab, setActiveTab] = useState('courses');
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
@@ -212,40 +213,13 @@ const CourseManagement = () => {
   };
 
   const handleDeleteCourse = async (courseId) => {
-    const course = courses.find(c => c._id === courseId);
-    const branchCount = branches.filter(b => b.course._id === courseId && b.isActive).length;
-
-    const confirmMessage = branchCount > 0
-      ? `This will deactivate "${course?.name}" and all ${branchCount} associated branches. Are you sure?`
-      : `Are you sure you want to deactivate "${course?.name}"?`;
-
-    if (!window.confirm(confirmMessage)) return;
-
-    try {
-      const response = await api.delete(`/api/course-management/courses/${courseId}`);
-      if (response.data.success) {
-        toast.success(response.data.message || 'Course deactivated successfully');
-        fetchData();
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to deactivate course');
-    }
+    toast.error('Course deletion is disabled. Courses are now managed in the central SQL database.');
+    return;
   };
 
   const handleDeleteBranch = async (branchId) => {
-    const branch = branches.find(b => b._id === branchId);
-
-    if (!window.confirm(`Are you sure you want to deactivate "${branch?.name}" branch?`)) return;
-
-    try {
-      const response = await api.delete(`/api/course-management/branches/${branchId}`);
-      if (response.data.success) {
-        toast.success(response.data.message || 'Branch deactivated successfully');
-        fetchData();
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to deactivate branch');
-    }
+    toast.error('Branch deletion is disabled. Branches are now managed in the central SQL database.');
+    return;
   };
 
   const handleDeleteCalendar = async (calendarId) => {
@@ -425,6 +399,22 @@ const CourseManagement = () => {
             <p className="text-xs sm:text-base text-gray-600">
               Manage academic courses and their branches dynamically
             </p>
+          </div>
+
+          {/* SQL Database Notice */}
+          <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+            <div className="flex items-start">
+              <InformationCircleIcon className="h-5 w-5 text-blue-400 mt-0.5 mr-3 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-blue-800 mb-1">
+                  Courses and Branches are now managed in the Central SQL Database
+                </h3>
+                <p className="text-sm text-blue-700">
+                  This page is now read-only. Courses and branches are fetched live from the central SQL database. 
+                  To add, edit, or delete courses/branches, please use the SQL database management interface.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Tab Navigation */}
