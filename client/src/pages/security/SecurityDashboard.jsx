@@ -272,8 +272,9 @@ const SecurityDashboard = () => {
     return requests.filter(leave => {
       const studentName = (leave.student?.name || '').toLowerCase();
       const rollNumber = (leave.student?.rollNumber || '').toLowerCase();
-      const course = (leave.student?.course?.name || leave.student?.course || '').toLowerCase();
-      const branch = (leave.student?.branch?.name || leave.student?.branch || '').toLowerCase();
+      // Course and branch are now strings, not objects
+      const course = (leave.student?.course || '').toLowerCase();
+      const branch = (leave.student?.branch || '').toLowerCase();
       
       return studentName.includes(query) || 
              rollNumber.includes(query) || 
@@ -1312,7 +1313,7 @@ const SectionTable = ({
                         <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                           <AcademicCapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
                           <span className="font-semibold text-gray-800 break-words leading-tight">
-                            {leave.student?.course?.name || leave.student?.course} - {leave.student?.branch?.name || leave.student?.branch}
+                            {leave.student?.course || 'N/A'} - {leave.student?.branch || 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -1498,7 +1499,7 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm w-full">
             <InfoField icon={<UserIcon />} label="Name" value={student.name} />
             <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
-            <InfoField icon={<TagIcon />} label="Course" value={`${student.course?.name || student.course} - ${student.branch?.name || student.branch}`} />
+            <InfoField icon={<TagIcon />} label="Course" value={`${student.course || 'N/A'} - ${student.branch || 'N/A'}`} />
             <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
             <InfoField icon={<PhoneIcon />} label="Student Phone" value={securitySettings.viewPhoneNumbers ? student.studentPhone : 'Hidden by admin'} />
             <InfoField icon={<PhoneIcon />} label="Parent Phone" value={securitySettings.viewPhoneNumbers ? student.parentPhone : 'Hidden by admin'} />

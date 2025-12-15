@@ -240,6 +240,8 @@ const Students = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordResetLoading, setPasswordResetLoading] = useState(false);
+  // Edit modal hostel display
+  const [editHostelName, setEditHostelName] = useState('');
 
   // Student details modal states
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
@@ -293,6 +295,12 @@ const Students = () => {
   const [allBranches, setAllBranches] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+
+  // Hostel and category data for room availability
+  const [hostels, setHostels] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   // SQL database integration states
   const [fetchingFromSQL, setFetchingFromSQL] = useState(false);
@@ -461,6 +469,67 @@ const Students = () => {
     }
   };
 
+  // Fetch hostels
+  const fetchHostels = async () => {
+    setLoadingHostels(true);
+    try {
+      const res = await api.get('/api/hostels');
+      if (res.data.success) {
+        setHostels(res.data.data || []);
+      } else {
+        console.error('Failed to fetch hostels:', res.data.message);
+        toast.error('Failed to fetch hostels');
+      }
+    } catch (err) {
+      console.error('Error fetching hostels:', err);
+      toast.error('Error fetching hostels');
+    } finally {
+      setLoadingHostels(false);
+    }
+  };
+
+  // Fetch categories for a hostel
+  const fetchCategories = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return [];
+    }
+
+    setLoadingCategories(true);
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        const data = res.data.data || [];
+        setCategories(data);
+        return data;
+      } else {
+        console.error('Failed to fetch categories:', res.data.message);
+        toast.error('Failed to fetch categories');
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+      toast.error('Error fetching categories');
+    } finally {
+      setLoadingCategories(false);
+    }
+    return [];
+  };
+
+  // Get hostel ID from gender (Male -> Boys Hostel, Female -> Girls Hostel)
+  const getHostelIdFromGender = (gender) => {
+    if (!gender) return null;
+    const hostelName = gender === 'Male' ? 'Boys Hostel' : 'Girls Hostel';
+    const hostel = hostels.find(h => h.name === hostelName);
+    return hostel?._id || null;
+  };
+
+  // Get hostel name by ObjectId or fallback to provided value
+  const getHostelName = (hostelIdOrName) => {
+    if (!hostelIdOrName) return 'Not assigned';
+    const hostel = hostels.find(h => h._id === hostelIdOrName || normalizeText(h.name) === normalizeText(hostelIdOrName));
+    return hostel ? hostel.name : hostelIdOrName;
+  };
+
   // Get course duration for batch generation
   const getCourseDuration = (courseId) => {
     const course = courses.find(
@@ -478,6 +547,21 @@ const Students = () => {
     return course ? course.name : (typeof courseId === 'string' ? courseId : '');
   };
 
+  // Get course display with graceful fallback for raw SQL values (e.g., "sql 4")
+  const getCourseDisplay = (courseValue) => {
+    if (!courseValue) return 'N/A';
+    // If populated object
+    if (courseValue?.name) return courseValue.name;
+    // Try ID/name match against loaded courses
+    const match = courses.find(
+      c => c._id === courseValue || normalizeText(c.name) === normalizeText(courseValue)
+    );
+    if (match) return match.name;
+    // Fallback: normalize common aliases, otherwise return raw
+    const normalized = normalizeCourseName(courseValue);
+    return normalized || courseValue;
+  };
+
   // Get branch name by ID
   const getBranchName = (branchId) => {
     if (!branchId) return '';
@@ -487,18 +571,51 @@ const Students = () => {
     return branch ? branch.name : (typeof branchId === 'string' ? branchId : '');
   };
 
-  // Fetch rooms with bed availability
-  const fetchRoomsWithAvailability = async (gender, category) => {
-    if (!gender || !category) {
+  // Fetch rooms with bed availability (using hostel and category)
+  const fetchRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName) => {
+    if (!hostelIdOrGender || !categoryIdOrName) {
       setRoomsWithAvailability([]);
       return;
+    }
+
+    // Normalize hostel: accept either hostel ObjectId or gender and map to hostel
+    let finalHostelId = hostelIdOrGender;
+    if (!/^[0-9a-fA-F]{24}$/.test(finalHostelId)) {
+      const mappedHostel = getHostelIdFromGender(finalHostelId);
+      if (mappedHostel) {
+        finalHostelId = mappedHostel;
+      } else {
+        console.error('Hostel not found for value:', hostelIdOrGender);
+        toast.error('Please ensure hostels are loaded');
+        setRoomsWithAvailability([]);
+        return;
+      }
+    }
+
+    // Ensure categories are loaded for this hostel
+    const categoryList = categories.length ? categories : await fetchCategories(finalHostelId) || [];
+
+    // Normalize category: accept ObjectId or name
+    let finalCategoryId = categoryIdOrName;
+    if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
+      const categoryObj = categoryList.find(c =>
+        normalizeText(c.name) === normalizeText(categoryIdOrName) || c._id === categoryIdOrName
+      );
+      if (categoryObj) {
+        finalCategoryId = categoryObj._id;
+      } else {
+        console.error('Category not found:', categoryIdOrName, 'Available categories:', categories.map(c => c.name));
+        toast.error(`Category "${categoryIdOrName}" not found for this hostel. Please select a valid category.`);
+        setRoomsWithAvailability([]);
+        return;
+      }
     }
 
     setLoadingRooms(true);
     try {
       const params = new URLSearchParams({
-        gender: gender,
-        category: category
+        hostel: finalHostelId,
+        category: finalCategoryId
       });
 
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
@@ -516,18 +633,51 @@ const Students = () => {
     }
   };
 
-  // Fetch rooms with bed availability for edit form
-  const fetchEditRoomsWithAvailability = async (gender, category) => {
-    if (!gender || !category) {
+  // Fetch rooms with bed availability for edit form (using hostel and category)
+  const fetchEditRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName) => {
+    if (!hostelIdOrGender || !categoryIdOrName) {
       setEditRoomsWithAvailability([]);
       return;
+    }
+
+    // Normalize hostel: accept hostel ObjectId or gender and map to hostel
+    let finalHostelId = hostelIdOrGender;
+    if (!/^[0-9a-fA-F]{24}$/.test(finalHostelId)) {
+      const mappedHostel = getHostelIdFromGender(finalHostelId);
+      if (mappedHostel) {
+        finalHostelId = mappedHostel;
+      } else {
+        console.error('Hostel not found for value:', hostelIdOrGender);
+        toast.error('Please ensure hostels are loaded');
+        setEditRoomsWithAvailability([]);
+        return;
+      }
+    }
+
+    // Ensure categories are loaded for this hostel
+    const categoryList = categories.length ? categories : await fetchCategories(finalHostelId) || [];
+
+    // Normalize category: accept ObjectId or name
+    let finalCategoryId = categoryIdOrName;
+    if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
+      const categoryObj = categoryList.find(c =>
+        normalizeText(c.name) === normalizeText(categoryIdOrName) || c._id === categoryIdOrName
+      );
+      if (categoryObj) {
+        finalCategoryId = categoryObj._id;
+      } else {
+        console.error('Category not found:', categoryIdOrName, 'Available categories:', categories.map(c => c.name));
+        toast.error(`Category "${categoryIdOrName}" not found for this hostel. Please select a valid category.`);
+        setEditRoomsWithAvailability([]);
+        return;
+      }
     }
 
     setLoadingEditRooms(true);
     try {
       const params = new URLSearchParams({
-        gender: gender,
-        category: category
+        hostel: finalHostelId,
+        category: finalCategoryId
       });
 
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
@@ -776,6 +926,7 @@ const Students = () => {
     checkEmailServiceStatus();
     fetchCourses();
     fetchBranches();
+    fetchHostels(); // Fetch hostels on mount
   }, []);
 
   // Check for prefilled data from preregistration and URL parameters
@@ -860,23 +1011,49 @@ const Students = () => {
     }
   }, [branches, form.branch, form.course]);
 
-  // Fetch rooms with availability when gender or category changes
+  // Fetch categories when gender changes (maps to hostel)
   useEffect(() => {
-    if (form.gender && form.category) {
+    if (form.gender && hostels.length > 0) {
+      const hostelId = getHostelIdFromGender(form.gender);
+      if (hostelId) {
+        fetchCategories(hostelId);
+      } else {
+        setCategories([]);
+      }
+    } else {
+      setCategories([]);
+    }
+  }, [form.gender, hostels]);
+
+  // Fetch rooms with availability when gender, category, or categories change
+  useEffect(() => {
+    if (form.gender && form.category && categories.length > 0) {
       fetchRoomsWithAvailability(form.gender, form.category);
     } else {
       setRoomsWithAvailability([]);
     }
-  }, [form.gender, form.category]);
+  }, [form.gender, form.category, categories]);
 
-  // Fetch rooms with availability for edit form when gender or category changes
+  // Fetch categories for edit form when gender changes (maps to hostel)
   useEffect(() => {
-    if (editForm.gender && editForm.category) {
+    if (editForm.gender && hostels.length > 0) {
+      const hostelId = getHostelIdFromGender(editForm.gender);
+      if (hostelId) {
+        fetchCategories(hostelId);
+      } else {
+        setCategories([]);
+      }
+    }
+  }, [editForm.gender, hostels]);
+
+  // Fetch rooms with availability for edit form when gender, category, or categories change
+  useEffect(() => {
+    if (editForm.gender && editForm.category && categories.length > 0) {
       fetchEditRoomsWithAvailability(editForm.gender, editForm.category);
     } else {
       setEditRoomsWithAvailability([]);
     }
-  }, [editForm.gender, editForm.category]);
+  }, [editForm.gender, editForm.category, categories]);
 
   // Fetch bed/locker availability when room is selected
   useEffect(() => {
@@ -1262,12 +1439,35 @@ const Students = () => {
       return;
     }
 
+    // Ensure hostels are loaded before opening modal
+    if (hostels.length === 0) {
+      console.log('Hostels not loaded yet, fetching hostels first...');
+      fetchHostels().then(() => {
+        // Re-open modal after hostels are loaded
+        setTimeout(() => openEditModal(student), 100);
+      });
+      return;
+    }
+
+    // Resolve course name to course ID
+    // After schema change: course is stored as string (course name), not ObjectId
+    const studentCourseName = student.course?.name || student.course || '';
+    const matchedCourse = courses.find(
+      c => normalizeText(c.name) === normalizeText(studentCourseName) || c._id === studentCourseName
+    );
+    const courseId = matchedCourse?._id || student.course?._id || student.course || '';
+
+    // Resolve branch name to branch ID
+    // After schema change: branch is stored as string (branch name), not ObjectId
+    // Note: We need to fetch branches first to find the match
+    const studentBranchName = student.branch?.name || student.branch || '';
+    
     const initialEditForm = {
       name: student.name,
       rollNumber: student.rollNumber,
-      course: student.course?._id || student.course, // Handle both populated and unpopulated data
+      course: courseId, // Use resolved course ID
       year: student.year,
-      branch: student.branch?._id || student.branch, // Handle both populated and unpopulated data
+      branch: '', // Will be set after branches are fetched
       gender: student.gender,
       category: student.category,
       mealType: student.mealType || 'non-veg',
@@ -1282,16 +1482,41 @@ const Students = () => {
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
     };
+    // Display hostel name in edit modal
+    setEditHostelName(getHostelName(student.hostel?._id || student.hostel));
     
     setEditId(student._id);
     setEditForm(initialEditForm);
     setOriginalEditForm(initialEditForm); // Store original for comparison
 
-    // Fetch branches for the selected course
-    const courseId = student.course?._id || student.course;
+    // Fetch branches for the selected course, then resolve branch ID
     if (courseId) {
       console.log('Fetching branches for course ID:', courseId);
-      fetchBranches(courseId);
+      fetchBranches(courseId).then(() => {
+        // After branches are fetched, resolve branch name to ID
+        const matchedBranch = (branches.length ? branches : allBranches).find(
+          b => normalizeText(b.name) === normalizeText(studentBranchName) || b._id === studentBranchName
+        );
+        const branchId = matchedBranch?._id || student.branch?._id || student.branch || '';
+        
+        if (branchId) {
+          setEditForm(prev => ({ ...prev, branch: branchId }));
+          setOriginalEditForm(prev => ({ ...prev, branch: branchId }));
+        }
+      });
+    } else if (studentBranchName) {
+      // If no course but branch exists, try to find branch in all branches
+      fetchBranches().then(() => {
+        const matchedBranch = allBranches.find(
+          b => normalizeText(b.name) === normalizeText(studentBranchName) || b._id === studentBranchName
+        );
+        const branchId = matchedBranch?._id || student.branch?._id || student.branch || '';
+        
+        if (branchId) {
+          setEditForm(prev => ({ ...prev, branch: branchId }));
+          setOriginalEditForm(prev => ({ ...prev, branch: branchId }));
+        }
+      });
     }
 
     // Fetch rooms for the edit form if gender and category are available
@@ -3299,7 +3524,7 @@ const Students = () => {
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {student.course || student.course?.name || getCourseName(student.course)}
+                              {getCourseDisplay(student.course)}
                             </td>
                             <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex flex-col">
@@ -3480,6 +3705,11 @@ const Students = () => {
                     <div className="flex items-center space-x-2">
                       <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
                       <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelId || 'Not assigned'}</span>
+                    </div>
+                    {/* Hostel Name */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{getHostelName(selectedStudent.hostel?._id || selectedStudent.hostel)}</span>
                     </div>
                     {/* Gender */}
                     <div className="flex items-center space-x-2">
@@ -3969,6 +4199,16 @@ const Students = () => {
                   placeholder="Auto-generated"
                 />
                 <p className="text-xs text-gray-500">Cannot be modified</p>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel</label>
+                <input
+                  type="text"
+                  value={editHostelName || 'Not assigned'}
+                  disabled
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  placeholder="Hostel name"
+                />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
@@ -5044,7 +5284,7 @@ const Students = () => {
                       />
                       <div className="ml-3 text-sm">
                         <label className="font-medium text-gray-900">{student.name}</label>
-                        <p className="text-gray-500">{student.rollNumber} - {student.course?.name || getCourseName(student.course) || 'N/A'} • {getBranchName(student.branch)} • Year {student.year}</p>
+                        <p className="text-gray-500">{student.rollNumber} - {getCourseDisplay(student.course)} • {getBranchName(student.branch)} • Year {student.year}</p>
                       </div>
                     </div>
                   ))}
@@ -6637,7 +6877,7 @@ const Students = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                              {(student.course?.name || getCourseName(student.course) || 'N/A')} - {(student.branch?.name || getBranchName(student.branch) || 'N/A')}
+                            {getCourseDisplay(student.course)} - {(student.branch?.name || getBranchName(student.branch) || 'N/A')}
                             </span>
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                               Year {student.year}
