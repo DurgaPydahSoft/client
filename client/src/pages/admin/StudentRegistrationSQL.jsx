@@ -75,7 +75,10 @@ const StudentRegistrationSQL = () => {
   const getBranchNameById = (id) => {
     if (!id) return '';
     const match = branches.find(b => b._id === id);
-    return match?.name || id;
+    if (match) return match.name;
+    // When branch options come from SQL, try name matching on branchOptions too
+    const optMatch = branchOptions.find(b => b._id === id || normalizeText(b.name) === normalizeText(id));
+    return optMatch?.name || id;
   };
   const getHostelCategoryNameById = (id) => {
     if (!id) return '';
@@ -593,13 +596,6 @@ const StudentRegistrationSQL = () => {
         />
       )}
       <div className="mb-6">
-        <button
-          onClick={() => navigate('/admin/students')}
-          className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
-        >
-          <ArrowLeftIcon className="w-5 h-5 mr-2" />
-          Back to Students
-        </button>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Student Registration from SQL Database</h1>
         <p className="text-gray-600 mt-2">Fetch student details from central database and complete registration</p>
       </div>
@@ -822,6 +818,20 @@ const StudentRegistrationSQL = () => {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Concession (₹)</label>
+                <input
+                  type="number"
+                  name="concession"
+                  min="0"
+                  step="1"
+                  value={form.concession}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter concession amount"
+                />
+                <p className="text-xs text-gray-500 mt-1">Optional: fixed amount to deduct from fee</p>
+              </div>
             </div>
           </div>
 
@@ -893,6 +903,19 @@ const StudentRegistrationSQL = () => {
                   <option value="non-veg">Non-Veg</option>
                 </select>
               </div>
+              <div className="md:col-span-2 lg:col-span-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    name="parentPermissionForOuting"
+                    checked={form.parentPermissionForOuting}
+                    onChange={handleFormChange}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm text-gray-700">Enable parent permission (OTP to parent)</span>
+                </div>
+              </div>
               {form.roomNumber && (
                 <>
                   <div>
@@ -930,6 +953,31 @@ const StudentRegistrationSQL = () => {
             </div>
           </div>
 
+          {/* Fee Structure Display (moved just after hostel info for visibility) */}
+          {feeStructure && (
+            <div className="bg-green-50 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Fee Structure</h3>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
+                  <div className="text-sm text-gray-600">Term 1</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
+                  <div className="text-sm text-gray-600">Term 2</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
+                  <div className="text-sm text-gray-600">Term 3</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
+                  <div className="text-sm text-gray-600">Total</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Contact Information */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
@@ -956,6 +1004,16 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Mother Name</label>
+                <input
+                  type="text"
+                  name="motherName"
+                  value={form.motherName}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mother Phone</label>
                 <input
                   type="tel"
@@ -971,6 +1029,26 @@ const StudentRegistrationSQL = () => {
                   type="email"
                   name="email"
                   value={form.email}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
+                <input
+                  type="text"
+                  name="localGuardianName"
+                  value={form.localGuardianName}
+                  onChange={handleFormChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
+                <input
+                  type="tel"
+                  name="localGuardianPhone"
+                  value={form.localGuardianPhone}
                   onChange={handleFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -1020,31 +1098,6 @@ const StudentRegistrationSQL = () => {
               </div>
             </div>
           </div>
-
-          {/* Fee Structure Display */}
-          {feeStructure && (
-            <div className="bg-green-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Fee Structure</h3>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 1</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 2</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 3</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Total</div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Submit Button */}
           <div className="flex justify-end gap-4">

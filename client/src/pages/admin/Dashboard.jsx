@@ -142,7 +142,7 @@ const AdminDashboard = () => {
         {
           name: 'Students',
           path: '/admin/dashboard/students',
-          icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z'
+          icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z'
         },
         {
           name: 'Register from SQL',
@@ -163,14 +163,14 @@ const AdminDashboard = () => {
         {
           name: 'NOC Management',
           path: '/admin/dashboard/noc-management',
-          icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+          icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
           locked: !isSuperAdmin && !hasPermission(user, 'noc_management')
         }
       ]
     },
     {
       name: 'Attendance',
-      icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+      icon: 'M8 7V3m8 4V3m-9 8h10m-6 4l2 2 4-4m-1 9H5a2 2 0 01-2-2V7a2 2 0 012-2h14a2 2 0 012 2v12a2 2 0 01-2 2z',
       path: '/admin/dashboard/attendance',
       show: true,
       locked: !isSuperAdmin && !hasPermission(user, 'attendance_management')
@@ -186,17 +186,17 @@ const AdminDashboard = () => {
         {
           name: 'Fee Management',
           path: '/admin/dashboard/fee-management',
-          icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1'
+          icon: 'M12 6v12m6-9H6a2 2 0 00-2 2v5a2 2 0 002 2h12a2 2 0 002-2v-5a2 2 0 00-2-2zm-3-3H9a2 2 0 00-2 2v1h10V6a2 2 0 00-2-2z'
         },
         {
           name: 'Fee Structure',
           path: '/admin/dashboard/fee-management/structure',
-          icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+          icon: 'M9 12h6m-6 4h6M8 7h8m-9 13h10a2 2 0 002-2V8.414a2 2 0 00-.586-1.414l-3.414-3.414A2 2 0 0013.586 3H9a2 2 0 00-2 2v14a2 2 0 002 2z'
         },
         {
           name: 'Payment Records',
           path: '/admin/dashboard/fee-management/payment-records',
-          icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+          icon: 'M8 7h8m-8 4h5m-5 4h3M6 5a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V9.828a2 2 0 00-.586-1.414l-3.828-3.828A2 2 0 0014.172 4H6z'
         }
       ]
     },
@@ -649,13 +649,21 @@ const AdminDashboard = () => {
                 {item.hasSubmenu ? (
                   // Submenu item
                   <div>
-                    <button
-                      onClick={() => toggleSubmenu(item.name)}
-                      className={`relative overflow-hidden flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${pathname.startsWith(item.path)
+                    {(() => {
+                      const parentActive = pathname === item.path;
+                      const submenuActive = item.submenu?.some(sub =>
+                        pathname === sub.path || pathname.startsWith(`${sub.path}/`)
+                      );
+                      const parentClasses = parentActive
                         ? "bg-blue-100 text-blue-700 shadow-sm"
-                        : "text-black hover:bg-gray-50 hover:text-gray-900"
-                        }`}
-                    >
+                        : submenuActive
+                          ? "bg-blue-50 text-blue-700"
+                          : "text-black hover:bg-gray-50 hover:text-gray-900";
+                      return (
+                        <button
+                          onClick={() => toggleSubmenu(item.name)}
+                          className={`relative overflow-hidden flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-normal transition-all duration-300 ${parentClasses}`}
+                        >
                       <div className="flex items-center gap-3 relative z-10">
                         <svg
                           className="w-4 h-4 lg:w-5 lg:h-5"
@@ -686,10 +694,10 @@ const AdminDashboard = () => {
                           d="M19 9l-7 7-7-7"
                         />
                       </svg>
-                      {pathname.startsWith(item.path) && (
-                        <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-blue-500/30 to-transparent animate-shimmer"></span>
-                      )}
-                    </button>
+                          {/* Parent shimmer removed to avoid double shimmer with active child links */}
+                        </button>
+                      );
+                    })()}
 
                     {/* Submenu items */}
                     <AnimatePresence>

@@ -40,7 +40,7 @@ import autoTable from 'jspdf-autotable';
 const FeeManagement = () => {
   const { user } = useAuth();
   const { settings } = useGlobalSettings();
-  const { courses: coursesFromContext } = useCoursesBranches();
+  const { courses: coursesFromContext, branches: branchesFromContext } = useCoursesBranches();
   
   // Check if user has concession management permission
   const canManageConcessions = user?.role === 'super_admin' || hasPermission(user, 'concession_management');
@@ -91,6 +91,12 @@ const FeeManagement = () => {
   // Fee Structure Data (used for dues/payment calculations)
   const [feeStructures, setFeeStructures] = useState([]);
   const [courses, setCourses] = useState(coursesFromContext || []); // Use from context if available
+  const branchList = useMemo(() => {
+    if (branchesFromContext && branchesFromContext.length > 0) {
+      return branchesFromContext;
+    }
+    return (courses || []).flatMap(c => c?.branches || []);
+  }, [branchesFromContext, courses]);
   const [duesCourseYears, setDuesCourseYears] = useState([]); // Separate state for dues tab course years
   
   // Update courses when context updates
@@ -214,12 +220,76 @@ const FeeManagement = () => {
 
   // Helper function to get course name (handles both string and object formats)
   // After SQL migration, course is stored as a string (course name)
+  const normalizeCourseName = (value) => {
+    if (!value) return '';
+    const str = String(value).trim();
+    // Handle sql_* identifiers by looking up matching sqlCourseId on loaded courses (if available)
+    if (/^sql[_\s-]?/i.test(str)) {
+      const sqlId = str.replace(/^sql[_\s-]?/i, '').trim();
+      const sqlMatch = courses.find(c => String(c.sqlCourseId) === sqlId);
+      if (sqlMatch?.name) return sqlMatch.name;
+    }
+    return str;
+  };
+
   const getCourseName = (course) => {
     if (!course) return 'Unknown Course';
-    if (typeof course === 'string') return course;
-    if (typeof course === 'object' && course.name) return course.name;
-    if (typeof course === 'object' && course._id) return 'Unknown Course';
+    if (typeof course === 'string') {
+      const match = courses.find(
+        c => String(c._id) === course || normalizeCourseName(c.name) === normalizeCourseName(course)
+      );
+      return match?.name || normalizeCourseName(course) || 'Unknown Course';
+    }
+    if (typeof course === 'object') {
+      if (course.name) return course.name;
+      if (course.code) return course.code;
+      if (course._id) {
+        const match = courses.find(c => String(c._id) === String(course._id));
+        if (match?.name) return match.name;
+        // Fallback for sql_* stored as _id
+        if (course.sqlCourseId) {
+          const sqlMatch = courses.find(c => String(c.sqlCourseId) === String(course.sqlCourseId));
+          if (sqlMatch?.name) return sqlMatch.name;
+        }
+      }
+    }
     return 'Unknown Course';
+  };
+
+  const getBranchName = (branch) => {
+    if (!branch) return 'Unknown Branch';
+    const normalizeBranchName = (value) => {
+      if (!value) return '';
+      return String(value).trim();
+    };
+
+    // Branch as string
+    if (typeof branch === 'string') {
+      // Try match by id or name or sqlBranchId
+      const match = branchList.find(
+        b =>
+          String(b._id) === branch ||
+          normalizeBranchName(b.name) === normalizeBranchName(branch) ||
+          (b.sqlBranchId !== undefined && String(b.sqlBranchId) === branch.replace(/^sql[_\s-]?/i, '').trim())
+      );
+      return match?.name || normalizeBranchName(branch) || 'Unknown Branch';
+    }
+
+    if (typeof branch === 'object') {
+      if (branch.name) return branch.name;
+      if (branch.code) return branch.code;
+      if (branch._id) {
+        const match = branchList.find(b => String(b._id) === String(branch._id));
+        if (match?.name) return match.name;
+        // Fallback: try sqlBranchId if present
+        if (branch.sqlBranchId) {
+          const sqlMatch = branchList.find(b => String(b.sqlBranchId) === String(branch.sqlBranchId));
+          if (sqlMatch?.name) return sqlMatch.name;
+        }
+      }
+    }
+
+    return 'Unknown Branch';
   };
 
   // Helper function to get student term due dates from backend with caching
@@ -3541,6 +3611,9 @@ const FeeManagement = () => {
                                 {getCourseName(student.course)}
                               </div>
                               <div className="text-xs text-gray-500">
+                                {getBranchName(student.branch)}
+                              </div>
+                              <div className="text-xs text-gray-500">
                                 Year {student.year || 'Unknown'}
                               </div>
                             </div>
@@ -3750,11 +3823,14 @@ const FeeManagement = () => {
                         </div>
                       </div>
 
-                      {/* Course & Year */}
+                      {/* Course, Branch & Year */}
                       <div className="mb-3">
-                        <div className="text-xs text-gray-500 mb-1">Course & Year</div>
+                        <div className="text-xs text-gray-500 mb-1">Course / Branch / Year</div>
                         <div className="text-sm font-medium text-gray-900">
                           {getCourseName(student.course)}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {getBranchName(student.branch)}
                         </div>
                         <div className="text-xs text-gray-500">
                           Year {student.year || 'Unknown'}
