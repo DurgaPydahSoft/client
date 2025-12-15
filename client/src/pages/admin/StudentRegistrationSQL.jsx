@@ -49,6 +49,9 @@ const StudentRegistrationSQL = () => {
   const [sqlFetchError, setSqlFetchError] = useState(null);
   const [sqlDataFetched, setSqlDataFetched] = useState(false);
   const [adding, setAdding] = useState(false);
+  // Password modal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState(null);
 
   // Photo states
   const [studentPhoto, setStudentPhoto] = useState(null);
@@ -63,7 +66,24 @@ const StudentRegistrationSQL = () => {
   const [branches, setBranches] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
-  // Deduplicate branches by _id or name
+  // Derived helpers
+  const getCourseNameById = (id) => {
+    if (!id) return '';
+    const match = courses.find(c => c._id === id);
+    return match?.name || id;
+  };
+  const getBranchNameById = (id) => {
+    if (!id) return '';
+    const match = branches.find(b => b._id === id);
+    return match?.name || id;
+  };
+  const getHostelCategoryNameById = (id) => {
+    if (!id) return '';
+    const match = hostelCategories.find(c => c._id === id);
+    return match?.name || id;
+  };
+
+  // Deduplicate branches by name (case-insensitive)
   const branchOptions = useMemo(() => {
     const seen = new Set();
     return branches.filter(b => {
@@ -230,14 +250,16 @@ const StudentRegistrationSQL = () => {
   };
 
   // Fetch fee structure
-  const fetchFeeStructure = async (course, branch, year, category, academicYear) => {
-    if (!course || !branch || !year || !category || !academicYear) {
+  const fetchFeeStructure = async (courseIdOrName, branchIdOrName, year, categoryName, academicYear) => {
+    const courseName = getCourseNameById(courseIdOrName);
+    const branchName = getBranchNameById(branchIdOrName);
+    if (!courseName || !branchName || !year || !categoryName || !academicYear) {
       setFeeStructure(null);
       return;
     }
     setLoadingFeeStructure(true);
     try {
-      const res = await api.get(`/api/fee-structures/admit-card/${academicYear}/${course}/${encodeURIComponent(branch)}/${year}/${category}`);
+      const res = await api.get(`/api/fee-structures/admit-card/${academicYear}/${encodeURIComponent(courseName)}/${encodeURIComponent(branchName)}/${year}/${encodeURIComponent(categoryName)}`);
       if (res.data.success) {
         setFeeStructure(res.data.data);
         const term1 = res.data.data.term1Fee || 0;
@@ -370,6 +392,8 @@ const StudentRegistrationSQL = () => {
         newForm.roomNumber = '';
         newForm.bedNumber = '';
         newForm.lockerNumber = '';
+        // set category string from selected hostel category for fee calc
+        newForm.category = getHostelCategoryNameById(fieldValue);
         if (newForm.hostel && fieldValue) {
           fetchRoomsWithAvailability(newForm.hostel, fieldValue);
         }
@@ -386,10 +410,16 @@ const StudentRegistrationSQL = () => {
     });
 
     // Fetch fee structure when relevant fields change
-    if (name === 'course' || name === 'year' || name === 'category' || name === 'academicYear') {
+    if (['course', 'year', 'category', 'academicYear', 'branch', 'hostelCategory'].includes(name)) {
       const updatedForm = { ...form, [name]: fieldValue };
-      if (updatedForm.course && updatedForm.year && updatedForm.category && updatedForm.academicYear) {
-        fetchFeeStructure(updatedForm.course, updatedForm.branch, updatedForm.year, updatedForm.category, updatedForm.academicYear);
+      if (updatedForm.course && updatedForm.year && updatedForm.category && updatedForm.academicYear && updatedForm.branch) {
+        fetchFeeStructure(
+          updatedForm.course,
+          updatedForm.branch,
+          updatedForm.year,
+          updatedForm.category,
+          updatedForm.academicYear
+        );
       }
     }
   };
@@ -498,6 +528,11 @@ const StudentRegistrationSQL = () => {
       });
 
         if (res.data.success) {
+          const genPass = res.data.data?.generatedPassword;
+          if (genPass) {
+            setGeneratedPassword(genPass);
+            setShowPasswordModal(true);
+          }
           toast.success('Student registered successfully');
           // Reset form
           setForm(initialForm);
@@ -527,12 +562,14 @@ const StudentRegistrationSQL = () => {
     }
   }, [form.hostel, form.hostelCategory]);
 
-  // Fetch fee structure when relevant fields change
+  // Fetch fee structure when relevant fields change (derived values)
   useEffect(() => {
-    if (form.course && form.year && form.category && form.academicYear) {
+    if (form.course && form.branch && form.year && form.category && form.academicYear) {
       fetchFeeStructure(form.course, form.branch, form.year, form.category, form.academicYear);
+    } else {
+      setFeeStructure(null);
     }
-  }, [form.course, form.year, form.category, form.academicYear]);
+  }, [form.course, form.branch, form.year, form.category, form.academicYear]);
 
   if (!canAddStudent) {
     return (
@@ -546,6 +583,15 @@ const StudentRegistrationSQL = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
+      {showPasswordModal && (
+        <PasswordModal
+          password={generatedPassword}
+          onClose={() => {
+            setShowPasswordModal(false);
+            setGeneratedPassword(null);
+          }}
+        />
+      )}
       <div className="mb-6">
         <button
           onClick={() => navigate('/admin/students')}
@@ -660,6 +706,17 @@ const StudentRegistrationSQL = () => {
                   type="text"
                   name="rollNumber"
                   value={form.rollNumber}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number *</label>
+                <input
+                  type="text"
+                  name="admissionNumber"
+                  value={form.admissionNumber}
                   onChange={handleFormChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
@@ -1013,4 +1070,34 @@ const StudentRegistrationSQL = () => {
 };
 
 export default StudentRegistrationSQL;
+
+// Password modal (simple inline component)
+const PasswordModal = ({ password, onClose }) => {
+  if (!password) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <h3 className="text-lg font-bold text-gray-900">Credentials Generated</h3>
+        <p className="text-sm text-gray-700">Share this password with the student. They should change it after first login.</p>
+        <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+          <span className="text-xl font-semibold text-gray-900">{password}</span>
+          <button
+            onClick={() => navigator.clipboard.writeText(password)}
+            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Copy
+          </button>
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
