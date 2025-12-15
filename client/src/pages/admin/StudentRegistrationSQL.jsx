@@ -36,6 +36,7 @@ const initialForm = {
 };
 
 const StudentRegistrationSQL = () => {
+  const normalizeText = (val) => (val || '').toString().trim().toUpperCase();
   const { user } = useAuth();
   const navigate = useNavigate();
   const isSuperAdmin = user?.role === 'super_admin';
@@ -66,7 +67,7 @@ const StudentRegistrationSQL = () => {
   const branchOptions = useMemo(() => {
     const seen = new Set();
     return branches.filter(b => {
-      const key = b?._id || b?.name;
+      const key = b?.name ? normalizeText(b.name) : (b?._id || '');
       if (!key) return false;
       if (seen.has(key)) return false;
       seen.add(key);
