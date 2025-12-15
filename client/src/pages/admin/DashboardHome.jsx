@@ -3,6 +3,23 @@ import api from '../../utils/axios';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, LineChart, Line, AreaChart, Area } from 'recharts';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { 
   CheckCircleIcon, 
   ClockIcon, 
@@ -25,7 +42,8 @@ import {
   BuildingOfficeIcon,
   BellIcon,
   ArrowUpIcon,
-  ArrowDownIcon
+  ArrowDownIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { toast } from 'react-hot-toast';
@@ -36,7 +54,87 @@ import { hasPermission } from '../../utils/permissionUtils';
 // Normalize text for consistent grouping (handles plain strings or nested objects)
 const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
 
-// Enhanced StatCard component with trend indicators
+// Enhanced StatCard component with drag and drop support
+const DraggableStatCard = ({ id, icon: Icon, label, value, color, extra, trend, trendValue, onClick, animateDelay = 0 }) => {
+  const [isAnimating, setIsAnimating] = React.useState(true);
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  React.useEffect(() => {
+    return () => {
+      setIsAnimating(false);
+    };
+  }, []);
+
+  const formatValue = (val) => {
+    if (typeof val === 'number') {
+      if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
+      if (val >= 1000) return `${(val / 1000).toFixed(1)}K`;
+      return val.toString();
+    }
+    return val;
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={isAnimating ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+        transition={{ delay: animateDelay, duration: 0.4 }}
+        onClick={onClick}
+        className={`bg-white rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-3 sm:p-4 lg:p-3 xl:p-2.5 border-l-4 ${color} ${onClick ? 'cursor-pointer active:scale-95' : ''} ${isDragging ? 'ring-2 ring-blue-500 ring-opacity-50 z-50' : ''}`}
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 right-2 p-1.5 rounded-md hover:bg-gray-200 cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100 transition-opacity z-20 touch-none"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          title="Drag to reorder"
+        >
+          <Bars3Icon className="w-4 h-4 text-gray-500" />
+        </div>
+        <div className="flex items-center justify-between mb-2 sm:mb-1.5 lg:mb-0.5">
+          <div className="flex items-center gap-2.5 sm:gap-2 flex-1 min-w-0">
+            <div className={`p-2 sm:p-1.5 lg:p-1 rounded-lg flex-shrink-0 ${color.replace('border-', 'bg-').replace('-500', '-100')}`}>
+              <Icon className={`w-5 h-5 sm:w-5 sm:h-5 lg:w-4 lg:h-4 ${color.replace('border-', 'text-')}`} />
+            </div>
+            <div className="text-lg sm:text-xl lg:text-lg xl:text-xl font-bold text-gray-900 leading-tight truncate">{formatValue(value)}</div>
+          </div>
+          {trend && (
+            <div className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ml-2 ${
+              trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500'
+            }`}>
+              {trend === 'up' ? <ArrowUpIcon className="w-3 h-3" /> : trend === 'down' ? <ArrowDownIcon className="w-3 h-3" /> : null}
+              {trendValue && `${trendValue}%`}
+            </div>
+          )}
+        </div>
+        <div className="text-xs sm:text-sm lg:text-xs xl:text-sm text-gray-600 font-medium leading-tight truncate">{label}</div>
+        {extra && <div className="mt-1 sm:mt-0.5 lg:mt-0 text-xs text-gray-400 leading-tight truncate">{extra}</div>}
+      </motion.div>
+    </div>
+  );
+};
+
+// Fallback StatCard for non-draggable contexts (if needed)
 const StatCard = ({ icon: Icon, label, value, color, extra, trend, trendValue, onClick, animateDelay = 0 }) => {
   const [isAnimating, setIsAnimating] = React.useState(true);
 
@@ -105,7 +203,46 @@ const DashboardHome = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeframe, setTimeframe] = useState('week');
+  const [activeId, setActiveId] = useState(null);
   
+  // Stat cards order state - stored in localStorage
+  const getInitialCardOrder = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('dashboard-stat-cards-order');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (error) {
+      console.error('Error loading card order from localStorage:', error);
+    }
+    return null; // Will use default order if null
+  }, []);
+
+  const [statCardsOrder, setStatCardsOrder] = useState(getInitialCardOrder);
+
+  // Save order to localStorage whenever it changes
+  useEffect(() => {
+    if (statCardsOrder) {
+      try {
+        localStorage.setItem('dashboard-stat-cards-order', JSON.stringify(statCardsOrder));
+      } catch (error) {
+        console.error('Error saving card order to localStorage:', error);
+      }
+    }
+  }, [statCardsOrder]);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // Require 8px of movement before starting drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   // Check if user is super admin
   const isSuperAdmin = useMemo(() => user?.role === 'super_admin', [user]);
   
@@ -615,6 +752,111 @@ const DashboardHome = () => {
     };
   }, [stats.financial.thisMonth, stats.financial.lastMonth]);
 
+  // Define stat card items with their IDs and configurations
+  const statCardItems = useMemo(() => {
+    const items = [];
+    if (canViewStudents) {
+      items.push({
+        id: 'students',
+        icon: UserGroupIcon,
+        label: 'Total Students',
+        value: stats.students.total,
+        color: 'border-blue-500 text-blue-600',
+        extra: `${stats.students.active} active`,
+        onClick: () => navigate('/admin/dashboard/students'),
+        animateDelay: 0.05
+      });
+    }
+    if (canViewAttendance) {
+      items.push({
+        id: 'attendance',
+        icon: CheckCircleIcon,
+        label: "Today's Attendance",
+        value: `${stats.attendance.today.percentage}%`,
+        color: 'border-green-500 text-green-600',
+        extra: `${stats.attendance.today.present} present`,
+        onClick: () => navigate('/admin/dashboard/attendance'),
+        animateDelay: 0.1
+      });
+    }
+    if (canViewFinancial) {
+      items.push({
+        id: 'financial',
+        icon: CurrencyDollarIcon,
+        label: 'Fee Collection (This Month)',
+        value: `₹${(stats.financial.thisMonth / 1000).toFixed(0)}K`,
+        color: 'border-purple-500 text-purple-600',
+        trend: financialTrend?.direction,
+        trendValue: financialTrend?.value,
+        extra: `₹${(stats.financial.pendingPayments / 1000).toFixed(0)}K pending`,
+        onClick: () => navigate('/admin/dashboard/fee-management'),
+        animateDelay: 0.15
+      });
+    }
+    if (canViewComplaints) {
+      items.push({
+        id: 'complaints',
+        icon: ExclamationCircleIcon,
+        label: 'Active Complaints',
+        value: stats.complaints.active,
+        color: 'border-orange-500 text-orange-600',
+        extra: `${stats.complaints.resolvedThisWeek} resolved this week`,
+        onClick: () => navigate('/admin/dashboard/complaints'),
+        animateDelay: 0.2
+      });
+    }
+    return items;
+  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, stats, financialTrend, navigate]);
+
+  // Get ordered stat cards (apply saved order if available)
+  const orderedStatCards = useMemo(() => {
+    if (!statCardsOrder || statCardsOrder.length === 0) {
+      return statCardItems;
+    }
+    
+    // Create a map for quick lookup
+    const itemMap = new Map(statCardItems.map(item => [item.id, item]));
+    
+    // Build ordered array based on saved order, filtering out items that no longer exist
+    const ordered = statCardsOrder
+      .map(id => itemMap.get(id))
+      .filter(Boolean);
+    
+    // Add any new items that weren't in the saved order
+    const existingIds = new Set(ordered.map(item => item.id));
+    const newItems = statCardItems.filter(item => !existingIds.has(item.id));
+    
+    return [...ordered, ...newItems];
+  }, [statCardsOrder, statCardItems]);
+
+  // Initialize statCardsOrder when statCardItems change (first load or permission changes)
+  useEffect(() => {
+    if (!statCardsOrder && statCardItems.length > 0) {
+      setStatCardsOrder(statCardItems.map(item => item.id));
+    }
+  }, [statCardItems, statCardsOrder]);
+
+  // Handle drag end
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (active.id !== over?.id) {
+      setStatCardsOrder((items) => {
+        if (!items) {
+          return orderedStatCards.map(item => item.id);
+        }
+        const oldIndex = items.indexOf(active.id);
+        const newIndex = items.indexOf(over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
+  const handleDragStart = (event) => {
+    setActiveId(event.active.id);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -683,58 +925,57 @@ const DashboardHome = () => {
           </div>
         </div>
 
-        {/* Key Metrics Overview - Dynamic grid based on visible cards */}
+        {/* Key Metrics Overview - Dynamic grid based on visible cards with drag and drop */}
         {visibleStatCards > 0 && (
-          <div 
-            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
-            {canViewStudents && (
-              <StatCard
-                icon={UserGroupIcon}
-                label="Total Students"
-                value={stats.students.total}
-                color="border-blue-500 text-blue-600"
-                extra={`${stats.students.active} active`}
-                onClick={() => navigate('/admin/dashboard/students')}
-                animateDelay={0.05}
-              />
-            )}
-            {canViewAttendance && (
-              <StatCard
-                icon={CheckCircleIcon}
-                label="Today's Attendance"
-                value={`${stats.attendance.today.percentage}%`}
-                color="border-green-500 text-green-600"
-                extra={`${stats.attendance.today.present} present`}
-                onClick={() => navigate('/admin/dashboard/attendance')}
-                animateDelay={0.1}
-              />
-            )}
-            {canViewFinancial && (
-              <StatCard
-                icon={CurrencyDollarIcon}
-                label="Fee Collection (This Month)"
-                value={`₹${(stats.financial.thisMonth / 1000).toFixed(0)}K`}
-                color="border-purple-500 text-purple-600"
-                trend={financialTrend?.direction}
-                trendValue={financialTrend?.value}
-                extra={`₹${(stats.financial.pendingPayments / 1000).toFixed(0)}K pending`}
-                onClick={() => navigate('/admin/dashboard/fee-management')}
-                animateDelay={0.15}
-              />
-            )}
-            {canViewComplaints && (
-              <StatCard
-                icon={ExclamationCircleIcon}
-                label="Active Complaints"
-                value={stats.complaints.active}
-                color="border-orange-500 text-orange-600"
-                extra={`${stats.complaints.resolvedThisWeek} resolved this week`}
-                onClick={() => navigate('/admin/dashboard/complaints')}
-                animateDelay={0.2}
-              />
-            )}
-          </div>
+            <SortableContext
+              items={orderedStatCards.map(item => item.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div 
+                className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 lg:gap-4 group"
+              >
+                {orderedStatCards.map((item) => (
+                  <DraggableStatCard
+                    key={item.id}
+                    id={item.id}
+                    icon={item.icon}
+                    label={item.label}
+                    value={item.value}
+                    color={item.color}
+                    extra={item.extra}
+                    trend={item.trend}
+                    trendValue={item.trendValue}
+                    onClick={item.onClick}
+                    animateDelay={item.animateDelay}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+            <DragOverlay>
+              {activeId ? (
+                (() => {
+                  const activeItem = orderedStatCards.find(item => item.id === activeId);
+                  return activeItem ? (
+                    <div className="bg-white rounded-lg sm:rounded-xl shadow-xl p-3 sm:p-4 lg:p-3 xl:p-2.5 border-l-4 opacity-90 rotate-3 scale-105">
+                      <div className="flex items-center gap-2.5 sm:gap-2">
+                        <div className={`p-2 sm:p-1.5 lg:p-1 rounded-lg ${activeItem.color.replace('border-', 'bg-').replace('-500', '-100')}`}>
+                          <activeItem.icon className={`w-5 h-5 ${activeItem.color.replace('border-', 'text-')}`} />
+                        </div>
+                        <div className="text-lg sm:text-xl font-bold text-gray-900">{activeItem.value}</div>
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-600 mt-1">{activeItem.label}</div>
+                    </div>
+                  ) : null;
+                })()
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         )}
 
         {/* Main Content Grid */}
