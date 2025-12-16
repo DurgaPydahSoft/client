@@ -58,6 +58,10 @@ const SecurityDashboard = () => {
     upcoming: false,
     expired: false
   });
+  
+  // State for courses and branches to resolve SQL IDs
+  const [allCourses, setAllCourses] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
 
   // Permission checks
   const hasSecurityPermission = hasPermission(user, 'security_management');
@@ -83,9 +87,85 @@ const SecurityDashboard = () => {
     );
   }
 
+  // Helper function to normalize text for matching
+  const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
+  // Helper function to get course name (resolves SQL IDs)
+  const getCourseName = (course) => {
+    if (!course) return 'N/A';
+    if (typeof course === 'object' && course.name) return course.name;
+    if (typeof course === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (course.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(course)) {
+        // Try to find by _id or name match
+        const foundCourse = allCourses.find(
+          c => c._id === course || 
+               (c.sqlId && course.startsWith('sql_') && parseInt(course.replace('sql_', '')) === c.sqlId) ||
+               normalizeText(c.name) === normalizeText(course)
+        );
+        return foundCourse ? foundCourse.name : course;
+      }
+      // If it's already a course name string, check if it exists in courses
+      const foundCourse = allCourses.find(
+        c => normalizeText(c.name) === normalizeText(course) || c._id === course
+      );
+      return foundCourse ? foundCourse.name : course;
+    }
+    return 'N/A';
+  };
+
+  // Helper function to get branch name (resolves SQL IDs)
+  const getBranchName = (branch) => {
+    if (!branch) return 'N/A';
+    if (typeof branch === 'object' && branch.name) return branch.name;
+    if (typeof branch === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (branch.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(branch)) {
+        // Try to find by _id or name match
+        const foundBranch = allBranches.find(
+          b => b._id === branch || 
+               (b.sqlId && branch.startsWith('sql_') && parseInt(branch.replace('sql_', '')) === b.sqlId) ||
+               normalizeText(b.name) === normalizeText(branch)
+        );
+        return foundBranch ? foundBranch.name : branch;
+      }
+      // If it's already a branch name string, check if it exists in branches
+      const foundBranch = allBranches.find(
+        b => normalizeText(b.name) === normalizeText(branch) || b._id === branch
+      );
+      return foundBranch ? foundBranch.name : branch;
+    }
+    return 'N/A';
+  };
+
+  // Fetch courses and branches on mount
+  const fetchCourses = async () => {
+    try {
+      const res = await api.get('/api/course-management/courses');
+      if (res.data.success) {
+        setAllCourses(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+    }
+  };
+
+  const fetchBranches = async () => {
+    try {
+      const res = await api.get('/api/course-management/branches');
+      if (res.data.success) {
+        setAllBranches(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+    }
+  };
+
   useEffect(() => {
     fetchApprovedLeaves();
     fetchSecuritySettings();
+    fetchCourses();
+    fetchBranches();
   }, [filters.page]);
 
   useEffect(() => {
@@ -272,9 +352,9 @@ const SecurityDashboard = () => {
     return requests.filter(leave => {
       const studentName = (leave.student?.name || '').toLowerCase();
       const rollNumber = (leave.student?.rollNumber || '').toLowerCase();
-      // Course and branch are now strings, not objects
-      const course = (leave.student?.course || '').toLowerCase();
-      const branch = (leave.student?.branch || '').toLowerCase();
+      // Resolve course and branch names for search
+      const course = getCourseName(leave.student?.course).toLowerCase();
+      const branch = getBranchName(leave.student?.branch).toLowerCase();
       
       return studentName.includes(query) || 
              rollNumber.includes(query) || 
@@ -640,10 +720,16 @@ const SecurityDashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6"
           >
-            <StudentDetailsCard student={searchedStudent} onClose={() => {
-              setSearchedStudent(null);
-              setSearchQuery('');
-            }} securitySettings={securitySettings} />
+            <StudentDetailsCard 
+              student={searchedStudent} 
+              onClose={() => {
+                setSearchedStudent(null);
+                setSearchQuery('');
+              }} 
+              securitySettings={securitySettings}
+              getCourseName={getCourseName}
+              getBranchName={getBranchName}
+            />
           </motion.div>
         )}
         {searchError && !searchedStudent && (
@@ -691,6 +777,8 @@ const SecurityDashboard = () => {
                 baseCount={outgoingLeavesBase.length}
                 securitySettings={securitySettings}
                 setPopupImage={setPopupImage}
+                getCourseName={getCourseName}
+                getBranchName={getBranchName}
               />
               
               {/* Incoming Leaves - Only visible for full access users */}
@@ -716,6 +804,8 @@ const SecurityDashboard = () => {
                   isTodayOrYesterday={isTodayOrYesterday}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
+                  getCourseName={getCourseName}
+                  getBranchName={getBranchName}
                 />
               )}
               
@@ -742,6 +832,8 @@ const SecurityDashboard = () => {
                   isTodayOrYesterday={isTodayOrYesterday}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
+                  getCourseName={getCourseName}
+                  getBranchName={getBranchName}
                 />
               )}
               
@@ -768,6 +860,8 @@ const SecurityDashboard = () => {
                   isTodayOrYesterday={isTodayOrYesterday}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
+                  getCourseName={getCourseName}
+                  getBranchName={getBranchName}
                 />
               )}
               
@@ -794,6 +888,8 @@ const SecurityDashboard = () => {
                   isTodayOrYesterday={isTodayOrYesterday}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
+                  getCourseName={getCourseName}
+                  getBranchName={getBranchName}
                 />
               )}
             </>
@@ -948,7 +1044,9 @@ const SectionTable = ({
   showSearch = false,
   baseCount,
   securitySettings,
-  setPopupImage
+  setPopupImage,
+  getCourseName,
+  getBranchName
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -1313,7 +1411,7 @@ const SectionTable = ({
                         <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
                           <AcademicCapIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
                           <span className="font-semibold text-gray-800 break-words leading-tight">
-                            {leave.student?.course || 'N/A'} - {leave.student?.branch || 'N/A'}
+                            {getCourseName ? getCourseName(leave.student?.course) : (leave.student?.course || 'N/A')} - {getBranchName ? getBranchName(leave.student?.branch) : (leave.student?.branch || 'N/A')}
                           </span>
                         </div>
                       </div>
@@ -1430,7 +1528,7 @@ const SectionTable = ({
   </motion.div>
 );
 
-const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
+const StudentDetailsCard = ({ student, onClose, securitySettings, getCourseName, getBranchName }) => {
   const [popupImage, setPopupImage] = useState(null);
   return (
     <>
@@ -1499,7 +1597,7 @@ const StudentDetailsCard = ({ student, onClose, securitySettings }) => {
           <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm w-full">
             <InfoField icon={<UserIcon />} label="Name" value={student.name} />
             <InfoField icon={<AcademicCapIcon />} label="Roll Number" value={student.rollNumber} />
-            <InfoField icon={<TagIcon />} label="Course" value={`${student.course || 'N/A'} - ${student.branch || 'N/A'}`} />
+            <InfoField icon={<TagIcon />} label="Course" value={`${getCourseName ? getCourseName(student.course) : (student.course || 'N/A')} - ${getBranchName ? getBranchName(student.branch) : (student.branch || 'N/A')}`} />
             <InfoField icon={<CalendarIcon />} label="Year" value={student.year} />
             <InfoField icon={<PhoneIcon />} label="Student Phone" value={securitySettings.viewPhoneNumbers ? student.studentPhone : 'Hidden by admin'} />
             <InfoField icon={<PhoneIcon />} label="Parent Phone" value={securitySettings.viewPhoneNumbers ? student.parentPhone : 'Hidden by admin'} />

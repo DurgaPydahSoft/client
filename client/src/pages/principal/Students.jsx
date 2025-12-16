@@ -20,18 +20,14 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
 
+// Helper function to normalize text for matching
+const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
 // Helper function to get course name consistently
 const getCourseName = (course) => {
   if (!course) return 'N/A';
   if (typeof course === 'object' && course.name) return course.name;
   if (typeof course === 'string') return course;
-  return 'N/A';
-};
-
-const getBranchName = (branch) => {
-  if (!branch) return 'N/A';
-  if (typeof branch === 'object' && branch.name) return branch.name;
-  if (typeof branch === 'string') return branch;
   return 'N/A';
 };
 
@@ -45,6 +41,9 @@ const PrincipalStudents = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [error, setError] = useState(null);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  
+  // Branches state for resolving branch names
+  const [allBranches, setAllBranches] = useState([]);
   
   // Filters
   const [filters, setFilters] = useState({
@@ -63,6 +62,48 @@ const PrincipalStudents = () => {
   
   // Photo modal
   const [photoModal, setPhotoModal] = useState({ open: false, src: '', name: '' });
+
+  // Helper function to get branch name (similar to admin Students page)
+  const getBranchName = (branchId) => {
+    if (!branchId) return 'N/A';
+    // If it's already an object with name, return the name
+    if (typeof branchId === 'object' && branchId.name) return branchId.name;
+    // If it's a string, try to find it in the branches array
+    if (typeof branchId === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (branchId.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(branchId)) {
+        // Try to find by _id
+        const branch = allBranches.find(
+          b => b._id === branchId || normalizeText(b.name) === normalizeText(branchId)
+        );
+        return branch ? branch.name : branchId;
+      }
+      // If it's already a branch name string, check if it exists in branches
+      const branch = allBranches.find(
+        b => normalizeText(b.name) === normalizeText(branchId) || b._id === branchId
+      );
+      return branch ? branch.name : branchId;
+    }
+    return 'N/A';
+  };
+
+  // Fetch branches on mount
+  const fetchBranches = async () => {
+    try {
+      const res = await api.get('/api/course-management/branches');
+      if (res.data.success) {
+        setAllBranches(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching branches:', err);
+      // Don't show error toast, just log it
+    }
+  };
+
+  // Fetch branches on component mount
+  useEffect(() => {
+    fetchBranches();
+  }, []);
 
   // Debounce search term
   useEffect(() => {
@@ -512,7 +553,7 @@ const PrincipalStudents = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Branch:</span>
-                          <span className="font-medium text-purple-900 text-xs sm:text-sm">{selectedStudent.branch?.name || selectedStudent.branch}</span>
+                          <span className="font-medium text-purple-900 text-xs sm:text-sm">{getBranchName(selectedStudent.branch)}</span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Year:</span>

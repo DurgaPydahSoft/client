@@ -68,7 +68,7 @@ const PrincipalDashboard = () => {
     course: user?.course,
     username: user?.username
   });
-  const [notificationCount, setNotificationCount] = useState(0);
+  // Removed notificationCount state - NotificationBell component handles notifications
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [notificationStates, setNotificationStates] = useState({
     complaint: false,
@@ -87,31 +87,8 @@ const PrincipalDashboard = () => {
     setIsSidebarOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
-    const fetchNotificationCount = async () => {
-      try {
-        console.log('🔔 Fetching notification count for principal');
-
-        const response = await api.get('/api/notifications/principal/count');
-        if (response.data.success) {
-          setNotificationCount(response.data.count);
-          console.log('🔔 Principal notification count:', response.data.count);
-        }
-      } catch (error) {
-        console.error('Error fetching notification count:', error);
-        // Don't set count to 0 on error, keep previous count
-      }
-    };
-
-    fetchNotificationCount();
-
-    // Set up polling for notifications
-    const interval = setInterval(fetchNotificationCount, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const refreshHandler = () => fetchNotificationCount();
+  // Removed duplicate notification polling - NotificationBell component already handles this
+  // This was causing duplicate API calls and console spam
 
   const hasPermission = (permission) => {
     const isSuperAdmin = user?.role === 'super_admin';

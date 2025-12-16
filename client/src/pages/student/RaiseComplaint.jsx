@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
-import LoadingSpinner from '../../components/LoadingSpinner';
 import { PhotoIcon, XCircleIcon } from '@heroicons/react/24/outline';
 
 const CATEGORIES = [
@@ -332,7 +331,7 @@ const RaiseComplaint = () => {
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <LoadingSpinner size="sm" />
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
                       <span>Submitting...</span>
                     </span>
                   ) : (
