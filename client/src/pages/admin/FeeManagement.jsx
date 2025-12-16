@@ -441,8 +441,11 @@ const FeeManagement = () => {
     }
     
     // First, filter by academic year and course to reduce search space
+    // Resolve fee structure's course (might be SQL ID) before comparison
     const candidateStructures = feeStructures.filter(s => {
-      const normalizedStructCourse = normalizeCourseName(s.course);
+      // Resolve fee structure's course name (might be SQL ID)
+      const structCourseName = getCourseName(s.course);
+      const normalizedStructCourse = normalizeCourseName(structCourseName);
       return normalizedStructCourse === normalizedStudentCourse && s.academicYear === academicYear;
     });
     
@@ -5693,7 +5696,14 @@ const FeeManagement = () => {
 
               {/* Fee Information with Concession */}
               {(() => {
-                const feeStructure = getFeeStructureForStudent(selectedStudentForPayment.course, selectedStudentForPayment.year, selectedStudentForPayment.category, selectedStudentForPayment.academicYear);
+                const feeStructure = getFeeStructureForStudent(
+                  selectedStudentForPayment.course, 
+                  selectedStudentForPayment.year, 
+                  selectedStudentForPayment.category, 
+                  selectedStudentForPayment.academicYear,
+                  selectedStudentForPayment.hostel, // Pass student's hostel ObjectId
+                  selectedStudentForPayment.hostelCategory // Pass student's hostelCategory ObjectId
+                );
                   const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
                 
                 // Always render the section, even if fee structure is not found
@@ -5829,7 +5839,7 @@ const FeeManagement = () => {
                               <span className="font-medium">⚠️ Fee structure not configured</span>
                               <br />
                               <span className="text-xs mt-1 block">
-                                No fee structure found for {selectedStudentForPayment.course} - Year {selectedStudentForPayment.year} ({selectedStudentForPayment.category}) in {selectedStudentForPayment.academicYear}
+                                No fee structure found for {getCourseName(selectedStudentForPayment.course)} - Year {selectedStudentForPayment.year} ({selectedStudentForPayment.category}) in {selectedStudentForPayment.academicYear}
                               </span>
                             </p>
                           </div>
