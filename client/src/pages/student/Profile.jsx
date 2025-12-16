@@ -42,6 +42,35 @@ const Profile = () => {
   const [guardianPhoto1Preview, setGuardianPhoto1Preview] = useState(null);
   const [guardianPhoto2Preview, setGuardianPhoto2Preview] = useState(null);
 
+  // Courses and branches state for resolving SQL IDs
+  const [allCourses, setAllCourses] = useState([]);
+  const [allBranches, setAllBranches] = useState([]);
+
+  // Helper function to normalize text for matching
+  const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
+  // Fetch courses and branches on mount
+  useEffect(() => {
+    const fetchCoursesAndBranches = async () => {
+      try {
+        const [coursesRes, branchesRes] = await Promise.all([
+          api.get('/api/course-management/courses'),
+          api.get('/api/course-management/branches')
+        ]);
+        if (coursesRes.data.success) {
+          setAllCourses(coursesRes.data.data || []);
+        }
+        if (branchesRes.data.success) {
+          setAllBranches(branchesRes.data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching courses/branches:', err);
+        // Don't show error toast, just log it
+      }
+    };
+    fetchCoursesAndBranches();
+  }, []);
+
   useEffect(() => {
     if (user) {
       setLoading(false);
@@ -227,19 +256,54 @@ const Profile = () => {
     }
   };
 
-  // Helper functions to safely get course and branch names
+  // Helper functions to safely get course and branch names (with SQL ID resolution)
   const getCourseName = (course) => {
     if (!course) return 'N/A';
+    // If it's already an object with name, return the name
     if (typeof course === 'object' && course.name) return course.name;
-    if (typeof course === 'string' && course.length === 24) return 'N/A'; // likely ObjectId
-    if (typeof course === 'string') return course;
+    // If it's a string, try to resolve it
+    if (typeof course === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (course.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(course)) {
+        // Try to find by _id or by matching the SQL ID pattern
+        const foundCourse = allCourses.find(
+          c => c._id === course || 
+               (c.sqlId && c.sqlId === course) ||
+               (c.id && c.id.toString() === course)
+        );
+        return foundCourse ? foundCourse.name : 'N/A';
+      }
+      // If it's already a course name string, check if it exists in courses
+      const foundCourse = allCourses.find(
+        c => normalizeText(c.name) === normalizeText(course) || c._id === course
+      );
+      return foundCourse ? foundCourse.name : course;
+    }
     return 'N/A';
   };
+  
   const getBranchName = (branch) => {
     if (!branch) return 'N/A';
+    // If it's already an object with name, return the name
     if (typeof branch === 'object' && branch.name) return branch.name;
-    if (typeof branch === 'string' && branch.length === 24) return 'N/A'; // likely ObjectId
-    if (typeof branch === 'string') return branch;
+    // If it's a string, try to resolve it
+    if (typeof branch === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (branch.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(branch)) {
+        // Try to find by _id or by matching the SQL ID pattern
+        const foundBranch = allBranches.find(
+          b => b._id === branch || 
+               (b.sqlId && b.sqlId === branch) ||
+               (b.id && b.id.toString() === branch)
+        );
+        return foundBranch ? foundBranch.name : 'N/A';
+      }
+      // If it's already a branch name string, check if it exists in branches
+      const foundBranch = allBranches.find(
+        b => normalizeText(b.name) === normalizeText(branch) || b._id === branch
+      );
+      return foundBranch ? foundBranch.name : branch;
+    }
     return 'N/A';
   };
 

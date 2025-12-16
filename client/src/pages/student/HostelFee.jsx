@@ -32,33 +32,85 @@ const HostelFee = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [paymentHistory, setPaymentHistory] = useState([]);
   
+  // Courses state for resolving SQL IDs
+  const [allCourses, setAllCourses] = useState([]);
+  
   // Payment states
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentLoading, setPaymentLoading] = useState(false);
 
+  // Helper function to normalize text for matching
+  const normalizeText = (value) => (value || '').toString().trim().toUpperCase();
+
+  // Helper function to resolve course name from SQL ID or ObjectId
+  const getCourseName = (course) => {
+    if (!course) return null;
+    // If it's already an object with name, return the name
+    if (typeof course === 'object' && course.name) return course.name;
+    // If it's a string, try to resolve it
+    if (typeof course === 'string') {
+      // Check if it looks like a SQL ID (sql_1, sql_2, etc.) or ObjectId
+      if (course.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(course)) {
+        // Try to find by _id or by matching the SQL ID pattern
+        const foundCourse = allCourses.find(
+          c => c._id === course || 
+               (c.sqlId && c.sqlId === course) ||
+               (c.id && c.id.toString() === course)
+        );
+        return foundCourse ? foundCourse.name : course;
+      }
+      // If it's already a course name string, check if it exists in courses
+      const foundCourse = allCourses.find(
+        c => normalizeText(c.name) === normalizeText(course) || c._id === course
+      );
+      return foundCourse ? foundCourse.name : course;
+    }
+    return null;
+  };
+
+  // Fetch courses on mount
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const res = await api.get('/api/course-management/courses');
+        if (res.data.success) {
+          setAllCourses(res.data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching courses:', err);
+        // Don't show error toast, just log it
+      }
+    };
+    fetchCourses();
+  }, []);
+
   useEffect(() => {
     fetchFeeData();
-  }, [refreshKey]);
+  }, [refreshKey, allCourses]);
 
   const fetchFeeData = async () => {
     try {
       setLoading(true);
       setError(null);
       
+      // Resolve course name from SQL ID if needed
+      const resolvedCourseName = getCourseName(user.course);
+      
       // Debug user data
       console.log('🔍 User data for fee structure:', {
         academicYear: user.academicYear,
         course: user.course,
-        courseId: user.course?._id || user.course,
+        resolvedCourseName: resolvedCourseName,
         year: user.year,
         category: user.category
       });
       
       // Fetch fee reminder data, fee structure, and payment history in parallel
+      // Use resolved course name for fee structure query
       const [feeResponse, structureResponse, paymentResponse] = await Promise.all([
         api.get(`/api/fee-reminders/student/${user._id}`),
-        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${user.course?._id || (typeof user.course === 'string' ? user.course : '')}&year=${user.year}`),
+        api.get(`/api/fee-structures?academicYear=${user.academicYear || '2024-2025'}&course=${encodeURIComponent(resolvedCourseName || '')}&year=${user.year}`),
         api.get(`/api/payments/hostel-fee/history/${user._id}`)
       ]);
       

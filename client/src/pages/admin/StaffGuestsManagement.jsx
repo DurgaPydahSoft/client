@@ -1948,7 +1948,7 @@ const StaffGuestsManagement = () => {
                 initial={{ scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+                className="bg-white rounded-lg shadow-xl w-full max-w-2xl lg:max-w-5xl xl:max-w-6xl max-h-[90vh] overflow-y-auto"
               >
                 <div className="p-6">
                   <div className="flex justify-between items-center mb-4">
@@ -1964,7 +1964,7 @@ const StaffGuestsManagement = () => {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Name *
@@ -2056,7 +2056,7 @@ const StaffGuestsManagement = () => {
                       </div>
 
                       {['staff', 'student'].includes(formData.type) && (
-                        <div className="md:col-span-2">
+                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Department
                           </label>
@@ -2070,7 +2070,7 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      <div className="md:col-span-2">
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Purpose
                         </label>
@@ -2086,7 +2086,7 @@ const StaffGuestsManagement = () => {
 
                       {/* Stay Type Selection - Only for Staff */}
                       {formData.type === 'staff' && (
-                        <div className="md:col-span-2">
+                        <div className="md:col-span-2 lg:col-span-3">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Stay Basis *
                           </label>
@@ -2151,7 +2151,7 @@ const StaffGuestsManagement = () => {
 
                       {/* Month Selection - For Monthly Basis Staff */}
                       {formData.type === 'staff' && formData.stayType === 'monthly' && (
-                        <div className="md:col-span-2">
+                        <div className="md:col-span-2 lg:col-span-3">
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Select Month * (YYYY-MM)
                           </label>
@@ -2286,7 +2286,7 @@ const StaffGuestsManagement = () => {
 
                       {/* Charge Type and Charges Display - For Staff and Students */}
                       {['staff', 'student'].includes(formData.type) && (
-                        <div className="md:col-span-2">
+                        <div className="md:col-span-2 lg:col-span-3">
                           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
                             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                               <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
@@ -2474,7 +2474,7 @@ const StaffGuestsManagement = () => {
 
                       {/* Guest Information - No Charges */}
                       {formData.type === 'guest' && (
-                        <div className="md:col-span-2">
+                        <div className="md:col-span-2 lg:col-span-3">
                           <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
                             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
                               <UserIcon className="w-4 h-4 mr-2 text-green-600" />
@@ -2493,7 +2493,7 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-2 lg:col-span-3">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Photo
                         </label>
