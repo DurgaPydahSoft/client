@@ -1461,7 +1461,7 @@ const Students = () => {
     // After schema change: branch is stored as string (branch name), not ObjectId
     // Note: We need to fetch branches first to find the match
     const studentBranchName = student.branch?.name || student.branch || '';
-    
+
     const initialEditForm = {
       name: student.name,
       rollNumber: student.rollNumber,
@@ -1484,7 +1484,7 @@ const Students = () => {
     };
     // Display hostel name in edit modal
     setEditHostelName(getHostelName(student.hostel?._id || student.hostel));
-    
+
     setEditId(student._id);
     setEditForm(initialEditForm);
     setOriginalEditForm(initialEditForm); // Store original for comparison
@@ -1498,7 +1498,7 @@ const Students = () => {
           b => normalizeText(b.name) === normalizeText(studentBranchName) || b._id === studentBranchName
         );
         const branchId = matchedBranch?._id || student.branch?._id || student.branch || '';
-        
+
         if (branchId) {
           setEditForm(prev => ({ ...prev, branch: branchId }));
           setOriginalEditForm(prev => ({ ...prev, branch: branchId }));
@@ -1511,7 +1511,7 @@ const Students = () => {
           b => normalizeText(b.name) === normalizeText(studentBranchName) || b._id === studentBranchName
         );
         const branchId = matchedBranch?._id || student.branch?._id || student.branch || '';
-        
+
         if (branchId) {
           setEditForm(prev => ({ ...prev, branch: branchId }));
           setOriginalEditForm(prev => ({ ...prev, branch: branchId }));
@@ -1666,7 +1666,7 @@ const Students = () => {
       const validRoomNumbers = editRoomsWithAvailability.map(room => String(room.roomNumber || ''));
       const formRoomNumber = String(formData.roomNumber || '');
       const originalRoomNumber = originalEditForm ? String(originalEditForm.roomNumber || '') : '';
-      
+
       // Only validate if the room number doesn't match any valid room AND it's different from the original
       // This allows existing room assignments to remain unchanged even if not in current filtered list
       if (formRoomNumber && !validRoomNumbers.includes(formRoomNumber)) {
@@ -1755,6 +1755,7 @@ const Students = () => {
       const submitData = {
         name: editForm.name,
         rollNumber: editForm.rollNumber,
+        admissionNumber: editForm.admissionNumber,
         course: editForm.course,
         year: editForm.year,
         branch: editForm.branch,
@@ -2497,6 +2498,17 @@ const Students = () => {
                 required
                 pattern="[A-Z0-9]+"
                 title="Uppercase letters and numbers only"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number</label>
+              <input
+                type="text"
+                name="admissionNumber"
+                value={form.admissionNumber}
+                onChange={handleFormChange}
+                placeholder="Enter admission number"
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
               />
             </div>
@@ -3701,6 +3713,11 @@ const Students = () => {
                       <span className="text-xs sm:text-sm text-gray-600 w-24">Roll Number:</span>
                       <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.rollNumber}</span>
                     </div>
+                    {/* Admission Number */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Admission No:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.admissionNumber || 'N/A'}</span>
+                    </div>
                     {/* Hostel ID */}
                     <div className="flex items-center space-x-2">
                       <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
@@ -4079,6 +4096,16 @@ const Students = () => {
                   value={editForm.rollNumber}
                   onChange={handleEditFormChange}
                   required
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Admission Number</label>
+                <input
+                  type="text"
+                  name="admissionNumber"
+                  value={editForm.admissionNumber}
+                  onChange={handleEditFormChange}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -5938,18 +5965,18 @@ const Students = () => {
     if (!concessionFeeStructure) return;
 
     const concession = Number(concessionAmount) || 0;
-    
+
     // Apply concession to Term 1 first
     let term1 = Math.max(0, concessionFeeStructure.term1Fee - concession);
-    
+
     // If concession exceeds Term 1 fee, apply excess to Term 2
     let remainingConcession = Math.max(0, concession - concessionFeeStructure.term1Fee);
     let term2 = Math.max(0, concessionFeeStructure.term2Fee - remainingConcession);
-    
+
     // If concession still exceeds Term 1 + Term 2, apply to Term 3
     remainingConcession = Math.max(0, remainingConcession - concessionFeeStructure.term2Fee);
     let term3 = Math.max(0, concessionFeeStructure.term3Fee - remainingConcession);
-    
+
     const total = term1 + term2 + term3;
 
     setConcessionCalculatedFees({ term1, term2, term3, total });
@@ -5958,7 +5985,7 @@ const Students = () => {
   // Handle concession request submission
   const handleConcessionRequest = async (e) => {
     e.preventDefault();
-    
+
     if (!canManageConcessions) {
       toast.error('You do not have permission to manage concessions');
       return;
@@ -5970,7 +5997,7 @@ const Students = () => {
     }
 
     const concessionAmount = Number(concessionRequestForm.amount) || 0;
-    
+
     if (concessionAmount < 0) {
       toast.error('Concession amount cannot be negative');
       return;
@@ -5983,14 +6010,14 @@ const Students = () => {
         concession: concessionAmount
       });
 
-      toast.success(concessionAmount > 0 
+      toast.success(concessionAmount > 0
         ? 'Concession request submitted successfully. It will be reviewed by super admin.'
         : 'Concession removed successfully.'
       );
-      
+
       setConcessionRequestModal(false);
       setConcessionRequestForm({ amount: '', notes: '' });
-      
+
       // Refresh student list and close details modal to refresh data
       fetchStudents();
       setStudentDetailsModal(false);
@@ -6443,8 +6470,8 @@ const Students = () => {
                 <div className="text-sm text-blue-800">
                   <p className="font-medium mb-1">Important:</p>
                   <p className="text-xs">
-                    This concession request will be submitted for approval. Once approved by super admin, 
-                    the fees will be recalculated automatically. You can track the approval status in the 
+                    This concession request will be submitted for approval. Once approved by super admin,
+                    the fees will be recalculated automatically. You can track the approval status in the
                     Fee Management → Concessions tab.
                   </p>
                 </div>
@@ -6469,11 +6496,10 @@ const Students = () => {
               <button
                 type="submit"
                 disabled={concessionRequestLoading}
-                className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${
-                  concessionRequestLoading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-orange-600 hover:bg-orange-700'
-                }`}
+                className={`w-full sm:w-auto px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${concessionRequestLoading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-orange-600 hover:bg-orange-700'
+                  }`}
               >
                 {concessionRequestLoading ? (
                   <span className="flex items-center justify-center">
@@ -6820,12 +6846,11 @@ const Students = () => {
                           )}
                           {staff.stayType && (
                             <div className="flex items-center gap-2 mt-2">
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                staff.stayType === 'monthly' 
-                                  ? 'bg-indigo-100 text-indigo-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {staff.stayType === 'monthly' 
+                              <span className={`text-xs px-2 py-1 rounded ${staff.stayType === 'monthly'
+                                ? 'bg-indigo-100 text-indigo-800'
+                                : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                {staff.stayType === 'monthly'
                                   ? `Monthly Basis${staff.selectedMonth ? ` (${new Date(staff.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })})` : ''}`
                                   : 'Daily Basis'}
                               </span>
@@ -6877,7 +6902,7 @@ const Students = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            {getCourseDisplay(student.course)} - {(student.branch?.name || getBranchName(student.branch) || 'N/A')}
+                              {getCourseDisplay(student.course)} - {(student.branch?.name || getBranchName(student.branch) || 'N/A')}
                             </span>
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                               Year {student.year}
