@@ -407,10 +407,10 @@ const FeeManagement = () => {
   };
 
   // Fetch fee structure for a specific student course, year, category and academic year
-  // Fee structures are linked by: academicYear, course, year, hostelId (optional), categoryId (optional), category (legacy)
+  // Fee structures are linked by: academicYear, course, branch (optional), year, hostelId (optional), categoryId (optional), category (legacy)
   // Note: Due dates are configured separately per course/academicYear/year (shared across categories)
   // This means all categories (A+, A, B+, B, C) have the same due dates but different fee amounts
-  const getFeeStructureForStudent = (course, year, category, academicYear, studentHostel = null, studentHostelCategory = null) => {
+  const getFeeStructureForStudent = (course, year, category, academicYear, studentHostel = null, studentHostelCategory = null, studentBranch = null) => {
     // Get course name from student (handles both string and object)
     const studentCourseName = getCourseName(course);
     
@@ -453,16 +453,44 @@ const FeeManagement = () => {
       // Only log if we have structures but none match this course
       console.warn(`⚠️ No fee structures found for course "${normalizedStudentCourse}" in academic year "${academicYear}"`, {
         availableCourses: [...new Set(feeStructures.map(s => s.course))],
-        availableYears: [...new Set(feeStructures.map(s => s.academicYear))]
+        availableYears: [...new Set(feeStructures.map(s => s.academicYear))],
+        studentBranch: normalizedStudentBranch
       });
       return undefined;
     }
     
-    // Now match by year, hostel, categoryId, and category
+    // Get student branch name for matching
+    const studentBranchName = studentBranch ? getBranchName(studentBranch) : null;
+    const normalizeBranchName = (name) => {
+      if (!name) return null;
+      return String(name).trim();
+    };
+    const normalizedStudentBranch = normalizeBranchName(studentBranchName);
+    
+    // Now match by year, branch, hostel, categoryId, and category
     const structure = candidateStructures.find(structure => {
       // Match year - must be exact match
       const yearMatch = Number(structure.year) === Number(year);
-      if (!yearMatch) return false;
+      if (!yearMatch) {
+        return false;
+      }
+      
+      // Match branch - if fee structure has a branch, it must match student's branch
+      // If fee structure has no branch (null/undefined), it applies to all branches
+      let branchMatch = true; // Default: applies to all branches
+      if (structure.branch) {
+        const structureBranchName = normalizeBranchName(getBranchName(structure.branch));
+        // If structure has branch, student must have matching branch
+        if (normalizedStudentBranch) {
+          branchMatch = structureBranchName === normalizedStudentBranch;
+        } else {
+          // Structure requires a branch, but student has no branch - no match
+          branchMatch = false;
+        }
+      }
+      // If structure has no branch, it applies to all branches (branchMatch = true)
+      
+      if (!branchMatch) return false;
       
       // Match hostelId - if fee structure has a hostelId, it must match student's hostel
       // If fee structure has no hostelId (null), it applies to all hostels
@@ -533,8 +561,10 @@ const FeeManagement = () => {
         academicYear,
         studentHostel: studentHostelId,
         studentHostelCategory: studentHostelCategoryId,
+        studentBranch: normalizedStudentBranch,
         availableStructuresForCourse: candidateStructures.map(s => ({
           year: s.year,
+          branch: getBranchName(s.branch),
           hostelId: extractId(s.hostelId),
           categoryId: extractId(s.categoryId),
           category: s.category,
@@ -542,6 +572,18 @@ const FeeManagement = () => {
           amount: s.amount,
           totalFee: s.totalFee
         }))
+      });
+    } else if (structure) {
+      console.log(`✅ Fee structure matched for student:`, {
+        course: normalizedStudentCourse,
+        year,
+        category,
+        academicYear,
+        structureId: structure._id,
+        amount: structure.amount,
+        term1Fee: structure.term1Fee,
+        term2Fee: structure.term2Fee,
+        term3Fee: structure.term3Fee
       });
     }
 
@@ -899,7 +941,8 @@ const FeeManagement = () => {
       student.category, 
       student.academicYear,
       student.hostel, // Pass student's hostel ObjectId
-      student.hostelCategory // Pass student's hostelCategory ObjectId
+      student.hostelCategory, // Pass student's hostelCategory ObjectId
+      student.branch // Pass student's branch for matching
     );
     if (!feeStructure) return null;
 
@@ -919,26 +962,10 @@ const FeeManagement = () => {
     });
     const totalPaid = studentPaymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
 
-    // Debug logging
-    console.log('🔍 Balance calculation for student:', student.name);
-    console.log('🔍 Fee structure:', {
-      totalFee: feeStructure.totalFee,
-      term1Fee: feeStructure.term1Fee,
-      term2Fee: feeStructure.term2Fee,
-      term3Fee: feeStructure.term3Fee
-    });
-    console.log('🔍 Student calculated fees:', {
-      calculatedTerm1Fee: student.calculatedTerm1Fee,
-      calculatedTerm2Fee: student.calculatedTerm2Fee,
-      calculatedTerm3Fee: student.calculatedTerm3Fee,
-      totalCalculatedFee: student.totalCalculatedFee,
-      concession: student.concession
-    });
-    console.log('🔍 Student payment history:', studentPaymentHistory);
-    console.log('🔍 Total paid:', totalPaid);
-    console.log('🔍 All payments in state:', payments.length);
-    console.log('🔍 Student ID:', student._id, 'Type:', typeof student._id);
-    console.log('🔍 Sample payment studentId:', payments[0]?.studentId, 'Type:', typeof payments[0]?.studentId);
+    // OPTIMIZED: Reduced console logging for better performance (only log in development)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Balance calculation for student:', student.name);
+    }
 
     // Check if student has concession applied
     const hasConcession = student.concession && student.concession > 0;
@@ -968,8 +995,7 @@ const FeeManagement = () => {
       }
     };
 
-    // Debug logging for term balances
-    console.log('🔍 Term balances calculated:', termBalances);
+    // OPTIMIZED: Removed excessive logging
 
     // Handle partial payments and excess amounts
     let remainingExcess = 0;
@@ -1021,13 +1047,7 @@ const FeeManagement = () => {
     const totalBalance = Object.values(termBalances).reduce((sum, term) => sum + term.balance, 0);
     const isFullyPaid = totalBalance === 0;
 
-    // Debug logging for final balances
-    console.log('🔍 Final term balances for', student.name, ':', {
-      term1: { required: termBalances.term1.required, paid: termBalances.term1.paid, balance: termBalances.term1.balance },
-      term2: { required: termBalances.term2.required, paid: termBalances.term2.paid, balance: termBalances.term2.balance },
-      term3: { required: termBalances.term3.required, paid: termBalances.term3.paid, balance: termBalances.term3.balance },
-      totalBalance
-    });
+    // OPTIMIZED: Removed excessive logging for better performance
 
     // Calculate original vs calculated totals
     const originalTotalFee = feeStructure.totalFee;
@@ -1106,7 +1126,8 @@ const FeeManagement = () => {
             student.category, 
             student.academicYear,
             student.hostel,
-            student.hostelCategory
+            student.hostelCategory,
+            student.branch
           );
           return feeStructure !== undefined;
         }).length;
@@ -1174,7 +1195,8 @@ const FeeManagement = () => {
             student.category, 
             student.academicYear,
             student.hostel,
-            student.hostelCategory
+            student.hostelCategory,
+            student.branch
           );
           if (feeStructure) {
             const originalFee = feeStructure.totalFee;
@@ -1500,17 +1522,67 @@ const FeeManagement = () => {
   // Payment Tracking Functions
   const openPaymentModal = async (student) => {
     setSelectedStudentForPayment(student);
+    
+    // Ensure fee structures are loaded for the student's academic year
+    const studentAcademicYear = student.academicYear || filters.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    
+    // Check if fee structures are loaded for this academic year
+    const structuresForYear = feeStructures.filter(s => s.academicYear === studentAcademicYear);
+    
+    if (!feeStructures || feeStructures.length === 0 || structuresForYear.length === 0) {
+      console.log('Fee structures not loaded for academic year:', studentAcademicYear, '- fetching now...');
+      try {
+        // Fetch fee structures for the student's academic year
+        const response = await api.get(`/api/fee-structures?academicYear=${studentAcademicYear}`);
+        if (response.data.success && Array.isArray(response.data.data)) {
+          const fetchedStructures = response.data.data;
+          setFeeStructures(fetchedStructures);
+          console.log('✅ Fee structures fetched for payment modal:', fetchedStructures.length);
+          
+          // If still no structures, show error
+          if (fetchedStructures.length === 0) {
+            toast.error(`No fee structures found for academic year ${studentAcademicYear}. Please create fee structures first.`);
+            return;
+          }
+        } else {
+          toast.error('Failed to load fee structures. Please try again.');
+          return;
+        }
+      } catch (err) {
+        console.error('Error fetching fee structures:', err);
+        toast.error('Failed to load fee structures. Please try again.');
+        return;
+      }
+    }
+    
+    // Get fee structure for student
     const feeStructure = getFeeStructureForStudent(
       student.course, 
       student.year, 
       student.category, 
-      student.academicYear,
+      studentAcademicYear,
       student.hostel,
-      student.hostelCategory
+      student.hostelCategory,
+      student.branch
     );
 
     if (!feeStructure) {
-      toast.error('No fee structure found for this student');
+      // Provide detailed error message
+      const errorDetails = {
+        course: getCourseName(student.course),
+        branch: getBranchName(student.branch),
+        year: student.year,
+        category: student.category,
+        academicYear: studentAcademicYear,
+        hostel: student.hostel ? (typeof student.hostel === 'object' ? student.hostel.name : student.hostel) : 'N/A',
+        hostelCategory: student.hostelCategory ? (typeof student.hostelCategory === 'object' ? student.hostelCategory.name : student.hostelCategory) : 'N/A',
+        availableStructures: feeStructures.length,
+        availableCourses: [...new Set(feeStructures.map(s => getCourseName(s.course)))],
+        availableYears: [...new Set(feeStructures.map(s => s.academicYear))]
+      };
+      
+      console.error('No fee structure found for student:', errorDetails);
+      toast.error(`No fee structure found for this student. Course: ${errorDetails.course}, Year: ${errorDetails.year}, Category: ${errorDetails.category}, Academic Year: ${errorDetails.academicYear}. Please create a fee structure first.`);
       return;
     }
 
@@ -1582,35 +1654,47 @@ const FeeManagement = () => {
     try {
       setPendingBillsLoading(true);
 
-      // Find student's room
-      const roomsResponse = await api.get('/api/rooms');
-      if (!roomsResponse.data.success) {
-        throw new Error('Failed to fetch rooms');
+      // OPTIMIZED: If student has room reference, use it directly instead of fetching all rooms
+      let studentRoom = null;
+      
+      if (student.room && typeof student.room === 'object' && student.room._id) {
+        // Student already has room populated - use it directly
+        studentRoom = student.room;
+      } else if (student.roomNumber && student.gender && student.category) {
+        // Fallback: Find student's room by querying with specific filters (more efficient than fetching all)
+        try {
+          const roomsResponse = await api.get(`/api/rooms?roomNumber=${student.roomNumber}&gender=${student.gender}&category=${student.category}`);
+          if (roomsResponse.data.success) {
+            const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
+            studentRoom = rooms.find(room =>
+              room.roomNumber === student.roomNumber &&
+              room.gender === student.gender &&
+              room.category === student.category
+            );
+          }
+        } catch (err) {
+          console.error('Error fetching student room:', err);
+        }
       }
 
-      const rooms = roomsResponse.data.data.rooms || roomsResponse.data.data || [];
-      const studentRoom = rooms.find(room =>
-        room.roomNumber === student.roomNumber &&
-        room.gender === student.gender &&
-        room.category === student.category
-      );
-
-      if (!studentRoom) {
+      if (!studentRoom || !studentRoom._id) {
         console.log('No room found for student:', student);
         setPendingElectricityBills([]);
+        setPendingBillsLoading(false);
         return;
       }
 
-      // Get room's electricity bills
-      const billsResponse = await api.get(`/api/rooms/${studentRoom._id}/electricity-bill`);
+      // OPTIMIZED: Fetch bills and student count in parallel
+      const [billsResponse, studentsResponse] = await Promise.all([
+        api.get(`/api/rooms/${studentRoom._id}/electricity-bill`),
+        api.get(`/api/admin/rooms/${studentRoom._id}/students`).catch(() => ({ data: { success: false, data: { students: [] } } }))
+      ]);
+
       if (!billsResponse.data.success) {
         throw new Error('Failed to fetch electricity bills');
       }
 
       const allBills = billsResponse.data.data || [];
-
-      // Get current student count for the room (for old format bills)
-      const studentsResponse = await api.get(`/api/admin/rooms/${studentRoom._id}/students`);
       const studentsInRoom = studentsResponse.data.success 
         ? (studentsResponse.data.data.students || []).length 
         : 0;
@@ -2051,7 +2135,14 @@ const FeeManagement = () => {
 
     } catch (error) {
       console.error('Error recording payment:', error);
-      toast.error('Failed to record payment');
+      // Show actual error message from backend
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to record payment';
+      toast.error(errorMessage);
+      console.error('Full error details:', {
+        message: errorMessage,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     } finally {
       setPaymentLoading(false);
     }
@@ -2104,33 +2195,40 @@ const FeeManagement = () => {
     });
 
     try {
-      // Get student's fee structure
+      // Get student's fee structure (synchronous, fast)
       const feeStructure = getFeeStructureForStudent(
         student.course, 
         student.year, 
         student.category, 
         student.academicYear,
         student.hostel,
-        student.hostelCategory
+        student.hostelCategory,
+        student.branch
       );
 
       if (!feeStructure) {
         toast.error('No fee structure found for this student');
+        setBalanceLoading(false);
         return;
       }
 
-      // Fetch all student's payments from backend (hostel_fee, electricity, and additional_fee)
-      const response = await api.get(`/api/payments/all?studentId=${student._id}&limit=1000`);
+      // OPTIMIZED: Make all API calls in parallel instead of sequentially
+      const [paymentsResponse, additionalFeesResponse] = await Promise.all([
+        // Fetch student's payments with academic year filter in query (backend filtering is faster)
+        api.get(`/api/payments/all?studentId=${student._id}&academicYear=${student.academicYear || ''}&limit=1000`),
+        // Fetch additional fees
+        api.get(`/api/fee-structures/additional-fees/${student.academicYear}`).catch(err => {
+          console.error('Error fetching additional fees:', err);
+          return { data: { success: false, data: {} } };
+        })
+      ]);
 
-      if (response.data.success) {
-        const allStudentPayments = response.data.data.payments || [];
-        // Filter by academic year if provided
-        const studentPaymentHistory = student.academicYear 
-          ? allStudentPayments.filter(p => p.academicYear === student.academicYear)
-          : allStudentPayments;
+      // Process payments response
+      if (paymentsResponse.data.success) {
+        const studentPaymentHistory = paymentsResponse.data.data.payments || [];
         setStudentPayments(studentPaymentHistory);
 
-        // Update local payments array with fetched payments
+        // Update local payments array with fetched payments (non-blocking)
         setPayments(prev => {
           const existingPayments = prev.filter(p => {
             const paymentStudentId = typeof p.studentId === 'object' ? p.studentId._id || p.studentId : p.studentId;
@@ -2143,27 +2241,26 @@ const FeeManagement = () => {
         setStudentPayments([]);
       }
 
-      // Fetch pending electricity bills for the student
-      await fetchPendingElectricityBills(student);
-
-      // Fetch configured additional fees for the student's academic year and category
-      try {
-        const additionalFeesResponse = await api.get(`/api/fee-structures/additional-fees/${student.academicYear}`);
-        if (additionalFeesResponse.data.success) {
-          const allAdditionalFees = additionalFeesResponse.data.data || {};
-          // Filter fees that apply to the student's category
-          const applicableFees = {};
-          Object.entries(allAdditionalFees).forEach(([feeType, feeData]) => {
-            if (feeData.isActive && feeData.categories && feeData.categories.includes(student.category)) {
-              applicableFees[feeType] = feeData;
-            }
-          });
-          setStudentAdditionalFees(applicableFees);
-        }
-      } catch (err) {
-        console.error('Error fetching additional fees:', err);
+      // Process additional fees response
+      if (additionalFeesResponse.data.success) {
+        const allAdditionalFees = additionalFeesResponse.data.data || {};
+        // Filter fees that apply to the student's category
+        const applicableFees = {};
+        Object.entries(allAdditionalFees).forEach(([feeType, feeData]) => {
+          if (feeData.isActive && feeData.categories && feeData.categories.includes(student.category)) {
+            applicableFees[feeType] = feeData;
+          }
+        });
+        setStudentAdditionalFees(applicableFees);
+      } else {
         setStudentAdditionalFees({});
       }
+
+      // Fetch pending electricity bills in background (non-blocking, can load after modal opens)
+      fetchPendingElectricityBills(student).catch(err => {
+        console.error('Error fetching pending electricity bills:', err);
+        setPendingElectricityBills([]);
+      });
 
     } catch (error) {
       console.error('Error fetching student balance:', error);
@@ -3630,7 +3727,8 @@ const FeeManagement = () => {
                                   student.category, 
                                   student.academicYear,
                                   student.hostel,
-                                  student.hostelCategory
+                                  student.hostelCategory,
+                                  student.branch
                                 );
                                 if (feeStructure) {
                                   const hasConcession = student.concession && student.concession > 0;
@@ -3677,7 +3775,8 @@ const FeeManagement = () => {
                                 student.category,
                                 student.academicYear,
                                 student.hostel,
-                                student.hostelCategory
+                                student.hostelCategory,
+                                student.branch
                               );
                               if (feeStructure) {
                                 const hasConcession = student.concession && student.concession > 0;
@@ -3889,7 +3988,8 @@ const FeeManagement = () => {
                                 student.category, 
                                 student.academicYear,
                                 student.hostel,
-                                student.hostelCategory
+                                student.hostelCategory,
+                                student.branch
                               );
                               if (feeStructure) {
                                 const hasConcession = student.concession && student.concession > 0;
@@ -3930,7 +4030,8 @@ const FeeManagement = () => {
                               student.category,
                               student.academicYear,
                               student.hostel,
-                              student.hostelCategory
+                              student.hostelCategory,
+                              student.branch
                             );
                             if (feeStructure) {
                               const hasConcession = student.concession && student.concession > 0;
@@ -5702,7 +5803,8 @@ const FeeManagement = () => {
                   selectedStudentForPayment.category, 
                   selectedStudentForPayment.academicYear,
                   selectedStudentForPayment.hostel, // Pass student's hostel ObjectId
-                  selectedStudentForPayment.hostelCategory // Pass student's hostelCategory ObjectId
+                  selectedStudentForPayment.hostelCategory, // Pass student's hostelCategory ObjectId
+                  selectedStudentForPayment.branch // Pass student's branch for matching
                 );
                   const hasConcession = selectedStudentForPayment.concession && selectedStudentForPayment.concession > 0;
                 
