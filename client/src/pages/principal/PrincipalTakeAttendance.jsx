@@ -25,6 +25,13 @@ const PrincipalTakeAttendance = () => {
     branch: '',
     gender: ''
   });
+  // Add course to filters if not already there
+  useEffect(() => {
+    setFilters(prev => ({
+      ...prev,
+      course: ''
+    }));
+  }, []);
   const [attendanceData, setAttendanceData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [allBranches, setAllBranches] = useState([]);
@@ -37,17 +44,28 @@ const PrincipalTakeAttendance = () => {
   }, [selectedDate, filters]);
 
   useEffect(() => {
-    if (user?.course) {
+    if (user?.course || (user?.assignedCourses && user.assignedCourses.length > 0)) {
+      // Initialize course filter if not set or empty
+      if (!filters.course) {
+        const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
+          ? user.assignedCourses[0]
+          : (typeof user.course === 'object' ? user.course.name : user.course);
+
+        setFilters(prev => ({ ...prev, course: defaultCourse }));
+      }
       fetchFilters();
-      
     }
-  }, [user?.course]);
+  }, [user?.course, user?.assignedCourses, filters.course]);
 
   const fetchStudents = async () => {
     setLoading(true);
     try {
       // Use principal-specific endpoint - server already filters by course
       const params = new URLSearchParams({ date: selectedDate });
+
+      // Pass the selected course explicitly if available
+      if (filters.course) params.append('course', filters.course);
+
       if (filters.gender) params.append('gender', filters.gender);
       if (filters.branch) params.append('branch', filters.branch);
       console.log('[DEBUG] Fetching students with params:', params.toString());
@@ -80,20 +98,28 @@ const PrincipalTakeAttendance = () => {
   const fetchFilters = async () => {
     setLoadingFilters(true);
     try {
-      // Get course name (now stored as string)
-      const courseName = typeof user.course === 'object' ? user.course.name : user.course;
+      // Use selected course filter or fallback to user's assigned course/first assigned course
+      const courseName = filters.course || (
+        (user.assignedCourses && user.assignedCourses.length > 0)
+          ? user.assignedCourses[0]
+          : (typeof user.course === 'object' ? user.course.name : user.course)
+      );
+
       if (!courseName) {
         setFilteredBranches([]);
         return;
       }
-      
+
       // Fetch all branches from SQL
       const res = await api.get('/api/course-management/branches');
       if (res.data.success) {
-        // Filter branches for this course by name
+        // Filter branches for this course by name (fuzzy check handling)
+        const normalize = (str) => str ? str.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+        const targetCourse = normalize(courseName);
+
         const filtered = res.data.data.filter(branch => {
           const branchCourseName = branch.course?.name || branch.courseName || branch.course;
-          return branchCourseName === courseName;
+          return normalize(branchCourseName) === targetCourse;
         });
         setFilteredBranches(filtered);
       } else {
@@ -182,7 +208,7 @@ const PrincipalTakeAttendance = () => {
 
   return (
     <div className="p-3 sm:p-6">
-      
+
 
       {/* Header */}
       <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mb-4 sm:mb-6">
@@ -218,6 +244,25 @@ const PrincipalTakeAttendance = () => {
                     className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
                   />
                 </div>
+
+                {/* Course Filter - Only show if user has multiple assigned courses */}
+                {user?.assignedCourses?.length > 1 && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Course</label>
+                    <select
+                      name="course"
+                      value={filters.course}
+                      onChange={handleFilterChange}
+                      className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                    >
+                      {user.assignedCourses.map((course) => (
+                        <option key={course} value={course}>
+                          {course}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Branch</label>

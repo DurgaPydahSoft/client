@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { 
-  MagnifyingGlassIcon, 
-  FunnelIcon, 
-  ChevronLeftIcon, 
+import {
+  MagnifyingGlassIcon,
+  FunnelIcon,
+  ChevronLeftIcon,
   ChevronRightIcon,
   EyeIcon,
   UserIcon,
@@ -41,10 +41,10 @@ const PrincipalStudents = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [error, setError] = useState(null);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
-  
+
   // Branches state for resolving branch names
   const [allBranches, setAllBranches] = useState([]);
-  
+
   // Filters
   const [filters, setFilters] = useState({
     search: '',
@@ -53,13 +53,14 @@ const PrincipalStudents = () => {
     roomNumber: '',
     batch: '',
     academicYear: '',
-    hostelStatus: ''
+    hostelStatus: '',
+    course: user?.assignedCourses?.[0] || user?.course || ''
   });
 
   // Student details modal
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  
+
   // Photo modal
   const [photoModal, setPhotoModal] = useState({ open: false, src: '', name: '' });
 
@@ -123,7 +124,7 @@ const PrincipalStudents = () => {
       setTableLoading(true);
     }
     setError(null);
-    
+
     try {
       const params = new URLSearchParams({
         page: currentPage,
@@ -138,6 +139,7 @@ const PrincipalStudents = () => {
       if (filters.batch) params.append('batch', filters.batch);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
       if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
+      if (filters.course) params.append('course', filters.course);
 
       console.log('🎓 Fetching students with params:', params.toString());
 
@@ -162,12 +164,12 @@ const PrincipalStudents = () => {
         setTableLoading(false);
       }
     }
-  }, [currentPage, filters.search, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
+  }, [currentPage, filters.search, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, filters.course, debouncedSearchTerm]);
 
   // Fetch students when currentPage or filters change
   useEffect(() => {
     fetchStudents(true);
-  }, [currentPage, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
+  }, [currentPage, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, filters.course, debouncedSearchTerm]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -208,24 +210,45 @@ const PrincipalStudents = () => {
 
   return (
     <div className="mx-auto mt-16 sm:mt-0">
-      <SEO 
+      <SEO
         title="Students - Principal Dashboard"
         description="View all students in your assigned course"
         keywords="students, principal, course management"
       />
-      
+
       {/* Header */}
       <div className="mb-6 sm:mb-8 px-3 sm:px-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg flex items-center justify-center">
-            <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg flex items-center justify-center">
+              <UserIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Students</h1>
+              <p className="text-xs sm:text-sm text-gray-600">
+                {user?.assignedCourses && user.assignedCourses.length > 1
+                  ? `${user.assignedCourses.length} Assigned Courses`
+                  : getCourseName(user?.course)} - {totalStudents} students
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Students</h1>
-            <p className="text-xs sm:text-sm text-gray-600">
-              {getCourseName(user?.course)} - {totalStudents} students
-            </p>
-          </div>
+
+          {/* Course Selector for Multi-Course Principals */}
+          {user?.assignedCourses && user.assignedCourses.length > 1 && (
+            <div className="w-full sm:w-64">
+              <select
+                value={filters.course || ''}
+                onChange={(e) => handleFilterChange('course', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm font-medium shadow-sm"
+              >
+                {user.assignedCourses.map((courseName, index) => (
+                  <option key={index} value={courseName}>
+                    {courseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -329,8 +352,8 @@ const PrincipalStudents = () => {
                 </tr>
               ) : (
                 students.map((student) => (
-                  <tr 
-                    key={student._id} 
+                  <tr
+                    key={student._id}
                     className="hover:bg-purple-50 cursor-pointer transition-all duration-200"
                     onClick={() => openStudentDetailsModal(student)}
                   >
@@ -451,11 +474,10 @@ const PrincipalStudents = () => {
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-xs sm:text-sm font-medium touch-manipulation ${
-                        page === currentPage
-                          ? 'z-10 bg-purple-50 border-purple-500 text-purple-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
+                      className={`relative inline-flex items-center px-3 sm:px-4 py-2 border text-xs sm:text-sm font-medium touch-manipulation ${page === currentPage
+                        ? 'z-10 bg-purple-50 border-purple-500 text-purple-600'
+                        : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                        }`}
                     >
                       {page}
                     </button>
@@ -613,23 +635,21 @@ const PrincipalStudents = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.hostelStatus === 'Active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                            }`}>
                             {selectedStudent.hostelStatus}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.graduationStatus === 'Graduated' 
-                              ? 'bg-blue-100 text-blue-800' 
-                              : selectedStudent.graduationStatus === 'Dropped'
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                            ? 'bg-blue-100 text-blue-800'
+                            : selectedStudent.graduationStatus === 'Dropped'
                               ? 'bg-gray-100 text-gray-800'
                               : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                            }`}>
                             {selectedStudent.graduationStatus}
                           </span>
                         </div>

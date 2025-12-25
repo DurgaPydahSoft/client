@@ -37,7 +37,9 @@ const PrincipalViewAttendance = () => {
     startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+
   const [filters, setFilters] = useState({
+    course: '', // Add course filter
     studentId: '',
     branch: '',
     gender: '',
@@ -69,16 +71,28 @@ const PrincipalViewAttendance = () => {
   }, [selectedDate, dateRange, viewMode, filters]);
 
   useEffect(() => {
-    if (user?.course) {
+    if (user?.course || (user?.assignedCourses && user.assignedCourses.length > 0)) {
+      // Initialize course filter if not set
+      if (!filters.course) {
+        const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
+          ? user.assignedCourses[0]
+          : (typeof user.course === 'object' ? user.course.name : user.course);
+
+        setFilters(prev => ({ ...prev, course: defaultCourse }));
+      }
       fetchFilters();
     }
-  }, [user?.course]);
+  }, [user?.course, user?.assignedCourses, filters.course]); // Add filters.course dependency for branch fetching
 
   const fetchAttendanceForDate = async () => {
     setLoading(true);
     try {
       // Server already filters by course for principals, no need to pass course parameter
       const params = new URLSearchParams({ date: selectedDate });
+
+      // Pass the selected course explicitly if available
+      if (filters.course) params.append('course', filters.course);
+
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
@@ -110,6 +124,10 @@ const PrincipalViewAttendance = () => {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate
       });
+
+      // Pass the selected course explicitly if available
+      if (filters.course) params.append('course', filters.course);
+
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
@@ -136,20 +154,28 @@ const PrincipalViewAttendance = () => {
   const fetchFilters = async () => {
     setLoadingFilters(true);
     try {
-      // Get course name (now stored as string)
-      const courseName = typeof user.course === 'object' ? user.course.name : user.course;
+      // Use selected course filter or fallback to user's assigned course/first assigned course
+      const courseName = filters.course || (
+        (user.assignedCourses && user.assignedCourses.length > 0)
+          ? user.assignedCourses[0]
+          : (typeof user.course === 'object' ? user.course.name : user.course)
+      );
+
       if (!courseName) {
         setFilteredBranches([]);
         return;
       }
-      
+
       // Fetch all branches from SQL
       const res = await api.get('/api/course-management/branches');
       if (res.data.success) {
-        // Filter branches for this course by name
+        // Filter branches for this course by name (fuzzy check handling)
+        const normalize = (str) => str ? str.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+        const targetCourse = normalize(courseName);
+
         const filtered = res.data.data.filter(branch => {
           const branchCourseName = branch.course?.name || branch.courseName || branch.course;
-          return branchCourseName === courseName;
+          return normalize(branchCourseName) === targetCourse;
         });
         setFilteredBranches(filtered);
       } else {
@@ -174,7 +200,7 @@ const PrincipalViewAttendance = () => {
   const getAttendanceStatus = (record) => {
     // Check if student is on leave first
     if (record.isOnLeave) return 'On Leave';
-    
+
     if (record.morning && record.evening && record.night) return 'Present';
     if (record.morning || record.evening || record.night) return 'Partial';
     return 'Absent';
@@ -255,8 +281,8 @@ const PrincipalViewAttendance = () => {
       const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 for 3 sessions
       // Exclude onLeaveDays from percentage calculation
       const daysForPercentage = totalDays - onLeaveDays;
-      studentData.summary.attendancePercentage = daysForPercentage > 0 
-        ? Math.round((effectivePresentDays / daysForPercentage) * 100) 
+      studentData.summary.attendancePercentage = daysForPercentage > 0
+        ? Math.round((effectivePresentDays / daysForPercentage) * 100)
         : 0;
     });
 
@@ -323,19 +349,23 @@ const PrincipalViewAttendance = () => {
         params.append('startDate', dateRange.startDate);
         params.append('endDate', dateRange.endDate);
       }
+
+      // Pass the selected course explicitly if available
+      if (filters.course) params.append('course', filters.course);
+
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
       if (filters.gender) params.append('gender', filters.gender);
 
       const response = await api.get(`/api/attendance/principal/report?${params}`);
-      
+
       if (!response.data.success) {
         throw new Error('Failed to fetch attendance data');
       }
 
       const attendanceData = response.data.data.attendance;
-      
+
       // Get unique dates for column headers
       const uniqueDates = [];
       if (viewMode === 'date') {
@@ -353,16 +383,16 @@ const PrincipalViewAttendance = () => {
 
       // Create table headers
       const tableHeaders = ['S.No', 'Name', 'Roll Number', 'Course', 'Branch'];
-      
+
       // Add date columns
       uniqueDates.forEach(date => {
         tableHeaders.push(date);
       });
-      
+
       // Create the worksheet with headers first
       const headerData = [tableHeaders];
       const worksheet = XLSX.utils.aoa_to_sheet(headerData);
-      
+
       // Apply bold styling to headers immediately
       tableHeaders.forEach((header, index) => {
         const cellRef = XLSX.utils.encode_cell({ r: 0, c: index });
@@ -380,10 +410,10 @@ const PrincipalViewAttendance = () => {
           };
         }
       });
-      
+
       // Group attendance by student
       const studentMap = new Map();
-      
+
       attendanceData.forEach(record => {
         const studentId = record.student?._id || record._id;
         if (!studentId) return;
@@ -405,7 +435,7 @@ const PrincipalViewAttendance = () => {
 
       studentMap.forEach((studentData) => {
         const { student, attendanceRecords } = studentData;
-        
+
         const row = [
           serialNumber++,
           student.name || 'Unknown',
@@ -437,10 +467,10 @@ const PrincipalViewAttendance = () => {
 
       // Add table data to worksheet
       XLSX.utils.sheet_add_aoa(worksheet, tableData, { origin: 'A2' });
-      
+
       // Apply styling to the worksheet
       const range = XLSX.utils.decode_range(worksheet['!ref']);
-      
+
       // Set column widths for better readability
       const columnWidths = [];
       tableHeaders.forEach((header, index) => {
@@ -452,7 +482,7 @@ const PrincipalViewAttendance = () => {
         else columnWidths.push(18); // Date columns
       });
       worksheet['!cols'] = columnWidths.map(width => ({ width }));
-      
+
       // Style the data rows with borders
       for (let row = 2; row < 2 + tableData.length; row++) {
         for (let col = 0; col <= range.e.c; col++) {
@@ -482,7 +512,7 @@ const PrincipalViewAttendance = () => {
 
       // Download the file
       XLSX.writeFile(workbook, filename);
-      
+
       toast.success('Excel report generated successfully!');
     } catch (error) {
       console.error('Error generating Excel report:', error);
@@ -503,9 +533,9 @@ const PrincipalViewAttendance = () => {
   return (
     <div className="p-3 sm:p-6">
       <SEO title="View Attendance - Principal Dashboard" />
-      
-      
-      
+
+
+
       {/* Photo Modal */}
       <Modal isOpen={photoModal.open} onClose={() => setPhotoModal({ open: false, src: '', name: '' })}>
         <div className="flex flex-col items-center justify-center p-4">
@@ -628,6 +658,25 @@ const PrincipalViewAttendance = () => {
                     <option value="range">Date Range</option>
                   </select>
                 </div>
+
+                {/* Course Filter - Only show if user has multiple assigned courses */}
+                {user?.assignedCourses?.length > 1 && (
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
+                    <select
+                      name="course"
+                      value={filters.course}
+                      onChange={handleFilterChange}
+                      className="w-full px-2.5 sm:px-3 py-2 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-xs sm:text-sm"
+                    >
+                      {user.assignedCourses.map((course) => (
+                        <option key={course} value={course}>
+                          {course}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Date Selector */}
                 {viewMode === 'date' ? (
@@ -855,7 +904,7 @@ const PrincipalViewAttendance = () => {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.morning ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -863,7 +912,7 @@ const PrincipalViewAttendance = () => {
                             <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.evening ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -871,7 +920,7 @@ const PrincipalViewAttendance = () => {
                             <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           {record.night ? (
                             <CheckIcon className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mx-auto" />
@@ -879,14 +928,14 @@ const PrincipalViewAttendance = () => {
                             <span className="text-gray-400 text-sm font-medium">-</span>
                           )}
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                             {getStatusIcon(status)}
                             <span className="ml-1">{status}</span>
                           </span>
                         </td>
-                        
+
                         <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500 hidden md:table-cell">
                           {record.notes || '-'}
                         </td>
@@ -896,7 +945,7 @@ const PrincipalViewAttendance = () => {
                     // Date range view - show student summaries
                     const { student, summary } = record;
                     const isExpanded = expandedStudents.has(student._id);
-                    
+
                     return (
                       <React.Fragment key={student._id}>
                         <motion.tr
@@ -934,39 +983,39 @@ const PrincipalViewAttendance = () => {
                               </div>
                             </div>
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center text-xs sm:text-sm text-gray-900">
                             {summary.totalDays}
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-green-600 bg-green-50">
                               <CheckIcon className="w-3 h-3 mr-1" />
                               {summary.presentDays}
                             </span>
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-yellow-600 bg-yellow-50">
                               <ClockIcon className="w-3 h-3 mr-1" />
                               {summary.partialDays}
                             </span>
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium text-red-600 bg-red-50">
                               <XMarkIcon className="w-3 h-3 mr-1" />
                               {summary.absentDays}
                             </span>
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
                               {getPercentageIcon(summary.attendancePercentage)}
                               <span className="ml-1">{summary.attendancePercentage}%</span>
                             </span>
                           </td>
-                          
+
                           <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-center">
                             <button
                               className="text-purple-600 hover:text-purple-900"
@@ -979,7 +1028,7 @@ const PrincipalViewAttendance = () => {
                             </button>
                           </td>
                         </motion.tr>
-                        
+
                         {/* Expanded details */}
                         {isExpanded && (
                           <tr>

@@ -203,7 +203,11 @@ const PrincipalDashboard = () => {
             </div>
             <div className="flex-1">
               <h1 className="font-semibold text-xs">Principal Portal</h1>
-              <p className="text-xs text-purple-100">{getCourseName(user?.course)}</p>
+              <p className="text-xs text-purple-100">
+                {user?.assignedCourses && user.assignedCourses.length > 1
+                  ? `${user.assignedCourses.length} Courses`
+                  : getCourseName(user?.course)}
+              </p>
             </div>
           </div>
         </div>
@@ -326,8 +330,10 @@ const PrincipalDashboard = () => {
                 {user?.name || 'Principal'}
               </div>
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-500 truncate">
-                  {user?.course ? `${getCourseName(user?.course)}` : 'Principal'}
+                <div className="text-xs text-gray-500 truncate" title={user?.assignedCourses?.length > 1 ? user.assignedCourses.join(', ') : getCourseName(user?.course)}>
+                  {user?.assignedCourses && user.assignedCourses.length > 1
+                    ? `${user.assignedCourses.length} Courses`
+                    : getCourseName(user?.course) || 'Principal'}
                 </div>
                 {/* Password Reset Icon */}
                 <motion.button

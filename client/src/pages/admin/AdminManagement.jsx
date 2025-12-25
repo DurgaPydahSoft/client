@@ -148,7 +148,8 @@ const AdminManagement = () => {
     email: '', // New field for email
     phoneNumber: '', // New field for phone number
     customRoleId: '', // New field for custom role assignment
-    principalEmail: '' // Email for principal (for leave notifications)
+    principalEmail: '', // Email for principal (for leave notifications)
+    principalCourses: [] // New field for principal multi-course selection
   });
   const [roleType, setRoleType] = useState('sub_admin'); // Track selected role type
   const [roleFormData, setRoleFormData] = useState({
@@ -247,13 +248,13 @@ const AdminManagement = () => {
     }
   };
 
-  // Handle course selection for leave management - store course names
-  const handleCourseSelection = (courseName, checked) => {
+  // Handle course selection for leave management or principal courses
+  const handleCourseSelection = (courseName, checked, fieldDataName = 'leaveManagementCourses') => {
     setFormData(prev => ({
       ...prev,
-      leaveManagementCourses: checked
-        ? [...prev.leaveManagementCourses, courseName]
-        : prev.leaveManagementCourses.filter(name => name !== courseName)
+      [fieldDataName]: checked
+        ? [...prev[fieldDataName], courseName]
+        : prev[fieldDataName].filter(name => name !== courseName)
     }));
   };
 
@@ -369,12 +370,13 @@ const AdminManagement = () => {
         requestData = { ...formData, hostelType: formData.hostelType };
       } else if (activeTab === 'principals') {
         endpoint = '/api/admin-management/principals';
-        requestData = { 
+        requestData = {
           username: formData.username,
           password: formData.password,
-          course: formData.course,
+          courses: formData.principalCourses, // Send array of courses
+          course: formData.principalCourses[0], // Legacy support
           branch: formData.branch || undefined, // Optional branch
-          email: formData.principalEmail 
+          email: formData.principalEmail
         };
       }
 
@@ -456,8 +458,9 @@ const AdminManagement = () => {
         }
       } else if (activeTab === 'principals') {
         endpoint = `/api/admin-management/principals/${selectedAdmin._id}`;
-        if (formData.course) {
-          updateData.course = formData.course;
+        if (formData.principalCourses && formData.principalCourses.length > 0) {
+          updateData.courses = formData.principalCourses;
+          updateData.course = formData.principalCourses[0]; // Legacy
         }
         if (formData.branch !== undefined) {
           updateData.branch = formData.branch || undefined; // Can be empty to clear
@@ -504,7 +507,8 @@ const AdminManagement = () => {
           passwordDeliveryMethod: '',
           email: '',
           phoneNumber: '',
-          principalEmail: ''
+          principalEmail: '',
+          principalCourses: []
         });
         setFilteredBranches([]);
         fetchData();
@@ -571,7 +575,8 @@ const AdminManagement = () => {
       email: '',
       phoneNumber: '',
       customRoleId: admin.customRoleId || '',
-      principalEmail: admin.email || '' // Load principal's email
+      principalEmail: admin.email || '', // Load principal's email
+      principalCourses: admin.assignedCourses || (admin.course ? [admin.course] : []) // Load principal's courses
     });
     setShowEditModal(true);
   };
@@ -622,21 +627,22 @@ const AdminManagement = () => {
     setSelectedAdmin(null);
     setSelectedRole(null);
     setRoleType('sub_admin');
-        setFormData({
-          username: '',
-          password: '',
-          permissions: [],
-          permissionAccessLevels: {},
-          hostelType: '',
-          course: '',
-          branch: '',
-          leaveManagementCourses: [],
-          passwordDeliveryMethod: '',
-          email: '',
-          phoneNumber: '',
-          customRoleId: '',
-          principalEmail: ''
-        });
+    setFormData({
+      username: '',
+      password: '',
+      permissions: [],
+      permissionAccessLevels: {},
+      hostelType: '',
+      course: '',
+      branch: '',
+      leaveManagementCourses: [],
+      passwordDeliveryMethod: '',
+      email: '',
+      phoneNumber: '',
+      customRoleId: '',
+      principalEmail: '',
+      principalCourses: []
+    });
     setPasswordResetData({
       newPassword: '',
       confirmPassword: ''
@@ -774,10 +780,12 @@ const AdminManagement = () => {
 
   // Fetch branches when course is selected for principal
   useEffect(() => {
-    if (activeTab === 'principals' && (showAddModal || showEditModal) && formData.course) {
-      console.log('🔍 Fetching branches for course:', formData.course);
+    // Only fetch branches if exactly one course is selected
+    if (activeTab === 'principals' && (showAddModal || showEditModal) && formData.principalCourses.length === 1) {
+      const courseName = formData.principalCourses[0];
+      console.log('🔍 Fetching branches for course:', courseName);
       // Find course ID from course name
-      const selectedCourse = courses.find(c => c.name === formData.course);
+      const selectedCourse = courses.find(c => c.name === courseName);
       if (selectedCourse) {
         api.get(`/api/course-management/branches/${selectedCourse._id}`)
           .then(res => {
@@ -797,8 +805,12 @@ const AdminManagement = () => {
       }
     } else {
       setFilteredBranches([]);
+      // Clear branch selection if multiple courses or no course selected
+      if (formData.branch) {
+        setFormData(prev => ({ ...prev, branch: '' }));
+      }
     }
-  }, [formData.course, activeTab, showAddModal, showEditModal, courses]);
+  }, [activeTab, showAddModal, showEditModal, formData.principalCourses, courses]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -833,8 +845,8 @@ const AdminManagement = () => {
         <button
           onClick={() => setActiveTab('sub-admins')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'sub-admins'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -843,8 +855,8 @@ const AdminManagement = () => {
         <button
           onClick={() => setActiveTab('wardens')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'wardens'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -853,8 +865,8 @@ const AdminManagement = () => {
         <button
           onClick={() => setActiveTab('principals')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'principals'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -863,8 +875,8 @@ const AdminManagement = () => {
         <button
           onClick={() => setActiveTab('custom-roles')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-2 rounded-md transition-colors whitespace-nowrap text-xs sm:text-sm ${activeTab === 'custom-roles'
-              ? 'bg-white text-blue-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+            ? 'bg-white text-blue-600 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
             }`}
         >
           <ShieldCheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -907,8 +919,8 @@ const AdminManagement = () => {
                               <span key={permission} className="px-1.5 sm:px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs flex items-center gap-1">
                                 <span className="truncate">{permissionLabel}</span>
                                 <span className={`px-1 py-0.5 rounded text-xs flex-shrink-0 ${accessLevel === 'full'
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-gray-100 text-gray-600'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-600'
                                   }`}>
                                   {accessLevel === 'full' ? 'Full' : 'View'}
                                 </span>
@@ -971,15 +983,15 @@ const AdminManagement = () => {
             ) : (
               <div className="p-4 sm:p-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {currentData.filter(admin => admin && admin._id).map((admin) => (
+                  {currentData.filter(admin => admin && admin._id).map((admin) => (
                     <div key={admin._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-md transition-all duration-200 hover:border-gray-300 flex flex-col h-full">
                       {/* Card Header */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${isWardenTab ? 'bg-green-100' : isPrincipalTab ? 'bg-purple-100' : 'bg-blue-100'}`}>
-                          {isWardenTab ? (
+                            {isWardenTab ? (
                               <HomeIcon className="w-5 h-5 text-green-600" />
-                          ) : isPrincipalTab ? (
+                            ) : isPrincipalTab ? (
                               <AcademicCapIcon className="w-5 h-5 text-purple-600" />
                             ) : (
                               <ShieldCheckIcon className="w-5 h-5 text-blue-600" />
@@ -988,9 +1000,9 @@ const AdminManagement = () => {
                           <div>
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {admin.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
+                              {admin.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <button
@@ -1000,7 +1012,7 @@ const AdminManagement = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                        {!isWardenTab && !isPrincipalTab && (
+                          {!isWardenTab && !isPrincipalTab && (
                             <button
                               onClick={() => openPasswordResetModal(admin)}
                               className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -1031,7 +1043,7 @@ const AdminManagement = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                   </svg>
                                   {admin.customRole || 'Unknown Role'}
-                              </span>
+                                </span>
                               </div>
                             )}
                           </div>
@@ -1044,22 +1056,34 @@ const AdminManagement = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.hostelType === 'boys'
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'bg-pink-50 text-pink-700'
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-pink-50 text-pink-700'
                               }`}>
                               {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
                             </span>
                           </div>
                         )}
 
-                        {isPrincipalTab && admin.course && (
-                          <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        {isPrincipalTab && (
+                          <div className="flex items-start gap-2">
+                            <svg className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                             </svg>
-                            <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate">
-                              {typeof admin.course === 'object' ? admin.course.name : admin.course}
-                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {admin.assignedCourses && admin.assignedCourses.length > 0 ? (
+                                admin.assignedCourses.map((course, idx) => (
+                                  <span key={idx} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
+                                    {course}
+                                  </span>
+                                ))
+                              ) : admin.course ? (
+                                <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
+                                  {typeof admin.course === 'object' ? admin.course.name : admin.course}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-500 italic">No course assigned</span>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -1086,43 +1110,43 @@ const AdminManagement = () => {
                             <div className="text-xs font-medium text-gray-600 mb-2">Permissions ({admin.permissions.length})</div>
                             <div className="flex flex-wrap gap-1">
                               {admin.permissions.slice(0, 3).map(permission => {
-                              const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
-                              const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
-                              return (
+                                const permissionLabel = PERMISSIONS.find(p => p.id === permission)?.label || permission;
+                                const accessLevel = admin.permissionAccessLevels?.[permission] || 'view';
+                                return (
                                   <span key={permission} className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs">
-                                  <span className="truncate">{permissionLabel}</span>
+                                    <span className="truncate">{permissionLabel}</span>
                                     <span className={`ml-1 px-1 py-0.5 rounded text-xs ${accessLevel === 'full'
                                       ? 'bg-green-100 text-green-700'
                                       : 'bg-gray-100 text-gray-600'
-                                    }`}>
-                                    {accessLevel === 'full' ? 'Full' : 'View'}
+                                      }`}>
+                                      {accessLevel === 'full' ? 'Full' : 'View'}
+                                    </span>
                                   </span>
-                                </span>
-                              );
-                            })}
+                                );
+                              })}
                               {admin.permissions.length > 3 && (
                                 <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">
                                   +{admin.permissions.length - 3} more
-                              </span>
-                            )}
+                                </span>
+                              )}
                             </div>
                           </div>
                         )}
 
                         {/* Role Type Badge */}
                         <div className="pt-2 border-t border-gray-100">
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isWardenTab 
-                              ? 'bg-green-50 text-green-700' 
-                              : isPrincipalTab 
-                                ? 'bg-purple-50 text-purple-700' 
-                                : 'bg-blue-50 text-blue-700'
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isWardenTab
+                            ? 'bg-green-50 text-green-700'
+                            : isPrincipalTab
+                              ? 'bg-purple-50 text-purple-700'
+                              : 'bg-blue-50 text-blue-700'
                             }`}>
                             {isWardenTab ? 'Warden' : isPrincipalTab ? 'Principal' : 'Sub-Admin'}
-                            </span>
-                          </div>
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 </div>
               </div>
             )}
@@ -1160,58 +1184,58 @@ const AdminManagement = () => {
               <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3">
                 {/* Basic Information - Two Column Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center gap-2">
                         <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                    Username <span className="text-red-500">*</span>
+                        Username <span className="text-red-500">*</span>
                       </div>
-                  </label>
+                    </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </div>
-                  <input
-                    type="text"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleFormChange}
-                    required
+                      <input
+                        type="text"
+                        name="username"
+                        value={formData.username}
+                        onChange={handleFormChange}
+                        required
                         className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter username"
-                  />
+                        placeholder="Enter username"
+                      />
                     </div>
-                </div>
+                  </div>
 
-                <div>
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center gap-2">
                         <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
-                    Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
-                    {showAddModal && <span className="text-red-500">*</span>}
+                        Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
+                        {showAddModal && <span className="text-red-500">*</span>}
                       </div>
-                  </label>
+                    </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                       </div>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleFormChange}
-                    required={showAddModal}
+                      <input
+                        type="password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleFormChange}
+                        required={showAddModal}
                         className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter password"
-                  />
+                        placeholder="Enter password"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1219,13 +1243,13 @@ const AdminManagement = () => {
                 {!isWardenTab && !isPrincipalTab && (
                   <div className="space-y-3">
                     {/* Role Type Selection */}
-                  <div>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         <div className="flex items-center gap-2">
                           <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                           </svg>
-                        Role Type
+                          Role Type
                         </div>
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -1393,84 +1417,84 @@ const AdminManagement = () => {
                             return (
                               <div key={permission.id} className="border border-gray-200 rounded-lg p-2 hover:bg-gray-50 transition-colors">
                                 <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  value={permission.id}
-                                  checked={formData.permissions.includes(permission.id)}
-                                  onChange={handleFormChange}
+                                  <input
+                                    type="checkbox"
+                                    value={permission.id}
+                                    checked={formData.permissions.includes(permission.id)}
+                                    onChange={handleFormChange}
                                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
+                                  />
                                   {getPermissionIcon(permission.id)}
                                   <span className="text-sm font-medium text-gray-700">{permission.label}</span>
-                              </label>
+                                </label>
 
-                              {/* Access Level Selector for each permission */}
-                              {formData.permissions.includes(permission.id) && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                                  <div className="text-xs font-medium text-blue-700 mb-1">
-                                    Access Level for {permission.label}
+                                {/* Access Level Selector for each permission */}
+                                {formData.permissions.includes(permission.id) && (
+                                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                    <div className="text-xs font-medium text-blue-700 mb-1">
+                                      Access Level for {permission.label}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <label className="flex items-center gap-2">
+                                        <input
+                                          type="radio"
+                                          name={`access_${permission.id}`}
+                                          value="view"
+                                          checked={formData.permissionAccessLevels[permission.id] === 'view'}
+                                          onChange={() => handleAccessLevelChange(permission.id, 'view')}
+                                          className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs text-blue-700">View Access</span>
+                                      </label>
+                                      <label className="flex items-center gap-2">
+                                        <input
+                                          type="radio"
+                                          name={`access_${permission.id}`}
+                                          value="full"
+                                          checked={formData.permissionAccessLevels[permission.id] === 'full'}
+                                          onChange={() => handleAccessLevelChange(permission.id, 'full')}
+                                          className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs text-blue-700">Full Access</span>
+                                      </label>
+                                    </div>
                                   </div>
-                                  <div className="flex gap-2">
-                                    <label className="flex items-center gap-2">
-                                      <input
-                                        type="radio"
-                                        name={`access_${permission.id}`}
-                                        value="view"
-                                        checked={formData.permissionAccessLevels[permission.id] === 'view'}
-                                        onChange={() => handleAccessLevelChange(permission.id, 'view')}
-                                        className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                      />
-                                      <span className="text-xs text-blue-700">View Access</span>
-                                    </label>
-                                    <label className="flex items-center gap-2">
-                                      <input
-                                        type="radio"
-                                        name={`access_${permission.id}`}
-                                        value="full"
-                                        checked={formData.permissionAccessLevels[permission.id] === 'full'}
-                                        onChange={() => handleAccessLevelChange(permission.id, 'full')}
-                                        className="w-3 h-3 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                      />
-                                      <span className="text-xs text-blue-700">Full Access</span>
-                                    </label>
-                                  </div>
-                                </div>
-                              )}
+                                )}
 
-                              {/* Course selection for Leave Management */}
-                              {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                                  <label className="block text-xs font-medium text-blue-700 mb-1">
-                                    Select Courses for Leave Management Access
-                                  </label>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-24 overflow-y-auto">
-                                    {courses.length > 0 ? (
-                                      courses.map(course => {
-                                        const isChecked = formData.leaveManagementCourses.includes(course.name);
-                                        return (
-                                          <label key={course._id} className="flex items-center gap-2">
-                                            <input
-                                              type="checkbox"
-                                              checked={isChecked}
-                                              onChange={(e) => handleCourseSelection(course.name, e.target.checked)}
-                                              className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                            />
-                                            <span className="text-xs text-blue-700 truncate">{course.name}</span>
-                                          </label>
-                                        );
-                                      })
-                                    ) : (
-                                      <p className="text-xs text-blue-600 col-span-2">Loading courses...</p>
+                                {/* Course selection for Leave Management */}
+                                {permission.id === 'leave_management' && formData.permissions.includes('leave_management') && (
+                                  <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                    <label className="block text-xs font-medium text-blue-700 mb-1">
+                                      Select Courses for Leave Management Access
+                                    </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 max-h-24 overflow-y-auto">
+                                      {courses.length > 0 ? (
+                                        courses.map(course => {
+                                          const isChecked = formData.leaveManagementCourses.includes(course.name);
+                                          return (
+                                            <label key={course._id} className="flex items-center gap-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={(e) => handleCourseSelection(course.name, e.target.checked)}
+                                                className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                              />
+                                              <span className="text-xs text-blue-700 truncate">{course.name}</span>
+                                            </label>
+                                          );
+                                        })
+                                      ) : (
+                                        <p className="text-xs text-blue-600 col-span-2">Loading courses...</p>
+                                      )}
+                                    </div>
+                                    {formData.leaveManagementCourses.length === 0 && (
+                                      <p className="text-xs text-red-600 mt-2">Please select at least one course</p>
                                     )}
                                   </div>
-                                  {formData.leaveManagementCourses.length === 0 && (
-                                    <p className="text-xs text-red-600 mt-2">Please select at least one course</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     ) : (
@@ -1509,7 +1533,7 @@ const AdminManagement = () => {
                         <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                      Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
+                        Password Delivery Method <span className="text-gray-500 text-xs">(Optional)</span>
                       </div>
                     </label>
                     <p className="text-xs text-gray-600 mb-3">
@@ -1586,15 +1610,15 @@ const AdminManagement = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                           </div>
-                        <input
-                          type="email"
-                          name="email"
-                          value={formData.email}
-                          onChange={handleFormChange}
-                          required={formData.passwordDeliveryMethod === 'email'}
+                          <input
+                            type="email"
+                            name="email"
+                            value={formData.email}
+                            onChange={handleFormChange}
+                            required={formData.passwordDeliveryMethod === 'email'}
                             className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter email address"
-                        />
+                            placeholder="Enter email address"
+                          />
                         </div>
                       </div>
                     )}
@@ -1616,15 +1640,15 @@ const AdminManagement = () => {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
                           </div>
-                        <input
-                          type="tel"
-                          name="phoneNumber"
-                          value={formData.phoneNumber}
-                          onChange={handleFormChange}
-                          required={formData.passwordDeliveryMethod === 'mobile'}
+                          <input
+                            type="tel"
+                            name="phoneNumber"
+                            value={formData.phoneNumber}
+                            onChange={handleFormChange}
+                            required={formData.passwordDeliveryMethod === 'mobile'}
                             className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter phone number (e.g., 9876543210)"
-                        />
+                            placeholder="Enter phone number (e.g., 9876543210)"
+                          />
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           Enter 10-digit phone number without country code
@@ -1643,120 +1667,128 @@ const AdminManagement = () => {
                         {isWardenTab ? "Warden Permissions" : "Principal Permissions"}
                       </h3>
                       <p className="text-xs text-gray-700">
-                        {isWardenTab 
+                        {isWardenTab
                           ? "Wardens have access to student oversight, complaint management, leave approval, room monitoring, announcements, discipline management, and attendance tracking."
                           : "Principals have access to attendance management, student oversight, and course-specific analytics."
                         }
-                    </p>
-                  </div>
+                      </p>
+                    </div>
 
                     {/* Configuration Section */}
                     <div className="space-y-3">
-                {isWardenTab && (
-                  <div>
+                      {isWardenTab && (
+                        <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Hostel Type <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="hostelType"
-                      value={formData.hostelType}
-                      onChange={handleFormChange}
-                      required={isWardenTab}
+                            Hostel Type <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            name="hostelType"
+                            value={formData.hostelType}
+                            onChange={handleFormChange}
+                            required={isWardenTab}
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Select Hostel Type</option>
-                      <option value="boys">Boys Hostel</option>
-                      <option value="girls">Girls Hostel</option>
-                    </select>
-                  </div>
-                )}
+                          >
+                            <option value="">Select Hostel Type</option>
+                            <option value="boys">Boys Hostel</option>
+                            <option value="girls">Girls Hostel</option>
+                          </select>
+                        </div>
+                      )}
 
-                {isPrincipalTab && (
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Course <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        name="course"
-                        value={formData.course}
-                        onChange={handleFormChange}
-                        required={isPrincipalTab}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select Course ({courses.length} available)</option>
-                        {courses.length > 0 ? (
-                          courses.map(course => (
-                            <option key={course._id} value={course.name}>
-                              {course.name} ({course.code})
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>Loading courses...</option>
-                        )}
-                      </select>
-                    </div>
-                    
-                    {/* Branch field for principal (optional) */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Branch <span className="text-gray-500 text-xs">(Optional - leave empty for all branches)</span>
-                      </label>
-                      <select
-                        name="branch"
-                        value={formData.branch}
-                        onChange={handleFormChange}
-                        disabled={!formData.course}
-                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                      >
-                        <option value="">All Branches</option>
-                        {filteredBranches.length > 0 ? (
-                          filteredBranches.map(branch => (
-                            <option key={branch._id} value={branch.name}>
-                              {branch.name} ({branch.code})
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>
-                            {formData.course ? 'Loading branches...' : 'Select course first'}
-                          </option>
-                        )}
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formData.branch ? `Principal will only see students from ${formData.branch} branch` : 'Principal will see students from all branches of the selected course'}
-                      </p>
-                    </div>
-                    
-                    {/* Email field for principal */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                          Email Address <span className="text-gray-500 text-xs">(for leave notifications)</span>
+                      {isPrincipalTab && (
+                        <div className="space-y-3">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Select Courses <span className="text-red-500">*</span>
+                            </label>
+                            <div className="border border-gray-300 rounded-lg p-2 max-h-48 overflow-y-auto bg-white">
+                              {courses.length > 0 ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {courses.map(course => (
+                                    <label key={course._id} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
+                                      <input
+                                        type="checkbox"
+                                        checked={formData.principalCourses.includes(course.name)}
+                                        onChange={(e) => handleCourseSelection(course.name, e.target.checked, 'principalCourses')}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                      />
+                                      <span className="text-sm text-gray-700">{course.name} ({course.code})</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500">Loading courses...</p>
+                              )}
+                            </div>
+                            {formData.principalCourses.length === 0 && (
+                              <p className="text-xs text-red-500 mt-1">Please select at least one course</p>
+                            )}
+                          </div>
+
+                          {/* Branch field for principal (optional) */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Branch <span className="text-gray-500 text-xs">(Optional - available only for single course assignment)</span>
+                            </label>
+                            <select
+                              name="branch"
+                              value={formData.branch}
+                              onChange={handleFormChange}
+                              disabled={formData.principalCourses.length !== 1}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+                            >
+                              <option value="">All Branches</option>
+                              {filteredBranches.length > 0 ? (
+                                filteredBranches.map(branch => (
+                                  <option key={branch._id} value={branch.name}>
+                                    {branch.name} ({branch.code})
+                                  </option>
+                                ))
+                              ) : (
+                                <option value="" disabled>
+                                  {formData.principalCourses.length === 1 ? 'Loading branches...' : 'Select exactly one course to enable branch selection'}
+                                </option>
+                              )}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formData.principalCourses.length > 1
+                                ? 'Branch selection is disabled when multiple courses are assigned. Principal will see all branches for assigned courses.'
+                                : formData.branch
+                                  ? `Principal will only see students from ${formData.branch} branch`
+                                  : 'Principal will see students from all branches of the selected course'}
+                            </p>
+                          </div>
+
+                          {/* Email field for principal */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                Email Address <span className="text-gray-500 text-xs">(for leave notifications)</span>
+                              </div>
+                            </label>
+                            <div className="relative">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                              <input
+                                type="email"
+                                name="principalEmail"
+                                value={formData.principalEmail}
+                                onChange={handleFormChange}
+                                className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                placeholder="Enter principal's email address"
+                              />
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Principal will receive email notifications when leave requests are forwarded for approval
+                            </p>
+                          </div>
                         </div>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <input
-                          type="email"
-                          name="principalEmail"
-                          value={formData.principalEmail}
-                          onChange={handleFormChange}
-                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter principal's email address"
-                        />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Principal will receive email notifications when leave requests are forwarded for approval
-                      </p>
-                    </div>
-                  </div>
                       )}
                     </div>
                   </div>

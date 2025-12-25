@@ -40,7 +40,7 @@ const formatDateWithOrdinal = (date) => {
   const day = date.getDate();
   const month = date.toLocaleDateString('en-US', { month: 'long' });
   const year = date.getFullYear();
-  
+
   // Add ordinal suffix to day
   const getOrdinalSuffix = (day) => {
     if (day > 3 && day < 21) return 'th';
@@ -51,7 +51,7 @@ const formatDateWithOrdinal = (date) => {
       default: return 'th';
     }
   };
-  
+
   return `${day}${getOrdinalSuffix(day)} ${month} ${year}`;
 };
 
@@ -102,7 +102,7 @@ const StudentCard = ({ student }) => {
       className="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden"
     >
       {/* Main Card - Always Visible */}
-      <div 
+      <div
         className="p-3 sm:p-4 cursor-pointer hover:bg-gray-100 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
       >
@@ -123,7 +123,7 @@ const StudentCard = ({ student }) => {
               </div>
             )}
           </div>
-          
+
           {/* Student Name and Basic Info */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
@@ -133,7 +133,7 @@ const StudentCard = ({ student }) => {
               {student.rollNumber} • {getCourseNameFromObject(student.course)} {student.year}
             </p>
           </div>
-          
+
           {/* Status Badge */}
           <div className="flex-shrink-0">
             <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status)}`}>
@@ -142,7 +142,7 @@ const StudentCard = ({ student }) => {
               <span className="ml-1 sm:hidden">{student.status.charAt(0)}</span>
             </span>
           </div>
-          
+
           {/* Expand/Collapse Icon */}
           <div className="flex-shrink-0">
             {isExpanded ? (
@@ -153,7 +153,7 @@ const StudentCard = ({ student }) => {
           </div>
         </div>
       </div>
-      
+
       {/* Expanded Details */}
       <motion.div
         initial={false}
@@ -175,7 +175,7 @@ const StudentCard = ({ student }) => {
               <p className="text-sm text-gray-600">{student.gender}</p>
             </div>
           </div>
-          
+
           {/* Attendance Session Details */}
           {student.morning !== undefined && (
             <div>
@@ -241,10 +241,10 @@ const PrincipalHome = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Always fetch today's stats
       const today = new Date().toISOString().split('T')[0];
-      
+
       // Server already filters by course for principals, no need to pass course parameter
       const [statsRes, studentsRes, detailedStatsRes] = await Promise.all([
         api.get(`/api/attendance/principal/stats?date=${today}`),
@@ -291,7 +291,7 @@ const PrincipalHome = () => {
       // Always use today's date for the modal
       const today = new Date().toISOString().split('T')[0];
       const response = await api.get(`/api/attendance/principal/students/by-status?date=${today}&status=${status}`);
-      
+
       if (response.data.success) {
         setStudentsModal({
           open: true,
@@ -375,7 +375,7 @@ const PrincipalHome = () => {
   return (
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
       <SEO title="Principal Dashboard" />
-      
+
       <div className="mx-auto">
         {/* Header */}
         <motion.div
@@ -390,13 +390,19 @@ const PrincipalHome = () => {
                 <span className="bg-gradient-to-r from-purple-900 to-purple-700 text-transparent bg-clip-text">Principal Dashboard</span>
               </h1>
               <p className="text-gray-600 mt-1 text-xs sm:text-sm">
-                Welcome back, {user?.name || 'Principal'}! Here's an overview of your {getCourseName(user?.course)} management.
+                Welcome back, {user?.name || 'Principal'}! Here's an overview of your{' '}
+                {user?.assignedCourses && user.assignedCourses.length > 1
+                  ? `${user.assignedCourses.length} assigned courses`
+                  : `${getCourseName(user?.course)} management`}
+                .
               </p>
             </div>
             <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-50 rounded-lg">
               <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               <span className="text-xs sm:text-sm font-medium text-purple-700">
-                {getCourseName(user?.course)}
+                {user?.assignedCourses && user.assignedCourses.length > 1
+                  ? 'Multiple Courses Assigned'
+                  : getCourseName(user?.course)}
               </span>
             </div>
           </div>
@@ -414,7 +420,7 @@ const PrincipalHome = () => {
             value={stats.totalStudents}
             icon={UserGroupIcon}
             color="bg-blue-500"
-            subtitle="Enrolled in course"
+            subtitle="Enrolled"
             clickable={true}
             onClick={() => handleStatClick('All')}
           />
@@ -466,7 +472,7 @@ const PrincipalHome = () => {
             Detailed Attendance Statistics
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('Morning')}
               whileHover={{ scale: 1.02 }}
@@ -481,7 +487,7 @@ const PrincipalHome = () => {
               <p className="text-xs sm:text-sm text-gray-500">Morning Present</p>
               <p className="text-sm sm:text-lg md:text-2xl font-bold text-yellow-600">{stats.morningPresent}</p>
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('Evening')}
               whileHover={{ scale: 1.02 }}
@@ -496,7 +502,7 @@ const PrincipalHome = () => {
               <p className="text-xs sm:text-sm text-gray-500">Evening Present</p>
               <p className="text-sm sm:text-lg md:text-2xl font-bold text-indigo-600">{stats.eveningPresent}</p>
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('Night')}
               whileHover={{ scale: 1.02 }}
@@ -511,7 +517,7 @@ const PrincipalHome = () => {
               <p className="text-xs sm:text-sm text-gray-500">Night Present</p>
               <p className="text-sm sm:text-lg md:text-2xl font-bold text-blue-600">{stats.nightPresent}</p>
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('Present')}
               whileHover={{ scale: 1.02 }}
@@ -526,7 +532,7 @@ const PrincipalHome = () => {
               <p className="text-xs sm:text-sm text-gray-500">Fully Present</p>
               <p className="text-sm sm:text-lg md:text-2xl font-bold text-green-600">{stats.fullyPresent}</p>
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('Partial')}
               whileHover={{ scale: 1.02 }}
@@ -541,7 +547,7 @@ const PrincipalHome = () => {
               <p className="text-xs sm:text-sm text-gray-500">Partially Present</p>
               <p className="text-sm sm:text-lg md:text-2xl font-bold text-orange-600">{stats.partiallyPresent}</p>
             </motion.div>
-            <motion.div 
+            <motion.div
               className="text-center cursor-pointer hover:bg-gray-50 rounded-lg p-2 sm:p-3 transition-colors relative group"
               onClick={() => handleStatClick('On Leave')}
               whileHover={{ scale: 1.02 }}
@@ -580,7 +586,7 @@ const PrincipalHome = () => {
                 <p className="text-xs sm:text-sm text-purple-600">View and manage attendance</p>
               </div>
             </motion.button>
-            
+
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -593,7 +599,7 @@ const PrincipalHome = () => {
                 <p className="text-xs sm:text-sm text-blue-600">Manage student information</p>
               </div>
             </motion.button>
-            
+
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -647,7 +653,12 @@ const PrincipalHome = () => {
             <div>
               <h3 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Course Details</h3>
               <div className="space-y-2 text-xs sm:text-sm text-gray-600">
-                <p><span className="font-medium">Course:</span> {getCourseName(user?.course)}</p>
+                <p>
+                  <span className="font-medium">Course:</span>{' '}
+                  {user?.assignedCourses && user.assignedCourses.length > 1
+                    ? user.assignedCourses.join(', ')
+                    : getCourseName(user?.course)}
+                </p>
                 <p><span className="font-medium">Total Students:</span> {stats.totalStudents}</p>
                 <p><span className="font-medium">Today's Attendance:</span> {stats.attendanceRate}%</p>
               </div>
