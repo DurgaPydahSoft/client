@@ -215,7 +215,7 @@ const StaffGuestsManagement = () => {
 
   // Fetch rooms when category changes
   useEffect(() => {
-    if (formData.type === 'staff' && formData.categoryId && showForm) {
+    if (['staff', 'warden'].includes(formData.type) && formData.categoryId && showForm) {
       fetchRoomsForStaff();
     } else {
       setRoomsWithAvailability([]);
@@ -312,7 +312,7 @@ const StaffGuestsManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
-    
+
     // When charge type changes, reset the related fields
     if (name === 'chargeType') {
       setFormData(prev => ({
@@ -341,15 +341,21 @@ const StaffGuestsManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      console.log('Form data being submitted:', formData);
+      // Create a copy and inject defaults for Warden
+      const dataToProcess = { ...formData };
+      if (dataToProcess.type === 'warden') {
+        dataToProcess.profession = 'Warden';
+      }
+
+      console.log('Form data being submitted:', dataToProcess);
       const formDataToSend = new FormData();
-      Object.keys(formData).forEach(key => {
+      Object.keys(dataToProcess).forEach(key => {
         if (key === 'existingPhoto') {
           // Skip existingPhoto as it's just for display
           return;
         }
-        if (formData[key] !== null && formData[key] !== '') {
-          formDataToSend.append(key, formData[key]);
+        if (dataToProcess[key] !== null && dataToProcess[key] !== '') {
+          formDataToSend.append(key, dataToProcess[key]);
         }
       });
 
@@ -402,8 +408,8 @@ const StaffGuestsManagement = () => {
         photo: null,
         existingPhoto: null
       });
-    fetchStaffGuests();
-    fetchStats();
+      fetchStaffGuests();
+      fetchStats();
     } catch (error) {
       console.error('Error saving staff/guest:', error);
       toast.error(error.response?.data?.message || 'Failed to save staff/guest');
@@ -412,7 +418,7 @@ const StaffGuestsManagement = () => {
 
   const handleEdit = async (staffGuest) => {
     setEditingStaffGuest(staffGuest);
-    
+
     // Populate form with existing data
     const initialFormData = {
       name: staffGuest.name,
@@ -438,10 +444,10 @@ const StaffGuestsManagement = () => {
       photo: null, // New photo file (if selected)
       existingPhoto: staffGuest.photo // Keep existing photo URL
     };
-    
+
     setFormData(initialFormData);
     setShowForm(true);
-    
+
     // Fetch hostels and populate categories/rooms if hostelId exists
     if (initialFormData.hostelId) {
       await fetchHostels();
@@ -532,16 +538,16 @@ const StaffGuestsManagement = () => {
     if (staffGuest.type === 'staff' && !staffGuest.isActive) {
       return true;
     }
-    
+
     if (staffGuest.type !== 'staff' || staffGuest.stayType !== 'monthly' || !staffGuest.selectedMonth) {
       return false;
     }
-    
+
     const [year, month] = staffGuest.selectedMonth.split('-').map(Number);
     const lastDayOfMonth = new Date(year, month, 0); // Last day of selected month
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     return today > lastDayOfMonth;
   };
 
@@ -566,7 +572,7 @@ const StaffGuestsManagement = () => {
         setRenewalForm({ selectedMonth: '', roomNumber: '', bedNumber: '' });
         fetchStaffGuests();
         fetchStats();
-        
+
         // Generate admit card for the renewed period
         if (response.data.data) {
           generateStaffAdmitCardPDF(response.data.data);
@@ -719,7 +725,7 @@ const StaffGuestsManagement = () => {
         // For guests, charges are always 0
         const isGuest = staffGuestWithPhoto.type === 'guest';
         const dailyRate = isGuest ? 0 : (staffGuestWithPhoto.dailyRate || dailyRateSettings.staffDailyRate || 100);
-        
+
         // Calculate day count - for monthly staff, calculate days in the selected month
         let dayCount = 0;
         if (!isGuest) {
@@ -736,7 +742,7 @@ const StaffGuestsManagement = () => {
             dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
           }
         }
-        
+
         const totalCharges = isGuest ? 0 : (dailyRate * dayCount);
         const actualCharges = isGuest ? 0 : (staffGuestWithPhoto.calculatedCharges || totalCharges);
         const staffGender = staffGuestWithPhoto.gender?.toLowerCase();
@@ -846,14 +852,14 @@ const StaffGuestsManagement = () => {
           doc.setFont('helvetica', 'normal'); // Set to normal for list items
           doc.setFontSize(7);
           doc.text(`Daily Rate: Rs.${dailyRate} per day`, chargesSummaryX, emergencyY + 5);
-          
+
           // Show stay type and duration
           if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
             const monthName = new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             doc.text(`Stay Type: Monthly Basis`, chargesSummaryX, emergencyY + 10);
             doc.text(`Valid Month: ${monthName}`, chargesSummaryX, emergencyY + 15);
             doc.text(`Days in Month: ${dayCount} days`, chargesSummaryX, emergencyY + 20);
-            
+
             // Show validity expiration warning if expired
             if (staffGuestWithPhoto.isValidityExpired) {
               doc.setFont('helvetica', 'bold');
@@ -865,7 +871,7 @@ const StaffGuestsManagement = () => {
           } else {
             doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 10);
           }
-          
+
           // Base Amount position - adjust based on monthly vs daily and expiration
           let baseAmountY;
           if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
@@ -877,7 +883,7 @@ const StaffGuestsManagement = () => {
 
           // Total Payable position - always 5mm below Base Amount
           const totalPayableY = baseAmountY + 5;
-          
+
           if (actualCharges !== totalCharges) {
             doc.text(`- Adjustment: Rs.${totalCharges - actualCharges}`, chargesSummaryX, totalPayableY);
             doc.setFont('helvetica', 'bold');
@@ -1210,8 +1216,8 @@ const StaffGuestsManagement = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {console.log('Rendering table with staffGuests:', staffGuests)}
                       {staffGuests && staffGuests.length > 0 ? staffGuests.map((staffGuest) => (
-                        <tr 
-                          key={staffGuest._id} 
+                        <tr
+                          key={staffGuest._id}
                           className="hover:bg-gray-50 cursor-pointer transition-colors"
                           onClick={() => {
                             setSelectedStaffGuest(staffGuest);
@@ -1272,11 +1278,10 @@ const StaffGuestsManagement = () => {
                               (() => {
                                 const isExpired = checkValidityExpired(staffGuest);
                                 return (
-                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                    staffGuest.stayType === 'monthly' 
-                                      ? (isExpired ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
-                                      : 'bg-blue-100 text-blue-800'
-                                  }`}>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${staffGuest.stayType === 'monthly'
+                                    ? (isExpired ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
+                                    : 'bg-blue-100 text-blue-800'
+                                    }`}>
                                     {staffGuest.stayType === 'monthly' ? (
                                       <>
                                         Monthly
@@ -1293,8 +1298,8 @@ const StaffGuestsManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className="font-medium text-green-600">
-                              ₹{typeof staffGuest.calculatedCharges === 'number' 
-                                ? staffGuest.calculatedCharges.toLocaleString('en-IN') 
+                              ₹{typeof staffGuest.calculatedCharges === 'number'
+                                ? staffGuest.calculatedCharges.toLocaleString('en-IN')
                                 : (staffGuest.calculatedCharges || 0)}
                             </span>
                           </td>
@@ -1648,8 +1653,8 @@ const StaffGuestsManagement = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <span className="font-medium text-green-600">
-                              ₹{typeof staffGuest.calculatedCharges === 'number' 
-                                ? staffGuest.calculatedCharges.toLocaleString('en-IN') 
+                              ₹{typeof staffGuest.calculatedCharges === 'number'
+                                ? staffGuest.calculatedCharges.toLocaleString('en-IN')
                                 : (staffGuest.calculatedCharges || 0)}
                             </span>
                           </td>
@@ -1813,8 +1818,8 @@ const StaffGuestsManagement = () => {
                               <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
                               <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
                               <p>• Base Amount: ₹{(admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100) * (admitCardData.dayCount || 0)}</p>
-                              <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number' 
-                                ? admitCardData.calculatedCharges.toLocaleString('en-IN') 
+                              <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number'
+                                ? admitCardData.calculatedCharges.toLocaleString('en-IN')
                                 : (admitCardData.calculatedCharges || 0)}</p>
                             </div>
                           )}
@@ -1993,10 +1998,11 @@ const StaffGuestsManagement = () => {
                           <option value="staff">Staff</option>
                           <option value="guest">Guest</option>
                           <option value="student">Student</option>
+                          <option value="warden">Warden</option>
                         </select>
                       </div>
 
-                      <div>
+                      {formData.type !== 'warden' && (<div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Gender *
                         </label>
@@ -2011,9 +2017,9 @@ const StaffGuestsManagement = () => {
                           <option value="Female">Female</option>
                           <option value="Other">Other</option>
                         </select>
-                      </div>
+                      </div>)}
 
-                      <div>
+                      {formData.type !== 'warden' && (<div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Profession *
                         </label>
@@ -2025,7 +2031,7 @@ const StaffGuestsManagement = () => {
                           required
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                      </div>
+                      </div>)}
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2042,7 +2048,7 @@ const StaffGuestsManagement = () => {
                         />
                       </div>
 
-                      <div>
+                      {formData.type !== 'warden' && (<div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Email
                         </label>
@@ -2053,7 +2059,7 @@ const StaffGuestsManagement = () => {
                           onChange={handleInputChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                      </div>
+                      </div>)}
 
                       {['staff', 'student'].includes(formData.type) && (
                         <div>
@@ -2070,7 +2076,7 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      <div>
+                      {formData.type !== 'warden' && (<div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Purpose
                         </label>
@@ -2082,7 +2088,7 @@ const StaffGuestsManagement = () => {
                           placeholder="Enter purpose of visit/stay"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                      </div>
+                      </div>)}
 
                       {/* Stay Type Selection - Only for Staff */}
                       {formData.type === 'staff' && (
@@ -2117,8 +2123,8 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      {/* Date Fields - For Daily Basis Staff or Non-Staff */}
-                      {formData.type !== 'staff' || formData.stayType === 'daily' ? (
+                      {/* Date Fields - For Daily Basis Staff or Non-Staff (excluding Warden) */}
+                      {(formData.type !== 'staff' && formData.type !== 'warden') || (formData.type === 'staff' && formData.stayType === 'daily') ? (
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2169,8 +2175,8 @@ const StaffGuestsManagement = () => {
                         </div>
                       )}
 
-                      {/* Room Allocation - Only for Staff - New Hierarchy */}
-                      {formData.type === 'staff' && (
+                      {/* Room Allocation - For Staff and Warden - New Hierarchy */}
+                      {['staff', 'warden'].includes(formData.type) && (
                         <>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2265,7 +2271,7 @@ const StaffGuestsManagement = () => {
                             )}
                           </div>
 
-                          <div>
+                          {formData.type === 'staff' && (<div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                               Bed Number (Optional)
                             </label>
@@ -2280,7 +2286,7 @@ const StaffGuestsManagement = () => {
                             <p className="text-xs text-gray-500 mt-1">
                               Specify bed number within the room (optional)
                             </p>
-                          </div>
+                          </div>)}
                         </>
                       )}
 
@@ -2292,7 +2298,7 @@ const StaffGuestsManagement = () => {
                               <CurrencyDollarIcon className="w-4 h-4 mr-2 text-blue-600" />
                               Charges Information
                             </h4>
-                            
+
                             {/* Charge Type Selection - Only for Monthly Staff */}
                             {formData.type === 'staff' && formData.stayType === 'monthly' && (
                               <div className="mb-4 bg-white rounded-lg p-4 border border-blue-100">
@@ -2376,7 +2382,7 @@ const StaffGuestsManagement = () => {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* Calculated Charges */}
                               <div className="bg-white rounded-lg p-4 border border-green-100">
                                 <div className="text-sm font-medium text-gray-600 mb-3">Calculated Charges</div>
@@ -2386,8 +2392,8 @@ const StaffGuestsManagement = () => {
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
                                         // Monthly fixed amount
                                         if (formData.chargeType === 'monthly_fixed') {
-                                          const amount = formData.monthlyFixedAmount 
-                                            ? parseFloat(formData.monthlyFixedAmount) 
+                                          const amount = formData.monthlyFixedAmount
+                                            ? parseFloat(formData.monthlyFixedAmount)
                                             : (dailyRateSettings.monthlyFixedAmount || 3000);
                                           return amount.toLocaleString();
                                         }
@@ -2412,8 +2418,8 @@ const StaffGuestsManagement = () => {
                                     {(() => {
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
                                         if (formData.chargeType === 'monthly_fixed') {
-                                          const amount = formData.monthlyFixedAmount 
-                                            ? parseFloat(formData.monthlyFixedAmount) 
+                                          const amount = formData.monthlyFixedAmount
+                                            ? parseFloat(formData.monthlyFixedAmount)
                                             : (dailyRateSettings.monthlyFixedAmount || 3000);
                                           return `Fixed amount: ₹${amount.toLocaleString()}`;
                                         }
@@ -2429,14 +2435,14 @@ const StaffGuestsManagement = () => {
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
                                         return `${dayCount} days × ₹${rateToUse}`;
                                       }
-                                      return formData.type === 'staff' && formData.stayType === 'monthly' 
-                                        ? 'Select month to calculate' 
+                                      return formData.type === 'staff' && formData.stayType === 'monthly'
+                                        ? 'Select month to calculate'
                                         : 'Enter check-in date to calculate';
                                     })()}
                                   </div>
                                 </div>
                               </div>
-                              
+
                               {/* Default Rate - Only show for per_day charge type */}
                               {!(formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed') && (
                                 <div className="bg-white rounded-lg p-4 border border-purple-100">
@@ -2658,11 +2664,10 @@ const StaffGuestsManagement = () => {
                           <div>
                             <span className="text-sm font-medium text-gray-600">Stay Type:</span>
                             <p className="text-sm">
-                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                                selectedStaffGuest.stayType === 'monthly' 
-                                  ? (checkValidityExpired(selectedStaffGuest) ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
+                              <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${selectedStaffGuest.stayType === 'monthly'
+                                ? (checkValidityExpired(selectedStaffGuest) ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-purple-800')
+                                : 'bg-blue-100 text-blue-800'
+                                }`}>
                                 {selectedStaffGuest.stayType === 'monthly' ? (
                                   <>
                                     Monthly
@@ -2678,10 +2683,10 @@ const StaffGuestsManagement = () => {
                           <div>
                             <span className="text-sm font-medium text-gray-600">Check-in Date:</span>
                             <p className="text-sm text-gray-900">
-                              {new Date(selectedStaffGuest.checkinDate).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                              {new Date(selectedStaffGuest.checkinDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                             </p>
                           </div>
@@ -2690,10 +2695,10 @@ const StaffGuestsManagement = () => {
                           <div>
                             <span className="text-sm font-medium text-gray-600">Check-out Date:</span>
                             <p className="text-sm text-gray-900">
-                              {new Date(selectedStaffGuest.checkoutDate).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric' 
+                              {new Date(selectedStaffGuest.checkoutDate).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
                               })}
                             </p>
                           </div>
@@ -2755,8 +2760,8 @@ const StaffGuestsManagement = () => {
                           <div>
                             <span className="text-sm font-medium text-gray-600">Total Charges:</span>
                             <p className="text-lg font-bold text-green-600">
-                              ₹{typeof selectedStaffGuest.calculatedCharges === 'number' 
-                                ? selectedStaffGuest.calculatedCharges.toLocaleString('en-IN') 
+                              ₹{typeof selectedStaffGuest.calculatedCharges === 'number'
+                                ? selectedStaffGuest.calculatedCharges.toLocaleString('en-IN')
                                 : (selectedStaffGuest.calculatedCharges || 0)}
                             </p>
                           </div>
@@ -2768,28 +2773,28 @@ const StaffGuestsManagement = () => {
                   {/* Action Buttons */}
                   <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-200">
                     {/* Show Renewal button for expired monthly staff */}
-                    {selectedStaffGuest.type === 'staff' && 
-                     selectedStaffGuest.stayType === 'monthly' && 
-                     checkValidityExpired(selectedStaffGuest) && (
-                      <button
-                        onClick={() => {
-                          // Set default month to next month
-                          const nextMonth = new Date();
-                          nextMonth.setMonth(nextMonth.getMonth() + 1);
-                          const monthString = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
-                          setRenewalForm({
-                            selectedMonth: monthString,
-                            roomNumber: selectedStaffGuest.roomNumber || '',
-                            bedNumber: selectedStaffGuest.bedNumber || ''
-                          });
-                          setShowRenewalModal(true);
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                      >
-                        <StarIcon className="w-4 h-4" />
-                        Renew
-                      </button>
-                    )}
+                    {selectedStaffGuest.type === 'staff' &&
+                      selectedStaffGuest.stayType === 'monthly' &&
+                      checkValidityExpired(selectedStaffGuest) && (
+                        <button
+                          onClick={() => {
+                            // Set default month to next month
+                            const nextMonth = new Date();
+                            nextMonth.setMonth(nextMonth.getMonth() + 1);
+                            const monthString = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}`;
+                            setRenewalForm({
+                              selectedMonth: monthString,
+                              roomNumber: selectedStaffGuest.roomNumber || '',
+                              bedNumber: selectedStaffGuest.bedNumber || ''
+                            });
+                            setShowRenewalModal(true);
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                        >
+                          <StarIcon className="w-4 h-4" />
+                          Renew
+                        </button>
+                      )}
                     <button
                       onClick={() => {
                         handleEdit(selectedStaffGuest);
