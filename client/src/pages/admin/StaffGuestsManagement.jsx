@@ -2002,7 +2002,7 @@ const StaffGuestsManagement = () => {
                         </select>
                       </div>
 
-                      {formData.type !== 'warden' && (<div>
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Gender *
                         </label>
@@ -2017,7 +2017,7 @@ const StaffGuestsManagement = () => {
                           <option value="Female">Female</option>
                           <option value="Other">Other</option>
                         </select>
-                      </div>)}
+                      </div>
 
                       {formData.type !== 'warden' && (<div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
