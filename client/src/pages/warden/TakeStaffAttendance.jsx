@@ -432,8 +432,8 @@ const TakeStaffAttendance = () => {
             <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
               {Object.entries(sessionStatus).map(([session, status]) => (
                 <div key={session} className={`p-2 rounded-lg text-xs ${status.isActive
-                    ? 'bg-green-100 border border-green-300 text-green-800'
-                    : 'bg-gray-100 border border-gray-300 text-gray-600'
+                  ? 'bg-green-100 border border-green-300 text-green-800'
+                  : 'bg-gray-100 border border-gray-300 text-gray-600'
                   }`}>
                   <div className="flex items-center justify-between">
                     <span className="font-medium capitalize">{session}</span>
@@ -622,8 +622,8 @@ const TakeStaffAttendance = () => {
               onClick={handleSubmit}
               disabled={submitting || !isAnySessionActive()}
               className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${submitting || !isAnySessionActive()
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
                 }`}
             >
               {submitting ? (
@@ -713,14 +713,14 @@ const TakeStaffAttendance = () => {
                           <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{staffMember.name}</h3>
                           {/* Mobile: Show only type and department */}
                           <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:hidden">
-                            {staffMember.type} • {staffMember.department || 'No Department'}
+                            {staffMember.type}
                           </p>
                           {/* Desktop: Show full details */}
                           <p className="hidden sm:block text-sm text-gray-600 mt-1">
-                            {staffMember.phoneNumber} • {staffMember.type} • {staffMember.department || 'No Department'}
+                            {staffMember.phoneNumber} • {staffMember.type}
                           </p>
                           <p className="hidden sm:block text-xs text-gray-500 mt-1">
-                            {staffMember.email || 'No Email'} • {staffMember.gender}
+                            {staffMember.email || 'No Email'}
                           </p>
                         </div>
                         <span className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium ml-2 sm:ml-3 flex-shrink-0 ${getStatusColor(status)}`}>
@@ -734,24 +734,24 @@ const TakeStaffAttendance = () => {
                     <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                       {/* Morning Session */}
                       <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${attendanceData[staffMember._id]?.morning
-                          ? 'bg-blue-50 border border-blue-200'
-                          : sessionStatus.morning.isActive
-                            ? 'bg-green-50 border border-green-200'
-                            : 'bg-gray-50 border border-gray-200'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.morning.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
                         }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
                           <SunIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${attendanceData[staffMember._id]?.morning
-                              ? 'text-blue-600'
-                              : sessionStatus.morning.isActive
-                                ? 'text-yellow-600'
-                                : 'text-gray-400'
+                            ? 'text-blue-600'
+                            : sessionStatus.morning.isActive
+                              ? 'text-yellow-600'
+                              : 'text-gray-400'
                             }`} />
                           <div>
                             <span className={`text-xs sm:text-sm font-medium ${attendanceData[staffMember._id]?.morning
-                                ? 'text-blue-800'
-                                : sessionStatus.morning.isActive
-                                  ? 'text-green-800'
-                                  : 'text-gray-500'
+                              ? 'text-blue-800'
+                              : sessionStatus.morning.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
                               }`}>
                               Morning
                               {attendanceData[staffMember._id]?.morning && (
@@ -767,34 +767,34 @@ const TakeStaffAttendance = () => {
                           onChange={(e) => handleAttendanceChange(staffMember._id, 'morning', e.target.checked)}
                           disabled={!sessionStatus.morning.canEdit}
                           className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.morning
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.morning.canEdit
-                                ? 'text-green-600'
-                                : 'text-gray-400 cursor-not-allowed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.morning.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
                             }`}
                         />
                       </div>
 
                       {/* Evening Session */}
                       <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${attendanceData[staffMember._id]?.evening
-                          ? 'bg-blue-50 border border-blue-200'
-                          : sessionStatus.evening.isActive
-                            ? 'bg-green-50 border border-green-200'
-                            : 'bg-gray-50 border border-gray-200'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.evening.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
                         }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
                           <MoonIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${attendanceData[staffMember._id]?.evening
+                            ? 'text-blue-600'
+                            : sessionStatus.evening.isActive
                               ? 'text-blue-600'
-                              : sessionStatus.evening.isActive
-                                ? 'text-blue-600'
-                                : 'text-gray-400'
+                              : 'text-gray-400'
                             }`} />
                           <div>
                             <span className={`text-xs sm:text-sm font-medium ${attendanceData[staffMember._id]?.evening
-                                ? 'text-blue-800'
-                                : sessionStatus.evening.isActive
-                                  ? 'text-green-800'
-                                  : 'text-gray-500'
+                              ? 'text-blue-800'
+                              : sessionStatus.evening.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
                               }`}>
                               Evening
                               {attendanceData[staffMember._id]?.evening && (
@@ -810,34 +810,34 @@ const TakeStaffAttendance = () => {
                           onChange={(e) => handleAttendanceChange(staffMember._id, 'evening', e.target.checked)}
                           disabled={!sessionStatus.evening.canEdit}
                           className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.evening
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.evening.canEdit
-                                ? 'text-green-600'
-                                : 'text-gray-400 cursor-not-allowed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.evening.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
                             }`}
                         />
                       </div>
 
                       {/* Night Session */}
                       <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${attendanceData[staffMember._id]?.night
-                          ? 'bg-blue-50 border border-blue-200'
-                          : sessionStatus.night.isActive
-                            ? 'bg-green-50 border border-green-200'
-                            : 'bg-gray-50 border border-gray-200'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.night.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
                         }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
                           <StarIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${attendanceData[staffMember._id]?.night
-                              ? 'text-blue-600'
-                              : sessionStatus.night.isActive
-                                ? 'text-purple-600'
-                                : 'text-gray-400'
+                            ? 'text-blue-600'
+                            : sessionStatus.night.isActive
+                              ? 'text-purple-600'
+                              : 'text-gray-400'
                             }`} />
                           <div>
                             <span className={`text-xs sm:text-sm font-medium ${attendanceData[staffMember._id]?.night
-                                ? 'text-blue-800'
-                                : sessionStatus.night.isActive
-                                  ? 'text-green-800'
-                                  : 'text-gray-500'
+                              ? 'text-blue-800'
+                              : sessionStatus.night.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
                               }`}>
                               Night
                               {attendanceData[staffMember._id]?.night && (
@@ -853,10 +853,10 @@ const TakeStaffAttendance = () => {
                           onChange={(e) => handleAttendanceChange(staffMember._id, 'night', e.target.checked)}
                           disabled={!sessionStatus.night.canEdit}
                           className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.night
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.night.canEdit
-                                ? 'text-green-600'
-                                : 'text-gray-400 cursor-not-allowed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.night.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
                             }`}
                         />
                       </div>
@@ -926,10 +926,10 @@ const TakeStaffAttendance = () => {
                                 {staffMember.name}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {staffMember.phoneNumber} • {staffMember.type} • {staffMember.department || 'No Department'}
+                                {staffMember.phoneNumber} • {staffMember.type}
                               </div>
                               <div className="text-xs text-gray-400">
-                                {staffMember.email || 'No Email'} • {staffMember.gender}
+                                {staffMember.email || 'No Email'}
                               </div>
                             </div>
                           </div>
@@ -944,10 +944,10 @@ const TakeStaffAttendance = () => {
                                 onChange={(e) => handleAttendanceChange(staffMember._id, 'morning', e.target.checked)}
                                 disabled={!sessionStatus.morning.canEdit}
                                 className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.morning
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.morning.canEdit
-                                      ? 'text-green-600'
-                                      : 'text-gray-400 cursor-not-allowed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.morning.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
                                   }`}
                               />
                               {attendanceData[staffMember._id]?.morning && (
@@ -955,10 +955,10 @@ const TakeStaffAttendance = () => {
                               )}
                             </div>
                             <div className={`text-xs mt-1 ${attendanceData[staffMember._id]?.morning
-                                ? 'text-blue-600'
-                                : sessionStatus.morning.isActive
-                                  ? 'text-green-600'
-                                  : 'text-gray-500'
+                              ? 'text-blue-600'
+                              : sessionStatus.morning.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
                               }`}>
                               {attendanceData[staffMember._id]?.morning
                                 ? '✓ Taken'
@@ -977,10 +977,10 @@ const TakeStaffAttendance = () => {
                                 onChange={(e) => handleAttendanceChange(staffMember._id, 'evening', e.target.checked)}
                                 disabled={!sessionStatus.evening.canEdit}
                                 className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.evening
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.evening.canEdit
-                                      ? 'text-green-600'
-                                      : 'text-gray-400 cursor-not-allowed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.evening.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
                                   }`}
                               />
                               {attendanceData[staffMember._id]?.evening && (
@@ -988,10 +988,10 @@ const TakeStaffAttendance = () => {
                               )}
                             </div>
                             <div className={`text-xs mt-1 ${attendanceData[staffMember._id]?.evening
-                                ? 'text-blue-600'
-                                : sessionStatus.evening.isActive
-                                  ? 'text-green-600'
-                                  : 'text-gray-500'
+                              ? 'text-blue-600'
+                              : sessionStatus.evening.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
                               }`}>
                               {attendanceData[staffMember._id]?.evening
                                 ? '✓ Taken'
@@ -1010,10 +1010,10 @@ const TakeStaffAttendance = () => {
                                 onChange={(e) => handleAttendanceChange(staffMember._id, 'night', e.target.checked)}
                                 disabled={!sessionStatus.night.canEdit}
                                 className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${attendanceData[staffMember._id]?.night
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.night.canEdit
-                                      ? 'text-green-600'
-                                      : 'text-gray-400 cursor-not-allowed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.night.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
                                   }`}
                               />
                               {attendanceData[staffMember._id]?.night && (
@@ -1021,10 +1021,10 @@ const TakeStaffAttendance = () => {
                               )}
                             </div>
                             <div className={`text-xs mt-1 ${attendanceData[staffMember._id]?.night
-                                ? 'text-blue-600'
-                                : sessionStatus.night.isActive
-                                  ? 'text-green-600'
-                                  : 'text-gray-500'
+                              ? 'text-blue-600'
+                              : sessionStatus.night.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
                               }`}>
                               {attendanceData[staffMember._id]?.night
                                 ? '✓ Taken'
