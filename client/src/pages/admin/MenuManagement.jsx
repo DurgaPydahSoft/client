@@ -77,8 +77,12 @@ const ensureAllMealTypes = (meals) => {
 const MenuManagement = () => {
   // Store selectedDate as 'YYYY-MM-DD' string
   const [selectedDate, setSelectedDate] = useState(() => {
+    // Return local date (likely IST for the user) instead of UTC
     const d = new Date();
-    return d.toISOString().slice(0, 10);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -466,7 +470,7 @@ const MenuManagement = () => {
       // Clear add inputs and images only after successful save and refresh
       setAddInputs({});
       setAddImages({});
-      
+
       // Show success message only after everything is complete
       toast.success('Menu saved successfully!');
     } catch (err) {
@@ -813,7 +817,7 @@ const MenuManagement = () => {
             <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></span>
           </button>
         </div>
-        
+
         {/* Loading Indicator for Save Operation */}
         {loading && (
           <div className="mt-4 flex items-center justify-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -826,7 +830,7 @@ const MenuManagement = () => {
               </div>
               {uploadProgress > 0 && (
                 <div className="mt-2 w-full bg-blue-200 rounded-full h-2">
-                  <div 
+                  <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
@@ -1618,7 +1622,7 @@ const MenuManagement = () => {
           if (itemCount <= 12) return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4';
           return 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6';
         };
-        
+
         // Calculate modal width based on item count
         const getModalWidth = () => {
           if (itemCount <= 2) return 'max-w-md sm:max-w-lg';
