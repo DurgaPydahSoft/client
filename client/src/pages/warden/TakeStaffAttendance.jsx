@@ -36,6 +36,10 @@ const TakeStaffAttendance = () => {
     night: { start: 20, end: 22 } // 8:00 PM - 10:00 PM
   };
 
+  // Determine warden's gender for filtering (case-insensitive check)
+  const wardenGender = user?.hostelType?.toLowerCase() === 'boys' ? 'Male' :
+    user?.hostelType?.toLowerCase() === 'girls' ? 'Female' : null;
+
   // Get current time in IST
   const getCurrentISTTime = () => {
     const now = new Date();
@@ -148,10 +152,6 @@ const TakeStaffAttendance = () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching staff for attendance...');
-
-      // Determine warden's gender for filtering
-      const wardenGender = user?.hostelType === 'Boys' ? 'Male' :
-        user?.hostelType === 'Girls' ? 'Female' : null;
 
       console.log('🔍 Warden gender filter:', wardenGender);
 
@@ -506,6 +506,7 @@ const TakeStaffAttendance = () => {
                     <option value="">All Types</option>
                     <option value="staff">Staff</option>
                     <option value="guest">Guest</option>
+                    <option value="warden">Warden</option>
                   </select>
                 </div>
 
@@ -529,14 +530,21 @@ const TakeStaffAttendance = () => {
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Gender</label>
                   <select
-                    value={filters.gender}
+                    value={filters.gender || wardenGender}
                     onChange={(e) => handleFilterChange('gender', e.target.value)}
-                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                    disabled={user?.role === 'warden'}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
-                    <option value="">All Genders</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    {!wardenGender || user?.role !== 'warden' ? (
+                      <>
+                        <option value="">All Genders</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </>
+                    ) : (
+                      <option value={wardenGender}>{wardenGender}</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -574,6 +582,7 @@ const TakeStaffAttendance = () => {
                 <option value="">All Types</option>
                 <option value="staff">Staff</option>
                 <option value="guest">Guest</option>
+                <option value="warden">Warden</option>
               </select>
             </div>
 
@@ -597,14 +606,21 @@ const TakeStaffAttendance = () => {
             <div className="sm:col-span-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Gender</label>
               <select
-                value={filters.gender}
+                value={filters.gender || wardenGender}
                 onChange={(e) => handleFilterChange('gender', e.target.value)}
-                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                disabled={user?.role === 'warden'}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="">All Genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                {!wardenGender || user?.role !== 'warden' ? (
+                  <>
+                    <option value="">All Genders</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </>
+                ) : (
+                  <option value={wardenGender}>{wardenGender}</option>
+                )}
               </select>
             </div>
           </div>
