@@ -32,7 +32,7 @@ const TakeStaffAttendance = () => {
   // Session time windows (IST)
   const SESSION_TIMES = {
     morning: { start: 7.5, end: 9.5 }, // 7:30 AM - 9:30 AM
-    evening: { start: 17.5, end: 19 }, // 5:30 PM - 7:00 PM
+    evening: { start: 17, end: 19 }, // 5:00 PM - 7:00 PM
     night: { start: 20, end: 22 } // 8:00 PM - 10:00 PM
   };
 

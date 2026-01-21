@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  CalendarIcon, 
-  CheckIcon, 
+import {
+  CalendarIcon,
+  CheckIcon,
   XMarkIcon,
   UserGroupIcon,
   ClockIcon,
@@ -20,12 +20,12 @@ import { useAuth } from '../../context/AuthContext';
 
 const TakeAttendance = () => {
   const { user } = useAuth();
-  
+
   // Debug logging to check user data
   console.log('🔍 TakeAttendance Component - Full user object:', user);
   console.log('🔍 TakeAttendance Component - User hostelType:', user?.hostelType);
   console.log('🔍 TakeAttendance Component - User role:', user?.role);
-  
+
   // Session time windows (IST)
   const SESSION_TIMES = {
     morning: { start: 7.5, end: 9.5 }, // 7:30 AM - 9:30 AM
@@ -46,7 +46,7 @@ const TakeAttendance = () => {
     const istTime = getCurrentISTTime();
     return istTime.toISOString().split('T')[0];
   };
-  
+
   const [loading, setLoading] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,9 +85,9 @@ const TakeAttendance = () => {
     const currentTime = getCurrentISTTime();
     const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60);
     const sessionTime = SESSION_TIMES[session];
-    
+
     console.log(`🔍 Session ${session}: Current hour: ${currentHour}, Session: ${sessionTime.start}-${sessionTime.end}, Active: ${currentHour >= sessionTime.start && currentHour < sessionTime.end}`);
-    
+
     return currentHour >= sessionTime.start && currentHour < sessionTime.end;
   };
 
@@ -96,14 +96,14 @@ const TakeAttendance = () => {
     const currentTime = getCurrentISTTime();
     const sessionTime = SESSION_TIMES[session];
     const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60) + (currentTime.getSeconds() / 3600);
-    
+
     if (currentHour < sessionTime.start) {
       // Session hasn't started yet
       const timeUntilStart = sessionTime.start - currentHour;
       const hours = Math.floor(timeUntilStart);
       const minutes = Math.floor((timeUntilStart - hours) * 60);
       const seconds = Math.floor(((timeUntilStart - hours) * 60 - minutes) * 60);
-      
+
       if (hours > 0) {
         return `Starts in ${hours}h ${minutes}m`;
       } else if (minutes > 0) {
@@ -117,7 +117,7 @@ const TakeAttendance = () => {
       const hours = Math.floor(timeLeft);
       const minutes = Math.floor((timeLeft - hours) * 60);
       const seconds = Math.floor(((timeLeft - hours) * 60 - minutes) * 60);
-      
+
       if (hours > 0) {
         return `Ends in ${hours}h ${minutes}m`;
       } else if (minutes > 0) {
@@ -140,18 +140,18 @@ const TakeAttendance = () => {
   const getNearestSession = () => {
     const currentTime = getCurrentISTTime();
     const currentHour = currentTime.getHours() + (currentTime.getMinutes() / 60) + (currentTime.getSeconds() / 3600);
-    
+
     // First, check if any session is currently active
     for (const [session, status] of Object.entries(sessionStatus)) {
       if (status.isActive) {
         return { session, status, type: 'active' };
       }
     }
-    
+
     // If no active session, find the next upcoming session
     let nearestSession = null;
     let nearestTime = Infinity;
-    
+
     for (const [session, timeRange] of Object.entries(SESSION_TIMES)) {
       if (currentHour < timeRange.start) {
         const timeUntilStart = timeRange.start - currentHour;
@@ -161,12 +161,12 @@ const TakeAttendance = () => {
         }
       }
     }
-    
+
     // If all sessions have passed, show the next day's first session (morning)
     if (!nearestSession) {
       return { session: 'morning', status: sessionStatus.morning, type: 'next-day' };
     }
-    
+
     return nearestSession;
   };
 
@@ -180,7 +180,7 @@ const TakeAttendance = () => {
     const isActive = sessionStatus[session].isActive;
     const isCompleted = isSessionCompleted(studentId, session);
     const canEdit = sessionStatus[session].canEdit;
-    
+
     if (isCompleted) return 'completed';
     if (isActive && canEdit) return 'active';
     if (!isActive) return 'inactive';
@@ -192,29 +192,29 @@ const TakeAttendance = () => {
     const updateTime = () => {
       const now = getCurrentISTTime();
       setCurrentTime(now);
-      
+
       const newSessionStatus = {};
       Object.keys(SESSION_TIMES).forEach(session => {
         const isActive = isSessionActive(session);
         const timeLeft = getTimeLeft(session);
         const canEdit = isActive;
-        
+
         newSessionStatus[session] = {
           isActive,
           timeLeft,
           canEdit
         };
       });
-      
+
       setSessionStatus(newSessionStatus);
     };
 
     // Update immediately
     updateTime();
-    
+
     // Update every second for real-time countdown
     const interval = setInterval(updateTime, 1000);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -279,10 +279,10 @@ const TakeAttendance = () => {
 
   // Track if this is the initial load
   const isInitialLoadRef = React.useRef(true);
-  
+
   // Use refs to store latest values to avoid dependency issues
   const categoriesRef = React.useRef(categories);
-  
+
   // Update refs when values change
   React.useEffect(() => {
     categoriesRef.current = categories;
@@ -297,7 +297,7 @@ const TakeAttendance = () => {
     } else {
       setLoadingStudents(true);
     }
-    
+
     try {
       console.log('🔍 Fetching students for date:', selectedDate, 'Current IST date:', getCurrentISTDate());
       const params = new URLSearchParams({
@@ -322,23 +322,23 @@ const TakeAttendance = () => {
           params.append('category', categoryName);
         }
       }
-      
+
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
 
       console.log('🔍 API params:', params.toString());
 
       const response = await api.get(`/api/attendance/students?${params}`);
-      
+
       if (response.data.success) {
         console.log('🔍 Students received:', response.data.data.students.length);
-        
+
         // Get students directly from the response
         let students = response.data.data.students;
-        
+
         // Frontend filtering - ensure only students of warden's gender are shown
         // (Backend should already filter, but double-check for safety)
         if (wardenGender) {
-          students = students.filter(student => 
+          students = students.filter(student =>
             student.gender === wardenGender
           );
           console.log('🔍 After gender filtering:', students.length, 'students');
@@ -346,13 +346,13 @@ const TakeAttendance = () => {
 
         // Note: Course and branch filtering is now done on the backend
         // No need for frontend filtering since backend handles it correctly
-        
+
         setStudents(students);
         setStats({
           totalStudents: students.length,
           attendanceTaken: response.data.data.attendanceTaken
         });
-        
+
         // Initialize attendance data
         const initialAttendance = {};
         students.forEach(student => {
@@ -382,7 +382,7 @@ const TakeAttendance = () => {
   }, [fetchStudentsData]);
 
   // Filter students based on search query
-  const filteredStudents = students.filter(student => 
+  const filteredStudents = students.filter(student =>
     student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -392,15 +392,15 @@ const TakeAttendance = () => {
       const res = await api.get('/api/hostels');
       if (res.data.success) {
         const allHostels = res.data.data || [];
-        
+
         // Filter hostels based on warden's hostelType - only show their assigned hostel
         if (user?.hostelType) {
           const hostelName = user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel';
-          const matchingHostel = allHostels.find(h => 
-            h.name === hostelName || 
+          const matchingHostel = allHostels.find(h =>
+            h.name === hostelName ||
             h.name?.toLowerCase().includes(user.hostelType.toLowerCase())
           );
-          
+
           // Only set the matching hostel (warden should only see their hostel)
           if (matchingHostel) {
             setHostels([matchingHostel]); // Only show their assigned hostel
@@ -468,16 +468,16 @@ const TakeAttendance = () => {
 
   const fetchRooms = async () => {
     if (!filters.category || !filters.hostel) return;
-    
+
     setLoadingRooms(true);
     try {
       const params = {
         hostel: filters.hostel,
         category: filters.category
       };
-      
+
       const response = await api.get('/api/admin/rooms', { params });
-      
+
       if (response.data.success) {
         const rooms = response.data.data.rooms || [];
         setAvailableRooms(rooms);
@@ -520,7 +520,7 @@ const TakeAttendance = () => {
       ...prev,
       [name]: value
     }));
-    
+
     // If course changes, update branches dropdown and clear branch selection
     if (name === 'course') {
       if (value) {
@@ -537,7 +537,7 @@ const TakeAttendance = () => {
         branch: ''
       }));
     }
-    
+
     // If hostel changes, fetch categories and clear category selection
     if (name === 'hostel') {
       if (value) {
@@ -557,7 +557,8 @@ const TakeAttendance = () => {
     setRoomInput(e.target.value);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
     // Validate that warden can only submit for current date
     const currentISTDate = getCurrentISTDate();
     if (selectedDate !== currentISTDate) {
@@ -602,7 +603,7 @@ const TakeAttendance = () => {
       }
     } catch (error) {
       console.error('Error saving attendance:', error);
-      
+
       // Provide more specific error messages
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
         toast.error('Attendance operation timed out. Please try again with fewer students or check your connection.', {
@@ -625,10 +626,10 @@ const TakeAttendance = () => {
   const getAttendanceStatus = (student) => {
     // Check if student is on leave first
     if (student.isOnLeave) return 'On Leave';
-    
+
     const attendance = attendanceData[student._id];
     if (!attendance) return 'Absent';
-    
+
     if (attendance.morning && attendance.evening && attendance.night) return 'Present';
     if (attendance.morning || attendance.evening || attendance.night) return 'Partial';
     return 'Absent';
@@ -680,7 +681,7 @@ const TakeAttendance = () => {
   return (
     <div className="min-h-screen">
       <SEO title="Take Attendance - Warden Dashboard" />
-      
+
       <div className="w-full mt-12 sm:mt-0">
         {/* Header */}
         <motion.div
@@ -709,12 +710,12 @@ const TakeAttendance = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Session Status Indicator - Nearest Session Only */}
           {(() => {
             const nearest = getNearestSession();
             if (!nearest) return null;
-            
+
             const { session, status, type } = nearest;
             const isActive = type === 'active';
             const sessionIcons = {
@@ -727,28 +728,25 @@ const TakeAttendance = () => {
               evening: 'Evening Session',
               night: 'Night Session'
             };
-            
+
             return (
-              <div className={`mt-4 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 ${
-                isActive 
-                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md' 
-                  : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
-              }`}>
+              <div className={`mt-4 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 ${isActive
+                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300 shadow-md'
+                : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+                }`}>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   {/* Left Section - Session Info */}
                   <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                    <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${
-                      isActive 
-                        ? 'bg-green-500 text-white' 
-                        : 'bg-blue-500 text-white'
-                    }`}>
+                    <div className={`p-1.5 sm:p-2 rounded-lg flex-shrink-0 ${isActive
+                      ? 'bg-green-500 text-white'
+                      : 'bg-blue-500 text-white'
+                      }`}>
                       {sessionIcons[session]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                        <span className={`text-xs sm:text-sm font-semibold truncate ${
-                          isActive ? 'text-green-800' : 'text-blue-800'
-                        }`}>
+                        <span className={`text-xs sm:text-sm font-semibold truncate ${isActive ? 'text-green-800' : 'text-blue-800'
+                          }`}>
                           {sessionNames[session]}
                         </span>
                         {isActive && (
@@ -757,21 +755,20 @@ const TakeAttendance = () => {
                           </span>
                         )}
                       </div>
-                      <div className={`text-base sm:text-lg font-bold mt-0.5 sm:mt-1 ${
-                        isActive ? 'text-green-700' : 'text-blue-700'
-                      }`}>
+                      <div className={`text-base sm:text-lg font-bold mt-0.5 sm:mt-1 ${isActive ? 'text-green-700' : 'text-blue-700'
+                        }`}>
                         {status.timeLeft}
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Right Section - Time & Date */}
                   <div className="flex items-center sm:flex-col sm:items-end sm:text-right gap-2 sm:gap-1 flex-shrink-0 border-t sm:border-t-0 border-gray-200 sm:border-0 pt-2 sm:pt-0">
                     <div className="hidden sm:block">
                       <div className="text-xs text-gray-600 mb-1">Current Time</div>
                       <div className="text-sm font-mono font-semibold text-gray-800">
-                        {currentTime.toLocaleTimeString('en-IN', { 
-                          hour: '2-digit', 
+                        {currentTime.toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
                           minute: '2-digit',
                           second: '2-digit'
                         })}
@@ -782,8 +779,8 @@ const TakeAttendance = () => {
                     <div className="sm:hidden flex items-center gap-2 text-xs text-gray-600">
                       <ClockIcon className="w-3 h-3" />
                       <span className="font-mono font-semibold">
-                        {currentTime.toLocaleTimeString('en-IN', { 
-                          hour: '2-digit', 
+                        {currentTime.toLocaleTimeString('en-IN', {
+                          hour: '2-digit',
                           minute: '2-digit'
                         })}
                       </span>
@@ -813,9 +810,8 @@ const TakeAttendance = () => {
               <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4" />
               Filters
               <svg
-                className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${
-                  showMobileFilters ? 'rotate-180' : ''
-                }`}
+                className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 ${showMobileFilters ? 'rotate-180' : ''
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1049,58 +1045,58 @@ const TakeAttendance = () => {
 
         {/* Submit Button - Mobile Optimized */}
         <motion.div
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.2 }}
-  className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-30 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
->
-  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
-    <button
-      onClick={handleSubmit}
-      disabled={submitting || !isAnySessionActive()}
-      className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${
-        submitting || !isAnySessionActive()
-          ? 'bg-gray-400 cursor-not-allowed'
-          : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
-      }`}
-    >
-      {submitting ? (
-        <>
-          <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          <span className="text-xs sm:text-sm">Saving Attendance...</span>
-        </>
-      ) : !isAnySessionActive() ? (
-        <>
-          <ClockIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-          <span className="hidden sm:inline">No Active Session</span>
-          <span className="sm:hidden text-xs">No Active Session</span>
-        </>
-      ) : (
-        <>
-          <CheckIcon className="w-4 h-4 sm:w-6 sm:h-6" />
-          <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
-          <span className="sm:hidden text-xs">Save Attendance</span>
-        </>
-      )}
-    </button>
-    
-    {/* Quick Stats */}
-    <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
-      <div className="text-center">
-        <div className="font-semibold text-green-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
-        <div className="text-xs">Present</div>
-      </div>
-      <div className="text-center">
-        <div className="font-semibold text-yellow-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
-        <div className="text-xs">Partial</div>
-      </div>
-      <div className="text-center">
-        <div className="font-semibold text-red-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
-        <div className="text-xs">Absent</div>
-      </div>
-    </div>
-  </div>
-</motion.div>
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-30 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
+        >
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || !isAnySessionActive()}
+              className={`w-full flex items-center justify-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 rounded-lg sm:rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl font-semibold text-sm sm:text-base ${submitting || !isAnySessionActive()
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-green-600 hover:bg-green-700 hover:shadow-xl text-white'
+                }`}
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-xs sm:text-sm">Saving Attendance...</span>
+                </>
+              ) : !isAnySessionActive() ? (
+                <>
+                  <ClockIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">No Active Session</span>
+                  <span className="sm:hidden text-xs">No Active Session</span>
+                </>
+              ) : (
+                <>
+                  <CheckIcon className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Save Attendance ({students.length} students)</span>
+                  <span className="sm:hidden text-xs">Save Attendance</span>
+                </>
+              )}
+            </button>
+
+            {/* Quick Stats */}
+            <div className="flex justify-between sm:hidden text-xs sm:text-sm text-gray-600 bg-white rounded-lg p-2 sm:p-3 border border-gray-200">
+              <div className="text-center">
+                <div className="font-semibold text-green-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Present').length}</div>
+                <div className="text-xs">Present</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-yellow-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Partial').length}</div>
+                <div className="text-xs">Partial</div>
+              </div>
+              <div className="text-center">
+                <div className="font-semibold text-red-600 text-sm sm:text-base">{filteredStudents.filter(s => getAttendanceStatus(s) === 'Absent').length}</div>
+                <div className="text-xs">Absent</div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Search Filter */}
         <motion.div
@@ -1161,15 +1157,15 @@ const TakeAttendance = () => {
           )}
           <div className="px-3 sm:px-4 lg:px-6 py-3 sm:py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">
-              Students ({filteredStudents.length}{searchQuery ? ` of ${students.length}` : ''})
-              {loadingStudents && (
-                <span className="ml-2 inline-flex items-center text-xs text-blue-600">
-                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
-                  Updating...
-                </span>
-              )}
-            </h2>
+              <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+                Students ({filteredStudents.length}{searchQuery ? ` of ${students.length}` : ''})
+                {loadingStudents && (
+                  <span className="ml-2 inline-flex items-center text-xs text-blue-600">
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-1"></div>
+                    Updating...
+                  </span>
+                )}
+              </h2>
               <div className="hidden sm:flex items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
@@ -1227,29 +1223,26 @@ const TakeAttendance = () => {
                     {/* Attendance Controls */}
                     <div className="space-y-1.5 sm:space-y-2 mb-2 sm:mb-3">
                       {/* Morning Session */}
-                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
-                        getSessionStatus(student._id, 'morning') === 'completed' 
-                          ? 'bg-blue-50 border border-blue-200' 
-                          : sessionStatus.morning.isActive 
-                            ? 'bg-green-50 border border-green-200' 
-                            : 'bg-gray-50 border border-gray-200'
-                      }`}>
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${getSessionStatus(student._id, 'morning') === 'completed'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.morning.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
+                        }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <SunIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                            getSessionStatus(student._id, 'morning') === 'completed'
-                              ? 'text-blue-600'
-                              : sessionStatus.morning.isActive 
-                                ? 'text-yellow-600' 
-                                : 'text-gray-400'
-                          }`} />
+                          <SunIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${getSessionStatus(student._id, 'morning') === 'completed'
+                            ? 'text-blue-600'
+                            : sessionStatus.morning.isActive
+                              ? 'text-yellow-600'
+                              : 'text-gray-400'
+                            }`} />
                           <div>
-                            <span className={`text-xs sm:text-sm font-medium ${
-                              getSessionStatus(student._id, 'morning') === 'completed'
-                                ? 'text-blue-800'
-                                : sessionStatus.morning.isActive 
-                                  ? 'text-green-800' 
-                                  : 'text-gray-500'
-                            }`}>
+                            <span className={`text-xs sm:text-sm font-medium ${getSessionStatus(student._id, 'morning') === 'completed'
+                              ? 'text-blue-800'
+                              : sessionStatus.morning.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
+                              }`}>
                               Morning
                               {getSessionStatus(student._id, 'morning') === 'completed' && (
                                 <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
@@ -1263,40 +1256,36 @@ const TakeAttendance = () => {
                           checked={attendanceData[student._id]?.morning || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
                           disabled={!sessionStatus.morning.canEdit}
-                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
-                            getSessionStatus(student._id, 'morning') === 'completed'
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.morning.canEdit 
-                                ? 'text-green-600' 
-                                : 'text-gray-400 cursor-not-allowed'
-                          }`}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'morning') === 'completed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.morning.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
+                            }`}
                         />
                       </div>
-                      
+
                       {/* Evening Session */}
-                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
-                        getSessionStatus(student._id, 'evening') === 'completed' 
-                          ? 'bg-blue-50 border border-blue-200' 
-                          : sessionStatus.evening.isActive 
-                            ? 'bg-green-50 border border-green-200' 
-                            : 'bg-gray-50 border border-gray-200'
-                      }`}>
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${getSessionStatus(student._id, 'evening') === 'completed'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.evening.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
+                        }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <MoonIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                            getSessionStatus(student._id, 'evening') === 'completed'
+                          <MoonIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${getSessionStatus(student._id, 'evening') === 'completed'
+                            ? 'text-blue-600'
+                            : sessionStatus.evening.isActive
                               ? 'text-blue-600'
-                              : sessionStatus.evening.isActive 
-                                ? 'text-blue-600' 
-                                : 'text-gray-400'
-                          }`} />
+                              : 'text-gray-400'
+                            }`} />
                           <div>
-                            <span className={`text-xs sm:text-sm font-medium ${
-                              getSessionStatus(student._id, 'evening') === 'completed'
-                                ? 'text-blue-800'
-                                : sessionStatus.evening.isActive 
-                                  ? 'text-green-800' 
-                                  : 'text-gray-500'
-                            }`}>
+                            <span className={`text-xs sm:text-sm font-medium ${getSessionStatus(student._id, 'evening') === 'completed'
+                              ? 'text-blue-800'
+                              : sessionStatus.evening.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
+                              }`}>
                               Evening
                               {getSessionStatus(student._id, 'evening') === 'completed' && (
                                 <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
@@ -1310,40 +1299,36 @@ const TakeAttendance = () => {
                           checked={attendanceData[student._id]?.evening || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
                           disabled={!sessionStatus.evening.canEdit}
-                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
-                            getSessionStatus(student._id, 'evening') === 'completed'
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.evening.canEdit 
-                                ? 'text-green-600' 
-                                : 'text-gray-400 cursor-not-allowed'
-                          }`}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'evening') === 'completed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.evening.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
+                            }`}
                         />
                       </div>
 
                       {/* Night Session */}
-                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${
-                        getSessionStatus(student._id, 'night') === 'completed' 
-                          ? 'bg-blue-50 border border-blue-200' 
-                          : sessionStatus.night.isActive 
-                            ? 'bg-green-50 border border-green-200' 
-                            : 'bg-gray-50 border border-gray-200'
-                      }`}>
+                      <div className={`flex items-center justify-between p-2 sm:p-3 rounded-lg ${getSessionStatus(student._id, 'night') === 'completed'
+                        ? 'bg-blue-50 border border-blue-200'
+                        : sessionStatus.night.isActive
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-gray-50 border border-gray-200'
+                        }`}>
                         <div className="flex items-center gap-1.5 sm:gap-2">
-                          <StarIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${
-                            getSessionStatus(student._id, 'night') === 'completed'
-                              ? 'text-blue-600'
-                              : sessionStatus.night.isActive 
-                                ? 'text-purple-600' 
-                                : 'text-gray-400'
-                          }`} />
+                          <StarIcon className={`w-3 h-3 sm:w-4 sm:h-4 ${getSessionStatus(student._id, 'night') === 'completed'
+                            ? 'text-blue-600'
+                            : sessionStatus.night.isActive
+                              ? 'text-purple-600'
+                              : 'text-gray-400'
+                            }`} />
                           <div>
-                            <span className={`text-xs sm:text-sm font-medium ${
-                              getSessionStatus(student._id, 'night') === 'completed'
-                                ? 'text-blue-800'
-                                : sessionStatus.night.isActive 
-                                  ? 'text-green-800' 
-                                  : 'text-gray-500'
-                            }`}>
+                            <span className={`text-xs sm:text-sm font-medium ${getSessionStatus(student._id, 'night') === 'completed'
+                              ? 'text-blue-800'
+                              : sessionStatus.night.isActive
+                                ? 'text-green-800'
+                                : 'text-gray-500'
+                              }`}>
                               Night
                               {getSessionStatus(student._id, 'night') === 'completed' && (
                                 <span className="ml-1 text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">✓ Taken</span>
@@ -1357,13 +1342,12 @@ const TakeAttendance = () => {
                           checked={attendanceData[student._id]?.night || false}
                           onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
                           disabled={!sessionStatus.night.canEdit}
-                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${
-                            getSessionStatus(student._id, 'night') === 'completed'
-                              ? 'text-blue-600 bg-blue-50'
-                              : sessionStatus.night.canEdit 
-                                ? 'text-green-600' 
-                                : 'text-gray-400 cursor-not-allowed'
-                          }`}
+                          className={`w-4 h-4 sm:w-5 sm:h-5 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'night') === 'completed'
+                            ? 'text-blue-600 bg-blue-50'
+                            : sessionStatus.night.canEdit
+                              ? 'text-green-600'
+                              : 'text-gray-400 cursor-not-allowed'
+                            }`}
                         />
                       </div>
                     </div>
@@ -1440,7 +1424,7 @@ const TakeAttendance = () => {
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="flex flex-col items-center">
                             <div className="relative">
@@ -1449,33 +1433,31 @@ const TakeAttendance = () => {
                                 checked={attendanceData[student._id]?.morning || false}
                                 onChange={(e) => handleAttendanceChange(student._id, 'morning', e.target.checked)}
                                 disabled={!sessionStatus.morning.canEdit}
-                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
-                                  getSessionStatus(student._id, 'morning') === 'completed'
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.morning.canEdit 
-                                      ? 'text-green-600' 
-                                      : 'text-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'morning') === 'completed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.morning.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
+                                  }`}
                               />
                               {getSessionStatus(student._id, 'morning') === 'completed' && (
                                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                               )}
                             </div>
-                            <div className={`text-xs mt-1 ${
-                              getSessionStatus(student._id, 'morning') === 'completed'
-                                ? 'text-blue-600'
-                                : sessionStatus.morning.isActive 
-                                  ? 'text-green-600' 
-                                  : 'text-gray-500'
-                            }`}>
-                              {getSessionStatus(student._id, 'morning') === 'completed' 
-                                ? '✓ Taken' 
+                            <div className={`text-xs mt-1 ${getSessionStatus(student._id, 'morning') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.morning.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
+                              }`}>
+                              {getSessionStatus(student._id, 'morning') === 'completed'
+                                ? '✓ Taken'
                                 : sessionStatus.morning.timeLeft
                               }
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="flex flex-col items-center">
                             <div className="relative">
@@ -1484,33 +1466,31 @@ const TakeAttendance = () => {
                                 checked={attendanceData[student._id]?.evening || false}
                                 onChange={(e) => handleAttendanceChange(student._id, 'evening', e.target.checked)}
                                 disabled={!sessionStatus.evening.canEdit}
-                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
-                                  getSessionStatus(student._id, 'evening') === 'completed'
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.evening.canEdit 
-                                      ? 'text-green-600' 
-                                      : 'text-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'evening') === 'completed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.evening.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
+                                  }`}
                               />
                               {getSessionStatus(student._id, 'evening') === 'completed' && (
                                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                               )}
                             </div>
-                            <div className={`text-xs mt-1 ${
-                              getSessionStatus(student._id, 'evening') === 'completed'
-                                ? 'text-blue-600'
-                                : sessionStatus.evening.isActive 
-                                  ? 'text-green-600' 
-                                  : 'text-gray-500'
-                            }`}>
-                              {getSessionStatus(student._id, 'evening') === 'completed' 
-                                ? '✓ Taken' 
+                            <div className={`text-xs mt-1 ${getSessionStatus(student._id, 'evening') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.evening.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
+                              }`}>
+                              {getSessionStatus(student._id, 'evening') === 'completed'
+                                ? '✓ Taken'
                                 : sessionStatus.evening.timeLeft
                               }
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <div className="flex flex-col items-center">
                             <div className="relative">
@@ -1519,40 +1499,38 @@ const TakeAttendance = () => {
                                 checked={attendanceData[student._id]?.night || false}
                                 onChange={(e) => handleAttendanceChange(student._id, 'night', e.target.checked)}
                                 disabled={!sessionStatus.night.canEdit}
-                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${
-                                  getSessionStatus(student._id, 'night') === 'completed'
-                                    ? 'text-blue-600 bg-blue-50'
-                                    : sessionStatus.night.canEdit 
-                                      ? 'text-green-600' 
-                                      : 'text-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`w-4 h-4 border-gray-300 rounded focus:ring-green-500 ${getSessionStatus(student._id, 'night') === 'completed'
+                                  ? 'text-blue-600 bg-blue-50'
+                                  : sessionStatus.night.canEdit
+                                    ? 'text-green-600'
+                                    : 'text-gray-400 cursor-not-allowed'
+                                  }`}
                               />
                               {getSessionStatus(student._id, 'night') === 'completed' && (
                                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full"></div>
                               )}
                             </div>
-                            <div className={`text-xs mt-1 ${
-                              getSessionStatus(student._id, 'night') === 'completed'
-                                ? 'text-blue-600'
-                                : sessionStatus.night.isActive 
-                                  ? 'text-green-600' 
-                                  : 'text-gray-500'
-                            }`}>
-                              {getSessionStatus(student._id, 'night') === 'completed' 
-                                ? '✓ Taken' 
+                            <div className={`text-xs mt-1 ${getSessionStatus(student._id, 'night') === 'completed'
+                              ? 'text-blue-600'
+                              : sessionStatus.night.isActive
+                                ? 'text-green-600'
+                                : 'text-gray-500'
+                              }`}>
+                              {getSessionStatus(student._id, 'night') === 'completed'
+                                ? '✓ Taken'
                                 : sessionStatus.night.timeLeft
                               }
                             </div>
                           </div>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
                             {getStatusIcon(status)}
                             <span className="ml-1">{status}</span>
                           </span>
                         </td>
-                        
+
                         <td className="px-6 py-4 whitespace-nowrap">
                           <input
                             type="text"
