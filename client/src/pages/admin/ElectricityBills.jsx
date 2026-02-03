@@ -53,6 +53,7 @@ const ElectricityBills = () => {
   const [bulkMonth, setBulkMonth] = useState('');
   const [bulkRate, setBulkRate] = useState('');
   const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [isClearingMonth, setIsClearingMonth] = useState(false);
   const [savingRoomId, setSavingRoomId] = useState(null);
   const [editingBills, setEditingBills] = useState(new Set()); // Track which bills are being edited
   const [editModeData, setEditModeData] = useState({}); // Store original values for edit mode
@@ -703,6 +704,44 @@ useEffect(() => {
     }
   };
 
+  const handleClearMonthBills = async () => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to manage electricity bills');
+      return;
+    }
+    if (!bulkMonth) {
+      toast.error('Please select a billing month first.');
+      return;
+    }
+    const monthLabel = new Date(bulkMonth + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    const hasFilters = !!(filters.hostel || filters.category);
+    const scopeText = hasFilters
+      ? 'rooms matching current filters (Hostel/Category)'
+      : 'all rooms';
+    if (!window.confirm(`Remove all electricity bills for ${monthLabel}? This will set bills to zero for that month for ${scopeText}. This action cannot be undone.`)) {
+      return;
+    }
+    setIsClearingMonth(true);
+    try {
+      // Send month + current filter IDs so backend clears only matching rooms
+      const payload = { month: bulkMonth };
+      if (filters.hostel) payload.hostel = filters.hostel;   // hostel _id
+      if (filters.category) payload.category = filters.category; // category _id
+      const res = await api.post('/api/admin/rooms/clear-electricity-bills-for-month', payload);
+      if (res.data?.success) {
+        toast.success(res.data.message || `Removed bills for ${bulkMonth}. ${res.data.modifiedCount ?? 0} rooms updated.`);
+        fetchRooms();
+      } else {
+        toast.error(res.data?.message || 'Failed to remove bills.');
+      }
+    } catch (error) {
+      console.error('Error clearing month bills:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove bills for this month.');
+    } finally {
+      setIsClearingMonth(false);
+    }
+  };
+
   if (loading && activeTab === 'billing') return <LoadingSpinner />;
 
   return (
@@ -814,17 +853,29 @@ useEffect(() => {
               className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-1 flex items-end">
+          <div className="sm:col-span-2 lg:col-span-1 flex items-end gap-2">
             <button
               onClick={handleSaveBulkBills}
               disabled={isSavingBulk || !canManageBills}
-              className={`w-full px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
+              className={`flex-1 px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
                 ? 'bg-green-600 text-white hover:bg-green-700'
                 : 'bg-gray-400 text-gray-200 cursor-not-allowed'
                 }`}
               title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
             >
               {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearMonthBills}
+              disabled={isClearingMonth || !canManageBills || !bulkMonth}
+              className={`flex-1 px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && bulkMonth && !isClearingMonth
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+              title={!bulkMonth ? 'Select a month first' : !canManageBills ? 'You need full access' : `Remove bills for selected month${filters.hostel || filters.category ? ' (filtered rooms only)' : ''}`}
+            >
+              {isClearingMonth ? 'Removing...' : 'Remove Month'}
             </button>
           </div>
         </div>
