@@ -251,6 +251,47 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /**
+   * SSO login: verify external token with backend and establish session.
+   * Same storage and redirect behaviour as login(); does not alter existing login flow.
+   */
+  const loginWithSSOToken = async (encryptedToken) => {
+    const response = await api.post('/api/auth/verify-token', {
+      encryptedToken: encryptedToken
+    });
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || 'SSO verification failed');
+    }
+    const { token: newToken, student: studentUser, admin: adminUser, requiresPasswordChange } = response.data.data;
+    if (adminUser) {
+      safeLocalStorage.setItem('token', newToken);
+      safeLocalStorage.setItem('user', JSON.stringify(adminUser));
+      safeLocalStorage.setItem('userRole', adminUser.role);
+      setSkipValidation(true);
+      setToken(newToken);
+      setUser(adminUser);
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      return { success: true, user: adminUser };
+    }
+    if (studentUser) {
+      safeLocalStorage.setItem('token', newToken);
+      safeLocalStorage.setItem('user', JSON.stringify(studentUser));
+      safeLocalStorage.setItem('userRole', 'student');
+      setSkipValidation(true);
+      setToken(newToken);
+      setUser(studentUser);
+      setRequiresPasswordChange(!!requiresPasswordChange);
+      api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+      await fetchAndSetUserProfile();
+      return {
+        success: true,
+        user: studentUser,
+        requiresPasswordChange: !!requiresPasswordChange
+      };
+    }
+    throw new Error('Invalid SSO response');
+  };
+
   const login = async (role, credentials) => {
     try {
       let response;
@@ -420,6 +461,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     login,
+    loginWithSSOToken,
     logout,
     updateUser,
     hasPermission,

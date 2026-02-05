@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
@@ -21,9 +21,12 @@ const Login = () => {
   const [form, setForm] = useState({ rollNumber: '', password: '', username: '', adminPassword: '' });
   const [showAdminPassword, setShowAdminPassword] = useState(false);
   const [showStudentPassword, setShowStudentPassword] = useState(false);
-  const { login, user, token } = useAuth();
+  const { login, loginWithSSOToken, user, token } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
+  const [ssoVerifying, setSsoVerifying] = useState(false);
+  const ssoAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (token && user) {
@@ -38,6 +41,41 @@ const Login = () => {
       }
     }
   }, [token, user, navigate]);
+
+  // SSO: if URL has ?token=..., verify and log in (once per mount)
+  useEffect(() => {
+    const ssoToken = searchParams.get('token');
+    if (!ssoToken || ssoAttemptedRef.current || (token && user)) return;
+    ssoAttemptedRef.current = true;
+    setSsoVerifying(true);
+    loginWithSSOToken(ssoToken)
+      .then((result) => {
+        if (!result?.success || !result?.user) return;
+        toast.success('Login successful');
+        if (result.user.role === 'warden') {
+          navigate('/warden/dashboard', { replace: true });
+        } else if (result.user.role === 'principal') {
+          navigate('/principal/dashboard', { replace: true });
+        } else if (['super_admin', 'sub_admin', 'admin', 'custom'].includes(result.user.role)) {
+          navigate('/admin/dashboard', { replace: true });
+        } else if (result.user.role === 'student') {
+          if (result.requiresPasswordChange) {
+            toast('Please change your password to continue', { icon: '🔐' });
+            navigate('/student/reset-password', { replace: true });
+          } else {
+            navigate('/student', { replace: true });
+          }
+        }
+      })
+      .catch((err) => {
+        const msg = err.response?.data?.message || err.message || 'SSO verification failed';
+        toast.error(msg);
+        setSearchParams({}, { replace: true });
+      })
+      .finally(() => {
+        setSsoVerifying(false);
+      });
+  }, [searchParams, loginWithSSOToken, navigate, setSearchParams, token, user]);
 
   useEffect(() => {
     const handlePopState = (e) => {
@@ -97,6 +135,17 @@ const Login = () => {
       setLoading(false);
     }
   };
+
+  if (ssoVerifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-gray-700 font-medium">Verifying authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">

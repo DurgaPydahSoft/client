@@ -32,6 +32,7 @@ Authorization: Bearer <your-jwt-token>
 | POST | `/auth/student/register` | Complete student registration | No |
 | POST | `/auth/student/reset-password` | Reset student password | Student |
 | GET | `/auth/validate` | Validate JWT token | Any authenticated user |
+| POST | `/auth/verify-token` | SSO: verify external token (body: `encryptedToken`); returns our JWT + user. Requires `SSO_VERIFY_URL`. | No |
 | GET | `/auth/test` | Test authentication routes | No |
 
 ---
