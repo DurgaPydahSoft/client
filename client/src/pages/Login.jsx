@@ -148,7 +148,7 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-200 p-2 md:p-4">
       <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
         {/* Left Side - Always visible, stacks on mobile */}
@@ -179,7 +179,7 @@ const Login = () => {
         </div>
 
         {/* Right Side */}
-        <div className="w-full md:w-1/2 p-8 relative bg-gray-50 flex items-center justify-center">
+        <div className="w-full md:w-1/2 p-4 md:p-8 relative bg-gray-50 flex items-center justify-center">
           <div className="w-full max-w-md">
 
             {/* Home Button */}
@@ -197,7 +197,7 @@ const Login = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <div className="text-center mb-6 hidden lg:block">
+              <div className="text-center mb-4 md:mb-6 hidden lg:block">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">
                   {role === 'admin' ? 'Admin Login' : 'Student Login'}
                 </h1>
@@ -206,7 +206,7 @@ const Login = () => {
 
 
               {/* Toggle between Student/Admin */}
-              <div className="flex justify-center mb-6">
+              <div className="flex justify-center mb-4 md:mb-6">
                 <div className="relative bg-gray-200 rounded-full p-1 w-64">
                   <motion.div
                     className="absolute top-1 left-1 w-1/2 h-8 bg-white rounded-full shadow-md"
@@ -232,17 +232,17 @@ const Login = () => {
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
                 {role === 'admin' ? (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Username</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <UserIcon className="h-5 w-5 text-gray-400" />
                         </div>
                         <input
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full pl-10 pr-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                           name="username"
                           placeholder="Enter admin username"
                           value={form.username}
@@ -253,13 +253,13 @@ const Login = () => {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Password</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <LockClosedIcon className="h-5 w-5 text-gray-400" />
                         </div>
                         <input
-                          className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full pl-10 pr-12 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                           type={showAdminPassword ? "text" : "password"}
                           name="adminPassword"
                           placeholder="Enter admin password"
@@ -285,13 +285,13 @@ const Login = () => {
                 ) : (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Roll Number</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Roll Number</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <AcademicCapIcon className="h-5 w-5 text-gray-400" />
                         </div>
                         <input
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full pl-10 pr-3 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                           name="rollNumber"
                           placeholder="Enter your roll number"
                           value={form.rollNumber}
@@ -300,15 +300,18 @@ const Login = () => {
                           autoComplete="username"
                         />
                       </div>
+                      <p className="text-xs text-gray-500 mt-1 md:hidden">
+                        * Use the roll number as same in the student portal with slashes or hyphens.
+                      </p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">Password</label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                           <LockClosedIcon className="h-5 w-5 text-gray-400" />
                         </div>
                         <input
-                          className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                          className="w-full pl-10 pr-12 py-1.5 md:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                           type={showStudentPassword ? "text" : "password"}
                           name="password"
                           placeholder="Enter your password"
@@ -338,7 +341,7 @@ const Login = () => {
                   whileTap={{ scale: 0.98 }}
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 md:py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow hover:shadow-md"
                 >
                   {loading ? (
                     <div className="flex items-center gap-2">

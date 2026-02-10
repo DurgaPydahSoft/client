@@ -149,7 +149,9 @@ const AdminManagement = () => {
     phoneNumber: '', // New field for phone number
     customRoleId: '', // New field for custom role assignment
     principalEmail: '', // Email for principal (for leave notifications)
-    principalCourses: [] // New field for principal multi-course selection
+    principalCourses: [], // New field for principal multi-course selection
+    assignedCollegeIds: [], // New field for principal colleges (multi-select)
+    assignedLevels: [] // New field for principal levels (Diploma, UG, PG)
   });
   const [roleType, setRoleType] = useState('sub_admin'); // Track selected role type
   const [roleFormData, setRoleFormData] = useState({
@@ -161,6 +163,7 @@ const AdminManagement = () => {
     assignedCourses: []
   });
   const [courses, setCourses] = useState([]);
+  const [colleges, setColleges] = useState([]); // New state for colleges
   const [branches, setBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
 
@@ -196,6 +199,19 @@ const AdminManagement = () => {
       if (customRolesRes.data.success) {
         setCustomRoles(customRolesRes.data.data || []);
       }
+
+      // Fetch colleges
+      const collegesRes = await api.get('/api/course-management/colleges');
+      if (collegesRes.data.success) {
+        setColleges(collegesRes.data.data);
+      }
+
+      // Fetch courses
+      const coursesRes = await api.get('/api/course-management/courses');
+      if (coursesRes.data.success) {
+        setCourses(coursesRes.data.data);
+      }
+
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
@@ -255,6 +271,16 @@ const AdminManagement = () => {
       [fieldDataName]: checked
         ? [...prev[fieldDataName], courseName]
         : prev[fieldDataName].filter(name => name !== courseName)
+    }));
+  };
+
+  // Handle level selection for principal
+  const handleLevelSelection = (level, checked) => {
+    setFormData(prev => ({
+      ...prev,
+      assignedLevels: checked
+        ? [...prev.assignedLevels, level]
+        : prev.assignedLevels.filter(l => l !== level)
     }));
   };
 
@@ -373,9 +399,8 @@ const AdminManagement = () => {
         requestData = {
           username: formData.username,
           password: formData.password,
-          courses: formData.principalCourses, // Send array of courses
-          course: formData.principalCourses[0], // Legacy support
-          branch: formData.branch || undefined, // Optional branch
+          assignedCollegeId: formData.assignedCollegeId,
+          assignedLevels: formData.assignedLevels,
           email: formData.principalEmail
         };
       }
@@ -420,7 +445,9 @@ const AdminManagement = () => {
           passwordDeliveryMethod: '',
           email: '',
           phoneNumber: '',
-          principalEmail: ''
+          principalEmail: '',
+          assignedCollegeIds: [],
+          assignedLevels: []
         });
         setFilteredBranches([]);
         fetchData();
@@ -458,12 +485,11 @@ const AdminManagement = () => {
         }
       } else if (activeTab === 'principals') {
         endpoint = `/api/admin-management/principals/${selectedAdmin._id}`;
-        if (formData.principalCourses && formData.principalCourses.length > 0) {
-          updateData.courses = formData.principalCourses;
-          updateData.course = formData.principalCourses[0]; // Legacy
+        if (formData.assignedCollegeIds && formData.assignedCollegeIds.length > 0) {
+          updateData.assignedCollegeIds = formData.assignedCollegeIds;
         }
-        if (formData.branch !== undefined) {
-          updateData.branch = formData.branch || undefined; // Can be empty to clear
+        if (formData.assignedLevels && formData.assignedLevels.length > 0) {
+          updateData.assignedLevels = formData.assignedLevels;
         }
         // Always include email for principals (can be empty to clear it)
         updateData.email = formData.principalEmail;
@@ -508,7 +534,9 @@ const AdminManagement = () => {
           email: '',
           phoneNumber: '',
           principalEmail: '',
-          principalCourses: []
+          principalCourses: [],
+          assignedCollegeIds: [],
+          assignedLevels: []
         });
         setFilteredBranches([]);
         fetchData();
@@ -576,7 +604,11 @@ const AdminManagement = () => {
       phoneNumber: '',
       customRoleId: admin.customRoleId || '',
       principalEmail: admin.email || '', // Load principal's email
-      principalCourses: admin.assignedCourses || (admin.course ? [admin.course] : []) // Load principal's courses
+      principalCourses: admin.assignedCourses || (admin.course ? [admin.course] : []), // Load principal's courses
+      assignedCollegeIds: admin.assignedCollegeIds && admin.assignedCollegeIds.length > 0
+        ? admin.assignedCollegeIds
+        : (admin.assignedCollegeId ? [admin.assignedCollegeId] : []), // Load principal's colleges (handle legacy single ID)
+      assignedLevels: admin.assignedLevels || [] // Load principal's levels
     });
     setShowEditModal(true);
   };
@@ -641,7 +673,9 @@ const AdminManagement = () => {
       phoneNumber: '',
       customRoleId: '',
       principalEmail: '',
-      principalCourses: []
+      principalCourses: [],
+      assignedCollegeId: '',
+      assignedLevels: []
     });
     setPasswordResetData({
       newPassword: '',
@@ -755,28 +789,8 @@ const AdminManagement = () => {
 
 
 
-  // Fetch courses when principal tab/modal is open, when sub-admin modal is open, or when custom role modal is open
-  useEffect(() => {
-    if ((activeTab === 'principals' || activeTab === 'sub-admins') && (showAddModal || showEditModal) || showRoleModal) {
-      console.log('🔍 Fetching courses for admin/role creation...');
-      api.get('/api/course-management/courses')
-        .then(res => {
-          console.log('✅ Courses fetched successfully:', res.data);
-          if (res.data.success) {
-            setCourses(res.data.data);
-            console.log('📚 Courses set in state:', res.data.data);
-          } else {
-            console.error('❌ API returned success: false');
-            setCourses([]);
-          }
-        })
-        .catch(error => {
-          console.error('❌ Error fetching courses:', error);
-          console.error('❌ Error response:', error.response?.data);
-          setCourses([]);
-        });
-    }
-  }, [activeTab, showAddModal, showEditModal, showRoleModal]);
+  // Fetch courses is now handled in fetchData on mount
+  // Removed redundant useEffect to prevent race conditions and excessive API calls
 
   // Fetch branches when course is selected for principal
   useEffect(() => {
@@ -1065,24 +1079,69 @@ const AdminManagement = () => {
                         )}
 
                         {isPrincipalTab && (
-                          <div className="flex items-start gap-2">
-                            <svg className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                            </svg>
-                            <div className="flex flex-wrap gap-1">
-                              {admin.assignedCourses && admin.assignedCourses.length > 0 ? (
-                                admin.assignedCourses.map((course, idx) => (
-                                  <span key={idx} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
-                                    {course}
-                                  </span>
-                                ))
-                              ) : admin.course ? (
-                                <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
-                                  {typeof admin.course === 'object' ? admin.course.name : admin.course}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-gray-500 italic">No course assigned</span>
-                              )}
+                          <div className="flex flex-col gap-2">
+                            {/* Display College & Levels if available */}
+                            {admin.assignedCollegeId && (
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 text-sm text-gray-800 font-medium">
+                                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                  {colleges.find(c => c.id === admin.assignedCollegeId)?.name || 'Unknown College'}
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  {admin.assignedLevels && admin.assignedLevels.map(level => (
+                                    <span key={level} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs border border-purple-100 uppercase">
+                                      {level}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-start gap-2">
+                              <svg className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              <div className="flex flex-wrap gap-1">
+                                {/* If College is assigned, show filtering logic */}
+                                {admin.assignedCollegeId ? (
+                                  (() => {
+                                    // Filter courses based on college and levels
+                                    const filteredCourses = courses.filter(course =>
+                                      course.college &&
+                                      course.college.id === admin.assignedCollegeId &&
+                                      admin.assignedLevels &&
+                                      admin.assignedLevels.map(l => l.toLowerCase()).includes(course.level?.toLowerCase())
+                                    );
+
+                                    if (filteredCourses.length > 0) {
+                                      return filteredCourses.map((course) => (
+                                        <span key={course._id} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
+                                          {course.name}
+                                        </span>
+                                      ));
+                                    } else {
+                                      return <span className="text-xs text-gray-500 italic">No matching courses found</span>;
+                                    }
+                                  })()
+                                ) : (
+                                  /* Legacy Display */
+                                  admin.assignedCourses && admin.assignedCourses.length > 0 ? (
+                                    admin.assignedCourses.map((course, idx) => (
+                                      <span key={idx} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
+                                        {course}
+                                      </span>
+                                    ))
+                                  ) : admin.course ? (
+                                    <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
+                                      {typeof admin.course === 'object' ? admin.course.name : admin.course}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-500 italic">No course assigned</span>
+                                  )
+                                )}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -1697,67 +1756,165 @@ const AdminManagement = () => {
 
                       {isPrincipalTab && (
                         <div className="space-y-3">
+                          {/* College Selection (Multi-Select) */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Select Courses <span className="text-red-500">*</span>
+                              Select Colleges <span className="text-red-500">*</span>
                             </label>
-                            <div className="border border-gray-300 rounded-lg p-2 max-h-48 overflow-y-auto bg-white">
-                              {courses.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {courses.map(course => (
-                                    <label key={course._id} className="flex items-center gap-2 cursor-pointer p-1 hover:bg-gray-50 rounded">
-                                      <input
-                                        type="checkbox"
-                                        checked={formData.principalCourses.includes(course.name)}
-                                        onChange={(e) => handleCourseSelection(course.name, e.target.checked, 'principalCourses')}
-                                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                      />
-                                      <span className="text-sm text-gray-700">{course.name} ({course.code})</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-500">Loading courses...</p>
+
+                            {/* Selected Colleges Tags */}
+                            {formData.assignedCollegeIds && formData.assignedCollegeIds.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {formData.assignedCollegeIds.map(id => {
+                                  const college = colleges.find(c => c.id === id);
+                                  return (
+                                    <span key={id} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                      {college?.name || id}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newIds = formData.assignedCollegeIds.filter(cid => cid !== id);
+                                          setFormData(prev => ({ ...prev, assignedCollegeIds: newIds }));
+                                        }}
+                                        className="ml-1 text-blue-400 hover:text-blue-600 focus:outline-none"
+                                      >
+                                        ×
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="max-h-48 overflow-y-auto border border-gray-300 rounded-lg bg-white divide-y divide-gray-100">
+                              {colleges.map(college => (
+                                <label key={college.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer transition-colors">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.assignedCollegeIds?.includes(college.id) || false}
+                                    onChange={(e) => {
+                                      const checked = e.target.checked;
+                                      setFormData(prev => {
+                                        const currentIds = prev.assignedCollegeIds || [];
+                                        if (checked) {
+                                          return { ...prev, assignedCollegeIds: [...currentIds, college.id] };
+                                        } else {
+                                          return { ...prev, assignedCollegeIds: currentIds.filter(id => id !== college.id) };
+                                        }
+                                      });
+                                    }}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-gray-900">{college.name}</span>
+                                    <span className="text-xs text-gray-500">{college.code}</span>
+                                  </div>
+                                </label>
+                              ))}
+                              {colleges.length === 0 && (
+                                <div className="p-4 text-center text-sm text-gray-500">No colleges available</div>
                               )}
                             </div>
-                            {formData.principalCourses.length === 0 && (
-                              <p className="text-xs text-red-500 mt-1">Please select at least one course</p>
+                            {(formData.assignedCollegeIds?.length === 0) && (
+                              <p className="text-xs text-red-500 mt-1">Please select at least one college</p>
                             )}
                           </div>
 
-                          {/* Branch field for principal (optional) */}
+                          {/* Level Selection */}
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                              Branch <span className="text-gray-500 text-xs">(Optional - available only for single course assignment)</span>
+                              Select Levels <span className="text-red-500">*</span>
                             </label>
-                            <select
-                              name="branch"
-                              value={formData.branch}
-                              onChange={handleFormChange}
-                              disabled={formData.principalCourses.length !== 1}
-                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
-                            >
-                              <option value="">All Branches</option>
-                              {filteredBranches.length > 0 ? (
-                                filteredBranches.map(branch => (
-                                  <option key={branch._id} value={branch.name}>
-                                    {branch.name} ({branch.code})
-                                  </option>
-                                ))
-                              ) : (
-                                <option value="" disabled>
-                                  {formData.principalCourses.length === 1 ? 'Loading branches...' : 'Select exactly one course to enable branch selection'}
-                                </option>
-                              )}
-                            </select>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {formData.principalCourses.length > 1
-                                ? 'Branch selection is disabled when multiple courses are assigned. Principal will see all branches for assigned courses.'
-                                : formData.branch
-                                  ? `Principal will only see students from ${formData.branch} branch`
-                                  : 'Principal will see students from all branches of the selected course'}
-                            </p>
+                            <div className="flex gap-4 p-2 border border-gray-300 rounded-lg bg-white">
+                              {['diploma', 'ug', 'pg'].map(level => (
+                                <label key={level} className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={formData.assignedLevels.includes(level)}
+                                    onChange={(e) => handleLevelSelection(level, e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                  <span className="text-sm text-gray-700">{level.toUpperCase()}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {formData.assignedLevels.length === 0 && (
+                              <p className="text-xs text-red-500 mt-1">Please select at least one level</p>
+                            )}
                           </div>
+
+                          {/* Course Preview Section */}
+                          {(formData.assignedCollegeId || formData.assignedLevels.length > 0) && (
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                              <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                                Assigned Courses Preview
+                              </label>
+                              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                                {(() => {
+                                  // Debug logging
+                                  console.log('🔍 Filtering Debug:', {
+                                    selectedCollegeId: formData.assignedCollegeId,
+                                    selectedCollegeIdType: typeof formData.assignedCollegeId,
+                                    selectedLevels: formData.assignedLevels,
+                                    totalCourses: courses.length,
+                                    firstCourse: courses[0]
+                                  });
+
+                                  // 1. Check if College is selected
+                                  if (!formData.assignedCollegeId) {
+                                    return <p className="text-xs text-gray-500 italic">Select a college to see courses</p>;
+                                  }
+
+                                  // 2. Fetch courses for the selected college
+                                  const collegeCourses = courses.filter(course => {
+                                    if (!course.college) {
+                                      // Log missing college object on course
+                                      // console.warn('⚠️ Course missing college object:', course.name);
+                                      return false;
+                                    }
+                                    const match = String(course.college.id) === String(formData.assignedCollegeId);
+                                    return match;
+                                  });
+
+                                  console.log(`🔍 Matches for college ${formData.assignedCollegeId}:`, collegeCourses.length);
+
+                                  if (collegeCourses.length === 0) {
+                                    return <p className="text-xs text-gray-500 italic">No courses found for this college.</p>;
+                                  }
+
+                                  // 3. Check if Levels are selected
+                                  if (formData.assignedLevels.length === 0) {
+                                    return <p className="text-xs text-gray-500 italic">Select levels to filter {collegeCourses.length} available courses.</p>;
+                                  }
+
+                                  // 4. Filter by Level
+                                  const matchingCourses = collegeCourses.filter(course => {
+                                    const hasLevel = course.level != null;
+                                    const levelMatch = formData.assignedLevels.some(level =>
+                                      course.level && course.level.toLowerCase() === level.toLowerCase()
+                                    );
+                                    if (!hasLevel) console.warn('⚠️ Course missing level:', course.name);
+                                    return levelMatch;
+                                  });
+
+                                  console.log(`🔍 Final matches for levels [${formData.assignedLevels}]:`, matchingCourses.length);
+
+                                  if (matchingCourses.length > 0) {
+                                    return matchingCourses.map(course => (
+                                      <span key={course._id} className="px-2 py-1 bg-white border border-indigo-100 text-indigo-700 rounded-md text-xs font-medium shadow-sm">
+                                        {course.name}
+                                      </span>
+                                    ));
+                                  } else {
+                                    return <p className="text-xs text-gray-500 italic">No courses match the selected levels ({formData.assignedLevels.join(', ')}).</p>;
+                                  }
+                                })()}
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-2 text-right">
+                                * Only courses matching both College and Level are assigned
+                              </p>
+                            </div>
+                          )}
 
                           {/* Email field for principal */}
                           <div>

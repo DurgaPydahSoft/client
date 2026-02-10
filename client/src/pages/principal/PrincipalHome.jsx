@@ -391,10 +391,13 @@ const PrincipalHome = () => {
               </h1>
               <p className="text-gray-600 mt-1 text-xs sm:text-sm">
                 Welcome back, {user?.name || 'Principal'}! Here's an overview of your{' '}
-                {user?.assignedCourses && user.assignedCourses.length > 1
-                  ? `${user.assignedCourses.length} assigned courses`
-                  : `${getCourseName(user?.course)} management`}
-                .
+                {user?.assignedCollegeIds && user.assignedCollegeIds.length > 0
+                  ? `${user.assignedCollegeIds.length} assigned colleges`
+                  : (user?.assignedCourses && user.assignedCourses.length > 1
+                    ? `${user.assignedCourses.length} assigned courses`
+                    : `${getCourseName(user?.course)} management`
+                  )
+                }.
               </p>
             </div>
             <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-50 rounded-lg">
