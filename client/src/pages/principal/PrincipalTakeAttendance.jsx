@@ -21,17 +21,14 @@ const PrincipalTakeAttendance = () => {
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Consolidate initial filter state
   const [filters, setFilters] = useState({
     branch: '',
-    gender: ''
+    gender: '',
+    course: (user.assignedCourses && user.assignedCourses.length > 0)
+      ? user.assignedCourses[0]
+      : (typeof user.course === 'object' ? user.course.name : user.course) || ''
   });
-  // Add course to filters if not already there
-  useEffect(() => {
-    setFilters(prev => ({
-      ...prev,
-      course: ''
-    }));
-  }, []);
   const [attendanceData, setAttendanceData] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [allBranches, setAllBranches] = useState([]);
@@ -39,41 +36,46 @@ const PrincipalTakeAttendance = () => {
   const [loadingFilters, setLoadingFilters] = useState(false);
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
 
-  useEffect(() => {
-    fetchStudents();
-  }, [selectedDate, filters]);
+  // Track if we've done the initial fetch to prevent double fetches on mount
+  const isInitialMount = React.useRef(true);
 
   useEffect(() => {
-    if (user?.course || (user?.assignedCourses && user.assignedCourses.length > 0)) {
-      // Initialize course filter if not set or empty
-      if (!filters.course) {
-        const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
-          ? user.assignedCourses[0]
-          : (typeof user.course === 'object' ? user.course.name : user.course);
+    // Prevent fetching until we have at least a course (for principals)
+    if (!filters.course && (user?.course || user?.assignedCourses?.length > 0)) {
+      const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
+        ? user.assignedCourses[0]
+        : (typeof user.course === 'object' ? user.course.name : user.course);
 
+      if (defaultCourse) {
         setFilters(prev => ({ ...prev, course: defaultCourse }));
+        return; // Let the next cycle handle the fetch
       }
+    }
+
+    if (filters.course) {
+      fetchStudents();
       fetchFilters();
     }
-  }, [user?.course, user?.assignedCourses, filters.course]);
+  }, [selectedDate, filters.course, filters.branch, filters.gender]);
 
   const fetchStudents = async () => {
+    // If no course is selected yet, don't fetch (principals must have a course context)
+    if (!filters.course) return;
+
     setLoading(true);
     try {
-      // Use principal-specific endpoint - server already filters by course
-      const params = new URLSearchParams({ date: selectedDate });
-
-      // Pass the selected course explicitly if available
-      if (filters.course) params.append('course', filters.course);
+      const params = new URLSearchParams({
+        date: selectedDate,
+        course: filters.course
+      });
 
       if (filters.gender) params.append('gender', filters.gender);
       if (filters.branch) params.append('branch', filters.branch);
-      console.log('[DEBUG] Fetching students with params:', params.toString());
+
       const response = await api.get(`/api/attendance/principal/date?${params}`);
-      console.log('[DEBUG] API response:', response.data);
+
       if (response.data.success) {
-        const filteredStudents = response.data.data.attendance; // Access the attendance array
-        console.log('[DEBUG] Students data received:', filteredStudents);
+        const filteredStudents = response.data.data.attendance;
         setStudents(filteredStudents);
         const initialAttendance = {};
         filteredStudents.forEach(student => {
@@ -91,7 +93,6 @@ const PrincipalTakeAttendance = () => {
       toast.error('Failed to fetch students data');
     } finally {
       setLoading(false);
-      console.log('[DEBUG] Loading set to false');
     }
   };
 

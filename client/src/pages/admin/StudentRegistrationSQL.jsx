@@ -32,7 +32,8 @@ const initialForm = {
   email: '',
   concession: 0,
   hostel: '',
-  hostelCategory: ''
+  hostelCategory: '',
+  college: null
 };
 
 const StudentRegistrationSQL = () => {
@@ -64,8 +65,10 @@ const StudentRegistrationSQL = () => {
   // Dynamic data
   const [courses, setCourses] = useState([]);
   const [branches, setBranches] = useState([]);
+  const [colleges, setColleges] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
   const [loadingBranches, setLoadingBranches] = useState(false);
+  const [loadingColleges, setLoadingColleges] = useState(false);
   // Derived helpers
   const getCourseNameById = (id) => {
     if (!id) return '';
@@ -120,9 +123,10 @@ const StudentRegistrationSQL = () => {
     total: 0
   });
 
-  // Fetch courses & hostels on mount
+  // Fetch courses, colleges & hostels on mount
   useEffect(() => {
     fetchCourses();
+    fetchColleges();
     fetchHostels();
   }, []);
 
@@ -178,6 +182,21 @@ const StudentRegistrationSQL = () => {
       toast.error('Error fetching courses');
     } finally {
       setLoadingCourses(false);
+    }
+  };
+
+  // Fetch colleges
+  const fetchColleges = async () => {
+    setLoadingColleges(true);
+    try {
+      const res = await api.get('/api/admin/sql/colleges');
+      if (res.data.success) {
+        setColleges(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching colleges:', err);
+    } finally {
+      setLoadingColleges(false);
     }
   };
 
@@ -296,10 +315,10 @@ const StudentRegistrationSQL = () => {
 
     try {
       const res = await api.get(`/api/admin/students/fetch-from-sql/${identifier}`);
-      
+
       if (res.data.success) {
         const sqlData = res.data.data;
-        
+
         // Map SQL data to form
         const mappedForm = {
           name: sqlData.name || '',
@@ -327,12 +346,18 @@ const StudentRegistrationSQL = () => {
           academicYear: form.academicYear,
           concession: form.concession,
           hostel: form.hostel,
-          hostelCategory: form.hostelCategory
+          hostelCategory: form.hostelCategory,
+          college: sqlData.college || null
         };
+
+        // If SQL provided a college that we don't have in our list, add it to avoid blank selection
+        if (sqlData.college && !colleges.find(c => c.id === sqlData.college.id)) {
+          setColleges(prev => [...prev, sqlData.college]);
+        }
 
         setForm(mappedForm);
         setSqlDataFetched(true);
-        
+
         // Handle student photo from SQL
         if (sqlData.studentPhoto) {
           // If it's a data URL or base64, set as preview
@@ -343,7 +368,7 @@ const StudentRegistrationSQL = () => {
             setStudentPhotoPreview(`data:image/jpeg;base64,${sqlData.studentPhoto}`);
           }
         }
-        
+
         // Fetch branches if course is set
         if (mappedForm.course) {
           await fetchBranches(mappedForm.course);
@@ -507,7 +532,11 @@ const StudentRegistrationSQL = () => {
     try {
       const formData = new FormData();
       Object.keys(form).forEach(key => {
-        formData.append(key, form[key]);
+        if (key === 'college' && form[key] && typeof form[key] === 'object') {
+          formData.append(key, JSON.stringify(form[key]));
+        } else if (form[key] !== null && form[key] !== undefined) {
+          formData.append(key, form[key]);
+        }
       });
 
       if (studentPhoto) {
@@ -530,25 +559,25 @@ const StudentRegistrationSQL = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
-        if (res.data.success) {
-          const genPass = res.data.data?.generatedPassword;
-          if (genPass) {
-            setGeneratedPassword(genPass);
-            setShowPasswordModal(true);
-          }
-          toast.success('Student registered successfully');
-          // Reset form
-          setForm(initialForm);
-          setIdentifier('');
-          setSqlDataFetched(false);
-          setStudentPhoto(null);
-          setGuardianPhoto1(null);
-          setGuardianPhoto2(null);
-          setStudentPhotoPreview(null);
-          setGuardianPhoto1Preview(null);
-          setGuardianPhoto2Preview(null);
-          // Stay on the same page; do not navigate away
+      if (res.data.success) {
+        const genPass = res.data.data?.generatedPassword;
+        if (genPass) {
+          setGeneratedPassword(genPass);
+          setShowPasswordModal(true);
         }
+        toast.success('Student registered successfully');
+        // Reset form
+        setForm(initialForm);
+        setIdentifier('');
+        setSqlDataFetched(false);
+        setStudentPhoto(null);
+        setGuardianPhoto1(null);
+        setGuardianPhoto2(null);
+        setStudentPhotoPreview(null);
+        setGuardianPhoto1Preview(null);
+        setGuardianPhoto2Preview(null);
+        // Stay on the same page; do not navigate away
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to register student');
     } finally {
@@ -604,7 +633,7 @@ const StudentRegistrationSQL = () => {
         {/* SQL Fetch Section */}
         <div className="bg-blue-50 rounded-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Fetch Student Data from SQL Database</h2>
-          
+
           <div className="flex gap-4 items-end">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -739,6 +768,27 @@ const StudentRegistrationSQL = () => {
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Academic Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">College *</label>
+                <select
+                  name="college"
+                  value={form.college ? form.college.id : ''}
+                  onChange={(e) => {
+                    const selectedId = parseInt(e.target.value);
+                    const selectedCollege = colleges.find(c => c.id === selectedId);
+                    setForm(prev => ({ ...prev, college: selectedCollege || null }));
+                  }}
+                  required
+                  disabled={loadingColleges}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">{loadingColleges ? 'Loading...' : 'Select College'}</option>
+                  {colleges.map(college => (
+                    <option key={college.id} value={college.id}>{college.name}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-blue-600 mt-1">Fetched from SQL</p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
                 <select

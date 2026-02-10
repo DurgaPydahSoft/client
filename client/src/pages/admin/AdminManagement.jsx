@@ -167,6 +167,10 @@ const AdminManagement = () => {
   const [branches, setBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
 
+  // State for College Builder UI (Principal)
+  const [selectedCollegeToAdd, setSelectedCollegeToAdd] = useState('');
+  const [selectedLevelsToAdd, setSelectedLevelsToAdd] = useState([]);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -399,7 +403,7 @@ const AdminManagement = () => {
         requestData = {
           username: formData.username,
           password: formData.password,
-          assignedCollegeId: formData.assignedCollegeId,
+          assignedCollegeIds: formData.assignedCollegeIds,
           assignedLevels: formData.assignedLevels,
           email: formData.principalEmail
         };
@@ -613,6 +617,37 @@ const AdminManagement = () => {
     setShowEditModal(true);
   };
 
+  const handleAddCollegeToPrincipal = () => {
+    if (!selectedCollegeToAdd || selectedLevelsToAdd.length === 0) {
+      toast.error('Please select a college and at least one level');
+      return;
+    }
+
+    setFormData(prev => {
+      const currentIds = prev.assignedCollegeIds || [];
+      const currentLevels = prev.assignedLevels || [];
+
+      // Add college if not already added
+      const newIds = currentIds.includes(Number(selectedCollegeToAdd))
+        ? currentIds
+        : [...currentIds, Number(selectedCollegeToAdd)];
+
+      // Merge levels (Union)
+      const newLevels = [...new Set([...currentLevels, ...selectedLevelsToAdd])];
+
+      return {
+        ...prev,
+        assignedCollegeIds: newIds,
+        assignedLevels: newLevels
+      };
+    });
+
+    // Reset Builder State
+    setSelectedCollegeToAdd('');
+    setSelectedLevelsToAdd([]);
+    toast.success('College added successfully');
+  };
+
   const openPasswordResetModal = (admin) => {
     setSelectedAdmin(admin);
     setPasswordResetData({
@@ -674,7 +709,7 @@ const AdminManagement = () => {
       customRoleId: '',
       principalEmail: '',
       principalCourses: [],
-      assignedCollegeId: '',
+      assignedCollegeIds: [],
       assignedLevels: []
     });
     setPasswordResetData({
@@ -1079,9 +1114,37 @@ const AdminManagement = () => {
                         )}
 
                         {isPrincipalTab && (
-                          <div className="flex flex-col gap-2">
-                            {/* Display College & Levels if available */}
-                            {admin.assignedCollegeId && (
+                          <div className="flex flex-col gap-3">
+                            {/* 1. Display Assigned Colleges */}
+                            {admin.assignedCollegeIds && admin.assignedCollegeIds.length > 0 ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-start gap-2 text-sm text-gray-800">
+                                  <svg className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                  </svg>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {admin.assignedCollegeIds.map(id => {
+                                      const college = colleges.find(c => c.id === id);
+                                      return (
+                                        <span key={id} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                                          {college?.name || 'Unknown College'}
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Levels */}
+                                <div className="flex flex-wrap gap-1 ml-6">
+                                  {admin.assignedLevels && admin.assignedLevels.map(level => (
+                                    <span key={level} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] uppercase border border-gray-200">
+                                      {level}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : admin.assignedCollegeId ? (
+                              /* Fallback for legacy single ID */
                               <div className="space-y-1">
                                 <div className="flex items-center gap-2 text-sm text-gray-800 font-medium">
                                   <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1089,58 +1152,77 @@ const AdminManagement = () => {
                                   </svg>
                                   {colleges.find(c => c.id === admin.assignedCollegeId)?.name || 'Unknown College'}
                                 </div>
-                                <div className="flex flex-wrap gap-1">
+                                <div className="flex flex-wrap gap-1 ml-6">
                                   {admin.assignedLevels && admin.assignedLevels.map(level => (
-                                    <span key={level} className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs border border-purple-100 uppercase">
+                                    <span key={level} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] uppercase border border-gray-200">
                                       {level}
                                     </span>
                                   ))}
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
+                            {/* 2. Display Matching Courses */}
                             <div className="flex items-start gap-2">
                               <svg className="w-4 h-4 text-gray-500 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                               </svg>
                               <div className="flex flex-wrap gap-1">
-                                {/* If College is assigned, show filtering logic */}
-                                {admin.assignedCollegeId ? (
-                                  (() => {
-                                    // Filter courses based on college and levels
+                                {(() => {
+                                  // Determine IDs to filter by (support both new array and old single ID)
+                                  const targetCollegeIds = admin.assignedCollegeIds && admin.assignedCollegeIds.length > 0
+                                    ? admin.assignedCollegeIds
+                                    : admin.assignedCollegeId ? [admin.assignedCollegeId] : [];
+
+                                  if (targetCollegeIds.length > 0) {
+                                    // Filter courses matching ANY of the college IDs AND matching the levels
                                     const filteredCourses = courses.filter(course =>
                                       course.college &&
-                                      course.college.id === admin.assignedCollegeId &&
+                                      targetCollegeIds.includes(course.college.id) &&
                                       admin.assignedLevels &&
                                       admin.assignedLevels.map(l => l.toLowerCase()).includes(course.level?.toLowerCase())
                                     );
 
                                     if (filteredCourses.length > 0) {
-                                      return filteredCourses.map((course) => (
-                                        <span key={course._id} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
-                                          {course.name}
+                                      // Limit display to 5 courses + "x more"
+                                      const displayCourses = filteredCourses.slice(0, 5);
+                                      const remaining = filteredCourses.length - 5;
+
+                                      return (
+                                        <>
+                                          {displayCourses.map((course) => (
+                                            <span key={course._id} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[11px] font-medium border border-indigo-100 truncate max-w-[150px]">
+                                              {course.name}
+                                            </span>
+                                          ))}
+                                          {remaining > 0 && (
+                                            <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full text-[11px] border border-gray-200">
+                                              +{remaining} more
+                                            </span>
+                                          )}
+                                        </>
+                                      );
+                                    } else {
+                                      return <span className="text-xs text-gray-400 italic">No matching courses found</span>;
+                                    }
+                                  } else {
+                                    // Legacy: assignedCourses or course
+                                    if (admin.assignedCourses && admin.assignedCourses.length > 0) {
+                                      return admin.assignedCourses.map((course, idx) => (
+                                        <span key={idx} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[11px] font-medium truncate max-w-[150px]">
+                                          {course}
                                         </span>
                                       ));
-                                    } else {
-                                      return <span className="text-xs text-gray-500 italic">No matching courses found</span>;
+                                    } else if (admin.course) {
+                                      return (
+                                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[11px] font-medium truncate max-w-[150px]">
+                                          {typeof admin.course === 'object' ? admin.course.name : admin.course}
+                                        </span>
+                                      );
                                     }
-                                  })()
-                                ) : (
-                                  /* Legacy Display */
-                                  admin.assignedCourses && admin.assignedCourses.length > 0 ? (
-                                    admin.assignedCourses.map((course, idx) => (
-                                      <span key={idx} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
-                                        {course}
-                                      </span>
-                                    ))
-                                  ) : admin.course ? (
-                                    <span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium truncate max-w-[150px]">
-                                      {typeof admin.course === 'object' ? admin.course.name : admin.course}
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-gray-500 italic">No course assigned</span>
-                                  )
-                                )}
+                                    return <span className="text-xs text-gray-400 italic">No college/course assigned</span>;
+                                  }
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -1241,63 +1323,359 @@ const AdminManagement = () => {
               </div>
 
               <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3">
-                {/* Basic Information - Two Column Layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        Username <span className="text-red-500">*</span>
+                {/* Principal Specific Two-Column Layout */}
+                {isPrincipalTab ? (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* LEFT COLUMN: Credentials & Email & Preview */}
+                    <div className="space-y-4">
+                      {/* Username */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            Username <span className="text-red-500">*</span>
+                          </div>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleFormChange}
+                            required
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter username"
+                          />
+                        </div>
                       </div>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
-                      <input
-                        type="text"
-                        name="username"
-                        value={formData.username}
-                        onChange={handleFormChange}
-                        required
-                        className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter username"
-                      />
-                    </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
-                        {showAddModal && <span className="text-red-500">*</span>}
+                      {/* Password */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2-2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep)</span>}
+                            {showAddModal && <span className="text-red-500">*</span>}
+                          </div>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          </div>
+                          <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleFormChange}
+                            required={showAddModal}
+                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Enter password"
+                          />
+                        </div>
                       </div>
-                    </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
+
+                      {/* Principal Email */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            Email Address <span className="text-gray-500 text-xs">(Optional)</span>
+                          </div>
+                        </label>
+                        <input
+                          type="email"
+                          name="principalEmail"
+                          value={formData.principalEmail}
+                          onChange={handleFormChange}
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter principal's email"
+                        />
                       </div>
-                      <input
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleFormChange}
-                        required={showAddModal}
-                        className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter password"
-                      />
+
+                      {/* Course Preview - MOVED TO LEFT */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Assigned Courses Preview
+                        </label>
+                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-64 overflow-y-auto space-y-3">
+                          {(() => {
+                            if (!formData.assignedCollegeIds || formData.assignedCollegeIds.length === 0) {
+                              return <p className="text-xs text-gray-500 italic">Select at least one college to see courses</p>;
+                            }
+
+                            // Filter courses by selected colleges
+                            const relevantCourses = courses.filter(course =>
+                              course.college && formData.assignedCollegeIds.includes(course.college.id)
+                            );
+
+                            if (relevantCourses.length === 0) {
+                              return <p className="text-xs text-gray-500 italic">No courses found for the selected colleges.</p>;
+                            }
+
+                            // Group by College
+                            const coursesByCollege = relevantCourses.reduce((acc, course) => {
+                              const collegeName = course.college.name;
+                              if (!acc[collegeName]) acc[collegeName] = [];
+                              acc[collegeName].push(course);
+                              return acc;
+                            }, {});
+
+                            return Object.entries(coursesByCollege).map(([collegeName, collegeCourses]) => (
+                              <div key={collegeName}>
+                                <div className="text-xs font-semibold text-gray-800 mb-1">{collegeName}</div>
+                                <div className="flex flex-wrap gap-2">
+                                  {collegeCourses.filter(c => {
+                                    // Filter by Level
+                                    if (formData.assignedLevels.length === 0) return true;
+                                    return formData.assignedLevels.some(l => c.level && c.level.toLowerCase() === l.toLowerCase());
+                                  }).map(course => (
+                                    <span key={course._id} className="inline-flex items-center px-2 py-1 bg-white border border-indigo-100 text-indigo-700 rounded-md text-xs font-medium shadow-sm gap-1">
+                                      {course.name}
+                                      {course.level && (
+                                        <span className="px-1 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] rounded uppercase ml-1">
+                                          {course.level}
+                                        </span>
+                                      )}
+                                    </span>
+                                  ))}
+                                  {collegeCourses.filter(c => formData.assignedLevels.some(l => c.level && c.level.toLowerCase() === l.toLowerCase())).length === 0 && (
+                                    <span className="text-xs text-gray-400 italic">No courses match selected levels</span>
+                                  )}
+                                </div>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: Configuration (Builder Pattern) */}
+                    <div className="space-y-6">
+                      {/* College Builder Box */}
+                      <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                          Assign New College
+                        </h3>
+
+                        {/* 1. Select College Dropdown */}
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Select College</label>
+                          <select
+                            value={selectedCollegeToAdd}
+                            onChange={(e) => setSelectedCollegeToAdd(e.target.value)}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                          >
+                            <option value="">-- Choose a College --</option>
+                            {colleges
+                              .filter(c => !formData.assignedCollegeIds?.includes(c.id)) // Filter out already added
+                              .map(college => (
+                                <option key={college.id} value={college.id}>
+                                  {college.name}
+                                </option>
+                              ))}
+                          </select>
+                        </div>
+
+                        {/* 2. Select Levels (Only if College Selected) */}
+                        {selectedCollegeToAdd && (
+                          <div className="mb-3">
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Select Levels</label>
+                            <div className="flex gap-2">
+                              {['diploma', 'ug', 'pg'].map(level => (
+                                <label key={level} className="flex-1 flex items-center justify-center gap-2 p-2 border border-gray-200 bg-white rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-200 transition-all">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedLevelsToAdd.includes(level)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedLevelsToAdd(prev => [...prev, level]);
+                                      } else {
+                                        setSelectedLevelsToAdd(prev => prev.filter(l => l !== level));
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                                  />
+                                  <span className="text-xs font-medium text-gray-700 uppercase">{level}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 2.5 Pending Course Preview */}
+                        {selectedCollegeToAdd && selectedLevelsToAdd.length > 0 && (
+                          <div className="mb-3 p-3 bg-white border border-purple-100 rounded-lg">
+                            <label className="block text-xs font-medium text-purple-700 mb-2">
+                              Courses to be Added
+                            </label>
+                            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                              {(() => {
+                                // Filter courses for the selected college
+                                const collegeCourses = courses.filter(c =>
+                                  c.college && c.college.id === Number(selectedCollegeToAdd)
+                                );
+
+                                // Filter by selected levels
+                                const matchingCourses = collegeCourses.filter(c =>
+                                  selectedLevelsToAdd.some(level => c.level && c.level.toLowerCase() === level.toLowerCase())
+                                );
+
+                                if (matchingCourses.length === 0) {
+                                  return <p className="text-xs text-gray-400 italic">No courses found for selected levels</p>;
+                                }
+
+                                return matchingCourses.map(course => (
+                                  <span key={course._id} className="inline-flex items-center px-2 py-1 bg-purple-50 text-purple-700 rounded-md text-xs font-medium border border-purple-100">
+                                    {course.name}
+                                  </span>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. Add Button */}
+                        <button
+                          type="button"
+                          onClick={handleAddCollegeToPrincipal}
+                          disabled={!selectedCollegeToAdd || selectedLevelsToAdd.length === 0}
+                          className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2
+                               ${!selectedCollegeToAdd || selectedLevelsToAdd.length === 0
+                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                              : 'bg-purple-600 text-white hover:bg-purple-700 shadow-md'
+                            }
+                             `}
+                        >
+                          <span className="text-lg leading-none">+</span> Add College
+                        </button>
+                      </div>
+
+                      {/* List of Assigned Colleges */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Assigned Colleges ({formData.assignedCollegeIds?.length || 0})
+                        </label>
+
+                        {(!formData.assignedCollegeIds || formData.assignedCollegeIds.length === 0) ? (
+                          <div className="text-center p-6 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-sm">
+                            No colleges assigned yet. Use the form above to add one.
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {formData.assignedCollegeIds.map(id => {
+                              const college = colleges.find(c => c.id === id);
+                              return (
+                                <div key={id} className="flex items-center justify-between p-3 bg-white border border-purple-100 rounded-lg shadow-sm">
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">{college?.name || 'Unknown College'}</div>
+                                    <div className="flex gap-1 mt-1">
+                                      {/* Display ALL assigned levels for now, as schema is global */}
+                                      {formData.assignedLevels.map(level => (
+                                        <span key={level} className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded border border-purple-100 uppercase font-medium">
+                                          {level}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // Remove College
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        assignedCollegeIds: prev.assignedCollegeIds.filter(cid => cid !== id)
+                                      }));
+                                    }}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Remove College"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  /* Standard Layout for Warden / Sub-Admin */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          Username <span className="text-red-500">*</span>
+                        </div>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                        </div>
+                        <input
+                          type="text"
+                          name="username"
+                          value={formData.username}
+                          onChange={handleFormChange}
+                          required
+                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter username"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
+                          {showAddModal && <span className="text-red-500">*</span>}
+                        </div>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
+                        <input
+                          type="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleFormChange}
+                          required={showAddModal}
+                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter password"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {!isWardenTab && !isPrincipalTab && (
                   <div className="space-y-3">
@@ -1717,19 +2095,16 @@ const AdminManagement = () => {
                   </div>
                 )}
 
-                {/* Warden and Principal specific sections */}
-                {(isWardenTab || isPrincipalTab) && (
+                {/* Warden specific section */}
+                {isWardenTab && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Info Section */}
                     <div className={isWardenTab ? "p-3 bg-green-50 rounded-lg" : "p-3 bg-purple-50 rounded-lg"}>
                       <h3 className="text-sm font-medium mb-1">
-                        {isWardenTab ? "Warden Permissions" : "Principal Permissions"}
+                        Warden Permissions
                       </h3>
                       <p className="text-xs text-gray-700">
-                        {isWardenTab
-                          ? "Wardens have access to student oversight, complaint management, leave approval, room monitoring, announcements, discipline management, and attendance tracking."
-                          : "Principals have access to attendance management, student oversight, and course-specific analytics."
-                        }
+                        Wardens have access to student oversight, complaint management, leave approval, room monitoring, announcements, discipline management, and attendance tracking.
                       </p>
                     </div>
 
@@ -1844,60 +2219,30 @@ const AdminManagement = () => {
                           </div>
 
                           {/* Course Preview Section */}
-                          {(formData.assignedCollegeId || formData.assignedLevels.length > 0) && (
+                          {(formData.assignedCollegeIds?.length > 0 || formData.assignedLevels.length > 0) && (
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                               <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                                 Assigned Courses Preview
                               </label>
                               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
                                 {(() => {
-                                  // Debug logging
-                                  console.log('🔍 Filtering Debug:', {
-                                    selectedCollegeId: formData.assignedCollegeId,
-                                    selectedCollegeIdType: typeof formData.assignedCollegeId,
-                                    selectedLevels: formData.assignedLevels,
-                                    totalCourses: courses.length,
-                                    firstCourse: courses[0]
-                                  });
-
-                                  // 1. Check if College is selected
-                                  if (!formData.assignedCollegeId) {
+                                  // 1. Check if Colleges are selected
+                                  if (!formData.assignedCollegeIds || formData.assignedCollegeIds.length === 0) {
                                     return <p className="text-xs text-gray-500 italic">Select a college to see courses</p>;
                                   }
 
-                                  // 2. Fetch courses for the selected college
-                                  const collegeCourses = courses.filter(course => {
-                                    if (!course.college) {
-                                      // Log missing college object on course
-                                      // console.warn('⚠️ Course missing college object:', course.name);
-                                      return false;
-                                    }
-                                    const match = String(course.college.id) === String(formData.assignedCollegeId);
-                                    return match;
+                                  // 2. Fetch courses for the selected colleges
+                                  const matchingCourses = courses.filter(course => {
+                                    if (!course.college) return false;
+
+                                    const collegeMatch = formData.assignedCollegeIds.includes(course.college.id);
+
+                                    // If levels are selected, filter by level too
+                                    const levelMatch = formData.assignedLevels.length === 0 ||
+                                      (course.level && formData.assignedLevels.some(l => l.toLowerCase() === course.level.toLowerCase()));
+
+                                    return collegeMatch && levelMatch;
                                   });
-
-                                  console.log(`🔍 Matches for college ${formData.assignedCollegeId}:`, collegeCourses.length);
-
-                                  if (collegeCourses.length === 0) {
-                                    return <p className="text-xs text-gray-500 italic">No courses found for this college.</p>;
-                                  }
-
-                                  // 3. Check if Levels are selected
-                                  if (formData.assignedLevels.length === 0) {
-                                    return <p className="text-xs text-gray-500 italic">Select levels to filter {collegeCourses.length} available courses.</p>;
-                                  }
-
-                                  // 4. Filter by Level
-                                  const matchingCourses = collegeCourses.filter(course => {
-                                    const hasLevel = course.level != null;
-                                    const levelMatch = formData.assignedLevels.some(level =>
-                                      course.level && course.level.toLowerCase() === level.toLowerCase()
-                                    );
-                                    if (!hasLevel) console.warn('⚠️ Course missing level:', course.name);
-                                    return levelMatch;
-                                  });
-
-                                  console.log(`🔍 Final matches for levels [${formData.assignedLevels}]:`, matchingCourses.length);
 
                                   if (matchingCourses.length > 0) {
                                     return matchingCourses.map(course => (
@@ -1906,7 +2251,7 @@ const AdminManagement = () => {
                                       </span>
                                     ));
                                   } else {
-                                    return <p className="text-xs text-gray-500 italic">No courses match the selected levels ({formData.assignedLevels.join(', ')}).</p>;
+                                    return <p className="text-xs text-gray-500 italic text-center w-full py-2">No courses match the selected criteria.</p>;
                                   }
                                 })()}
                               </div>

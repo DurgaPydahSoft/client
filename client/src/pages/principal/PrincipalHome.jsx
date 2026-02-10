@@ -403,9 +403,11 @@ const PrincipalHome = () => {
             <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-50 rounded-lg">
               <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               <span className="text-xs sm:text-sm font-medium text-purple-700">
-                {user?.assignedCourses && user.assignedCourses.length > 1
-                  ? 'Multiple Courses Assigned'
-                  : getCourseName(user?.course)}
+                {user?.assignedCollegeDetails && user.assignedCollegeDetails.length > 0
+                  ? (user.assignedCollegeDetails.length > 1
+                    ? `${user.assignedCollegeDetails.length} Colleges Assigned`
+                    : user.assignedCollegeDetails[0].name)
+                  : 'Principal'}
               </span>
             </div>
           </div>
@@ -644,25 +646,43 @@ const PrincipalHome = () => {
           </div>
         </motion.div>
 
-        {/* Course Information */}
+        {/* College Information */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="bg-white rounded-xl shadow-lg p-4 sm:p-6 mt-6 sm:mt-8"
         >
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Course Information</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">College Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div>
-              <h3 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Course Details</h3>
+              <h3 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">
+                {user?.assignedCollegeDetails && user.assignedCollegeDetails.length > 0 ? 'Assigned Colleges' : 'Course Details'}
+              </h3>
               <div className="space-y-2 text-xs sm:text-sm text-gray-600">
-                <p>
-                  <span className="font-medium">Course:</span>{' '}
-                  {user?.assignedCourses && user.assignedCourses.length > 1
-                    ? user.assignedCourses.join(', ')
-                    : getCourseName(user?.course)}
-                </p>
-                <p><span className="font-medium">Total Students:</span> {stats.totalStudents}</p>
+                {user?.assignedCollegeDetails && user.assignedCollegeDetails.length > 0 ? (
+                  <>
+                    <div className="flex flex-wrap gap-2">
+                      {user.assignedCollegeDetails.map(college => (
+                        <span key={college.id} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          {college.name}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2"><span className="font-medium">Assigned Levels:</span> {user?.assignedLevels?.join(', ') || 'All Levels'}</p>
+                    <p><span className="font-medium">Total Courses:</span> {user?.assignedCourses?.length || 0}</p>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      <span className="font-medium">Course:</span>{' '}
+                      {user?.assignedCourses && user.assignedCourses.length > 1
+                        ? user.assignedCourses.join(', ')
+                        : getCourseName(user?.course)}
+                    </p>
+                  </>
+                )}
+                <p className="mt-2"><span className="font-medium">Total Students:</span> {stats.totalStudents}</p>
                 <p><span className="font-medium">Today's Attendance:</span> {stats.attendanceRate}%</p>
               </div>
             </div>

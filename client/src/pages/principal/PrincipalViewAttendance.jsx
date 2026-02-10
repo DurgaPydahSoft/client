@@ -39,7 +39,9 @@ const PrincipalViewAttendance = () => {
   });
 
   const [filters, setFilters] = useState({
-    course: '', // Add course filter
+    course: (user.assignedCourses && user.assignedCourses.length > 0)
+      ? user.assignedCourses[0]
+      : (typeof user.course === 'object' ? user.course.name : user.course) || '',
     studentId: '',
     branch: '',
     gender: '',
@@ -63,48 +65,46 @@ const PrincipalViewAttendance = () => {
   const [generatingExcel, setGeneratingExcel] = useState(false);
 
   useEffect(() => {
-    if (viewMode === 'date') {
-      fetchAttendanceForDate();
-    } else {
-      fetchAttendanceForRange();
-    }
-  }, [selectedDate, dateRange, viewMode, filters]);
+    // Prevent fetching until we have at least a course (for principals)
+    if (!filters.course && (user?.course || user?.assignedCourses?.length > 0)) {
+      const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
+        ? user.assignedCourses[0]
+        : (typeof user.course === 'object' ? user.course.name : user.course);
 
-  useEffect(() => {
-    if (user?.course || (user?.assignedCourses && user.assignedCourses.length > 0)) {
-      // Initialize course filter if not set
-      if (!filters.course) {
-        const defaultCourse = (user.assignedCourses && user.assignedCourses.length > 0)
-          ? user.assignedCourses[0]
-          : (typeof user.course === 'object' ? user.course.name : user.course);
-
+      if (defaultCourse) {
         setFilters(prev => ({ ...prev, course: defaultCourse }));
+        return; // Let the next cycle handle the fetch
+      }
+    }
+
+    if (filters.course) {
+      if (viewMode === 'date') {
+        fetchAttendanceForDate();
+      } else {
+        fetchAttendanceForRange();
       }
       fetchFilters();
     }
-  }, [user?.course, user?.assignedCourses, filters.course]); // Add filters.course dependency for branch fetching
+  }, [selectedDate, dateRange, viewMode, filters.course, filters.branch, filters.gender, filters.status, filters.studentId]);
 
   const fetchAttendanceForDate = async () => {
+    if (!filters.course) return;
+
     setLoading(true);
     try {
-      // Server already filters by course for principals, no need to pass course parameter
-      const params = new URLSearchParams({ date: selectedDate });
-
-      // Pass the selected course explicitly if available
-      if (filters.course) params.append('course', filters.course);
+      const params = new URLSearchParams({
+        date: selectedDate,
+        course: filters.course
+      });
 
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
       if (filters.gender) params.append('gender', filters.gender);
-      console.log('[DEBUG] Fetching attendance for date with params:', params.toString());
+
       const response = await api.get(`/api/attendance/principal/date?${params}`);
-      console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        const attendanceData = response.data.data.attendance; // Access the attendance array
-        console.log('[DEBUG] Attendance data received:', attendanceData);
-        setAttendance(attendanceData);
-        // Use server-provided statistics
+        setAttendance(response.data.data.attendance);
         setStatistics(response.data.data.statistics);
       }
     } catch (error) {
@@ -112,34 +112,28 @@ const PrincipalViewAttendance = () => {
       toast.error('Failed to fetch attendance data');
     } finally {
       setLoading(false);
-      console.log('[DEBUG] Loading set to false');
     }
   };
 
   const fetchAttendanceForRange = async () => {
+    if (!filters.course) return;
+
     setLoading(true);
     try {
-      // Server already filters by course for principals, no need to pass course parameter
       const params = new URLSearchParams({
         startDate: dateRange.startDate,
-        endDate: dateRange.endDate
+        endDate: dateRange.endDate,
+        course: filters.course
       });
-
-      // Pass the selected course explicitly if available
-      if (filters.course) params.append('course', filters.course);
 
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
       if (filters.gender) params.append('gender', filters.gender);
-      console.log('[DEBUG] Fetching attendance for range with params:', params.toString());
+
       const response = await api.get(`/api/attendance/principal/range?${params}`);
-      console.log('[DEBUG] API response:', response.data);
       if (response.data.success) {
-        const attendanceData = response.data.data.attendance;
-        console.log('[DEBUG] Attendance data received:', attendanceData);
-        setAttendance(attendanceData);
-        // Use server-provided statistics
+        setAttendance(response.data.data.attendance);
         setStatistics(response.data.data.statistics);
       }
     } catch (error) {
@@ -147,7 +141,6 @@ const PrincipalViewAttendance = () => {
       toast.error('Failed to fetch attendance data');
     } finally {
       setLoading(false);
-      console.log('[DEBUG] Loading set to false');
     }
   };
 

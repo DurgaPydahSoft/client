@@ -203,10 +203,12 @@ const PrincipalDashboard = () => {
             </div>
             <div className="flex-1">
               <h1 className="font-semibold text-xs">Principal Portal</h1>
-              <p className="text-xs text-purple-100">
-                {user?.assignedCourses && user.assignedCourses.length > 1
-                  ? `${user.assignedCourses.length} Courses`
-                  : getCourseName(user?.course)}
+              <p className="text-xs text-purple-100 truncate">
+                {user?.assignedCollegeDetails && user.assignedCollegeDetails.length > 0
+                  ? (user.assignedCollegeDetails.length > 1
+                    ? `${user.assignedCollegeDetails.length} Colleges`
+                    : user.assignedCollegeDetails[0].name)
+                  : 'College Management'}
               </p>
             </div>
           </div>
@@ -330,10 +332,12 @@ const PrincipalDashboard = () => {
                 {user?.name || 'Principal'}
               </div>
               <div className="flex items-center justify-between">
-                <div className="text-xs text-gray-500 truncate" title={user?.assignedCourses?.length > 1 ? user.assignedCourses.join(', ') : getCourseName(user?.course)}>
-                  {user?.assignedCourses && user.assignedCourses.length > 1
-                    ? `${user.assignedCourses.length} Courses`
-                    : getCourseName(user?.course) || 'Principal'}
+                <div className="text-[10px] text-gray-500 truncate max-w-[120px]" title={user?.assignedCollegeDetails?.map(c => c.name).join(', ') || 'Principal'}>
+                  {user?.assignedCollegeDetails && user.assignedCollegeDetails.length > 0
+                    ? (user.assignedCollegeDetails.length > 1
+                      ? `${user.assignedCollegeDetails.length} Colleges`
+                      : user.assignedCollegeDetails[0].name)
+                    : 'Principal'}
                 </div>
                 {/* Password Reset Icon */}
                 <motion.button
