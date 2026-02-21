@@ -32,9 +32,7 @@ const SecurityDashboard = () => {
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [verificationStatus, setVerificationStatus] = useState('Verified');
   const [verifying, setVerifying] = useState(false);
-  const [showUpcomingPasses, setShowUpcomingPasses] = useState(false);
   const [filters, setFilters] = useState({
-    verificationStatus: '',
     applicationType: '',
     page: 1
   });
@@ -49,16 +47,17 @@ const SecurityDashboard = () => {
     viewGuardianImages: true
   });
   const [popupImage, setPopupImage] = useState(null);
-  const [filtersExpanded, setFiltersExpanded] = useState(false);
   // Add state for expandable sections
   const [expandedSections, setExpandedSections] = useState({
     outgoing: true, // Default open
     incoming: false,
     completed: false,
-    upcoming: false,
     expired: false
   });
-  
+
+  // Date filter state (default to today)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
   // State for courses and branches to resolve SQL IDs
   const [allCourses, setAllCourses] = useState([]);
   const [allBranches, setAllBranches] = useState([]);
@@ -79,7 +78,7 @@ const SecurityDashboard = () => {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h2>
           <p className="text-gray-600 mb-6">
-            You don't have permission to access the Security Dashboard. 
+            You don't have permission to access the Security Dashboard.
             Please contact your super admin to request access.
           </p>
         </div>
@@ -99,9 +98,9 @@ const SecurityDashboard = () => {
       if (course.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(course)) {
         // Try to find by _id or name match
         const foundCourse = allCourses.find(
-          c => c._id === course || 
-               (c.sqlId && course.startsWith('sql_') && parseInt(course.replace('sql_', '')) === c.sqlId) ||
-               normalizeText(c.name) === normalizeText(course)
+          c => c._id === course ||
+            (c.sqlId && course.startsWith('sql_') && parseInt(course.replace('sql_', '')) === c.sqlId) ||
+            normalizeText(c.name) === normalizeText(course)
         );
         return foundCourse ? foundCourse.name : course;
       }
@@ -123,9 +122,9 @@ const SecurityDashboard = () => {
       if (branch.startsWith('sql_') || /^[0-9a-fA-F]{24}$/.test(branch)) {
         // Try to find by _id or name match
         const foundBranch = allBranches.find(
-          b => b._id === branch || 
-               (b.sqlId && branch.startsWith('sql_') && parseInt(branch.replace('sql_', '')) === b.sqlId) ||
-               normalizeText(b.name) === normalizeText(branch)
+          b => b._id === branch ||
+            (b.sqlId && branch.startsWith('sql_') && parseInt(branch.replace('sql_', '')) === b.sqlId) ||
+            normalizeText(b.name) === normalizeText(branch)
         );
         return foundBranch ? foundBranch.name : branch;
       }
@@ -166,28 +165,30 @@ const SecurityDashboard = () => {
     fetchSecuritySettings();
     fetchCourses();
     fetchBranches();
-  }, [filters.page]);
+  }, [filters.page, selectedDate]);
 
   useEffect(() => {
     // Apply filters to the fetched leaves
     let filtered = [...leaves];
-    
-    if (filters.verificationStatus) {
-      filtered = filtered.filter(leave => leave.verificationStatus === filters.verificationStatus);
-    }
-    
+
     if (filters.applicationType) {
       filtered = filtered.filter(leave => leave.applicationType === filters.applicationType);
     }
-    
+
     setFilteredLeaves(filtered);
-  }, [leaves, filters.verificationStatus, filters.applicationType]);
+  }, [leaves, filters.applicationType]);
 
   const fetchApprovedLeaves = async () => {
     try {
       setLoading(true);
-      console.log('Fetching approved leaves with filters:', filters);
-      const response = await api.get('/api/leave/approved', { params: { page: filters.page, limit: 100 } });
+      console.log('Fetching approved leaves with filters:', { ...filters, selectedDate });
+      const response = await api.get('/api/leave/approved', {
+        params: {
+          page: filters.page,
+          limit: 100,
+          selectedDate
+        }
+      });
       console.log('Approved leaves response:', response.data);
       if (response.data.success) {
         setLeaves(response.data.data.leaves);
@@ -227,7 +228,7 @@ const SecurityDashboard = () => {
           scannedBy: 'Security Guard',
           location: 'Main Gate'
         });
-        
+
         if (response.data.success) {
           toast.success('Incoming visit recorded - Leave completed');
           setShowVerificationModal(false);
@@ -236,19 +237,19 @@ const SecurityDashboard = () => {
         }
       } else {
         // This is an outgoing request - record visit and update verification status
-      await recordVisit(selectedLeave._id, 'Security Guard');
-      
-      // Then update verification status
-      const response = await api.post('/api/leave/verify', {
-        leaveId: selectedLeave._id,
-        verificationStatus
-      });
-      
-      if (response.data.success) {
-        toast.success(response.data.data.message);
-        setShowVerificationModal(false);
-        setVerificationStatus('Verified');
-        fetchApprovedLeaves();
+        await recordVisit(selectedLeave._id, 'Security Guard');
+
+        // Then update verification status
+        const response = await api.post('/api/leave/verify', {
+          leaveId: selectedLeave._id,
+          verificationStatus
+        });
+
+        if (response.data.success) {
+          toast.success(response.data.data.message);
+          setShowVerificationModal(false);
+          setVerificationStatus('Verified');
+          fetchApprovedLeaves();
         }
       }
     } catch (error) {
@@ -266,7 +267,7 @@ const SecurityDashboard = () => {
         scannedBy,
         location: 'Main Gate' // Can be made configurable
       });
-      
+
       if (response.data.success) {
         toast.success('Visit recorded successfully');
         fetchApprovedLeaves(); // Refresh the list
@@ -287,7 +288,7 @@ const SecurityDashboard = () => {
     if (leaveStatus === 'Warden Verified') {
       return 'text-orange-600 bg-orange-50 border-orange-200';
     }
-    
+
     switch (status) {
       case 'Verified':
         return 'text-green-600 bg-green-50 border-green-200';
@@ -318,7 +319,7 @@ const SecurityDashboard = () => {
     if (leaveStatus === 'Warden Verified') {
       return <ExclamationCircleIcon className="w-4 h-4" />;
     }
-    
+
     switch (status) {
       case 'Verified':
         return <CheckCircleIcon className="w-4 h-4" />;
@@ -347,7 +348,7 @@ const SecurityDashboard = () => {
     if (!outgoingSearchQuery.trim()) {
       return requests;
     }
-    
+
     const query = outgoingSearchQuery.toLowerCase().trim();
     return requests.filter(leave => {
       const studentName = (leave.student?.name || '').toLowerCase();
@@ -355,27 +356,33 @@ const SecurityDashboard = () => {
       // Resolve course and branch names for search
       const course = getCourseName(leave.student?.course).toLowerCase();
       const branch = getBranchName(leave.student?.branch).toLowerCase();
-      
-      return studentName.includes(query) || 
-             rollNumber.includes(query) || 
-             course.includes(query) || 
-             branch.includes(query);
+
+      return studentName.includes(query) ||
+        rollNumber.includes(query) ||
+        course.includes(query) ||
+        branch.includes(query);
     });
   };
 
   const getRequestDate = (leave) => leave.applicationType === 'Leave' ? new Date(leave.startDate) : new Date(leave.permissionDate);
 
   const isLeaveExpired = (leave) => {
-    const now = new Date();
-    const endDate = leave.applicationType === 'Leave' ? new Date(leave.endDate) : new Date(new Date(leave.permissionDate).setHours(23, 59, 59, 999));
-    return now > endDate;
+    // Check relative to the end of the selected day
+    const targetDate = new Date(selectedDate);
+    targetDate.setHours(23, 59, 59, 999);
+
+    const endDate = leave.applicationType === 'Leave'
+      ? new Date(leave.endDate)
+      : new Date(new Date(leave.permissionDate).setHours(23, 59, 59, 999));
+
+    return targetDate > endDate;
   };
 
   const handleFilterChange = (newFilters) => {
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   };
 
-  // Helper: is today (IST) - Fixed to properly handle permission dates
+  // Helper: is today (relative to selectedDate)
   const isToday = (date) => {
     // Convert both date and now to IST and normalize to date only (remove time)
     const toISTDateOnly = (d) => {
@@ -385,12 +392,12 @@ const SecurityDashboard = () => {
       // Normalize to start of day (00:00:00) to ignore time components
       return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
     };
-    const nowIST = toISTDateOnly(new Date());
+    const nowIST = toISTDateOnly(new Date(selectedDate));
     const dateIST = toISTDateOnly(date);
     return nowIST.getTime() === dateIST.getTime();
   };
 
-  // Helper: is today or yesterday (IST) - For outgoing requests
+  // Helper: is today or yesterday (relative to selectedDate)
   const isTodayOrYesterday = (date) => {
     // Convert both date and now to IST and normalize to date only (remove time)
     const toISTDateOnly = (d) => {
@@ -400,53 +407,67 @@ const SecurityDashboard = () => {
       // Normalize to start of day (00:00:00) to ignore time components
       return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
     };
-    const nowIST = toISTDateOnly(new Date());
+    const nowIST = toISTDateOnly(new Date(selectedDate));
     const yesterdayIST = new Date(nowIST);
     yesterdayIST.setDate(yesterdayIST.getDate() - 1);
     const dateIST = toISTDateOnly(date);
-    
+
     return nowIST.getTime() === dateIST.getTime() || yesterdayIST.getTime() === dateIST.getTime();
   };
 
   // Helper: sort and auto-expire
   const getSortedLeaves = () => {
-    const now = new Date();
     // Clone and add frontend-only expired status if needed
     const enhanced = filteredLeaves.map(leave => {
+      const isExpired = isLeaveExpired(leave);
       const start = getRequestDate(leave);
-      // Only mark as expired if it's from before yesterday (not today or yesterday)
-      if (
-        leave.verificationStatus !== 'Verified' &&
-        !isTodayOrYesterday(start) // Only expire if not today or yesterday
-      ) {
+
+      // Determine if it should be marked as expired on the frontend
+      let frontendExpired = false;
+      if (leave.verificationStatus !== 'Verified' && leave.verificationStatus !== 'Completed') {
+        if (leave.applicationType === 'Leave') {
+          frontendExpired = isExpired;
+        } else {
+          // For other types, expire if not today or yesterday
+          frontendExpired = !isTodayOrYesterday(start);
+        }
+      }
+
+      if (frontendExpired) {
         return { ...leave, _frontendExpired: true };
       }
       return leave;
     });
-    
+
     // Sort: unverified first, then warden verified, then verified, then completed
     return enhanced.sort((a, b) => {
       const aStart = getRequestDate(a);
       const bStart = getRequestDate(b);
-      const aToday = isToday(aStart);
-      const bToday = isToday(bStart);
-      
-      // First priority: Today's requests first
-      if (aToday && !bToday) return -1;
-      if (!aToday && bToday) return 1;
-      
+
+      const targetDate = new Date(selectedDate);
+      const aIsActive = (a.applicationType === 'Leave')
+        ? (!isLeaveExpired(a) && targetDate >= aStart)
+        : isToday(aStart);
+      const bIsActive = (b.applicationType === 'Leave')
+        ? (!isLeaveExpired(b) && targetDate >= bStart)
+        : isToday(bStart);
+
+      // First priority: Active requests first
+      if (aIsActive && !bIsActive) return -1;
+      if (!aIsActive && bIsActive) return 1;
+
       // Second priority: Verification status (unverified first, warden verified last in outgoing)
       if (a.verificationStatus === 'Not Verified' && b.verificationStatus !== 'Not Verified') return -1;
       if (a.verificationStatus !== 'Not Verified' && b.verificationStatus === 'Not Verified') return 1;
-      
+
       // Third priority: For outgoing section, prioritize unverified over warden verified
       if (a.verificationStatus === 'Not Verified' && b.status === 'Warden Verified') return -1;
       if (a.status === 'Warden Verified' && b.verificationStatus === 'Not Verified') return 1;
-      
+
       // Fourth priority: Other statuses
       if (a.verificationStatus === 'Verified' && b.verificationStatus === 'Completed') return -1;
       if (a.verificationStatus === 'Completed' && b.verificationStatus === 'Verified') return 1;
-      
+
       // Fifth priority: Start time (earliest first)
       return aStart - bStart;
     });
@@ -458,10 +479,10 @@ const SecurityDashboard = () => {
     const start = getRequestDate(leave);
     const diff = start - now;
     const diffPast = now - start;
-    
+
     // Don't show dots for verified leaves
     if (leave.verificationStatus === 'Verified') return null;
-    
+
     // Green dot: within 30 min of start time (urgent - student is about to leave)
     if (diff > 0 && diff <= 30 * 60 * 1000) {
       return (
@@ -471,7 +492,7 @@ const SecurityDashboard = () => {
         </div>
       );
     }
-    
+
     // Red dot: overdue leaves (any time past start and not verified)
     if (diffPast > 0) {
       return (
@@ -481,7 +502,7 @@ const SecurityDashboard = () => {
         </div>
       );
     }
-    
+
     return null;
   };
 
@@ -526,59 +547,56 @@ const SecurityDashboard = () => {
   // Section helpers
   const now = new Date();
   const sortedLeaves = getSortedLeaves();
-  
-  // Outgoing leaves (not verified yet) - includes today and yesterday
+
+  // Outgoing leaves (not verified yet) - includes active leaves and yesterday's requests
   const outgoingLeavesBase = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
-    const isTodayOrYesterdayResult = isTodayOrYesterday(start);
     const isNotVerified = leave.verificationStatus === 'Not Verified';
     const isWardenVerified = leave.status === 'Warden Verified';
     const isNotExpired = !leave._frontendExpired;
-    const shouldInclude = isTodayOrYesterdayResult && (isNotVerified || isWardenVerified) && isNotExpired;
-    
-    // Debug logging for yesterday's leaves
-    if (isTodayOrYesterdayResult && !isToday(start)) {
-      console.log('Yesterday leave debug:', {
-        studentName: leave.student?.name,
-        rollNumber: leave.student?.rollNumber,
-        startDate: start,
-        verificationStatus: leave.verificationStatus,
-        status: leave.status,
-        isNotVerified,
-        isWardenVerified,
-        isNotExpired,
-        shouldInclude
-      });
-    }
-    
+
+    // For Leave type, include if it's NOT expired (still within [startDate, endDate])
+    // For other types, keep today or yesterday logic
+    const isWithinTimeWindow = (leave.applicationType === 'Leave')
+      ? !isLeaveExpired(leave)
+      : isTodayOrYesterday(start);
+
+    const shouldInclude = isWithinTimeWindow && (isNotVerified || isWardenVerified) && isNotExpired;
+
     return shouldInclude;
   });
 
   // Apply search filter to outgoing leaves
   const outgoingLeaves = filterOutgoingRequests(outgoingLeavesBase);
-  
+
   // Incoming leaves (verified outgoing, waiting for incoming)
   const incomingLeaves = sortedLeaves.filter(leave => {
-    const start = getRequestDate(leave);
-    return isToday(start) && leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired;
+    const isWithinTimeWindow = (leave.applicationType === 'Leave')
+      ? !isLeaveExpired(leave)
+      : isToday(getRequestDate(leave));
+
+    return isWithinTimeWindow && leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired;
   });
-  
+
   // Completed leaves (incoming QR scanned)
   const completedLeaves = sortedLeaves.filter(leave => {
-    const start = getRequestDate(leave);
-    return isToday(start) && leave.verificationStatus === 'Completed';
+    const isWithinTimeWindow = (leave.applicationType === 'Leave')
+      ? !isLeaveExpired(leave)
+      : isToday(getRequestDate(leave));
+
+    return isWithinTimeWindow && leave.verificationStatus === 'Completed';
   });
-  
-  // Upcoming leaves
-  const upcomingLeaves = sortedLeaves.filter(leave => {
-    const start = getRequestDate(leave);
-    return start > now && (!leave._frontendExpired && leave.verificationStatus !== 'Expired');
-  });
-  
+
+
   // Expired/Recent requests
   const expiredLeaves = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
-    // Only include if start time is more than 2 days ago
+
+    if (leave.applicationType === 'Leave') {
+      return isLeaveExpired(leave);
+    }
+
+    // For other types, only include if start time is more than 2 days ago
     return (now - start > 2 * 24 * 60 * 60 * 1000);
   }).sort((a, b) => getRequestDate(b) - getRequestDate(a));
 
@@ -591,127 +609,82 @@ const SecurityDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className=" mt-12 lg:mt-0">
-        <SEO 
+    <div className="min-h-screen bg-white">
+      <div className="lg:mt-0">
+        <SEO
           title="Security Dashboard"
           description="Security guard dashboard for leave and permission verification"
           keywords="security dashboard, leave verification, permission verification, guard access"
         />
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-lg p-2 sm:p-3 lg:p-6 mb-3 sm:mb-4 lg:mb-6 border border-gray-100"
-        >
-          <div className="flex flex-col gap-2 sm:gap-3 lg:gap-6">
-            {/* Title Section */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-1 min-w-0">
-                <div className="p-1 sm:p-1.5 lg:p-2.5 bg-blue-100 rounded-lg flex-shrink-0">
-                  <ShieldCheckIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-sm sm:text-base lg:text-xl xl:text-2xl font-bold text-blue-900 truncate leading-tight">Security Dashboard</h1>
-                  <p className="text-[9px] sm:text-[10px] lg:text-xs xl:text-sm text-gray-600 mt-0.5 leading-tight">Manage approved leave & permission verifications</p>
-                </div>
+        {/* Simplified Header */}
+        <div className="flex flex-col gap-3 mb-4 lg:mb-6 p-2 sm:p-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="p-1.5 lg:p-2 bg-blue-100 rounded-lg">
+                <ShieldCheckIcon className="w-4 h-4 lg:w-6 lg:h-6 text-blue-600" />
+              </div>
+              <div>
+                <h1 className="text-base lg:text-xl font-bold text-blue-900 leading-tight">Security Dashboard</h1>
+                <p className="text-[9px] lg:text-xs text-gray-600 leading-tight">Approved leave & permissions</p>
               </div>
             </div>
-            
-            {/* Search Section */}
-            <form onSubmit={handleSearch} className="w-full">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={isViewOnly ? "Search disabled" : "Search by Roll Number..."}
-                  disabled={isViewOnly}
-                  className={`w-full pl-2.5 sm:pl-3 lg:pl-4 pr-9 sm:pr-10 lg:pr-12 py-1.5 sm:py-2 lg:py-2.5 border-2 rounded-lg text-[11px] sm:text-xs lg:text-sm xl:text-base transition-all ${
-                    isViewOnly 
-                      ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed' 
-                      : 'border-gray-300 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
+          </div>
+
+          <form onSubmit={handleSearch} className="w-full">
+            <div className="relative">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={isViewOnly ? "Search disabled" : "Search by Roll Number..."}
+                disabled={isViewOnly}
+                className={`w-full pl-2.5 lg:pl-4 pr-10 lg:pr-12 py-2 lg:py-2.5 border-2 rounded-lg text-xs lg:text-sm transition-all ${isViewOnly
+                  ? 'border-gray-200 bg-gray-50 text-gray-500 cursor-not-allowed'
+                  : 'border-gray-300 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400'
                   }`}
-                />
-                <button 
-                  type="submit" 
-                  disabled={isSearching || isViewOnly} 
-                  className={`absolute inset-y-0 right-0 px-2 sm:px-3 lg:px-4 flex items-center transition-colors min-w-[36px] sm:min-w-[40px] lg:min-w-[44px] min-h-[36px] sm:min-h-[40px] lg:min-h-[44px] ${
-                    isViewOnly 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'text-gray-500 hover:text-blue-600 active:bg-blue-50'
-                  }`}
-                  title={isViewOnly ? 'Search disabled for view-only access' : 'Search student'}
-                >
-                  {isSearching 
-                    ? <div className="animate-spin rounded-full h-3.5 w-3.5 sm:h-4 sm:w-4 lg:h-5 lg:w-5 border-2 border-blue-600 border-t-transparent"></div>
-                    : <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
-                  }
-                </button>
-              </div>
-            </form>
-            
-            {/* Filters Toggle Button */}
-            <div className="flex items-center justify-between">
+              />
               <button
-                onClick={() => setFiltersExpanded(!filtersExpanded)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 sm:py-2 lg:py-2.5 rounded-lg text-[11px] sm:text-xs lg:text-sm font-medium text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-colors border border-gray-300 min-h-[36px] sm:min-h-[40px] lg:min-h-[44px]"
+                type="submit"
+                disabled={isSearching || isViewOnly}
+                className={`absolute inset-y-0 right-0 px-3 lg:px-4 flex items-center transition-colors ${isViewOnly
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-500 hover:text-blue-600'
+                  }`}
               >
-                <FunnelIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                <span>Filters</span>
-                <ChevronDownIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-200 ${filtersExpanded ? 'rotate-180' : ''}`} />
+                {isSearching
+                  ? <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent"></div>
+                  : <EyeIcon className="w-4 h-4 lg:w-5 lg:h-5" />
+                }
               </button>
             </div>
-            
-            {/* Filters - Collapsible */}
-            {filtersExpanded && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="overflow-hidden"
-              >
-                <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 pt-2 border-t border-gray-200">
-                  <select
-                    value={filters.applicationType}
-                    onChange={(e) => handleFilterChange({ applicationType: e.target.value })}
-                    className="flex-1 sm:flex-none px-2 sm:px-2.5 lg:px-3 py-1.5 sm:py-2 lg:py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[11px] sm:text-xs lg:text-sm font-medium bg-white hover:border-gray-400 transition-colors min-h-[36px] sm:min-h-[40px] lg:min-h-[44px]"
-                  >
-                    <option value="">All Types</option>
-                    <option value="Leave">Leave</option>
-                    <option value="Permission">Permission</option>
-                  </select>
-                  <select
-                    value={filters.verificationStatus}
-                    onChange={(e) => handleFilterChange({ verificationStatus: e.target.value })}
-                    className="flex-1 sm:flex-none px-2 sm:px-2.5 lg:px-3 py-1.5 sm:py-2 lg:py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-[11px] sm:text-xs lg:text-sm font-medium bg-white hover:border-gray-400 transition-colors min-h-[36px] sm:min-h-[40px] lg:min-h-[44px]"
-                  >
-                    <option value="">All Status</option>
-                    <option value="Not Verified">Not Verified</option>
-                    <option value="Verified">Verified</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Expired">Expired</option>
-                  </select>
-                  
-                  {/* Upcoming Leaves Toggle */}
-                  <button
-                    onClick={() => setShowUpcomingPasses(!showUpcomingPasses)}
-                    className={`flex-1 sm:flex-none px-2.5 sm:px-3 lg:px-4 py-1.5 sm:py-2 lg:py-2.5 rounded-lg text-[11px] sm:text-xs lg:text-sm font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-sm min-h-[36px] sm:min-h-[40px] lg:min-h-[44px] ${
-                      showUpcomingPasses 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md active:bg-blue-800' 
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-2 border-gray-200 active:bg-gray-300'
-                    }`}
-                  >
-                    <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span>Upcoming</span>
-                  </button>
-                </div>
-              </motion.div>
-            )}
+          </form>
+
+          {/* Compact Filters - Single Row on Mobile */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                <CalendarIcon className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full pl-9 pr-2 py-1.5 border-2 border-gray-300 rounded-lg text-[11px] font-semibold bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[36px]"
+              />
+            </div>
+
+            <select
+              value={filters.applicationType}
+              onChange={(e) => handleFilterChange({ applicationType: e.target.value })}
+              className="flex-1 px-2 py-1.5 border-2 border-gray-300 rounded-lg text-[11px] font-semibold bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[36px]"
+            >
+              <option value="">All Types</option>
+              <option value="Leave">Leave</option>
+              <option value="Permission">Permission</option>
+            </select>
           </div>
-        </motion.div>
+        </div>
 
         {/* Searched Student Details */}
         {searchedStudent && (
@@ -720,12 +693,12 @@ const SecurityDashboard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-6"
           >
-            <StudentDetailsCard 
-              student={searchedStudent} 
+            <StudentDetailsCard
+              student={searchedStudent}
               onClose={() => {
                 setSearchedStudent(null);
                 setSearchQuery('');
-              }} 
+              }}
               securitySettings={securitySettings}
               getCourseName={getCourseName}
               getBranchName={getBranchName}
@@ -751,12 +724,12 @@ const SecurityDashboard = () => {
             </div>
           ) : (
             <>
-                            {/* Outgoing Leaves - Always visible for all users */}
-              <SectionTable 
-                title="Outgoing Requests (Exit) - Today & Yesterday" 
-                leaves={outgoingLeaves} 
-                getBlinkingDot={getBlinkingDot} 
-                isLeaveExpired={isLeaveExpired} 
+              {/* Outgoing Leaves - Always visible for all users */}
+              <SectionTable
+                title="Outgoing Requests (Exit) - Today & Yesterday"
+                leaves={outgoingLeaves}
+                getBlinkingDot={getBlinkingDot}
+                isLeaveExpired={isLeaveExpired}
                 getVerificationStatusColor={getVerificationStatusColor}
                 getApplicationTypeColor={getApplicationTypeColor}
                 getVerificationStatusIcon={getVerificationStatusIcon}
@@ -780,14 +753,14 @@ const SecurityDashboard = () => {
                 getCourseName={getCourseName}
                 getBranchName={getBranchName}
               />
-              
+
               {/* Incoming Leaves - Only visible for full access users */}
               {!isViewOnly && (
-                <SectionTable 
-                  title="Incoming Requests (Re-entry)" 
-                  leaves={incomingLeaves} 
-                  getBlinkingDot={getBlinkingDot} 
-                  isLeaveExpired={isLeaveExpired} 
+                <SectionTable
+                  title="Incoming Requests (Re-entry)"
+                  leaves={incomingLeaves}
+                  getBlinkingDot={getBlinkingDot}
+                  isLeaveExpired={isLeaveExpired}
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
@@ -808,14 +781,14 @@ const SecurityDashboard = () => {
                   getBranchName={getBranchName}
                 />
               )}
-              
+
               {/* Completed Leaves - Only visible for full access users */}
               {!isViewOnly && (
-                <SectionTable 
-                  title="Completed Requests" 
-                  leaves={completedLeaves} 
-                  getBlinkingDot={getBlinkingDot} 
-                  isLeaveExpired={isLeaveExpired} 
+                <SectionTable
+                  title="Completed Requests"
+                  leaves={completedLeaves}
+                  getBlinkingDot={getBlinkingDot}
+                  isLeaveExpired={isLeaveExpired}
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
@@ -836,42 +809,15 @@ const SecurityDashboard = () => {
                   getBranchName={getBranchName}
                 />
               )}
-              
-              {/* Upcoming Leaves - Only show when toggled and for full access users */}
-              {!isViewOnly && showUpcomingPasses && (
-                <SectionTable 
-                  title="Upcoming Requests" 
-                  leaves={upcomingLeaves} 
-                  getBlinkingDot={getBlinkingDot} 
-                  isLeaveExpired={isLeaveExpired} 
-                  getVerificationStatusColor={getVerificationStatusColor}
-                  getApplicationTypeColor={getApplicationTypeColor}
-                  getVerificationStatusIcon={getVerificationStatusIcon}
-                  getDisplayStatus={getDisplayStatus}
-                  setSelectedLeave={setSelectedLeave}
-                  setShowVerificationModal={setShowVerificationModal}
-                  getRequestDate={getRequestDate}
-                  copyToClipboard={copyToClipboard}
-                  isExpanded={expandedSections.upcoming}
-                  onToggle={() => toggleSection('upcoming')}
-                  sectionKey="upcoming"
-                  isViewOnly={isViewOnly}
-                  isToday={isToday}
-                  isTodayOrYesterday={isTodayOrYesterday}
-                  securitySettings={securitySettings}
-                  setPopupImage={setPopupImage}
-                  getCourseName={getCourseName}
-                  getBranchName={getBranchName}
-                />
-              )}
-              
+
+
               {/* Expired/Recent Requests - Only visible for full access users */}
               {!isViewOnly && (
-                <SectionTable 
-                  title="Expired / Recent Requests (2+ days ago)" 
-                  leaves={expiredLeaves} 
-                  getBlinkingDot={getBlinkingDot} 
-                  isLeaveExpired={isLeaveExpired} 
+                <SectionTable
+                  title="Expired / Recent Requests (2+ days ago)"
+                  leaves={expiredLeaves}
+                  getBlinkingDot={getBlinkingDot}
+                  isLeaveExpired={isLeaveExpired}
                   getVerificationStatusColor={getVerificationStatusColor}
                   getApplicationTypeColor={getApplicationTypeColor}
                   getVerificationStatusIcon={getVerificationStatusIcon}
@@ -906,7 +852,7 @@ const SecurityDashboard = () => {
             className="bg-white rounded-xl shadow-2xl p-4 sm:p-5 lg:p-6 w-full max-w-md max-h-[95vh] sm:max-h-[90vh] overflow-y-auto border border-gray-200"
           >
             <h2 className="text-lg sm:text-xl font-semibold mb-4">Verify {selectedLeave.applicationType}</h2>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Verification Status
@@ -935,7 +881,7 @@ const SecurityDashboard = () => {
                   </>
                 )}
                 <p className="text-gray-600">Reason: {selectedLeave.reason}</p>
-                
+
                 {/* Show warden verification status if applicable */}
                 {selectedLeave.status === 'Warden Verified' && (
                   <div className="mt-2 p-2 bg-orange-50 rounded border border-orange-200">
@@ -949,7 +895,7 @@ const SecurityDashboard = () => {
                     )}
                   </div>
                 )}
-                
+
                 {selectedLeave.incomingQrGenerated && (
                   <div className="mt-2 p-2 bg-blue-50 rounded">
                     <p className="text-blue-700 text-xs font-medium">Incoming QR Available</p>
@@ -976,8 +922,8 @@ const SecurityDashboard = () => {
                       <span>Updating...</span>
                     </>
                   ) : (
-                    selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated 
-                      ? 'Scan Incoming QR' 
+                    selectedLeave?.verificationStatus === 'Verified' && selectedLeave?.incomingQrGenerated
+                      ? 'Scan Incoming QR'
                       : 'Update Status'
                   )}
                 </button>
@@ -1021,10 +967,10 @@ const SecurityDashboard = () => {
 };
 
 // SectionTable component
-const SectionTable = ({ 
-  title, 
-  leaves, 
-  getBlinkingDot, 
+const SectionTable = ({
+  title,
+  leaves,
+  getBlinkingDot,
   getVerificationStatusColor,
   getApplicationTypeColor,
   getVerificationStatusIcon,
@@ -1051,7 +997,7 @@ const SectionTable = ({
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100"
+    className="bg-transparent sm:bg-white rounded-xl sm:shadow-lg overflow-hidden sm:border sm:border-gray-100"
   >
     {/* Section Header with Toggle */}
     <div className="p-2 sm:p-3 lg:p-5 bg-gradient-to-r from-blue-50 to-blue-100 border-b border-blue-200">
@@ -1082,8 +1028,8 @@ const SectionTable = ({
             </div>
           </div>
         </div>
-        <button 
-          onClick={onToggle} 
+        <button
+          onClick={onToggle}
           className="p-1.5 sm:p-2 lg:p-2.5 text-blue-600 hover:text-blue-800 hover:bg-blue-200 active:bg-blue-300 rounded-lg transition-all duration-200 flex-shrink-0 min-w-[36px] sm:min-w-[40px] lg:min-w-[44px] min-h-[36px] sm:min-h-[40px] lg:min-h-[44px] flex items-center justify-center"
           aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
         >
@@ -1094,7 +1040,7 @@ const SectionTable = ({
           )}
         </button>
       </div>
-      
+
       {/* Search Input for Outgoing Section */}
       {showSearch && isExpanded && (
         <div className="mt-1.5 sm:mt-2 lg:mt-3">
@@ -1122,7 +1068,7 @@ const SectionTable = ({
         </div>
       )}
     </div>
-    
+
     {/* Expandable Content */}
     {isExpanded && (
       <motion.div
@@ -1167,7 +1113,7 @@ const SectionTable = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Desktop Body */}
             <div className="hidden md:block divide-y divide-gray-100" style={{ minWidth: '900px' }}>
               {leaves.map((leave) => (
@@ -1305,11 +1251,10 @@ const SectionTable = ({
                             }
                           }}
                           disabled={isViewOnly}
-                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${
-                            isViewOnly 
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                              : 'bg-green-600 text-white hover:bg-green-700'
-                          }`}
+                          className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors ${isViewOnly
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700'
+                            }`}
                           title={isViewOnly ? 'View-only access - Cannot scan incoming QR' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1339,7 +1284,7 @@ const SectionTable = ({
                 </motion.div>
               ))}
             </div>
-            
+
             {/* Mobile Layout */}
             <div className="md:hidden space-y-3">
               {leaves.map((leave) => (
@@ -1349,7 +1294,7 @@ const SectionTable = ({
                   animate={{ opacity: 1, y: 0 }}
                 >
                   {/* Mobile Layout - Compact Design for Small Screens */}
-                  <div className="bg-white border-2 border-gray-200 rounded-lg sm:rounded-xl shadow-md hover:shadow-lg transition-shadow p-2.5 sm:p-3 lg:p-4">
+                  <div className="bg-transparent border-b border-gray-200 last:border-0 py-4 px-2">
                     {/* Status Badge */}
                     <div className="flex justify-between items-start mb-2 sm:mb-3">
                       <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap flex-1">
@@ -1405,7 +1350,7 @@ const SectionTable = ({
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Course Information */}
                       <div className="bg-white/80 rounded-lg p-1.5 sm:p-2 mb-1.5 sm:mb-2">
                         <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
@@ -1441,7 +1386,7 @@ const SectionTable = ({
                           </span>
                         )}
                       </div>
-                      
+
                       {leave.applicationType === 'Permission' && (
                         <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-700 ml-5 sm:ml-6">
                           <ClockIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
@@ -1487,11 +1432,10 @@ const SectionTable = ({
                             }
                           }}
                           disabled={isViewOnly}
-                          className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors min-h-[44px] sm:min-h-[48px] ${
-                            isViewOnly 
-                              ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
-                              : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
-                          }`}
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 lg:py-3 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition-colors min-h-[44px] sm:min-h-[48px] ${isViewOnly
+                            ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                            : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
+                            }`}
                           title={isViewOnly ? 'View-only access - Cannot scan incoming QR' : 'Scan Incoming QR'}
                         >
                           <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -1565,9 +1509,8 @@ const StudentDetailsCard = ({ student, onClose, securitySettings, getCourseName,
                 Hidden by admin
               </div>
             )}
-            <span className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${
-              student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
+            <span className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}>
               {student.hostelStatus}
             </span>
             {/* Guardian Photos */}
