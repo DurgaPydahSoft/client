@@ -722,12 +722,14 @@ const MenuManagement = () => {
       const mealEmojis = {
         breakfast: '🥞',
         lunch: '🍛',
+        snacks: '🍿',
         dinner: '🍽️'
       };
 
       const mealNames = {
         breakfast: 'Breakfast',
         lunch: 'Lunch',
+        snacks: 'Snacks',
         dinner: 'Dinner'
       };
 
@@ -761,6 +763,7 @@ const MenuManagement = () => {
     const mealTimes = [
       { meal: 'breakfast', hour: 7, emoji: '🥞', name: 'Breakfast' },
       { meal: 'lunch', hour: 12, emoji: '🍛', name: 'Lunch' },
+      { meal: 'snacks', hour: 16, emoji: '🍿', name: 'Snacks' },
       { meal: 'dinner', hour: 19, emoji: '🍽️', name: 'Dinner' }
     ];
 

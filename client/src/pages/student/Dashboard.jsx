@@ -295,7 +295,7 @@ const StudentDashboardLayout = () => {
   // Show loading state while feature toggles are being fetched
   if (featureLoading) {
     return (
-        <LoadingSpinner size="lg"/>
+      <LoadingSpinner size="lg" />
     );
   }
 
@@ -520,7 +520,7 @@ const DashboardHome = () => {
   const [selectedMealType, setSelectedMealType] = useState('breakfast');
   const [expandedItems, setExpandedItems] = useState(new Set());
   const [refreshingBills, setRefreshingBills] = useState(false);
-  
+
   // Electricity payment states
   const [paymentLoading, setPaymentLoading] = useState({});
 
@@ -563,9 +563,9 @@ const DashboardHome = () => {
 
       // Find the room that matches user's room number
       const room = await api.get('/api/rooms');
-      const userRoom = room.data.data.rooms.find(r => 
-        r.roomNumber === user.roomNumber && 
-        r.gender === user.gender && 
+      const userRoom = room.data.data.rooms.find(r =>
+        r.roomNumber === user.roomNumber &&
+        r.gender === user.gender &&
         r.category === user.category
       );
 
@@ -586,22 +586,22 @@ const DashboardHome = () => {
           amount: response.data.data.amount,
           paymentSessionId: response.data.data.paymentSessionId
         }));
-        
+
         // Navigate to payment status page
         navigate(`/student/payment-status/${bill._id}`);
-        
+
         // Initialize Cashfree SDK and open checkout
         if (window.Cashfree && response.data.data.paymentSessionId) {
           const cashfree = window.Cashfree({
             mode: "production" // using production credentials
           });
-          
+
           // Open Cashfree Checkout
           const checkoutOptions = {
             paymentSessionId: response.data.data.paymentSessionId,
             redirectTarget: "_self"
           };
-          
+
           cashfree.checkout(checkoutOptions);
         } else if (response.data.data.paymentUrl) {
           // Fallback to direct URL redirect
@@ -1389,7 +1389,7 @@ const DashboardHome = () => {
                   </div>
 
                   {/* Rating Section - Only show if meal has items */}
-                  {['breakfast', 'lunch', 'dinner'].includes(selectedMealType) &&
+                  {['breakfast', 'lunch', 'snacks', 'dinner'].includes(selectedMealType) &&
                     modalMenu?.meals[selectedMealType]?.length > 0 && (
                       <div className="bg-white rounded-lg border border-gray-200 p-3">
                         <h5 className="text-xs font-medium text-gray-700 mb-3">Rate This Meal</h5>
