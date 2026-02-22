@@ -388,37 +388,27 @@ const SecurityDashboard = () => {
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   };
 
-  // Helper: is today (relative to selectedDate)
-  const isToday = (date) => {
-    // Convert both date and now to IST and normalize to date only (remove time)
-    const toISTDateOnly = (d) => {
-      // IST is UTC+5:30
-      const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-      const istDate = new Date(utc + (5.5 * 60 * 60 * 1000));
-      // Normalize to start of day (00:00:00) to ignore time components
-      return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
-    };
-    const nowIST = toISTDateOnly(new Date(selectedDate));
-    const dateIST = toISTDateOnly(date);
-    return nowIST.getTime() === dateIST.getTime();
+  // Robust IST date utilities
+  const getISTDate = (date) => {
+    const d = new Date(date);
+    // IST is UTC + 5:30
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(d.getTime() + istOffset);
+    return new Date(istDate.getUTCFullYear(), istDate.getUTCMonth(), istDate.getUTCDate());
   };
 
-  // Helper: is today or yesterday (relative to selectedDate)
-  const isTodayOrYesterday = (date) => {
-    // Convert both date and now to IST and normalize to date only (remove time)
-    const toISTDateOnly = (d) => {
-      // IST is UTC+5:30
-      const utc = d.getTime() + (d.getTimezoneOffset() * 60000);
-      const istDate = new Date(utc + (5.5 * 60 * 60 * 1000));
-      // Normalize to start of day (00:00:00) to ignore time components
-      return new Date(istDate.getFullYear(), istDate.getMonth(), istDate.getDate());
-    };
-    const nowIST = toISTDateOnly(new Date(selectedDate));
-    const yesterdayIST = new Date(nowIST);
-    yesterdayIST.setDate(yesterdayIST.getDate() - 1);
-    const dateIST = toISTDateOnly(date);
+  const isTodayDate = (date) => {
+    const targetDate = getISTDate(selectedDate);
+    const checkDate = getISTDate(date);
+    return targetDate.getTime() === checkDate.getTime();
+  };
 
-    return nowIST.getTime() === dateIST.getTime() || yesterdayIST.getTime() === dateIST.getTime();
+  const isTodayOrYesterdayDate = (date) => {
+    const targetDate = getISTDate(selectedDate);
+    const yesterdayDate = new Date(targetDate);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const checkDate = getISTDate(date);
+    return targetDate.getTime() === checkDate.getTime() || yesterdayDate.getTime() === checkDate.getTime();
   };
 
   // Helper: sort and auto-expire
@@ -435,7 +425,7 @@ const SecurityDashboard = () => {
           frontendExpired = isExpired;
         } else {
           // For other types, expire if not today or yesterday
-          frontendExpired = !isTodayOrYesterday(start);
+          frontendExpired = !isTodayOrYesterdayDate(start);
         }
       }
 
@@ -450,13 +440,13 @@ const SecurityDashboard = () => {
       const aStart = getRequestDate(a);
       const bStart = getRequestDate(b);
 
-      const targetDate = new Date(selectedDate);
+      const targetDateIST = getISTDate(selectedDate);
       const aIsActive = (a.applicationType === 'Leave')
-        ? (!isLeaveExpired(a) && targetDate >= aStart)
-        : isToday(aStart);
+        ? (!isLeaveExpired(a) && targetDateIST >= getISTDate(aStart))
+        : isTodayDate(aStart);
       const bIsActive = (b.applicationType === 'Leave')
-        ? (!isLeaveExpired(b) && targetDate >= bStart)
-        : isToday(bStart);
+        ? (!isLeaveExpired(b) && targetDateIST >= getISTDate(bStart))
+        : isTodayDate(bStart);
 
       // First priority: Active requests first
       if (aIsActive && !bIsActive) return -1;
@@ -554,22 +544,23 @@ const SecurityDashboard = () => {
   const now = new Date();
   const sortedLeaves = getSortedLeaves();
 
-  // Outgoing leaves (not verified yet) - includes active leaves and yesterday's requests
+  // Outgoing leaves (not verified yet)
   const outgoingLeavesBase = sortedLeaves.filter(leave => {
     const start = getRequestDate(leave);
     const isNotVerified = leave.verificationStatus === 'Not Verified';
     const isWardenVerified = leave.status === 'Warden Verified';
+    const isApproved = leave.status === 'Approved' || leave.status === 'Principal Approved';
     const isNotExpired = !leave._frontendExpired;
 
-    // For Leave type, include if it's NOT expired (still within [startDate, endDate])
-    // For other types, keep today or yesterday logic
+    // Show in outgoing if:
+    // 1. Within time window (today or yesterday for permissions, active for leaves)
+    // 2. Not yet verified BY GUARD, AND (Verified by warden OR Approved by principal)
+    // 3. Not expired
     const isWithinTimeWindow = (leave.applicationType === 'Leave')
       ? !isLeaveExpired(leave)
-      : isTodayOrYesterday(start);
+      : isTodayOrYesterdayDate(start);
 
-    const shouldInclude = isWithinTimeWindow && (isNotVerified || isWardenVerified) && isNotExpired;
-
-    return shouldInclude;
+    return isWithinTimeWindow && isNotVerified && (isWardenVerified || isApproved) && isNotExpired;
   });
 
   // Apply search filter to outgoing leaves
@@ -577,18 +568,28 @@ const SecurityDashboard = () => {
 
   // Incoming leaves (verified outgoing, waiting for incoming)
   const incomingLeaves = sortedLeaves.filter(leave => {
+    const start = getRequestDate(leave);
     const isWithinTimeWindow = (leave.applicationType === 'Leave')
       ? !isLeaveExpired(leave)
-      : isToday(getRequestDate(leave));
+      : isTodayDate(start);
 
-    return isWithinTimeWindow && leave.verificationStatus === 'Verified' && leave.incomingQrGenerated && !leave._frontendExpired;
+    // Show in incoming if:
+    // 1. Within time window
+    // 2. Guard has verified outgoing (status is 'Verified')
+    // 3. Either it's a Permission (standard single scan and back) OR incoming QR is generated
+    // 4. Not yet completed
+    return isWithinTimeWindow &&
+      leave.verificationStatus === 'Verified' &&
+      (leave.incomingQrGenerated || leave.applicationType === 'Permission') &&
+      !leave._frontendExpired;
   });
 
   // Completed leaves (incoming QR scanned)
   const completedLeaves = sortedLeaves.filter(leave => {
+    const start = getRequestDate(leave);
     const isWithinTimeWindow = (leave.applicationType === 'Leave')
       ? !isLeaveExpired(leave)
-      : isToday(getRequestDate(leave));
+      : isTodayDate(start);
 
     return isWithinTimeWindow && leave.verificationStatus === 'Completed';
   });
