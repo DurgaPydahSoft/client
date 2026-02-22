@@ -55,8 +55,14 @@ const SecurityDashboard = () => {
     expired: false
   });
 
-  // Date filter state (default to today)
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Date filter state (default to today in IST)
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const now = new Date();
+    // IST is UTC + 5:30
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + istOffset);
+    return istDate.toISOString().split('T')[0];
+  });
 
   // State for courses and branches to resolve SQL IDs
   const [allCourses, setAllCourses] = useState([]);
