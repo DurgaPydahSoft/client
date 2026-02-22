@@ -749,8 +749,8 @@ const SecurityDashboard = () => {
                 onToggle={() => toggleSection('outgoing')}
                 sectionKey="outgoing"
                 isViewOnly={isViewOnly}
-                isToday={isToday}
-                isTodayOrYesterday={isTodayOrYesterday}
+                isTodayDate={isTodayDate}
+                isTodayOrYesterdayDate={isTodayOrYesterdayDate}
                 searchQuery={outgoingSearchQuery}
                 onSearchChange={setOutgoingSearchQuery}
                 showSearch={true}
@@ -780,8 +780,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('incoming')}
                   sectionKey="incoming"
                   isViewOnly={isViewOnly}
-                  isToday={isToday}
-                  isTodayOrYesterday={isTodayOrYesterday}
+                  isTodayDate={isTodayDate}
+                  isTodayOrYesterdayDate={isTodayOrYesterdayDate}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
                   getCourseName={getCourseName}
@@ -808,8 +808,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('completed')}
                   sectionKey="completed"
                   isViewOnly={isViewOnly}
-                  isToday={isToday}
-                  isTodayOrYesterday={isTodayOrYesterday}
+                  isTodayDate={isTodayDate}
+                  isTodayOrYesterdayDate={isTodayOrYesterdayDate}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
                   getCourseName={getCourseName}
@@ -837,8 +837,8 @@ const SecurityDashboard = () => {
                   onToggle={() => toggleSection('expired')}
                   sectionKey="expired"
                   isViewOnly={isViewOnly}
-                  isToday={isToday}
-                  isTodayOrYesterday={isTodayOrYesterday}
+                  isTodayDate={isTodayDate}
+                  isTodayOrYesterdayDate={isTodayOrYesterdayDate}
                   securitySettings={securitySettings}
                   setPopupImage={setPopupImage}
                   getCourseName={getCourseName}
@@ -990,8 +990,8 @@ const SectionTable = ({
   onToggle,
   sectionKey,
   isViewOnly = false,
-  isToday,
-  isTodayOrYesterday,
+  isTodayDate,
+  isTodayOrYesterdayDate,
   searchQuery,
   onSearchChange,
   showSearch = false,
@@ -1183,7 +1183,7 @@ const SectionTable = ({
                             <span>-</span>
                             <span className="font-medium">{new Date(leave.endDate).toLocaleDateString()}</span>
                             {/* Show if this is yesterday's request */}
-                            {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                            {!isTodayDate(getRequestDate(leave)) && isTodayOrYesterdayDate(getRequestDate(leave)) && (
                               <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded ml-2">
                                 Yesterday
                               </span>
@@ -1194,7 +1194,7 @@ const SectionTable = ({
                             <CalendarIcon className="w-4 h-4 text-gray-500" />
                             <span className="font-medium">{new Date(leave.permissionDate).toLocaleDateString()}</span>
                             {/* Show if this is yesterday's request */}
-                            {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                            {!isTodayDate(getRequestDate(leave)) && isTodayOrYesterdayDate(getRequestDate(leave)) && (
                               <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded ml-2">
                                 Yesterday
                               </span>
@@ -1387,7 +1387,7 @@ const SectionTable = ({
                           )}
                         </span>
                         {/* Show if this is yesterday's request */}
-                        {!isToday(getRequestDate(leave)) && isTodayOrYesterday(getRequestDate(leave)) && (
+                        {!isTodayDate(getRequestDate(leave)) && isTodayOrYesterdayDate(getRequestDate(leave)) && (
                           <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-orange-100 text-orange-700 text-[10px] sm:text-xs font-semibold rounded-lg border border-orange-200">
                             Yesterday
                           </span>
