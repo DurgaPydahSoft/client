@@ -34,7 +34,7 @@ const LeaveManagement = () => {
     fromDate: '',
     toDate: ''
   });
-  
+
   // Debounce filters to reduce API calls
   const debouncedFilters = useDebounce(filters, 500);
   const [expandedBulkOutings, setExpandedBulkOutings] = useState(new Set());
@@ -225,6 +225,7 @@ const LeaveManagement = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Approved':
+      case 'Principal Approved':
         return 'text-green-600 bg-green-50';
       case 'Rejected':
         return 'text-red-600 bg-red-50';
@@ -241,6 +242,7 @@ const LeaveManagement = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'Approved':
+      case 'Principal Approved':
         return <CheckCircleIcon className="w-5 h-5" />;
       case 'Rejected':
         return <XCircleIcon className="w-5 h-5" />;
@@ -326,7 +328,7 @@ const LeaveManagement = () => {
             <p className="text-xs sm:text-sm text-gray-600 mt-1 hidden sm:block">
               Note: Leave and Permission requests now go through Warden/Admin OTP verification → Course-specific Principal approval workflow
             </p>
-            
+
             {/* Mobile Filter Toggle - Below Heading */}
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -387,6 +389,7 @@ const LeaveManagement = () => {
                   <option value="Pending">Pending</option>
                   <option value="Pending OTP Verification">Pending OTP</option>
                   <option value="Warden Verified">Warden Verified</option>
+                  <option value="Principal Approved">Principal Approved</option>
                   <option value="Approved">Approved</option>
                   <option value="Rejected">Rejected</option>
                 </select>

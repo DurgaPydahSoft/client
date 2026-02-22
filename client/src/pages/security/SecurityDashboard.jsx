@@ -373,14 +373,11 @@ const SecurityDashboard = () => {
   const getRequestDate = (leave) => leave.applicationType === 'Leave' ? new Date(leave.startDate) : new Date(leave.permissionDate);
 
   const isLeaveExpired = (leave) => {
-    // Check relative to the end of the selected day
-    const targetDate = new Date(selectedDate);
-    targetDate.setHours(23, 59, 59, 999);
+    // Both targetDate and endDate are normalized to IST start of day
+    const targetDate = getISTDate(selectedDate);
+    const endDate = getISTDate(leave.applicationType === 'Leave' ? leave.endDate : leave.permissionDate);
 
-    const endDate = leave.applicationType === 'Leave'
-      ? new Date(leave.endDate)
-      : new Date(new Date(leave.permissionDate).setHours(23, 59, 59, 999));
-
+    // It's expired only if the end date is strictly before our selected day
     return targetDate > endDate;
   };
 
