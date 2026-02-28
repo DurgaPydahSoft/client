@@ -162,11 +162,11 @@ const Login = () => {
 
 
             <DotLottieReact
-              src="https://lottie.host/a6a4bdb7-e34c-4cae-9785-a8c16b636ffb/urMeNmhCCd.lottie"
+              src="https://lottie.host/5ea0b44d-bf2e-475e-a429-879106fe00b5/8RVEESYyoI.lottie"
               loop
               autoplay
             />
-
+e
           </div>
 
 
