@@ -51,18 +51,18 @@ const LeaveManagement = () => {
   useEffect(() => {
     // Initial fetch
     fetchLeaves();
-    
+
     // Set up polling for real-time updates
     const interval = setInterval(fetchLeaves, 30000); // Poll every 30 seconds
-    
+
     // Listen for notification events
     const handleNotificationRefresh = () => {
       console.log('🔔 LeaveManagement: Notification refresh triggered');
       fetchLeaves();
     };
-    
+
     window.addEventListener('refresh-notifications', handleNotificationRefresh);
-    
+
     // Cleanup function
     return () => {
       clearInterval(interval);
@@ -87,21 +87,21 @@ const LeaveManagement = () => {
         const newLeaves = response.data.data.leaves;
         setLeaves(newLeaves);
         console.log('Set leaves:', newLeaves);
-        
+
         // Check if there are new warden-verified leaves and show notification
         const wardenVerifiedLeaves = newLeaves.filter(leave => leave.status === 'Warden Verified');
-        
+
         // Find truly new leaves that haven't been notified about yet
         const newLeavesToNotify = wardenVerifiedLeaves.filter(leave => !notifiedLeaves.has(leave._id));
-        
+
         if (newLeavesToNotify.length > 0) {
           console.log('🔔 New warden-verified leaves detected:', newLeavesToNotify.length);
-          
+
           // Add these leaves to the notified set
           const newNotifiedSet = new Set(notifiedLeaves);
           newLeavesToNotify.forEach(leave => newNotifiedSet.add(leave._id));
           setNotifiedLeaves(newNotifiedSet);
-          
+
           // Trigger notification refresh
           window.dispatchEvent(new Event('refresh-notifications'));
         }
@@ -257,7 +257,7 @@ const LeaveManagement = () => {
   return (
     <div className="min-h-screen bg-gray-50 mt-16 sm:mt-0">
       <div className="mx-auto px-3 sm:px-6 py-4 sm:py-8">
-        <SEO 
+        <SEO
           title="Leave & Permission Management - Principal"
           description="Final approval of student leave and permission requests"
           keywords="leave management, permission management, principal approval"
@@ -270,49 +270,53 @@ const LeaveManagement = () => {
               Managing leave requests for your assigned course
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:gap-3 flex-wrap items-start sm:items-center">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
-              <label className="text-xs sm:text-sm text-gray-600">From:</label>
+          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 items-end sm:items-center flex-wrap">
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider ml-1">From</label>
               <input
                 type="date"
                 value={filters.fromDate}
                 onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value, page: 1 }))}
-                className="px-2 py-1.5 sm:py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
-                style={{ minWidth: 120 }}
+                className="w-full px-2 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-start sm:items-center">
-              <label className="text-xs sm:text-sm text-gray-600">To:</label>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider ml-1">To</label>
               <input
                 type="date"
                 value={filters.toDate}
                 onChange={e => setFilters(f => ({ ...f, toDate: e.target.value, page: 1 }))}
-                className="px-2 py-1.5 sm:py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
-                style={{ minWidth: 120 }}
+                className="w-full px-2 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
               />
             </div>
-            <select
-              value={filters.applicationType}
-              onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
-              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
-            >
-              <option value="">All Types</option>
-              <option value="Leave">Leave</option>
-              <option value="Permission">Permission</option>
-              <option value="Stay in Hostel">Stay in Hostel</option>
-            </select>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-              className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm"
-            >
-              <option value="">All Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Pending OTP Verification">Pending OTP</option>
-              <option value="Warden Verified">Warden Verified</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+              <label className="sm:hidden text-[10px] font-semibold text-purple-700 uppercase tracking-wider ml-1">Type</label>
+              <select
+                value={filters.applicationType}
+                onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
+                className="w-full px-2 sm:px-3 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+              >
+                <option value="">All Types</option>
+                <option value="Leave">Leave</option>
+                <option value="Permission">Permission</option>
+                <option value="Stay in Hostel">Stay in Hostel</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+              <label className="sm:hidden text-[10px] font-semibold text-purple-700 uppercase tracking-wider ml-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
+                className="w-full px-2 sm:px-3 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+              >
+                <option value="">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Pending OTP Verification">Pending OTP</option>
+                <option value="Warden Verified">Warden Verified</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -359,9 +363,8 @@ const LeaveManagement = () => {
                             <UserIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             <button
                               onClick={() => leave.student && openStudentDetailsModal(leave.student)}
-                              className={`hover:text-purple-600 hover:underline transition-colors ${
-                                leave.student ? 'cursor-pointer' : 'cursor-default'
-                              }`}
+                              className={`hover:text-purple-600 hover:underline transition-colors ${leave.student ? 'cursor-pointer' : 'cursor-default'
+                                }`}
                               disabled={!leave.student}
                             >
                               {leave.student?.name || 'N/A'}
@@ -466,7 +469,7 @@ const LeaveManagement = () => {
                             <DocumentTextIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                             View History
                           </button>
-                          
+
                           {/* Approve/Reject Buttons - Only for Warden Verified */}
                           {leave.status === 'Warden Verified' && (
                             <>
@@ -536,11 +539,10 @@ const LeaveManagement = () => {
               <button
                 onClick={handleApprove}
                 disabled={isApproving}
-                className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium touch-manipulation flex items-center justify-center ${
-                  isApproving 
-                    ? 'bg-green-500 text-white cursor-not-allowed' 
+                className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium touch-manipulation flex items-center justify-center ${isApproving
+                    ? 'bg-green-500 text-white cursor-not-allowed'
                     : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
+                  }`}
               >
                 {isApproving ? (
                   <>
@@ -732,23 +734,21 @@ const LeaveManagement = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.hostelStatus === 'Active' 
-                              ? 'bg-green-100 text-green-800' 
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                              ? 'bg-green-100 text-green-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {selectedStudent.hostelStatus}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            selectedStudent.graduationStatus === 'Graduated' 
-                              ? 'bg-blue-100 text-blue-800' 
+                          <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                              ? 'bg-blue-100 text-blue-800'
                               : selectedStudent.graduationStatus === 'Dropped'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                                ? 'bg-gray-100 text-gray-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
                             {selectedStudent.graduationStatus}
                           </span>
                         </div>
@@ -820,7 +820,7 @@ const LeaveManagement = () => {
                       Showing all records
                     </div>
                   </div>
-                  
+
                   {previousLeaves.map((leave, index) => {
                     const displayInfo = formatDisplayDate(leave);
                     return (
@@ -839,7 +839,7 @@ const LeaveManagement = () => {
                                 Applied: {new Date(leave.createdAt).toLocaleDateString()}
                               </span>
                             </div>
-                            
+
                             <div className="text-sm text-gray-600 mb-3">
                               {leave.applicationType === 'Leave' ? (
                                 <>
@@ -884,13 +884,13 @@ const LeaveManagement = () => {
                                 </>
                               )}
                             </div>
-                            
+
                             <div className="bg-white rounded-lg p-3 border border-gray-200">
                               <p className="text-sm text-gray-700 break-words">
                                 <strong>Reason:</strong> {leave.reason}
                               </p>
                             </div>
-                            
+
                             {leave.rejectionReason && (
                               <div className="mt-3 bg-red-50 rounded-lg p-3 border border-red-200">
                                 <p className="text-sm text-red-700">

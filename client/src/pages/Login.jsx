@@ -166,7 +166,6 @@ const Login = () => {
               loop
               autoplay
             />
-e
           </div>
 
 
