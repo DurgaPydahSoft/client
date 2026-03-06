@@ -20,13 +20,33 @@ export const AuthProvider = ({ children }) => {
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [skipValidation, setSkipValidation] = useState(false);
   const socketRef = useSocket(token);
-  
+
   // Token validation cache - stores last validation timestamp and result
   const validationCacheRef = React.useRef({
     timestamp: null,
     user: null,
     token: null
   });
+
+  // SSO Session Replacement: Clear existing sessions if a new SSO token is detected in URL.
+  // This must run before any other initialization to ensure a clean slate.
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ssoToken = urlParams.get('token');
+    if (ssoToken) {
+      const existingToken = safeLocalStorage.getItem('token');
+      // Only clear if the token is different or if we want to ensure a fresh session regardless
+      console.log('SSO Token detected in URL. Clearing existing local sessions to prioritize new login.');
+      safeLocalStorage.removeItem('token');
+      safeLocalStorage.removeItem('user');
+      safeLocalStorage.removeItem('userRole');
+      safeLocalStorage.removeItem('accessToken');
+      safeLocalStorage.removeItem('refreshToken');
+      // Clear validation cache as well
+      validationCacheRef.current = { timestamp: null, user: null, token: null };
+    }
+  }
+
   const VALIDATION_CACHE_TTL = 60 * 1000; // 60 seconds cache
 
   // iOS/Safari-specific initialization
@@ -36,10 +56,10 @@ export const AuthProvider = ({ children }) => {
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     const isIOSSafari = isSafari && isIOS;
     const isIOSChrome = /CriOS/.test(navigator.userAgent);
-    
+
     if (isIOS || isIOSSafari || isIOSChrome) {
       console.log('🦁 iOS device detected - applying iOS-specific auth handling');
-      
+
       // Ensure localStorage is available and working
       try {
         const testKey = '_ios_test_';
@@ -63,7 +83,7 @@ export const AuthProvider = ({ children }) => {
       const protectedRoutes = ['/admin', '/student', '/warden', '/principal'];
       const currentPath = window.location.pathname;
       const isOnProtectedRoute = protectedRoutes.some(route => currentPath.startsWith(route));
-      
+
       if (isOnProtectedRoute) {
         e.preventDefault();
         e.returnValue = 'Are you sure you want to leave? You will be logged out.';
@@ -74,17 +94,17 @@ export const AuthProvider = ({ children }) => {
     const handlePopState = (e) => {
       // Check if user is trying to go back to login/home page
       const currentPath = window.location.pathname;
-      const isOnProtectedRoute = ['/admin', '/student', '/warden', '/principal'].some(route => 
+      const isOnProtectedRoute = ['/admin', '/student', '/warden', '/principal'].some(route =>
         currentPath.startsWith(route)
       );
-      
+
       if (isOnProtectedRoute) {
         // User is on a protected route, prevent going back to login
         e.preventDefault();
-        
+
         // Detect if it's a mobile device
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
+
         if (isMobile) {
           // On mobile, try to close the browser/tab silently
           try {
@@ -95,7 +115,7 @@ export const AuthProvider = ({ children }) => {
             } else if (window.close) {
               // Try to close the window (works in some mobile browsers)
               window.close();
-              
+
               // Don't show any message on mobile - let it close silently
             }
           } catch (error) {
@@ -106,7 +126,7 @@ export const AuthProvider = ({ children }) => {
           // On desktop, just prevent navigation
           toast.error('Cannot go back while logged in');
         }
-        
+
         // Push current state back to prevent navigation
         window.history.pushState(null, '', currentPath);
       }
@@ -115,7 +135,7 @@ export const AuthProvider = ({ children }) => {
     // Add event listeners
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('popstate', handlePopState);
-    
+
     // Push current state to prevent back navigation to login
     const currentPath = window.location.pathname;
     if (['/admin', '/student', '/warden', '/principal'].some(route => currentPath.startsWith(route))) {
@@ -163,25 +183,25 @@ export const AuthProvider = ({ children }) => {
 
       try {
         const userRole = safeLocalStorage.getItem('userRole');
-        
+
         let res;
         if (userRole === 'admin' || userRole === 'super_admin' || userRole === 'sub_admin' || userRole === 'warden' || userRole === 'principal' || userRole === 'custom') {
           res = await api.get('/api/admin-management/validate');
         } else {
           res = await api.get('/api/auth/validate');
         }
-        
+
         if (res.data.success && res.data.data?.user) {
           const freshUser = res.data.data.user;
           setUser(freshUser);
-          
+
           // Update cache
           validationCacheRef.current = {
             timestamp: Date.now(),
             user: freshUser,
             token: token
           };
-          
+
           // Update local storage to match validated data using safe localStorage
           safeLocalStorage.setItem('user', JSON.stringify(freshUser));
           safeLocalStorage.setItem('userRole', freshUser.role);
@@ -190,13 +210,13 @@ export const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('🔍 Token validation failed:', error.response?.data || error.message);
-        
+
         // Enhanced iOS error logging for authentication
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         const isIOSSafari = isSafari && isIOS;
         const isIOSChrome = /CriOS/.test(navigator.userAgent);
-        
+
         if (isIOS || isIOSSafari || isIOSChrome) {
           console.error('🦁 iOS Authentication Error:', {
             error: error.message,
@@ -207,7 +227,7 @@ export const AuthProvider = ({ children }) => {
             pathname: window.location.pathname
           });
         }
-        
+
         // Clear invalid token and user data using safe localStorage
         setToken(null);
         setUser(null);
@@ -215,7 +235,7 @@ export const AuthProvider = ({ children }) => {
         safeLocalStorage.removeItem('token');
         safeLocalStorage.removeItem('user');
         safeLocalStorage.removeItem('userRole');
-        
+
       } finally {
         setLoading(false);
       }
@@ -295,61 +315,61 @@ export const AuthProvider = ({ children }) => {
   const login = async (role, credentials) => {
     try {
       let response;
-      
+
       if (role === 'admin') {
         console.log('AuthContext: Admin login attempt');
         // Admin login
         response = await api.post('/api/admin-management/login', credentials);
         console.log('AuthContext: Admin login response:', response.data);
         const { token: newToken, admin } = response.data.data;
-        
+
         console.log('AuthContext: Token received:', newToken ? 'yes' : 'no');
         console.log('AuthContext: Admin data received:', admin);
         console.log('AuthContext: Admin role:', admin.role);
-        
+
         // Store admin data with the actual role from backend using safe localStorage
         const tokenStored = safeLocalStorage.setItem('token', newToken);
         const userStored = safeLocalStorage.setItem('user', JSON.stringify(admin));
         const roleStored = safeLocalStorage.setItem('userRole', admin.role);
-        
+
         console.log('AuthContext: Data stored in localStorage:');
         console.log('AuthContext: - token stored:', tokenStored);
         console.log('AuthContext: - user stored:', userStored);
         console.log('AuthContext: - userRole stored:', roleStored);
-        
+
         // Set skip validation BEFORE setting token to prevent immediate validation
         setSkipValidation(true);
-        
+
         // Set user state immediately
         setToken(newToken);
         setUser(admin);
         api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        
+
         console.log('AuthContext: Admin login successful, user set:', admin);
         console.log('AuthContext: Stored userRole as:', admin.role);
-        
+
         return { success: true, user: admin };
       } else {
         console.log('AuthContext: Student login attempt');
         // Student login
         response = await api.post('/api/auth/student/login', credentials);
         console.log('AuthContext: Student login response:', response.data);
-        
+
         if (response.data.success) {
           const { token: newToken, student: studentUser, requiresPasswordChange } = response.data.data;
-          
+
           // Always set the token and user data to establish a session using safe localStorage
           const tokenStored = safeLocalStorage.setItem('token', newToken);
           const userStored = safeLocalStorage.setItem('user', JSON.stringify(studentUser));
           const roleStored = safeLocalStorage.setItem('userRole', 'student');
-          
+
           console.log('AuthContext: Student data stored:', { tokenStored, userStored, roleStored });
-          
+
           setSkipValidation(true);
           setToken(newToken);
           setUser(studentUser);
           api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-          
+
           // Set the password change requirement state
           setRequiresPasswordChange(requiresPasswordChange);
 
@@ -357,10 +377,10 @@ export const AuthProvider = ({ children }) => {
           await fetchAndSetUserProfile();
 
           // Return a consistent success object
-          return { 
-            success: true, 
-            user: studentUser, 
-            requiresPasswordChange: requiresPasswordChange 
+          return {
+            success: true,
+            user: studentUser,
+            requiresPasswordChange: requiresPasswordChange
           };
         } else {
           throw new Error(response.data.message || 'Login failed');
@@ -368,7 +388,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('AuthContext: Login error:', error);
-      
+
       // Enhanced iOS error handling and logging
       if (isIOS || isIOSSafari || isIOSChrome) {
         console.error('🦁 iOS Login Error:', {
@@ -379,12 +399,12 @@ export const AuthProvider = ({ children }) => {
           timestamp: new Date().toISOString(),
           pathname: window.location.pathname
         });
-        
+
         if (error.message.includes('Network Error') || error.code === 'ERR_NETWORK') {
           throw new Error('Connection issue on iOS. Please check your internet connection and try again.');
         }
       }
-      
+
       throw error;
     }
   };
@@ -392,7 +412,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     // Add confirmation for logout
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+
     if (isMobile) {
       // On mobile, show a more prominent confirmation
       const confirmed = window.confirm('Are you sure you want to logout? You will need to login again.');
@@ -406,10 +426,10 @@ export const AuthProvider = ({ children }) => {
         return;
       }
     }
-    
+
     // Clear validation cache on logout
     validationCacheRef.current = { timestamp: null, user: null, token: null };
-    
+
     safeLocalStorage.removeItem('token');
     safeLocalStorage.removeItem('user');
     safeLocalStorage.removeItem('userRole');
@@ -428,10 +448,10 @@ export const AuthProvider = ({ children }) => {
 
   const hasPermission = (permission) => {
     if (!user) return false;
-    
+
     // Super admin has all permissions
     if (user.role === 'super_admin') return true;
-    
+
     // Check specific permission
     return user.permissions?.includes(permission) || false;
   };
