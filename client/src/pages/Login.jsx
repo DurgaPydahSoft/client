@@ -13,7 +13,6 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 
 
 const Login = () => {
@@ -152,29 +151,28 @@ const Login = () => {
       <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
         {/* Left Side - Always visible, stacks on mobile */}
-        <div className="w-full md:w-1/2 bg-blue-600 p-8 flex flex-col justify-center text-white space-y-6">
+        <div className="w-full md:w-1/2 bg-blue-600 p-6 md:p-8 flex flex-col justify-center items-center text-white space-y-4 md:space-y-6 relative">
 
-          <HomeIcon className="w-6 h-6 text-white" cursor={"pointer"} onClick={() => navigate('/')} />
+          <HomeIcon className="absolute top-4 left-4 w-6 h-6 text-white cursor-pointer hover:scale-110 transition-transform" onClick={() => navigate('/')} />
 
           <div className="flex items-center justify-center mb-6">
-            {/* <AcademicCapIcon className="w-12 h-12" /> */}
-
-
-
-            <DotLottieReact
-              src="https://lottie.host/5ea0b44d-bf2e-475e-a429-879106fe00b5/8RVEESYyoI.lottie"
-              loop
-              autoplay
+            <motion.img
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8 }}
+              src="/login.png"
+              alt="Login Illustration"
+              className="w-full max-w-[180px] sm:max-w-[240px] md:max-w-[300px] lg:max-w-[350px] h-auto drop-shadow-2xl rounded-3xl"
             />
           </div>
 
 
           {/* Hidden on mobile */}
-          <h2 className="text-2xl font-bold text-center sm:hidden md:block">Hostel Connectify</h2>
+          <h2 className="text-xl md:text-2xl font-bold text-center block">Hostel Connectify</h2>
 
-          <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
+          {/* <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
             Log in to manage your hostel activities and connect with fellow students.
-          </div>
+          </div> */}
         </div>
 
         {/* Right Side */}
