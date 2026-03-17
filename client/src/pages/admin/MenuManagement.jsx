@@ -1046,7 +1046,7 @@ const MenuManagement = () => {
             <div className="text-gray-400 text-3xl sm:text-4xl mb-2">📊</div>
             <div className="text-gray-600 font-medium text-sm sm:text-base">No attendance data available</div>
             <div className="text-gray-500 text-xs sm:text-sm mt-1 px-4">
-              Unable to fetch yesterday's attendance data
+              Unable to fetch current or previous attendance data
             </div>
           </div>
         )}
