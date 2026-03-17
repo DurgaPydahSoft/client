@@ -346,6 +346,8 @@ const Leave = () => {
         return 'text-blue-600 bg-blue-50';
       case 'Warden Recommended':
         return 'text-blue-600 bg-blue-50';
+      case 'Expired':
+        return 'text-orange-600 bg-orange-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -366,6 +368,8 @@ const Leave = () => {
         return <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       case 'Warden Recommended':
         return <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 'Expired':
+        return <ClockIcon className="w-4 h-4 sm:w-5 sm:h-5" />;
       default:
         return null;
     }

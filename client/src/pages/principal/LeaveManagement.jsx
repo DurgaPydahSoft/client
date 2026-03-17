@@ -186,6 +186,8 @@ const LeaveManagement = () => {
         return 'text-yellow-600 bg-yellow-50';
       case 'Warden Verified':
         return 'text-blue-600 bg-blue-50';
+      case 'Expired':
+        return 'text-orange-600 bg-orange-50'; // Orange scheme for expired
       default:
         return 'text-gray-600 bg-gray-50';
     }
@@ -202,6 +204,8 @@ const LeaveManagement = () => {
         return <ExclamationCircleIcon className="w-5 h-5" />;
       case 'Warden Verified':
         return <ShieldCheckIcon className="w-5 h-5" />;
+      case 'Expired':
+        return <ClockIcon className="w-5 h-5" />; // Clock icon for expired
       default:
         return null;
     }
@@ -315,6 +319,7 @@ const LeaveManagement = () => {
                 <option value="Warden Verified">Warden Verified</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
+                <option value="Expired">Expired</option>
               </select>
             </div>
           </div>
