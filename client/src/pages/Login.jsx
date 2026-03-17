@@ -150,29 +150,52 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-200 p-2 md:p-4">
       <div className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-xl overflow-hidden">
 
-        {/* Left Side - Always visible, stacks on mobile */}
-        <div className="w-full md:w-1/2 bg-blue-600 p-6 md:p-8 flex flex-col justify-center items-center text-white space-y-4 md:space-y-6 relative">
+        {/* Left Side - Full Image Background */}
+        <div className="w-full md:w-1/2 bg-blue-600 relative overflow-hidden min-h-[300px] md:min-h-full">
+          {/* Main Background Image */}
+          <motion.img
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1.2, ease: "easeOut" }}
+            src="/login.png"
+            alt="Login Illustration"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          
+          {/* Subtle Gradient Overlay for Text Readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-transparent to-blue-900/60" />
 
-          <HomeIcon className="absolute top-4 left-4 w-6 h-6 text-white cursor-pointer hover:scale-110 transition-transform" onClick={() => navigate('/')} />
-
-          <div className="flex items-center justify-center mb-6">
-            <motion.img
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8 }}
-              src="/login.png"
-              alt="Login Illustration"
-              className="w-full max-w-[180px] sm:max-w-[240px] md:max-w-[300px] lg:max-w-[350px] h-auto drop-shadow-2xl rounded-3xl"
+          {/* Floating Home Button */}
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            className="absolute top-6 left-6 z-20"
+          >
+            <HomeIcon 
+              className="w-10 h-10 p-2.5 bg-white/20 backdrop-blur-md rounded-xl text-white cursor-pointer hover:bg-white/30 transition-all border border-white/20" 
+              onClick={() => navigate('/')} 
             />
+          </motion.div>
+
+          {/* Branding Overlay (Bottom) */}
+          <div className="absolute bottom-6 md:bottom-10 left-0 right-0 z-20 px-4 md:px-8 text-center text-white">
+            <motion.h2 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-2xl md:text-4xl font-bold tracking-tight mb-1 md:mb-2"
+            >
+              Hostel Connectify
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.8 }}
+              transition={{ delay: 0.8 }}
+              className="text-blue-50/80 text-xs md:text-base font-medium hidden md:block"
+            >
+              Transforming hostel management through digital innovation
+            </motion.p>
           </div>
-
-
-          {/* Hidden on mobile */}
-          <h2 className="text-xl md:text-2xl font-bold text-center block">Hostel Connectify</h2>
-
-          {/* <div className="bg-blue-500/40 p-4 rounded-lg text-center text-sm hidden md:block">
-            Log in to manage your hostel activities and connect with fellow students.
-          </div> */}
         </div>
 
         {/* Right Side */}
