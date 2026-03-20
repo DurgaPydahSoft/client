@@ -41,6 +41,8 @@ const LeaveManagement = () => {
   const [loadingStudentDetails, setLoadingStudentDetails] = useState(new Set());
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [smsBalance, setSmsBalance] = useState(null);
+  const [smsLoading, setSmsLoading] = useState(false);
 
 
   const [visibleOtps, setVisibleOtps] = useState({});
@@ -81,7 +83,22 @@ const LeaveManagement = () => {
     } else {
       fetchBulkOutings();
     }
+    fetchSMSBalance();
   }, [debouncedFilters, activeTab]);
+
+  const fetchSMSBalance = async () => {
+    setSmsLoading(true);
+    try {
+      const response = await api.get('/api/admin/sms/balance');
+      if (response.data.success) {
+        setSmsBalance(response.data.data.balance);
+      }
+    } catch (error) {
+      console.error('Error fetching SMS balance:', error);
+    } finally {
+      setSmsLoading(false);
+    }
+  };
 
   const fetchLeaves = async () => {
     try {
@@ -324,7 +341,19 @@ const LeaveManagement = () => {
 
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl font-bold text-blue-900">Leave & Permission Management</h1>
+              {!smsLoading && smsBalance !== null && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-lg shadow-sm">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  <span className="text-[10px] sm:text-xs font-semibold text-green-700 uppercase tracking-wider">SMS Credits:</span>
+                  <span className="text-xs sm:text-sm font-bold text-green-800">{smsBalance}</span>
+                </div>
+              )}
+              {smsLoading && (
+                 <div className="h-6 w-24 bg-gray-100 animate-pulse rounded-lg"></div>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-gray-600 mt-1 hidden sm:block">
               Note: Leave and Permission requests now go through Warden/Admin OTP verification → Course-specific Principal approval workflow
             </p>
