@@ -26,11 +26,15 @@ const StayInHostelRequests = () => {
   const [decision, setDecision] = useState('Approved');
   const [comment, setComment] = useState('');
   const todayStr = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
   const [filters, setFilters] = useState({
     status: '',
     principalDecision: '',
     wardenRecommendation: '',
-    fromDate: todayStr,
+    fromDate: yesterdayStr,
     toDate: todayStr,
     page: 1
   });
@@ -230,7 +234,7 @@ const StayInHostelRequests = () => {
             </div>
             <div className="flex items-end">
               <button
-                onClick={() => setFilters({ status: '', wardenRecommendation: '', principalDecision: '', fromDate: todayStr, toDate: todayStr, page: 1 })}
+                onClick={() => setFilters({ status: '', wardenRecommendation: '', principalDecision: '', fromDate: yesterdayStr, toDate: todayStr, page: 1 })}
                 className="w-full px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
               >
                 Clear Filters
