@@ -90,41 +90,15 @@ const ViewAttendance = () => {
         console.log('🔍 ViewAttendance: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
       }
 
-      // Add other filters that don't involve course/branch IDs
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
-
-      console.log('🔍 ViewAttendance: API params for date view:', params.toString());
-      console.log('🔍 ViewAttendance: Current filters:', filters);
 
       const response = await api.get(`/api/attendance/date?${params}`);
       
       if (response.data.success) {
-        // Frontend filtering - ensure only students of warden's gender are shown
-        let filteredAttendance = response.data.data.attendance;
-        if (wardenGender) {
-          filteredAttendance = response.data.data.attendance.filter(record => 
-            record.student?.gender === wardenGender
-          );
-          console.log('🔍 ViewAttendance: After gender filtering:', filteredAttendance.length, 'records');
-        }
-
-        // Frontend filtering for course and branch
-        if (filters.course) {
-          filteredAttendance = filteredAttendance.filter(record => 
-            record.student?.course?._id === filters.course || record.student?.course === filters.course
-          );
-          console.log('🔍 ViewAttendance: After course filtering:', filteredAttendance.length, 'records');
-        }
-
-        if (filters.branch) {
-          filteredAttendance = filteredAttendance.filter(record => 
-            record.student?.branch?._id === filters.branch || record.student?.branch === filters.branch
-          );
-          console.log('🔍 ViewAttendance: After branch filtering:', filteredAttendance.length, 'records');
-        }
-        
-        setAttendance(filteredAttendance);
+        setAttendance(response.data.data.attendance);
         setStatistics(response.data.data.statistics);
       }
     } catch (error) {
