@@ -36,6 +36,11 @@ const initialForm = {
   college: null
 };
 
+const readOnlyInputClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
+const readOnlySelectClass =
+  'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
+
 const StudentRegistrationSQL = () => {
   const normalizeText = (val) => (val || '').toString().trim().toUpperCase();
   const { user } = useAuth();
@@ -328,7 +333,7 @@ const StudentRegistrationSQL = () => {
           course: sqlData.courseId || '',
           branch: sqlData.branchId || '',
           year: sqlData.year || 1,
-          batch: sqlData.batch || '',
+          batch: normalizeBatchToYear(sqlData.batch || ''),
           studentPhone: sqlData.studentPhone || '',
           parentPhone: sqlData.parentPhone || '',
           motherPhone: sqlData.motherPhone || '',
@@ -489,24 +494,32 @@ const StudentRegistrationSQL = () => {
     return years;
   };
 
-  // Generate batches
-  const generateBatches = (courseId) => {
-    const course = courses.find(c => c._id === courseId);
-    const duration = course ? course.duration : 4;
-    const startYear = 2022;
-    const batches = [];
-    for (let i = 0; i < 10; i++) {
-      const start = startYear + i;
-      const end = start + duration;
-      batches.push(`${start}-${end}`);
-    }
-    return batches;
-  };
-
   // Get course duration
   const getCourseDuration = (courseId) => {
     const course = courses.find(c => c._id === courseId);
     return course ? course.duration : 4;
+  };
+
+  // Batch = admission start year (matches SQL)
+  const normalizeBatchToYear = (batch) => {
+    if (!batch) return '';
+    const trimmed = String(batch).trim();
+    if (/^\d{4}$/.test(trimmed)) return trimmed;
+    if (/^\d{4}-\d{4}$/.test(trimmed)) return trimmed.split('-')[0];
+    return trimmed;
+  };
+
+  const getBatchYearOptions = (currentBatch) => {
+    const startYear = 2022;
+    const years = [];
+    for (let i = 0; i < 10; i++) {
+      years.push(String(startYear + i));
+    }
+    const normalized = normalizeBatchToYear(currentBatch);
+    if (normalized && !years.includes(normalized)) {
+      return [normalized, ...years];
+    }
+    return years;
   };
 
   // Handle form submission
@@ -710,9 +723,10 @@ const StudentRegistrationSQL = () => {
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Personal Information */}
+          {/* Personal Information — from SQL, read-only */}
           <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Personal Information</h3>
+            <p className="text-xs text-gray-500 mb-4">Fetched from SQL — not editable</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
@@ -720,9 +734,9 @@ const StudentRegistrationSQL = () => {
                   type="text"
                   name="name"
                   value={form.name}
-                  onChange={handleFormChange}
+                  readOnly
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlyInputClass}
                 />
               </div>
               <div>
@@ -731,9 +745,9 @@ const StudentRegistrationSQL = () => {
                   type="text"
                   name="rollNumber"
                   value={form.rollNumber}
-                  onChange={handleFormChange}
+                  readOnly
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
+                  className={`${readOnlyInputClass} uppercase`}
                 />
               </div>
               <div>
@@ -742,9 +756,9 @@ const StudentRegistrationSQL = () => {
                   type="text"
                   name="admissionNumber"
                   value={form.admissionNumber}
-                  onChange={handleFormChange}
+                  readOnly
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 uppercase"
+                  className={`${readOnlyInputClass} uppercase`}
                 />
               </div>
               <div>
@@ -752,9 +766,9 @@ const StudentRegistrationSQL = () => {
                 <select
                   name="gender"
                   value={form.gender}
-                  onChange={handleFormChange}
+                  disabled
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
                   <option value="">Select Gender</option>
                   <option value="Male">Male</option>
@@ -764,40 +778,34 @@ const StudentRegistrationSQL = () => {
             </div>
           </div>
 
-          {/* Academic Information */}
+          {/* Academic Information — from SQL, read-only */}
           <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Academic Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Academic Information</h3>
+            <p className="text-xs text-gray-500 mb-4">Fetched from SQL — not editable</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">College *</label>
                 <select
                   name="college"
                   value={form.college ? form.college.id : ''}
-                  onChange={(e) => {
-                    const selectedId = parseInt(e.target.value);
-                    const selectedCollege = colleges.find(c => c.id === selectedId);
-                    setForm(prev => ({ ...prev, college: selectedCollege || null }));
-                  }}
+                  disabled
                   required
-                  disabled={loadingColleges}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
                   <option value="">{loadingColleges ? 'Loading...' : 'Select College'}</option>
                   {colleges.map(college => (
                     <option key={college.id} value={college.id}>{college.name}</option>
                   ))}
                 </select>
-                <p className="text-xs text-blue-600 mt-1">Fetched from SQL</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
                 <select
                   name="course"
                   value={form.course}
-                  onChange={handleFormChange}
+                  disabled
                   required
-                  disabled={loadingCourses}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
                   <option value="">{loadingCourses ? 'Loading...' : 'Select Course'}</option>
                   {courses.map(course => (
@@ -810,10 +818,9 @@ const StudentRegistrationSQL = () => {
                 <select
                   name="year"
                   value={form.year}
-                  onChange={handleFormChange}
+                  disabled
                   required
-                  disabled={!form.course}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
                   <option value="">Select Year</option>
                   {form.course && Array.from({ length: getCourseDuration(form.course) }, (_, i) => i + 1).map(year => (
@@ -826,10 +833,9 @@ const StudentRegistrationSQL = () => {
                 <select
                   name="branch"
                   value={form.branch}
-                  onChange={handleFormChange}
+                  disabled
                   required
-                  disabled={!form.course || loadingBranches}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
                   <option value="">{loadingBranches ? 'Loading...' : 'Select Branch'}</option>
                   {branchOptions.map(branch => (
@@ -842,17 +848,23 @@ const StudentRegistrationSQL = () => {
                 <select
                   name="batch"
                   value={form.batch}
-                  onChange={handleFormChange}
+                  disabled
                   required
-                  disabled={!form.course}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlySelectClass}
                 >
-                  <option value="">Select Batch</option>
-                  {form.course && generateBatches(form.course).map(batch => (
-                    <option key={batch} value={batch}>{batch}</option>
+                  <option value="">Select Batch Year</option>
+                  {getBatchYearOptions(form.batch).map(year => (
+                    <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
               </div>
+            </div>
+          </div>
+
+          {/* Hostel Information */}
+          <div className="bg-gray-50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Hostel Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
                 <select
@@ -882,13 +894,6 @@ const StudentRegistrationSQL = () => {
                 />
                 <p className="text-xs text-gray-500 mt-1">Optional: fixed amount to deduct from fee</p>
               </div>
-            </div>
-          </div>
-
-          {/* Hostel Information */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Hostel Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hostel *</label>
                 <select
@@ -1030,7 +1035,8 @@ const StudentRegistrationSQL = () => {
 
           {/* Contact Information */}
           <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">Contact Information</h3>
+            <p className="text-xs text-gray-500 mb-4">Phone numbers from SQL — not editable</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
@@ -1038,8 +1044,8 @@ const StudentRegistrationSQL = () => {
                   type="tel"
                   name="studentPhone"
                   value={form.studentPhone}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  readOnly
+                  className={readOnlyInputClass}
                 />
               </div>
               <div>
@@ -1048,9 +1054,9 @@ const StudentRegistrationSQL = () => {
                   type="tel"
                   name="parentPhone"
                   value={form.parentPhone}
-                  onChange={handleFormChange}
+                  readOnly
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={readOnlyInputClass}
                 />
               </div>
               <div>
@@ -1069,8 +1075,8 @@ const StudentRegistrationSQL = () => {
                   type="tel"
                   name="motherPhone"
                   value={form.motherPhone}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  readOnly
+                  className={readOnlyInputClass}
                 />
               </div>
               <div>
@@ -1101,6 +1107,7 @@ const StudentRegistrationSQL = () => {
                   value={form.localGuardianPhone}
                   onChange={handleFormChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter local guardian phone"
                 />
               </div>
             </div>
