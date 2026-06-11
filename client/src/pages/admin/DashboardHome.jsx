@@ -803,7 +803,7 @@ const DashboardHome = () => {
         label: 'Active Students',
         value: stats.students.active,
         color: 'border-blue-500 text-blue-600',
-        extra: stats.students.newThisWeek > 0 ? `${stats.students.newThisWeek} new this week` : undefined,
+        extra: `${stats.students.newThisWeek} new this week`,
         onClick: () => navigate('/admin/dashboard/students'),
         animateDelay: 0.05
       });
@@ -1055,14 +1055,14 @@ const DashboardHome = () => {
                             <div>
                               <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">By Course</div>
                               <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                                {stats.students.byCourse.slice(0, 4).map((course) => {
+                                {stats.students.byCourse.map((course, idx) => {
                                   const colors = [
                                     { bg: 'bg-blue-50', text: 'text-blue-900' },
                                     { bg: 'bg-green-50', text: 'text-green-900' },
                                     { bg: 'bg-purple-50', text: 'text-purple-900' },
                                     { bg: 'bg-orange-50', text: 'text-orange-900' }
                                   ];
-                                  const color = colors[stats.students.byCourse.indexOf(course) % colors.length];
+                                  const color = colors[idx % colors.length];
                                   return (
                                     <div key={course.name} className={`text-center ${color.bg} rounded-lg p-2 sm:p-2.5`}>
                                       <div className={`text-sm sm:text-base font-bold ${color.text}`}>{course.count}</div>
