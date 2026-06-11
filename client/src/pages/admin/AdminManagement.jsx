@@ -13,7 +13,8 @@ import {
   ShieldCheckIcon,
   HomeIcon,
   BuildingOfficeIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  MagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import SEO from '../../components/SEO';
@@ -151,8 +152,17 @@ const AdminManagement = () => {
     principalEmail: '', // Email for principal (for leave notifications)
     principalCourses: [], // New field for principal multi-course selection
     assignedCollegeIds: [], // New field for principal colleges (multi-select)
-    assignedLevels: [] // New field for principal levels (Diploma, UG, PG)
+    assignedLevels: [], // New field for principal levels (Diploma, UG, PG)
+    employeeId: '',
+    hrmsUserId: '',
+    hrmsEmployeeRef: '',
+    hrmsLinkType: '',
+    name: ''
   });
+  const [hrmsSearchQuery, setHrmsSearchQuery] = useState('');
+  const [hrmsSearchResults, setHrmsSearchResults] = useState([]);
+  const [hrmsSearching, setHrmsSearching] = useState(false);
+  const [selectedHrmsEmployee, setSelectedHrmsEmployee] = useState(null);
   const [roleType, setRoleType] = useState('sub_admin'); // Track selected role type
   const [roleFormData, setRoleFormData] = useState({
     name: '',
@@ -174,6 +184,66 @@ const AdminManagement = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!showAddModal && !showEditModal) return;
+
+    if (!hrmsSearchQuery || hrmsSearchQuery.trim().length < 2) {
+      setHrmsSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setHrmsSearching(true);
+      try {
+        const response = await api.get('/api/admin-management/hrms-employees/search', {
+          params: { q: hrmsSearchQuery.trim() }
+        });
+        if (response.data.success) {
+          setHrmsSearchResults(response.data.data || []);
+        }
+      } catch (error) {
+        console.error('HRMS search error:', error);
+        toast.error('Failed to search HRMS employees');
+      } finally {
+        setHrmsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [hrmsSearchQuery, showAddModal, showEditModal]);
+
+  const handleSelectHrmsEmployee = (employee) => {
+    setSelectedHrmsEmployee(employee);
+    setFormData(prev => ({
+      ...prev,
+      employeeId: employee.employeeId || '',
+      hrmsUserId: employee.hrmsUserId || '',
+      hrmsEmployeeRef: employee.hrmsEmployeeRef || '',
+      hrmsLinkType: employee.linkType || '',
+      name: employee.name || '',
+      email: prev.email || employee.email || '',
+      phoneNumber: prev.phoneNumber || employee.phone || '',
+      principalEmail: prev.principalEmail || employee.email || '',
+      username: employee.employeeId || prev.username
+    }));
+    setHrmsSearchQuery('');
+    setHrmsSearchResults([]);
+    const linkLabel = employee.linkType === 'user' ? 'User Account' : 'Employee Record';
+    toast.success(`Linked ${linkLabel}: ${employee.name || employee.employeeId}`);
+  };
+
+  const clearHrmsSelection = () => {
+    setSelectedHrmsEmployee(null);
+    setFormData(prev => ({
+      ...prev,
+      employeeId: '',
+      hrmsUserId: '',
+      hrmsEmployeeRef: '',
+      hrmsLinkType: '',
+      name: ''
+    }));
+  };
 
   const fetchData = async () => {
     try {
@@ -367,45 +437,43 @@ const AdminManagement = () => {
   const handleAddAdmin = async (e) => {
     e.preventDefault();
 
-    // Validate password delivery for sub-admins (optional)
-    if (activeTab === 'sub-admins') {
-      // If password delivery method is selected, validate accordingly
-      if (formData.passwordDeliveryMethod === 'email' && !formData.email.trim()) {
-        toast.error('Please enter an email address for password delivery');
-        return;
-      }
-
-      if (formData.passwordDeliveryMethod === 'mobile' && !formData.phoneNumber.trim()) {
-        toast.error('Please enter a phone number for mobile delivery');
-        return;
-      }
+    if (!formData.employeeId || !formData.hrmsLinkType) {
+      toast.error('Please link an HRMS employee or user record before creating');
+      return;
     }
 
     try {
       let endpoint;
       let requestData;
 
+      const hrmsFields = {
+        employeeId: formData.employeeId || undefined,
+        hrmsUserId: formData.hrmsUserId || undefined,
+        hrmsEmployeeRef: formData.hrmsEmployeeRef || undefined,
+        hrmsLinkType: formData.hrmsLinkType || undefined,
+        name: formData.name || undefined
+      };
+
       if (activeTab === 'sub-admins') {
         endpoint = '/api/admin-management/sub-admins';
         requestData = {
-          ...formData,
-          leaveManagementCourses: formData.leaveManagementCourses,
+          ...hrmsFields,
+          permissions: formData.permissions,
           permissionAccessLevels: formData.permissionAccessLevels,
-          passwordDeliveryMethod: formData.passwordDeliveryMethod,
-          email: formData.email,
-          phoneNumber: formData.phoneNumber
+          leaveManagementCourses: formData.leaveManagementCourses,
+          customRoleId: formData.customRoleId || undefined,
+          email: formData.email || undefined
         };
       } else if (activeTab === 'wardens') {
         endpoint = '/api/admin-management/wardens';
-        requestData = { ...formData, hostelType: formData.hostelType };
+        requestData = { ...hrmsFields, hostelType: formData.hostelType };
       } else if (activeTab === 'principals') {
         endpoint = '/api/admin-management/principals';
         requestData = {
-          username: formData.username,
-          password: formData.password,
           assignedCollegeIds: formData.assignedCollegeIds,
           assignedLevels: formData.assignedLevels,
-          email: formData.principalEmail
+          email: formData.principalEmail,
+          ...hrmsFields
         };
       }
 
@@ -414,27 +482,7 @@ const AdminManagement = () => {
         const userType = activeTab === 'sub-admins' ? 'Sub-admin' :
           activeTab === 'wardens' ? 'Warden' : 'Principal';
 
-        // Handle delivery result for sub-admins
-        if (activeTab === 'sub-admins' && response.data.deliveryResult) {
-          if (response.data.deliveryResult.success) {
-            const deliveryMethod = formData.passwordDeliveryMethod === 'email' ? 'email' :
-              formData.passwordDeliveryMethod === 'mobile' ? 'SMS' : 'manual';
-            toast.success(`${userType} added successfully! Credentials sent via ${deliveryMethod}.`);
-          } else if (response.data.deliveryResult.error) {
-            toast.success(`${userType} added successfully!`, { duration: 3000 });
-            toast.error(`Failed to send credentials: ${response.data.deliveryResult.error}`, { duration: 5000 });
-          } else if (response.data.deliveryResult.message) {
-            if (response.data.deliveryResult.message.includes('No credentials sent')) {
-              toast.success(`${userType} added successfully! No credentials sent - provide them manually.`);
-            } else {
-              toast.success(`${userType} added successfully! ${response.data.deliveryResult.message}`);
-            }
-          } else {
-            toast.success(`${userType} added successfully!`);
-          }
-        } else {
-          toast.success(`${userType} added successfully`);
-        }
+        toast.success(`${userType} added successfully! Login with HRMS employee ID and password.`);
 
         setShowAddModal(false);
         setFormData({
@@ -451,8 +499,16 @@ const AdminManagement = () => {
           phoneNumber: '',
           principalEmail: '',
           assignedCollegeIds: [],
-          assignedLevels: []
+          assignedLevels: [],
+          employeeId: '',
+          hrmsUserId: '',
+          hrmsEmployeeRef: '',
+          hrmsLinkType: '',
+          name: ''
         });
+        setSelectedHrmsEmployee(null);
+        setHrmsSearchQuery('');
+        setHrmsSearchResults([]);
         setFilteredBranches([]);
         fetchData();
       }
@@ -499,6 +555,12 @@ const AdminManagement = () => {
         updateData.email = formData.principalEmail;
       }
 
+      updateData.employeeId = formData.employeeId || '';
+      updateData.hrmsUserId = formData.hrmsUserId || '';
+      updateData.hrmsEmployeeRef = formData.hrmsEmployeeRef || '';
+      updateData.hrmsLinkType = formData.hrmsLinkType || '';
+      updateData.name = formData.name || '';
+
       console.log('🔧 Frontend: Final update data:', updateData);
 
       const response = await api.put(endpoint, updateData);
@@ -540,8 +602,16 @@ const AdminManagement = () => {
           principalEmail: '',
           principalCourses: [],
           assignedCollegeIds: [],
-          assignedLevels: []
+          assignedLevels: [],
+          employeeId: '',
+          hrmsUserId: '',
+          hrmsEmployeeRef: '',
+          hrmsLinkType: '',
+          name: ''
         });
+        setSelectedHrmsEmployee(null);
+        setHrmsSearchQuery('');
+        setHrmsSearchResults([]);
         setFilteredBranches([]);
         fetchData();
       }
@@ -612,8 +682,23 @@ const AdminManagement = () => {
       assignedCollegeIds: admin.assignedCollegeIds && admin.assignedCollegeIds.length > 0
         ? admin.assignedCollegeIds
         : (admin.assignedCollegeId ? [admin.assignedCollegeId] : []), // Load principal's colleges (handle legacy single ID)
-      assignedLevels: admin.assignedLevels || [] // Load principal's levels
+      assignedLevels: admin.assignedLevels || [], // Load principal's levels
+      employeeId: admin.employeeId || '',
+      hrmsUserId: admin.hrmsUserId || '',
+      hrmsEmployeeRef: admin.hrmsEmployeeRef || '',
+      hrmsLinkType: admin.hrmsLinkType || '',
+      name: admin.name || ''
     });
+    setSelectedHrmsEmployee(admin.employeeId ? {
+      employeeId: admin.employeeId,
+      name: admin.name,
+      hrmsUserId: admin.hrmsUserId,
+      hrmsEmployeeRef: admin.hrmsEmployeeRef,
+      linkType: admin.hrmsLinkType,
+      label: admin.hrmsLinkType === 'user' ? 'User Account' : 'Employee Record'
+    } : null);
+    setHrmsSearchQuery('');
+    setHrmsSearchResults([]);
     setShowEditModal(true);
   };
 
@@ -710,8 +795,16 @@ const AdminManagement = () => {
       principalEmail: '',
       principalCourses: [],
       assignedCollegeIds: [],
-      assignedLevels: []
+      assignedLevels: [],
+      employeeId: '',
+      hrmsUserId: '',
+      hrmsEmployeeRef: '',
+      hrmsLinkType: '',
+      name: ''
     });
+    setSelectedHrmsEmployee(null);
+    setHrmsSearchQuery('');
+    setHrmsSearchResults([]);
     setPasswordResetData({
       newPassword: '',
       confirmPassword: ''
@@ -1047,7 +1140,23 @@ const AdminManagement = () => {
                             )}
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{admin.username}</h3>
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{admin.name || admin.username}</h3>
+                            {admin.employeeId && (
+                              <p className="text-xs text-gray-500">
+                                Emp ID: {admin.employeeId}
+                                {admin.hrmsLinkType && (
+                                  <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${admin.hrmsLinkType === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    {admin.hrmsLinkType === 'user' ? 'User' : 'Employee'}
+                                  </span>
+                                )}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 truncate">
+                              @{admin.username}
+                              {admin.usesHrmsAuth && (
+                                <span className="ml-1 text-indigo-600 font-medium">HRMS login</span>
+                              )}
+                            </p>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                               {admin.isActive ? 'Active' : 'Inactive'}
                             </span>
@@ -1061,7 +1170,7 @@ const AdminManagement = () => {
                           >
                             <PencilIcon className="w-4 h-4" />
                           </button>
-                          {!isWardenTab && !isPrincipalTab && (
+                          {!isWardenTab && !isPrincipalTab && !admin.usesHrmsAuth && (
                             <button
                               onClick={() => openPasswordResetModal(admin)}
                               className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
@@ -1323,67 +1432,130 @@ const AdminManagement = () => {
               </div>
 
               <form onSubmit={showAddModal ? handleAddAdmin : handleEditAdmin} className="space-y-3">
+                {/* HRMS Employee Search */}
+                <div className="p-3 sm:p-4 bg-indigo-50 border border-indigo-100 rounded-lg space-y-3">
+                  <label className="block text-sm font-medium text-indigo-900">
+                    Link HRMS Record (shows Employee and User separately)
+                  </label>
+                  {selectedHrmsEmployee ? (
+                    <div className="flex items-center justify-between gap-3 p-3 bg-white rounded-lg border border-indigo-200">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900">{selectedHrmsEmployee.name || 'Employee'}</p>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${selectedHrmsEmployee.linkType === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {selectedHrmsEmployee.label || (selectedHrmsEmployee.linkType === 'user' ? 'User Account' : 'Employee Record')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600">
+                          ID: {selectedHrmsEmployee.employeeId || 'N/A'}
+                          {selectedHrmsEmployee.linkType === 'user' ? ' • Uses HRMS user password' : ' • Uses HRMS employee password'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={clearHrmsSelection}
+                        className="text-xs text-red-600 hover:text-red-700 font-medium"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        value={hrmsSearchQuery}
+                        onChange={(e) => setHrmsSearchQuery(e.target.value)}
+                        placeholder="Search by employee ID, name, email, or phone..."
+                        className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                      {hrmsSearching && (
+                        <p className="text-xs text-indigo-600 mt-1">Searching HRMS database...</p>
+                      )}
+                      {hrmsSearchResults.length > 0 && (
+                        <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                          {hrmsSearchResults.map((emp) => (
+                            <button
+                              key={`${emp.linkType}_${emp.recordId}`}
+                              type="button"
+                              onClick={() => handleSelectHrmsEmployee(emp)}
+                              className="w-full text-left px-3 py-2.5 hover:bg-indigo-50 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-medium text-gray-900">{emp.name || 'Unknown'}</p>
+                                <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-semibold ${emp.linkType === 'user' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                  {emp.label || (emp.linkType === 'user' ? 'User Account' : 'Employee Record')}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {emp.employeeId ? `ID: ${emp.employeeId}` : 'No employee ID'}
+                                {emp.department ? ` • ${emp.department}` : ''}
+                                {emp.designation ? ` • ${emp.designation}` : ''}
+                              </p>
+                              <p className="text-[10px] text-gray-400 mt-0.5">
+                                {emp.linkType === 'user' ? 'Login with HRMS user password' : 'Login with HRMS employee password'}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-indigo-700">
+                    {showAddModal
+                      ? 'New users login with HRMS employee ID and linked HRMS password only. No hostel username/password is created.'
+                      : 'If a person exists in both collections, choose separately. User Account and Employee Record have different passwords.'}
+                  </p>
+                </div>
+
+                {showAddModal && selectedHrmsEmployee && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                    Login ID will be <strong>{formData.employeeId}</strong>. User will authenticate with their linked HRMS password.
+                  </div>
+                )}
+
+                {showEditModal && selectedAdmin?.usesHrmsAuth && (
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    This user logs in with Employee ID <strong>{selectedAdmin.employeeId}</strong> and their linked HRMS password.
+                  </div>
+                )}
+
                 {/* Principal Specific Two-Column Layout */}
                 {isPrincipalTab ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* LEFT COLUMN: Credentials & Email & Preview */}
                     <div className="space-y-4">
-                      {/* Username */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                            Username <span className="text-red-500">*</span>
+                      {showEditModal && !selectedAdmin?.usesHrmsAuth && (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                            <input
+                              type="text"
+                              name="username"
+                              value={formData.username}
+                              onChange={handleFormChange}
+                              required
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter username"
+                            />
                           </div>
-                        </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Password <span className="text-gray-500 text-xs">(leave blank to keep)</span>
+                            </label>
+                            <input
+                              type="password"
+                              name="password"
+                              value={formData.password}
+                              onChange={handleFormChange}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="Enter new password"
+                            />
                           </div>
-                          <input
-                            type="text"
-                            name="username"
-                            value={formData.username}
-                            onChange={handleFormChange}
-                            required
-                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter username"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Password */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          <div className="flex items-center gap-2">
-                            <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2-2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                            Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep)</span>}
-                            {showAddModal && <span className="text-red-500">*</span>}
-                          </div>
-                        </label>
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                          </div>
-                          <input
-                            type="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleFormChange}
-                            required={showAddModal}
-                            className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Enter password"
-                          />
-                        </div>
-                      </div>
+                        </>
+                      )}
 
                       {/* Principal Email */}
                       <div>
@@ -1618,63 +1790,35 @@ const AdminManagement = () => {
                     </div>
                   </div>
                 ) : (
-                  /* Standard Layout for Warden / Sub-Admin */
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                          Username <span className="text-red-500">*</span>
-                        </div>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
+                  showEditModal && !selectedAdmin?.usesHrmsAuth && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Username</label>
                         <input
                           type="text"
                           name="username"
                           value={formData.username}
                           onChange={handleFormChange}
                           required
-                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter username"
                         />
                       </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                          Password {showEditModal && <span className="text-gray-500 text-xs">(leave blank to keep current)</span>}
-                          {showAddModal && <span className="text-red-500">*</span>}
-                        </div>
-                      </label>
-                      <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Password <span className="text-gray-500 text-xs">(leave blank to keep current)</span>
+                        </label>
                         <input
                           type="password"
                           name="password"
                           value={formData.password}
                           onChange={handleFormChange}
-                          required={showAddModal}
-                          className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="Enter password"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          placeholder="Enter new password"
                         />
                       </div>
                     </div>
-                  </div>
+                  )
                 )}
 
                 {!isWardenTab && !isPrincipalTab && (
@@ -1962,8 +2106,8 @@ const AdminManagement = () => {
                   </div>
                 )}
 
-                {/* Password Delivery Section for Sub-Admins - Only show when adding new admin */}
-                {!isWardenTab && !isPrincipalTab && showAddModal && (
+                {/* Password Delivery Section - only for legacy users on edit */}
+                {!isWardenTab && !isPrincipalTab && showEditModal && selectedAdmin && !selectedAdmin.usesHrmsAuth && false && (
                   <div className="border-t pt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <div className="flex items-center gap-2">
