@@ -199,9 +199,19 @@ const FeeStructureManagement = () => {
 
   const getAvailableYearsForCourse = useCallback((courseName) => {
     if (!courseName) return [];
-    const course = courses.find(c => c.name === courseName);
+    const course = courses.find(
+      c => c.name === courseName || c._id === courseName
+    );
     if (!course) return [];
     return Array.from({ length: course.duration || 4 }, (_, i) => i + 1);
+  }, [courses]);
+
+  const getCourseLabel = useCallback((courseValue) => {
+    if (!courseValue) return '-';
+    const match = courses.find(
+      c => c.name === courseValue || c._id === courseValue
+    );
+    return match?.name || courseValue;
   }, [courses]);
 
   // Additional Fees helpers
@@ -518,7 +528,7 @@ const FeeStructureManagement = () => {
     const categoryId = typeof row.categoryId === 'object' ? row.categoryId?._id : row.categoryId;
     setForm({
       academicYear: row.academicYear || '',
-      course: row.course || '',
+      course: getCourseLabel(row.course) === '-' ? (row.course || '') : getCourseLabel(row.course),
       year: String(row.year || ''),
       hostelId: hostelId || '',
       categoryId: categoryId || '',
@@ -758,7 +768,7 @@ const FeeStructureManagement = () => {
                           <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                             <div className="flex items-center">
                               <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                              {row.course}
+                              {getCourseLabel(row.course)}
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
@@ -823,7 +833,7 @@ const FeeStructureManagement = () => {
                         </div>
                         <div className="flex items-center mb-1">
                           <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-700">{row.course}</span>
+                          <span className="text-sm font-medium text-gray-700">{getCourseLabel(row.course)}</span>
                         </div>
                         <div className="mt-2 space-y-1">
                           <div className="text-xs text-gray-600">

@@ -19,7 +19,6 @@ const ROOM_NUMBERS = Array.from({ length: 11 }, (_, i) => (i + 30).toString());
 const TABS = [
   { label: 'All Students', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
   { label: 'Bulk Upload', value: 'bulkUpload', icon: <ArrowUpTrayIcon className="w-5 h-5" /> },
-  { label: 'Add Student', value: 'add', icon: <UserPlusIcon className="w-5 h-5" /> },
 ];
 
 const initialForm = {
@@ -108,6 +107,33 @@ const generateBatches = (courseId, courses) => {
 
   return batches;
 };
+
+// Batch = admission start year (matches SQL / backend batchUtils)
+const normalizeBatchToYear = (batch) => {
+  if (!batch) return '';
+  const trimmed = String(batch).trim();
+  if (/^\d{4}$/.test(trimmed)) return trimmed;
+  if (/^\d{4}-\d{4}$/.test(trimmed)) return trimmed.split('-')[0];
+  return trimmed;
+};
+
+const getBatchYearOptions = (currentBatch) => {
+  const startYear = 2022;
+  const years = [];
+  for (let i = 0; i < 10; i++) {
+    years.push(String(startYear + i));
+  }
+  const normalized = normalizeBatchToYear(currentBatch);
+  if (normalized && !years.includes(normalized)) {
+    return [normalized, ...years];
+  }
+  return years;
+};
+
+const readOnlyInputClass =
+  'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
+const readOnlySelectClass =
+  'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
 
 const generateAcademicYears = () => {
   const currentYear = new Date().getFullYear();
@@ -933,57 +959,20 @@ const Students = () => {
   useEffect(() => {
     // Check URL parameter for tab
     const tabParam = searchParams.get('tab');
-    if (tabParam && ['list', 'add', 'bulkUpload'].includes(tabParam)) {
+    if (tabParam === 'add') {
+      navigate('/admin/dashboard/students/register-from-sql', { replace: true });
+      return;
+    }
+    if (tabParam && ['list', 'bulkUpload'].includes(tabParam)) {
       setTab(tabParam);
     }
 
-    // Check for prefilled data from preregistration
+    // Pre-registration approval: register via SQL page (add student removed from this page)
     const prefilledData = sessionStorage.getItem('preregistrationData');
     if (prefilledData) {
-      try {
-        const data = JSON.parse(prefilledData);
-
-        // Set form data (excluding photos and branch initially)
-        const { studentPhoto, guardianPhoto1, guardianPhoto2, branch, ...formDataWithoutBranch } = data;
-        console.log('🔍 Prefilled form data:', formDataWithoutBranch);
-        console.log('🔍 Course ID:', formDataWithoutBranch.course);
-        console.log('🔍 Branch ID:', branch);
-
-        // Set form without branch first
-        setForm({ ...formDataWithoutBranch, branch: '' });
-
-        // Set photo previews (URLs from preregistration)
-        if (studentPhoto) {
-          setStudentPhotoPreview(studentPhoto);
-        }
-        if (guardianPhoto1) {
-          setGuardianPhoto1Preview(guardianPhoto1);
-        }
-        if (guardianPhoto2) {
-          setGuardianPhoto2Preview(guardianPhoto2);
-        }
-
-        // Fetch branches for the selected course if course is set
-        if (formDataWithoutBranch.course) {
-          console.log('🔍 Fetching branches for prefilled course:', formDataWithoutBranch.course);
-          fetchBranches(formDataWithoutBranch.course).then(() => {
-            console.log('🔍 Branches fetched, now setting branch');
-            // Set the branch after branches are loaded
-            if (branch) {
-              setForm(prev => ({ ...prev, branch }));
-            }
-          });
-        }
-
-        setTab('add'); // Switch to add tab
-        sessionStorage.removeItem('preregistrationData'); // Clear after use
-        toast.success('Form prefilled with preregistration data');
-      } catch (error) {
-        console.error('Error parsing preregistration data:', error);
-        sessionStorage.removeItem('preregistrationData');
-      }
+      navigate('/admin/dashboard/students/register-from-sql', { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   // Debug: Log when branches change
   useEffect(() => {
@@ -1465,6 +1454,8 @@ const Students = () => {
     const initialEditForm = {
       name: student.name,
       rollNumber: student.rollNumber,
+      admissionNumber: student.admissionNumber || '',
+      hostelId: student.hostelId || '',
       course: courseId, // Use resolved course ID
       year: student.year,
       branch: '', // Will be set after branches are fetched
@@ -1478,7 +1469,7 @@ const Students = () => {
       studentPhone: student.studentPhone,
       parentPhone: student.parentPhone,
       email: student.email,
-      batch: student.batch,
+      batch: normalizeBatchToYear(student.batch || ''),
       academicYear: student.academicYear,
       hostelStatus: student.hostelStatus || 'Active'
     };
@@ -1618,44 +1609,32 @@ const Students = () => {
     return null;
   };
 
-  // Helper function to validate edit form data
+  const getEditCourseLabel = () => {
+    const course = courses.find(
+      c => c._id === editForm.course || normalizeText(c.name) === normalizeText(editForm.course)
+    );
+    return course ? `${course.name} (${course.code})` : (editForm.course || 'N/A');
+  };
+
+  const getEditBranchLabel = () => {
+    const branch = branches.find(
+      b => b._id === editForm.branch || normalizeText(b.name) === normalizeText(editForm.branch)
+    );
+    return branch ? `${branch.name} (${branch.code})` : (editForm.branch || 'N/A');
+  };
+
+  // Validate editable hostel fields only
   const validateEditForm = (formData) => {
     const errors = [];
 
-    // Validate required fields
-    if (!formData.name?.trim()) {
-      errors.push('Name is required');
-    }
-    if (!formData.rollNumber?.trim()) {
-      errors.push('Roll number is required');
-    }
-    if (!formData.course) {
-      errors.push('Course is required');
-    }
-    if (!formData.branch) {
-      errors.push('Branch is required');
-    }
-    if (!formData.gender) {
-      errors.push('Gender is required');
-    }
     if (!formData.category) {
       errors.push('Category is required');
     }
     if (!formData.roomNumber) {
       errors.push('Room number is required');
     }
-
-    // Validate phone numbers
-    if (formData.studentPhone && !/^[0-9]{10}$/.test(formData.studentPhone)) {
-      errors.push('Student phone number must be 10 digits');
-    }
-    if (!/^[0-9]{10}$/.test(formData.parentPhone)) {
-      errors.push('Parent phone number must be 10 digits');
-    }
-
-    // Validate email
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.push('Invalid email address format');
+    if (!formData.academicYear) {
+      errors.push('Academic year is required');
     }
 
     // Validate room number against fetched rooms
@@ -1679,44 +1658,6 @@ const Students = () => {
     }
     // If rooms are not loaded yet, skip validation (dropdown will handle it)
 
-    // Enhanced batch validation with better error handling
-    if (formData.batch) {
-      // Check if batch format is valid
-      if (!/^\d{4}-\d{4}$/.test(formData.batch)) {
-        errors.push('Invalid batch format. Must be YYYY-YYYY (e.g., 2020-2024)');
-      } else {
-        const [startYear, endYear] = formData.batch.split('-').map(Number);
-
-        // Basic validation
-        if (startYear >= endYear) {
-          errors.push('Batch start year must be before end year');
-        }
-
-        if (startYear < 2020 || startYear > 2030) {
-          errors.push('Batch start year must be between 2020 and 2030');
-        }
-
-        const duration = endYear - startYear;
-        const course = courses.find(c => c._id === formData.course);
-
-        // Only validate duration if we have course data
-        // For existing students, be more lenient with batch validation to avoid breaking existing data
-        if (course && course.duration) {
-          const expectedDuration = course.duration;
-          if (duration !== expectedDuration) {
-            // Show warning but don't block the update for existing students
-            console.warn(`Batch duration mismatch for ${course.name}. Expected ${expectedDuration} years but got ${duration} years.`);
-            // Don't add to errors array - just warn and continue
-          }
-        } else {
-          // If course not found or duration not available, allow common durations (3-4 years)
-          if (duration < 3 || duration > 4) {
-            errors.push(`Invalid batch duration. Must be between 3-4 years, but got ${duration} years.`);
-          }
-        }
-      }
-    }
-
     return errors;
   };
 
@@ -1733,59 +1674,23 @@ const Students = () => {
       console.log('Current course:', currentCourse);
       console.log('Current batch:', editForm.batch);
 
-      if (currentCourse && editForm.batch) {
-        const [startYear, endYear] = editForm.batch.split('-').map(Number);
-        const actualDuration = endYear - startYear;
-        console.log(`Course: ${currentCourse.name}, Expected duration: ${currentCourse.duration}, Actual duration: ${actualDuration}`);
-
-        // If there's a duration mismatch, show a warning but don't block
-        if (actualDuration !== currentCourse.duration) {
-          console.warn(`Duration mismatch: Expected ${currentCourse.duration} years, got ${actualDuration} years`);
-          toast.warning(`Batch duration (${actualDuration} years) doesn't match course duration (${currentCourse.duration} years). Proceeding anyway.`);
-        }
-      }
-
       // Validate form data
       const validationErrors = validateEditForm(editForm);
       if (validationErrors.length > 0) {
         throw new Error(validationErrors.join('. '));
       }
 
-      // Create a clean form data object for submission
+      // Only submit hostel-related fields (personal/academic/contact are SQL-sourced)
       const submitData = {
-        name: editForm.name,
-        rollNumber: editForm.rollNumber,
-        admissionNumber: editForm.admissionNumber,
-        course: editForm.course,
-        year: editForm.year,
-        branch: editForm.branch,
-        gender: editForm.gender,
         category: editForm.category,
         mealType: editForm.mealType,
         parentPermissionForOuting: editForm.parentPermissionForOuting,
         roomNumber: editForm.roomNumber,
-        studentPhone: editForm.studentPhone,
-        parentPhone: editForm.parentPhone,
-        email: editForm.email,
-        batch: editForm.batch,
+        bedNumber: editForm.bedNumber,
+        lockerNumber: editForm.lockerNumber,
         academicYear: editForm.academicYear,
         hostelStatus: editForm.hostelStatus
       };
-
-      // Temporary workaround: If the backend is expecting 3 years but we have a 4-year course,
-      // we might need to adjust the batch format. Let's log this for debugging.
-      if (currentCourse && editForm.batch) {
-        const [startYear, endYear] = editForm.batch.split('-').map(Number);
-        const actualDuration = endYear - startYear;
-
-        if (actualDuration === 4 && currentCourse.duration === 4) {
-          console.log('✅ Batch format matches course duration (4 years)');
-        } else if (actualDuration === 3 && currentCourse.duration === 3) {
-          console.log('✅ Batch format matches course duration (3 years)');
-        } else {
-          console.warn(`⚠️ Duration mismatch: Course expects ${currentCourse.duration} years, batch has ${actualDuration} years`);
-        }
-      }
 
       console.log('Submitting data:', submitData);
       console.log('🔧 parentPermissionForOuting value:', submitData.parentPermissionForOuting, 'type:', typeof submitData.parentPermissionForOuting);
@@ -4052,7 +3957,7 @@ const Students = () => {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3 sm:gap-2">
           <div>
             <h3 className="text-lg sm:text-xl font-bold text-gray-800">Edit Student</h3>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Update student information</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">Update hostel information (personal &amp; academic details are read-only)</p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
@@ -4073,126 +3978,58 @@ const Students = () => {
 
         <form onSubmit={handleEditSubmit} className="space-y-6">
 
-          {/* Personal Info */}
-          <div className="p-4 border rounded-lg space-y-4">
+          {/* Personal Info — read-only (SQL source) */}
+          <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Personal Info</h4>
+            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={editForm.name}
-                  onChange={handleEditFormChange}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input type="text" value={editForm.name || ''} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
-                <input
-                  type="text"
-                  name="rollNumber"
-                  value={editForm.rollNumber}
-                  onChange={handleEditFormChange}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input type="text" value={editForm.rollNumber || ''} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Admission Number</label>
-                <input
-                  type="text"
-                  name="admissionNumber"
-                  value={editForm.admissionNumber}
-                  onChange={handleEditFormChange}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input type="text" value={editForm.admissionNumber || ''} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
-                <select
-                  name="gender"
-                  value={editForm.gender}
-                  onChange={handleEditFormChange}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
+                <input type="text" value={editForm.gender || ''} readOnly className={readOnlyInputClass} />
               </div>
             </div>
           </div>
 
-          {/* Academic Info */}
-          <div className="p-4 border rounded-lg space-y-4">
+          {/* Academic Info — read-only (SQL source) */}
+          <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Academic Info</h4>
+            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
-                <select
-                  name="course"
-                  value={editForm.course}
-                  onChange={handleEditFormChange}
-                  required
-                  disabled={loadingCourses}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
-                  {courses.map(course => (
-                    <option key={course._id} value={course._id}>
-                      {course.name} ({course.code})
-                    </option>
-                  ))}
-                </select>
+                <input type="text" value={getEditCourseLabel()} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
-                <select
-                  name="branch"
-                  value={editForm.branch}
-                  onChange={handleEditFormChange}
-                  required
-                  disabled={!editForm.course || loadingBranches}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
-                  {branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>{branch.name} ({branch.code})</option>
-                  ))}
-                </select>
+                <input type="text" value={getEditBranchLabel()} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
-                <input
-                  type="number"
-                  name="year"
-                  value={editForm.year}
-                  onChange={handleEditFormChange}
-                  required
-                  min={1}
-                  max={4}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input type="text" value={editForm.year ?? ''} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
-                <select
-                  name="batch"
-                  value={editForm.batch}
-                  onChange={handleEditFormChange}
-                  required
-                  disabled={!editForm.course}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Batch</option>
-                  {editForm.course && generateBatches(editForm.course, courses).map(batch => (
-                    <option key={batch} value={batch}>{batch}</option>
-                  ))}
-                </select>
+                <input type="text" value={editForm.batch || ''} readOnly className={readOnlyInputClass} />
               </div>
+            </div>
+          </div>
+
+          {/* Hostel Info — editable */}
+          <div className="p-4 border rounded-lg space-y-4 border-blue-100 bg-blue-50/30">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Hostel Info</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Academic Year</label>
                 <select
@@ -4200,7 +4037,7 @@ const Students = () => {
                   value={editForm.academicYear}
                   onChange={handleEditFormChange}
                   required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 >
                   <option value="">Select Academic Year</option>
                   {generateAcademicYears().map(year => (
@@ -4208,24 +4045,15 @@ const Students = () => {
                   ))}
                 </select>
               </div>
-            </div>
-          </div>
-
-          {/* Room Info */}
-          <div className="p-4 border rounded-lg space-y-4">
-            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Hostel Info</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel ID</label>
                 <input
                   type="text"
-                  name="hostelId"
-                  value={editForm.hostelId}
-                  disabled
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  value={editForm.hostelId || ''}
+                  readOnly
+                  className={readOnlyInputClass}
                   placeholder="Auto-generated"
                 />
-                <p className="text-xs text-gray-500">Cannot be modified</p>
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel</label>
@@ -4356,44 +4184,22 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Contact Info */}
-          <div className="p-4 border rounded-lg space-y-4">
+          {/* Contact Info — read-only */}
+          <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Contact Info</h4>
+            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
-                <input
-                  type="tel"
-                  name="studentPhone"
-                  value={editForm.studentPhone}
-                  onChange={handleEditFormChange}
-                  pattern="[0-9]{10}"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter phone number (optional)"
-                />
+                <input type="tel" value={editForm.studentPhone || ''} readOnly className={readOnlyInputClass} />
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Phone</label>
-                <input
-                  type="tel"
-                  name="parentPhone"
-                  value={editForm.parentPhone}
-                  onChange={handleEditFormChange}
-                  required
-                  pattern="[0-9]{10}"
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <input type="tel" value={editForm.parentPhone || ''} readOnly className={readOnlyInputClass} />
               </div>
               <div className="col-span-full">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Email (Optional)</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={editForm.email}
-                  onChange={handleEditFormChange}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter email address (optional)"
-                />
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Email</label>
+                <input type="email" value={editForm.email || ''} readOnly className={readOnlyInputClass} />
               </div>
             </div>
           </div>
@@ -4415,7 +4221,7 @@ const Students = () => {
                 : 'bg-blue-600 hover:bg-blue-700'
                 }`}
             >
-              {editing ? 'Saving...' : 'Save Changes'}
+              {editing ? 'Saving...' : 'Save Hostel Changes'}
             </button>
           </div>
 
@@ -6608,10 +6414,6 @@ const Students = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 sm:p-2">
           <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
             {TABS.map(t => {
-              // Check if tab should be shown based on permissions
-              if (t.value === 'add' && !canAddStudent) {
-                return null; // Hide Add Student tab if no permission
-              }
               if (t.value === 'bulkUpload' && !canAddStudent) {
                 return null; // Hide Bulk Upload tab if no permission
               }
@@ -6656,7 +6458,6 @@ const Students = () => {
         </div>
       </div>
 
-      {tab === 'add' && renderAddStudentForm()}
       {tab === 'bulkUpload' && (
         <>
           {renderBulkUploadSection()}
