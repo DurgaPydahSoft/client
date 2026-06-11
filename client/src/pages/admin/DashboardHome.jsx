@@ -373,6 +373,7 @@ const DashboardHome = () => {
         const [
           studentsRes,
           studentsCountRes,
+          courseCountsRes,
           attendanceStatsRes,
           attendanceDateRes,
           paymentStatsRes,
@@ -385,8 +386,9 @@ const DashboardHome = () => {
           todaysMenuRes
         ] = await Promise.allSettled(
           [
-            api.get('/api/admin/students?limit=1000'),
+            api.get('/api/admin/students?hostelStatus=Active&limit=5000'),
             api.get('/api/admin/students/count'),
+            api.get('/api/admin/students/course-counts?hostelStatus=Active'),
             api.get(`/api/attendance/stats?date=${today}`),
             api.get(`/api/attendance/date?date=${today}`),
             api.get('/api/payments/stats'),
@@ -407,59 +409,64 @@ const DashboardHome = () => {
           )
         );
 
-        // Process Students Data
+        // Process Students Data — single source for active count & course breakdown
+        let activeCount = 0;
+        let newThisWeek = 0;
+        let byCourse = [];
+
+        if (studentsCountRes.status === 'fulfilled' && studentsCountRes.value.data.success) {
+          activeCount = studentsCountRes.value.data.data.count || 0;
+        }
+
         if (studentsRes.status === 'fulfilled' && studentsRes.value.data.success) {
           let students = studentsRes.value.data.data.students || [];
 
-          // Filter for Principals based on assigned courses
           if (user?.role === 'principal') {
             const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
             if (allowedCourses.length > 0) {
+              const allowed = new Set(allowedCourses.map(c => normalizeText(c)));
               students = students.filter(s => {
                 const studentCourse = s.course?.name || s.course;
-                return allowedCourses.includes(studentCourse);
+                return allowed.has(normalizeText(studentCourse));
               });
             }
           }
 
-          const activeStudents = students.filter(s => s.hostelStatus === 'Active');
           const oneWeekAgo = new Date();
           oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          const newThisWeek = students.filter(s => new Date(s.createdAt) >= oneWeekAgo).length;
+          newThisWeek = students.filter(s => new Date(s.createdAt) >= oneWeekAgo).length;
 
-          // Group by course
-          const byCourse = students.reduce((acc, student) => {
-            const courseRaw = student.course?.name || student.course || 'Unknown';
-            const key = normalizeText(courseRaw) || 'UNKNOWN';
-            if (!acc[key]) {
-              acc[key] = { name: courseRaw || 'Unknown', count: 0 };
-            }
-            acc[key].count += 1;
-            return acc;
-          }, {});
-
-          setStats(prev => ({
-            ...prev,
-            students: {
-              total: students.length,
-              active: activeStudents.length,
-              inactive: students.length - activeStudents.length,
-              newThisWeek,
-              byCourse: Object.values(byCourse).sort((a, b) => b.count - a.count)
-            }
-          }));
+          if (!activeCount) {
+            activeCount = students.length;
+          }
         }
 
-        if (studentsCountRes.status === 'fulfilled' && studentsCountRes.value.data.success) {
-          const count = studentsCountRes.value.data.data.count || 0;
-          setStats(prev => ({
-            ...prev,
-            students: {
-              ...prev.students,
-              total: count
+        if (courseCountsRes.status === 'fulfilled' && courseCountsRes.value.data.success) {
+          const countsData = courseCountsRes.value.data.data || {};
+          byCourse = Object.entries(countsData)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count);
+
+          if (user?.role === 'principal') {
+            const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
+            if (allowedCourses.length > 0) {
+              const allowed = new Set(allowedCourses.map(c => normalizeText(c)));
+              byCourse = byCourse.filter(c => allowed.has(normalizeText(c.name)));
+              activeCount = byCourse.reduce((sum, c) => sum + c.count, 0);
             }
-          }));
+          }
         }
+
+        setStats(prev => ({
+          ...prev,
+          students: {
+            total: activeCount,
+            active: activeCount,
+            inactive: 0,
+            newThisWeek,
+            byCourse
+          }
+        }));
 
         // Process Attendance Data
         if (attendanceStatsRes.status === 'fulfilled' && attendanceStatsRes.value.data.success) {
@@ -793,10 +800,10 @@ const DashboardHome = () => {
       items.push({
         id: 'students',
         icon: UserGroupIcon,
-        label: 'Total Students',
-        value: stats.students.total,
+        label: 'Active Students',
+        value: stats.students.active,
         color: 'border-blue-500 text-blue-600',
-        extra: `${stats.students.active} active`,
+        extra: stats.students.newThisWeek > 0 ? `${stats.students.newThisWeek} new this week` : undefined,
         onClick: () => navigate('/admin/dashboard/students'),
         animateDelay: 0.05
       });
@@ -1048,18 +1055,18 @@ const DashboardHome = () => {
                             <div>
                               <div className="text-xs sm:text-sm font-medium text-gray-700 mb-2">By Course</div>
                               <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                                {stats.students.byCourse.slice(0, 4).map((course, idx) => {
+                                {stats.students.byCourse.slice(0, 4).map((course) => {
                                   const colors = [
                                     { bg: 'bg-blue-50', text: 'text-blue-900' },
                                     { bg: 'bg-green-50', text: 'text-green-900' },
                                     { bg: 'bg-purple-50', text: 'text-purple-900' },
                                     { bg: 'bg-orange-50', text: 'text-orange-900' }
                                   ];
-                                  const color = colors[idx % colors.length];
+                                  const color = colors[stats.students.byCourse.indexOf(course) % colors.length];
                                   return (
-                                    <div key={idx} className={`text-center ${color.bg} rounded-lg p-2 sm:p-2.5`}>
+                                    <div key={course.name} className={`text-center ${color.bg} rounded-lg p-2 sm:p-2.5`}>
                                       <div className={`text-sm sm:text-base font-bold ${color.text}`}>{course.count}</div>
-                                      <div className="text-xs text-gray-600 mt-0.5 truncate">{course.name}</div>
+                                      <div className="text-xs text-gray-600 mt-0.5 truncate" title={course.name}>{course.name}</div>
                                     </div>
                                   );
                                 })}
