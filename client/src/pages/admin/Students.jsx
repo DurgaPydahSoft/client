@@ -33,9 +33,10 @@ const FILTER_LABELS = {
 
 const formatFilterChipValue = (key, value) => {
   if (key === 'hostelStatus') {
-    return value === 'Active' ? 'Active' : value === 'Inactive' ? 'Expired' : value;
+    if (value === 'Active') return 'Active';
+    if (value === 'Inactive') return 'Expired';
   }
-  return value;
+  return toDisplayText(value);
 };
 
 const shouldShowFilterChip = (key, value) => {
@@ -170,6 +171,32 @@ const generateAcademicYears = () => {
   }
 
   return years;
+};
+
+const toDisplayText = (value, fallback = '') => {
+  if (value == null || value === '') return fallback;
+  if (typeof value === 'object') {
+    if (value.name != null) return toDisplayText(value.name, fallback);
+    return fallback;
+  }
+  return String(value);
+};
+
+const getCategoryDisplay = (category) => {
+  if (!category) return '';
+  const text = getCategoryValue(category);
+  if (text === 'A+') return 'A+ (AC)';
+  if (text === 'B+') return 'B+ (AC)';
+  return text;
+};
+
+/** Raw category name for forms/API (never the display label with "(AC)"). */
+const getCategoryValue = (category) => {
+  if (!category) return '';
+  if (typeof category === 'object') {
+    return getCategoryValue(category.name || category);
+  }
+  return toDisplayText(category).replace(/\s*\(AC\)\s*$/i, '').trim();
 };
 
 const getDefaultAcademicYear = () => {
@@ -678,8 +705,13 @@ const Students = () => {
   // Get hostel name by ObjectId or fallback to provided value
   const getHostelName = (hostelIdOrName) => {
     if (!hostelIdOrName) return 'Not assigned';
-    const hostel = hostels.find(h => h._id === hostelIdOrName || normalizeText(h.name) === normalizeText(hostelIdOrName));
-    return hostel ? hostel.name : hostelIdOrName;
+    if (typeof hostelIdOrName === 'object') {
+      return toDisplayText(hostelIdOrName, 'Not assigned');
+    }
+    const hostel = hostels.find(
+      (h) => h._id === hostelIdOrName || normalizeText(h.name) === normalizeText(hostelIdOrName)
+    );
+    return hostel ? hostel.name : toDisplayText(hostelIdOrName, 'Not assigned');
   };
 
   // Get course duration for batch generation
@@ -693,25 +725,34 @@ const Students = () => {
   // Get course name by ID
   const getCourseName = (courseId) => {
     if (!courseId) return '';
+    if (typeof courseId === 'object') return toDisplayText(courseId);
     const course = courses.find(
       c => c._id === courseId || normalizeText(c.name) === normalizeText(courseId)
     );
-    return course ? course.name : (typeof courseId === 'string' ? courseId : '');
+    return course ? course.name : toDisplayText(courseId);
+  };
+
+  const getBranchDisplay = (branchValue) => {
+    if (!branchValue) return 'N/A';
+    if (branchValue?.name) return toDisplayText(branchValue.name);
+    const branch = (branches.length ? branches : allBranches).find(
+      (b) => b._id === branchValue || normalizeText(b.name) === normalizeText(branchValue)
+    );
+    if (branch) return branch.name;
+    return toDisplayText(branchValue, 'N/A');
   };
 
   // Get course display with graceful fallback for raw SQL values (e.g., "sql 4")
   const getCourseDisplay = (courseValue) => {
     if (!courseValue) return 'N/A';
-    // If populated object
-    if (courseValue?.name) return courseValue.name;
-    // Try ID/name match against loaded courses
+    if (courseValue?.name) return toDisplayText(courseValue.name, 'N/A');
     const match = courses.find(
       c => c._id === courseValue || normalizeText(c.name) === normalizeText(courseValue)
     );
     if (match) return match.name;
-    // Fallback: normalize common aliases, otherwise return raw
     const normalized = normalizeCourseName(courseValue);
-    return normalized || courseValue;
+    if (normalized) return normalized;
+    return toDisplayText(courseValue, 'N/A');
   };
 
   // Get branch name by ID
@@ -747,11 +788,12 @@ const Students = () => {
     // Ensure categories are loaded for this hostel
     const categoryList = categories.length ? categories : await fetchCategories(finalHostelId) || [];
 
-    // Normalize category: accept ObjectId or name
+    // Normalize category: accept ObjectId or name (including display labels like "A+ (AC)")
     let finalCategoryId = categoryIdOrName;
     if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
+      const normalizedInput = getCategoryValue(categoryIdOrName);
       const categoryObj = categoryList.find(c =>
-        normalizeText(c.name) === normalizeText(categoryIdOrName) || c._id === categoryIdOrName
+        getCategoryValue(c.name) === normalizedInput || c._id === categoryIdOrName
       );
       if (categoryObj) {
         finalCategoryId = categoryObj._id;
@@ -809,11 +851,12 @@ const Students = () => {
     // Ensure categories are loaded for this hostel
     const categoryList = categories.length ? categories : await fetchCategories(finalHostelId) || [];
 
-    // Normalize category: accept ObjectId or name
+    // Normalize category: accept ObjectId or name (including display labels like "A+ (AC)")
     let finalCategoryId = categoryIdOrName;
     if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
+      const normalizedInput = getCategoryValue(categoryIdOrName);
       const categoryObj = categoryList.find(c =>
-        normalizeText(c.name) === normalizeText(categoryIdOrName) || c._id === categoryIdOrName
+        getCategoryValue(c.name) === normalizedInput || c._id === categoryIdOrName
       );
       if (categoryObj) {
         finalCategoryId = categoryObj._id;
@@ -1614,7 +1657,7 @@ const Students = () => {
       year: student.year,
       branch: '', // Will be set after branches are fetched
       gender: student.gender,
-      category: student.category,
+      category: getCategoryValue(student.category) || getCategoryValue(student.hostelCategory) || '',
       mealType: student.mealType || 'non-veg',
       parentPermissionForOuting: student.parentPermissionForOuting !== undefined ? student.parentPermissionForOuting : true,
       roomNumber: student.roomNumber,
@@ -1665,9 +1708,10 @@ const Students = () => {
     }
 
     // Fetch rooms for the edit form if gender and category are available
-    if (student.gender && student.category) {
-      console.log('Fetching rooms for edit form:', student.gender, student.category);
-      fetchEditRoomsWithAvailability(student.gender, student.category);
+    if (student.gender && getCategoryValue(student.category)) {
+      const categoryName = getCategoryValue(student.category);
+      console.log('Fetching rooms for edit form:', student.gender, categoryName);
+      fetchEditRoomsWithAvailability(student.gender, categoryName);
     }
 
     setEditModal(true);
@@ -3495,7 +3539,7 @@ const Students = () => {
                   if (!shouldShowFilterChip(key, value)) return null;
                   const label = FILTER_LABELS[key] || key;
                   const chipValue = key === 'hostel'
-                    ? (hostels.find((h) => h._id === value)?.name || value)
+                    ? toDisplayText(hostels.find((h) => h._id === value), value)
                     : formatFilterChipValue(key, value);
                   return (
                     <span
@@ -3607,7 +3651,7 @@ const Students = () => {
                               <div className="flex flex-col">
                                 <span>Room {student.roomNumber || '—'}</span>
                                 {student.category && (
-                                  <span className="text-xs text-purple-600">Cat: {student.category}</span>
+                                  <span className="text-xs text-purple-600">Cat: {getCategoryDisplay(student.category)}</span>
                                 )}
                                 {student.bedNumber && (
                                   <span className="text-xs text-blue-600">Bed: {student.bedNumber}</span>
@@ -3914,16 +3958,16 @@ const Students = () => {
                   </h4>
                   <div className="space-y-3">
                     {[
-                      { label: 'Course', value: selectedStudent.course?.name || getCourseName(selectedStudent.course) },
-                      { label: 'Branch', value: selectedStudent.branch?.name || getBranchName(selectedStudent.branch) },
-                      { label: 'Year', value: `Year ${selectedStudent.year}` },
-                      { label: 'Category', value: selectedStudent.category === 'A+' ? 'A+ (AC)' : selectedStudent.category === 'B+' ? 'B+ (AC)' : selectedStudent.category },
-                      { label: 'Batch', value: selectedStudent.batch },
-                      { label: 'Academic Year', value: selectedStudent.academicYear },
+                      { label: 'Course', value: getCourseDisplay(selectedStudent.course) },
+                      { label: 'Branch', value: getBranchDisplay(selectedStudent.branch) },
+                      { label: 'Year', value: `Year ${selectedStudent.year ?? '—'}` },
+                      { label: 'Category', value: getCategoryDisplay(selectedStudent.category) },
+                      { label: 'Batch', value: toDisplayText(selectedStudent.batch, '—') },
+                      { label: 'Academic Year', value: toDisplayText(selectedStudent.academicYear, '—') },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between">
                         <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
-                        <span className="font-medium text-blue-900 text-sm sm:text-base">{item.value}</span>
+                        <span className="font-medium text-blue-900 text-sm sm:text-base">{toDisplayText(item.value)}</span>
                       </div>
                     ))}
                   </div>
@@ -4276,7 +4320,7 @@ const Students = () => {
                 >
                   <option value="">Select Category</option>
                   {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
-                    <option key={category} value={category}>{category}</option>
+                    <option key={category} value={category}>{getCategoryDisplay(category)}</option>
                   ))}
                 </select>
               </div>
@@ -5390,7 +5434,13 @@ const Students = () => {
     // Fetch fee structure for preview
     if (student.academicYear && student.course && student.branch && student.year && student.category) {
       const courseId = student.course?._id || student.course;
-      fetchConcessionFeeStructure(student.academicYear, courseId, student.branch, student.year, student.category);
+      fetchConcessionFeeStructure(
+        student.academicYear,
+        courseId,
+        student.branch,
+        student.year,
+        getCategoryValue(student.category)
+      );
     }
   };
 
@@ -6195,7 +6245,7 @@ const Students = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Category:</span>
-                    <span className="font-medium">{selectedRoom.category}</span>
+                    <span className="font-medium">{getCategoryDisplay(selectedRoom.category)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Beds:</span>
@@ -6380,7 +6430,7 @@ const Students = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                              {getCourseDisplay(student.course)} - {(student.branch?.name || getBranchName(student.branch) || 'N/A')}
+                              {getCourseDisplay(student.course)} - {getBranchDisplay(student.branch)}
                             </span>
                             <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                               Year {student.year}
