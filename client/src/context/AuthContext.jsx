@@ -300,13 +300,13 @@ export const AuthProvider = ({ children }) => {
       setSkipValidation(true);
       setToken(newToken);
       setUser(studentUser);
-      setRequiresPasswordChange(!!requiresPasswordChange);
+      setRequiresPasswordChange(false);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       await fetchAndSetUserProfile();
       return {
         success: true,
         user: studentUser,
-        requiresPasswordChange: !!requiresPasswordChange
+        requiresPasswordChange: false
       };
     }
     throw new Error('Invalid SSO response');
@@ -370,8 +370,7 @@ export const AuthProvider = ({ children }) => {
           setUser(studentUser);
           api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
 
-          // Set the password change requirement state
-          setRequiresPasswordChange(requiresPasswordChange);
+          setRequiresPasswordChange(false);
 
           // Fetch and set the latest profile (populated)
           await fetchAndSetUserProfile();
@@ -380,7 +379,7 @@ export const AuthProvider = ({ children }) => {
           return {
             success: true,
             user: studentUser,
-            requiresPasswordChange: requiresPasswordChange
+            requiresPasswordChange: false
           };
         } else {
           throw new Error(response.data.message || 'Login failed');

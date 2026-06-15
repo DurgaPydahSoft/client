@@ -144,13 +144,12 @@ const PreRegistrationRequests = () => {
       concession: 0
     };
 
-    // Store the prefilled data in sessionStorage for the Students component to pick up
+    // Navigate to Register from SQL with prefilled data
     sessionStorage.setItem('preregistrationData', JSON.stringify(prefilledData));
     
-    // Navigate to Students page with add tab
-    navigate('/admin/dashboard/students?tab=add');
+    navigate('/admin/dashboard/students/register-from-sql');
     
-    toast.success('Navigating to Add Student form with prefilled data. Pre-registration will be automatically deleted once student is added.');
+    toast.success('Opening Register from SQL with prefilled data. Complete hostel allocation and SQL validation to register.');
   };
 
   const handleReject = (request) => {

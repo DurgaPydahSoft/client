@@ -11,8 +11,8 @@ const debugLog = (...args) => {
   }
 };
 
-const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = false, role }) => {
-  const { user, token, loading, requiresPasswordChange: needsPasswordChange } = useAuth();
+const ProtectedRoute = ({ children, requireAuth = true, role }) => {
+  const { user, token, loading } = useAuth();
   const location = useLocation();
 
   // Memoize permission check to avoid recalculating on every render
@@ -34,7 +34,6 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
   debugLog('🛡 ProtectedRoute check:', {
     path: location.pathname,
     requireAuth,
-    requirePasswordChange,
     role,
     hasToken: !!token,
     userRole: user?.role,
@@ -55,22 +54,10 @@ const ProtectedRoute = ({ children, requireAuth = true, requirePasswordChange = 
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // If role is specified, check if the user's role is permitted
+  // Role is specified, check if the user's role is permitted
   if (role && !isPermitted) {
     debugLog(`🛡 Role mismatch: required ${role}, but user has role ${user?.role}`);
     return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  // If user needs to change password and is not on reset password page
-  if (requireAuth && token && needsPasswordChange && !requirePasswordChange) {
-    debugLog('🛡 Password change required, redirecting to reset password page');
-    return <Navigate to="/student/reset-password" state={{ from: location }} replace />;
-  }
-
-  // If on reset password page but password change is not needed
-  if (requirePasswordChange && (!token || !needsPasswordChange)) {
-    debugLog('🛡 No password change needed, redirecting to student dashboard');
-    return <Navigate to="/student" state={{ from: location }} replace />;
   }
 
   return children;

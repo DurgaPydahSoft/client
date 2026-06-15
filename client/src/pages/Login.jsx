@@ -58,12 +58,7 @@ const Login = () => {
         } else if (['super_admin', 'sub_admin', 'admin', 'custom'].includes(result.user.role)) {
           navigate('/admin/dashboard', { replace: true });
         } else if (result.user.role === 'student') {
-          if (result.requiresPasswordChange) {
-            toast('Please change your password to continue', { icon: '🔐' });
-            navigate('/student/reset-password', { replace: true });
-          } else {
-            navigate('/student', { replace: true });
-          }
+          navigate('/student', { replace: true });
         }
       })
       .catch((err) => {
@@ -113,10 +108,8 @@ const Login = () => {
           rollNumber: form.rollNumber,
           password: form.password
         });
-        if (result?.requiresPasswordChange) {
-          toast('Please change your password to continue', { icon: '🔐' });
-          navigate('/student/reset-password', { replace: true });
-        } else {
+        if (result?.success) {
+          toast.success('Login successful');
           navigate('/student', { replace: true });
         }
       }

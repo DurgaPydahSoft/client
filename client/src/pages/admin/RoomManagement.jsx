@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -51,13 +51,34 @@ const RoomManagement = () => {
   const [addTab, setAddTab] = useState('room'); // 'hostel' | 'category' | 'room'
   const [showEditModal, setShowEditModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
+  const [roomModalTab, setRoomModalTab] = useState('occupants');
+  const [occupancyHistory, setOccupancyHistory] = useState([]);
+  const [historyAcademicYears, setHistoryAcademicYears] = useState([]);
+  const [historyFilterAY, setHistoryFilterAY] = useState('');
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [roomStudents, setRoomStudents] = useState([]);
   const [roomStaff, setRoomStaff] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const getDefaultAcademicYear = () => {
+    const year = new Date().getFullYear();
+    return `${year}-${year + 1}`;
+  };
+
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    return years;
+  };
+
   const [filters, setFilters] = useState({
     hostel: '',
-    category: ''
+    category: '',
+    academicYear: getDefaultAcademicYear()
   });
   const [formData, setFormData] = useState({
     hostel: '',
@@ -143,8 +164,11 @@ const RoomManagement = () => {
   };
 
   const fetchRoomStats = async () => {
+    setStatsLoading(true);
     try {
-      const response = await api.get('/api/admin/rooms/stats');
+      const params = {};
+      if (filters.academicYear) params.academicYear = filters.academicYear;
+      const response = await api.get('/api/admin/rooms/stats', { params });
       if (response.data.success) {
         setRoomStats(response.data.data);
       } else {
@@ -165,6 +189,7 @@ const RoomManagement = () => {
   }, []);
 
   useEffect(() => {
+    setStatsLoading(true);
     fetchRooms();
     fetchRoomStats();
   }, [filters]);
@@ -211,6 +236,9 @@ const RoomManagement = () => {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'academicYear' || name === 'hostel' || name === 'category') {
+      setStatsLoading(true);
+    }
     setFilters(prev => ({
       ...prev,
       [name]: value
@@ -357,9 +385,14 @@ const RoomManagement = () => {
 
   const handleRoomClick = async (room) => {
     setSelectedRoom(room);
+    setRoomModalTab('occupants');
+    setOccupancyHistory([]);
+    setHistoryAcademicYears([]);
+    setHistoryFilterAY(filters.academicYear || '');
     setLoadingStudents(true);
     try {
-      const response = await api.get(`/api/admin/rooms/${room._id}/students`);
+      const params = filters.academicYear ? { academicYear: filters.academicYear } : {};
+      const response = await api.get(`/api/admin/rooms/${room._id}/students`, { params });
       if (response.data.success) {
         setRoomStudents(response.data.data.students || []);
         setRoomStaff(response.data.data.staff || []);
@@ -374,6 +407,49 @@ const RoomManagement = () => {
       setShowStudentModal(true);
     }
   };
+
+  const fetchOccupancyHistory = async (roomId, academicYear = '') => {
+    setLoadingHistory(true);
+    try {
+      const params = academicYear ? { academicYear } : {};
+      const response = await api.get(`/api/admin/rooms/${roomId}/occupancy-history`, { params });
+      if (response.data.success) {
+        setOccupancyHistory(response.data.data || []);
+        const years = response.data.meta?.academicYears || [];
+        setHistoryAcademicYears(years);
+      }
+    } catch (error) {
+      console.error('Error fetching occupancy history:', error);
+      toast.error('Failed to fetch occupancy history');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const handleRoomModalTabChange = async (tab) => {
+    setRoomModalTab(tab);
+    if (tab === 'history' && selectedRoom?._id) {
+      const ay = historyFilterAY || filters.academicYear || '';
+      await fetchOccupancyHistory(selectedRoom._id, ay);
+    }
+  };
+
+  const handleHistoryAYFilter = async (ay) => {
+    setHistoryFilterAY(ay);
+    if (selectedRoom?._id) {
+      await fetchOccupancyHistory(selectedRoom._id, ay);
+    }
+  };
+
+  const groupedOccupancyHistory = useMemo(() => {
+    const groups = {};
+    occupancyHistory.forEach((row) => {
+      const ay = row.academicYear || 'Unknown';
+      if (!groups[ay]) groups[ay] = [];
+      groups[ay].push(row);
+    });
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  }, [occupancyHistory]);
 
   const openBillModal = async (room) => {
     try {
@@ -734,29 +810,89 @@ const RoomManagement = () => {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Room Management</h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage hostel rooms and their assignments</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">
+            Manage hostel rooms and their assignments
+            {filters.academicYear && (
+              <span className="ml-1 text-blue-700 font-medium">· {filters.academicYear}</span>
+            )}
+          </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          disabled={!canAddRoom}
-          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${canAddRoom
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-            }`}
-          title={!canAddRoom ? 'You need full access to add' : 'Add hostel/category/room'}
-        >
-          {!canAddRoom ? <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
-          Add
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 sm:gap-3 w-full lg:w-auto">
+          <div className="min-w-[160px]">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Academic Year</label>
+            <select
+              name="academicYear"
+              value={filters.academicYear}
+              onChange={handleFilterChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm bg-white"
+            >
+              {generateAcademicYears().map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            disabled={!canAddRoom}
+            className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${canAddRoom
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
+            title={!canAddRoom ? 'You need full access to add' : 'Add hostel/category/room'}
+          >
+            {!canAddRoom ? <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" /> : <PlusIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
+            Add
+          </button>
+        </div>
       </div>
 
 
 
       {/* Room Statistics */}
-      {!statsLoading && roomStats && (
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
-          <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Room Statistics</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6">
+        <div className="flex items-center justify-between mb-3 sm:mb-4">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-900">
+            Room Statistics
+            {filters.academicYear && (
+              <span className="ml-2 text-sm font-normal text-gray-500">({filters.academicYear})</span>
+            )}
+          </h2>
+          {statsLoading && (
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-600">
+              <LoadingSpinner size="sm" />
+              <span>Updating…</span>
+            </div>
+          )}
+        </div>
 
+        {statsLoading ? (
+          <div className="space-y-4 sm:space-y-6 animate-pulse">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="bg-gray-100 p-2 sm:p-4 rounded-lg h-16 sm:h-20" />
+              ))}
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full w-full" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="border border-gray-200 rounded-lg p-3 sm:p-4 space-y-3">
+                  <div className="h-5 bg-gray-100 rounded w-1/3" />
+                  <div className="grid grid-cols-3 gap-2">
+                    {Array.from({ length: 3 }).map((_, j) => (
+                      <div key={j} className="h-12 bg-gray-100 rounded" />
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, j) => (
+                      <div key={j} className="h-4 bg-gray-100 rounded" />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : roomStats ? (
+          <>
           {/* Overall Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
             <div className="bg-blue-50 p-2 sm:p-4 rounded-lg">
@@ -837,8 +973,11 @@ const RoomManagement = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+          </>
+        ) : (
+          <div className="py-8 text-center text-sm text-gray-500">Unable to load room statistics.</div>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
@@ -902,7 +1041,7 @@ const RoomManagement = () => {
                           Bed Count
                         </th>
                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Students
+                          Students{filters.academicYear ? ` (${filters.academicYear})` : ''}
                         </th>
                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
@@ -1521,7 +1660,110 @@ const RoomManagement = () => {
                 </button>
               </div>
 
-              {loadingStudents ? (
+              <div className="flex gap-2 mb-4 border-b border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => handleRoomModalTabChange('occupants')}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
+                    roomModalTab === 'occupants'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Current Occupants
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRoomModalTabChange('history')}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
+                    roomModalTab === 'history'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Occupancy History
+                </button>
+              </div>
+
+              {roomModalTab === 'history' ? (
+                <>
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700 shrink-0">Academic Year</label>
+                    <select
+                      value={historyFilterAY}
+                      onChange={(e) => handleHistoryAYFilter(e.target.value)}
+                      className="w-full sm:w-56 px-3 py-2 text-sm border border-gray-300 rounded-lg"
+                    >
+                      <option value="">All years</option>
+                      {historyAcademicYears.map((ay) => (
+                        <option key={ay} value={ay}>{ay}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {loadingHistory ? (
+                    <div className="flex justify-center items-center h-32">
+                      <LoadingSpinner size="md" />
+                    </div>
+                  ) : groupedOccupancyHistory.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-gray-500">
+                      No occupancy history for this room yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-5 max-h-[50vh] overflow-y-auto pr-1">
+                      {groupedOccupancyHistory.map(([academicYear, rows]) => (
+                        <div key={academicYear} className="border border-gray-200 rounded-lg overflow-hidden">
+                          <div className="px-3 py-2 bg-blue-50 border-b border-blue-100 flex justify-between items-center">
+                            <span className="text-sm font-semibold text-blue-900">{academicYear}</span>
+                            <span className="text-xs text-blue-700">{rows.length} student(s)</span>
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-100 text-xs sm:text-sm">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">Student</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">Roll No</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">Course / Yr</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">Bed / Locker</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">From</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">To</th>
+                                  <th className="px-3 py-2 text-left font-medium text-gray-500">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-50">
+                                {rows.map((row) => (
+                                  <tr key={row._id} className="hover:bg-gray-50">
+                                    <td className="px-3 py-2">{row.studentName}</td>
+                                    <td className="px-3 py-2">{row.rollNumber}</td>
+                                    <td className="px-3 py-2 text-gray-600">
+                                      {[row.course, row.yearOfStudy ? `Yr ${row.yearOfStudy}` : ''].filter(Boolean).join(' · ') || '—'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {[row.bedNumber, row.lockerNumber].filter(Boolean).join(' / ') || '—'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {row.allocatedFrom ? new Date(row.allocatedFrom).toLocaleDateString('en-IN') : '—'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      {row.allocatedTo ? new Date(row.allocatedTo).toLocaleDateString('en-IN') : '—'}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <span className={`px-2 py-0.5 rounded-full text-xs ${
+                                        row.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {row.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : loadingStudents ? (
                 <div className="flex justify-center items-center h-32">
                   <LoadingSpinner size="md" />
                 </div>

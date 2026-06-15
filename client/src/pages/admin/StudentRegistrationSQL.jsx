@@ -130,6 +130,46 @@ const StudentRegistrationSQL = () => {
 
   // Fetch courses, colleges & hostels on mount
   useEffect(() => {
+    const raw = sessionStorage.getItem('preregistrationData');
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      sessionStorage.removeItem('preregistrationData');
+      setForm(prev => ({
+        ...prev,
+        name: data.name || prev.name,
+        rollNumber: data.rollNumber || prev.rollNumber,
+        gender: data.gender || prev.gender,
+        course: data.course || prev.course,
+        year: data.year || prev.year,
+        branch: data.branch || prev.branch,
+        batch: data.batch || prev.batch,
+        academicYear: data.academicYear || prev.academicYear,
+        studentPhone: data.studentPhone || prev.studentPhone,
+        parentPhone: data.parentPhone || prev.parentPhone,
+        motherName: data.motherName || prev.motherName,
+        motherPhone: data.motherPhone || prev.motherPhone,
+        localGuardianName: data.localGuardianName || prev.localGuardianName,
+        localGuardianPhone: data.localGuardianPhone || prev.localGuardianPhone,
+        email: data.email || prev.email,
+        mealType: data.mealType || prev.mealType,
+        concession: data.concession ?? prev.concession
+      }));
+      if (data.rollNumber) {
+        setIdentifier(data.rollNumber);
+        setIdentifierType('pin');
+      }
+      if (data.studentPhoto) setStudentPhotoPreview(data.studentPhoto);
+      if (data.guardianPhoto1) setGuardianPhoto1Preview(data.guardianPhoto1);
+      if (data.guardianPhoto2) setGuardianPhoto2Preview(data.guardianPhoto2);
+      toast.success('Pre-registration data loaded. Fetch from SQL to validate and complete registration.');
+    } catch (err) {
+      console.error('Failed to parse preregistrationData:', err);
+    }
+  }, []);
+
+  // Fetch courses, colleges & hostels on mount
+  useEffect(() => {
     fetchCourses();
     fetchColleges();
     fetchHostels();
@@ -225,15 +265,14 @@ const StudentRegistrationSQL = () => {
     }
   };
 
-  // Fetch rooms with availability
-  const fetchRoomsWithAvailability = async (hostelId, categoryIdOrName) => {
+  // Fetch rooms with availability (filtered by academic year)
+  const fetchRoomsWithAvailability = async (hostelId, categoryIdOrName, academicYear) => {
     if (!hostelId || !categoryIdOrName) {
       setRoomsWithAvailability([]);
       return;
     }
     setLoadingRooms(true);
     try {
-      // Resolve category id if name provided
       let finalCategoryId = categoryIdOrName;
       if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
         const list = hostelCategories.length ? hostelCategories : await fetchHostelCategories(hostelId);
@@ -241,6 +280,7 @@ const StudentRegistrationSQL = () => {
         if (match) finalCategoryId = match._id;
       }
       const params = new URLSearchParams({ hostel: hostelId, category: finalCategoryId });
+      if (academicYear) params.set('academicYear', academicYear);
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
       if (res.data.success) {
         setRoomsWithAvailability(res.data.data.rooms || []);
@@ -253,12 +293,18 @@ const StudentRegistrationSQL = () => {
     }
   };
 
-  // Fetch bed/locker availability
-  const fetchBedLockerAvailability = async (roomNumber) => {
+  // Fetch bed/locker availability for selected academic year
+  const fetchBedLockerAvailability = async (roomNumber, academicYear, hostelId, categoryId) => {
     if (!roomNumber) return;
     setLoadingBedLocker(true);
     try {
-      const res = await api.get(`/api/admin/rooms/${roomNumber}/bed-locker-availability`);
+      const params = new URLSearchParams();
+      if (academicYear) params.set('academicYear', academicYear);
+      if (hostelId) params.set('hostel', hostelId);
+      if (categoryId) params.set('category', categoryId);
+      const query = params.toString();
+      const url = `/api/admin/rooms/${roomNumber}/bed-locker-availability${query ? `?${query}` : ''}`;
+      const res = await api.get(url);
       if (res.data.success) {
         setBedLockerAvailability(res.data.data);
         // Auto-select first available bed and locker
@@ -324,6 +370,10 @@ const StudentRegistrationSQL = () => {
       if (res.data.success) {
         const sqlData = res.data.data;
 
+        const batchYear = normalizeBatchToYear(sqlData.batch || '');
+        const yearOfStudy = sqlData.year || 1;
+        const resolvedAcademicYear = resolveAcademicYearFromBatchAndYear(batchYear, yearOfStudy);
+
         // Map SQL data to form
         const mappedForm = {
           name: sqlData.name || '',
@@ -332,8 +382,8 @@ const StudentRegistrationSQL = () => {
           gender: sqlData.gender || '',
           course: sqlData.courseId || '',
           branch: sqlData.branchId || '',
-          year: sqlData.year || 1,
-          batch: normalizeBatchToYear(sqlData.batch || ''),
+          year: yearOfStudy,
+          batch: batchYear,
           studentPhone: sqlData.studentPhone || '',
           parentPhone: sqlData.parentPhone || '',
           motherPhone: sqlData.motherPhone || '',
@@ -348,7 +398,7 @@ const StudentRegistrationSQL = () => {
           lockerNumber: form.lockerNumber,
           localGuardianName: form.localGuardianName,
           localGuardianPhone: form.localGuardianPhone,
-          academicYear: form.academicYear,
+          academicYear: resolvedAcademicYear || form.academicYear,
           concession: form.concession,
           hostel: form.hostel,
           hostelCategory: form.hostelCategory,
@@ -414,6 +464,12 @@ const StudentRegistrationSQL = () => {
       if (name === 'gender') {
         newForm.category = '';
       }
+      if (name === 'academicYear') {
+        newForm.roomNumber = '';
+        newForm.bedNumber = '';
+        newForm.lockerNumber = '';
+        setBedLockerAvailability(null);
+      }
       if (name === 'hostel') {
         newForm.hostelCategory = '';
         newForm.roomNumber = '';
@@ -428,14 +484,14 @@ const StudentRegistrationSQL = () => {
         // set category string from selected hostel category for fee calc
         newForm.category = getHostelCategoryNameById(fieldValue);
         if (newForm.hostel && fieldValue) {
-          fetchRoomsWithAvailability(newForm.hostel, fieldValue);
+          fetchRoomsWithAvailability(newForm.hostel, fieldValue, newForm.academicYear);
         }
       }
       if (name === 'roomNumber') {
         newForm.bedNumber = '';
         newForm.lockerNumber = '';
         if (value) {
-          fetchBedLockerAvailability(value);
+          fetchBedLockerAvailability(value, newForm.academicYear, newForm.hostel, newForm.hostelCategory);
         }
       }
 
@@ -509,6 +565,34 @@ const StudentRegistrationSQL = () => {
     return trimmed;
   };
 
+  const resolveAcademicYearFromBatchAndYear = (batch, yearOfStudy) => {
+    const batchStart = parseInt(normalizeBatchToYear(batch), 10);
+    const year = Number(yearOfStudy);
+    if (!batchStart || Number.isNaN(batchStart) || !Number.isFinite(year) || year < 1) return '';
+    return `${batchStart + year - 1}-${batchStart + year}`;
+  };
+
+  const expectedAcademicYear = useMemo(
+    () => resolveAcademicYearFromBatchAndYear(form.batch, form.year),
+    [form.batch, form.year]
+  );
+
+  const academicYearOptions = useMemo(() => {
+    const years = generateAcademicYears();
+    if (expectedAcademicYear && !years.includes(expectedAcademicYear)) {
+      return [expectedAcademicYear, ...years];
+    }
+    return years;
+  }, [expectedAcademicYear]);
+
+  const academicYearError = useMemo(() => {
+    if (!sqlDataFetched || !expectedAcademicYear || !form.academicYear) return '';
+    if (form.academicYear !== expectedAcademicYear) {
+      return `For batch ${normalizeBatchToYear(form.batch)}, year ${form.year}, academic year must be ${expectedAcademicYear}.`;
+    }
+    return '';
+  }, [sqlDataFetched, form.batch, form.year, form.academicYear, expectedAcademicYear]);
+
   const getBatchYearOptions = (currentBatch) => {
     const startYear = 2022;
     const years = [];
@@ -536,8 +620,13 @@ const StudentRegistrationSQL = () => {
       return;
     }
 
-    if (!studentPhoto && !studentPhotoPreview) {
-      toast.error('Student photo is required');
+    if (!studentPhotoPreview) {
+      toast.error('Student photo not found in SDMS. Please verify the student record in the central database.');
+      return;
+    }
+
+    if (academicYearError) {
+      toast.error(academicYearError);
       return;
     }
 
@@ -552,11 +641,6 @@ const StudentRegistrationSQL = () => {
         }
       });
 
-      if (studentPhoto) {
-        formData.append('studentPhoto', studentPhoto);
-      } else if (studentPhotoPreview) {
-        formData.append('studentPhotoUrl', studentPhotoPreview);
-      }
       if (guardianPhoto1) {
         formData.append('guardianPhoto1', guardianPhoto1);
       } else if (guardianPhoto1Preview) {
@@ -573,12 +657,16 @@ const StudentRegistrationSQL = () => {
       });
 
       if (res.data.success) {
-        const genPass = res.data.data?.generatedPassword;
-        if (genPass) {
-          setGeneratedPassword(genPass);
-          setShowPasswordModal(true);
+        const { generatedPassword: genPass, isRenewal, message } = res.data.data || {};
+        if (isRenewal) {
+          toast.success(message || 'Returning student renewed. Existing login password kept.');
+        } else {
+          if (genPass) {
+            setGeneratedPassword(genPass);
+            setShowPasswordModal(true);
+          }
+          toast.success('Student registered successfully');
         }
-        toast.success('Student registered successfully');
         // Reset form
         setForm(initialForm);
         setIdentifier('');
@@ -598,14 +686,14 @@ const StudentRegistrationSQL = () => {
     }
   };
 
-  // Fetch rooms when hostel/category changes
+  // Fetch rooms when hostel, category, or academic year changes
   useEffect(() => {
-    if (form.hostel && form.hostelCategory) {
-      fetchRoomsWithAvailability(form.hostel, form.hostelCategory);
+    if (form.hostel && form.hostelCategory && form.academicYear) {
+      fetchRoomsWithAvailability(form.hostel, form.hostelCategory, form.academicYear);
     } else {
       setRoomsWithAvailability([]);
     }
-  }, [form.hostel, form.hostelCategory]);
+  }, [form.hostel, form.hostelCategory, form.academicYear]);
 
   // Fetch fee structure when relevant fields change (derived values)
   useEffect(() => {
@@ -678,6 +766,14 @@ const StudentRegistrationSQL = () => {
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (!fetchingFromSQL && identifier.trim()) {
+                      fetchStudentFromSQL();
+                    }
+                  }
+                }}
                 placeholder={identifierType === 'pin' ? 'Enter PIN Number' : 'Enter Admission Number'}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 disabled={fetchingFromSQL}
@@ -872,13 +968,23 @@ const StudentRegistrationSQL = () => {
                   value={form.academicYear}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                    academicYearError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
+                  }`}
                 >
                   <option value="">Select Academic Year</option>
-                  {generateAcademicYears().map(year => (
+                  {academicYearOptions.map(year => (
                     <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
+                {sqlDataFetched && expectedAcademicYear && !academicYearError && (
+                  <p className="text-xs text-green-700 mt-1">
+                    Expected for batch {normalizeBatchToYear(form.batch)}, year {form.year}: {expectedAcademicYear}
+                  </p>
+                )}
+                {academicYearError && (
+                  <p className="text-xs text-red-600 mt-1">{academicYearError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Concession (₹)</label>
@@ -938,8 +1044,14 @@ const StudentRegistrationSQL = () => {
                 >
                   <option value="">{loadingRooms ? 'Loading rooms...' : 'Select Room'}</option>
                   {roomsWithAvailability.map(room => (
-                    <option key={room._id} value={room.roomNumber}>
-                      Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
+                    <option
+                      key={room._id}
+                      value={room.roomNumber}
+                      disabled={room.availableBeds <= 0}
+                    >
+                      Room {room.roomNumber} ({room.studentCount}/{room.bedCount} students
+                      {form.academicYear ? ` · ${form.academicYear}` : ''}
+                      {room.availableBeds <= 0 ? ' · Full' : ''})
                     </option>
                   ))}
                 </select>
@@ -1113,20 +1225,19 @@ const StudentRegistrationSQL = () => {
             </div>
           </div>
 
-          {/* Photo Upload */}
+          {/* Photos */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Photos</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student Photo *</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handlePhotoChange(e, 'student')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-                {studentPhotoPreview && (
-                  <img src={studentPhotoPreview} alt="Student" className="mt-2 w-32 h-32 object-cover rounded" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Student Photo (from SDMS) *</label>
+                <p className="text-xs text-gray-500 mb-2">Loaded automatically when you fetch student data from SQL.</p>
+                {studentPhotoPreview ? (
+                  <img src={studentPhotoPreview} alt="Student" className="w-32 h-32 object-cover rounded border border-gray-200" />
+                ) : (
+                  <div className="w-32 h-32 rounded border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 text-center px-2">
+                    Fetch student from SQL to load photo
+                  </div>
                 )}
               </div>
               <div>
@@ -1167,7 +1278,7 @@ const StudentRegistrationSQL = () => {
             </button>
             <button
               type="submit"
-              disabled={adding || !sqlDataFetched}
+              disabled={adding || !sqlDataFetched || Boolean(academicYearError)}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {adding ? 'Registering...' : 'Register Student'}

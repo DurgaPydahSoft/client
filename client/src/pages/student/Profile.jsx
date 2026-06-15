@@ -10,9 +10,7 @@ import {
   EyeSlashIcon,
   XMarkIcon,
   KeyIcon,
-  PhotoIcon,
-  CameraIcon,
-  XCircleIcon
+  PhotoIcon
 } from '@heroicons/react/24/outline';
 
 const Profile = () => {
@@ -31,16 +29,6 @@ const Profile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-
-  // Photo upload states
-  const [showPhotoModal, setShowPhotoModal] = useState(false);
-  const [photoLoading, setPhotoLoading] = useState(false);
-  const [studentPhoto, setStudentPhoto] = useState(null);
-  const [guardianPhoto1, setGuardianPhoto1] = useState(null);
-  const [guardianPhoto2, setGuardianPhoto2] = useState(null);
-  const [studentPhotoPreview, setStudentPhotoPreview] = useState(null);
-  const [guardianPhoto1Preview, setGuardianPhoto1Preview] = useState(null);
-  const [guardianPhoto2Preview, setGuardianPhoto2Preview] = useState(null);
 
   // Courses and branches state for resolving SQL IDs
   const [allCourses, setAllCourses] = useState([]);
@@ -162,100 +150,6 @@ const Profile = () => {
     setShowConfirmPassword(false);
   };
 
-  // Photo handling functions
-  const handlePhotoChange = (e, type) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image size should be less than 5MB');
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        switch (type) {
-          case 'student':
-            setStudentPhoto(file);
-            setStudentPhotoPreview(reader.result);
-            break;
-          case 'guardian1':
-            setGuardianPhoto1(file);
-            setGuardianPhoto1Preview(reader.result);
-            break;
-          case 'guardian2':
-            setGuardianPhoto2(file);
-            setGuardianPhoto2Preview(reader.result);
-            break;
-          default:
-            break;
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const resetPhotoForm = () => {
-    setStudentPhoto(null);
-    setGuardianPhoto1(null);
-    setGuardianPhoto2(null);
-    setStudentPhotoPreview(null);
-    setGuardianPhoto1Preview(null);
-    setGuardianPhoto2Preview(null);
-  };
-
-  const handlePhotoUpload = async (e) => {
-    e.preventDefault();
-    
-    if (!studentPhoto && !guardianPhoto1 && !guardianPhoto2) {
-      toast.error('Please select at least one photo to upload');
-      return;
-    }
-
-    setPhotoLoading(true);
-    try {
-      const formData = new FormData();
-      if (studentPhoto) {
-        formData.append('studentPhoto', studentPhoto);
-      }
-      if (guardianPhoto1) {
-        formData.append('guardianPhoto1', guardianPhoto1);
-      }
-      if (guardianPhoto2) {
-        formData.append('guardianPhoto2', guardianPhoto2);
-      }
-
-      const res = await api.put('/api/students/profile/photos', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (res.data.success) {
-        toast.success('Profile photos updated successfully!');
-        
-        // Update user context with new photo URLs
-        const updatedUser = {
-          ...user,
-          studentPhoto: res.data.data.studentPhoto || user.studentPhoto,
-          guardianPhoto1: res.data.data.guardianPhoto1 || user.guardianPhoto1,
-          guardianPhoto2: res.data.data.guardianPhoto2 || user.guardianPhoto2
-        };
-        updateUser(updatedUser);
-        
-        // Reset form and close modal
-        resetPhotoForm();
-        setShowPhotoModal(false);
-      } else {
-        throw new Error(res.data.message || 'Failed to update photos');
-      }
-    } catch (err) {
-      console.error('Photo upload error:', err);
-      toast.error(err.response?.data?.message || 'Failed to update photos');
-    } finally {
-      setPhotoLoading(false);
-    }
-  };
-
   // Helper functions to safely get course and branch names (with SQL ID resolution)
   const getCourseName = (course) => {
     if (!course) return 'N/A';
@@ -346,15 +240,6 @@ const Profile = () => {
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
             )}
-            <button
-              onClick={() => {
-                resetPhotoForm();
-                setShowPhotoModal(true);
-              }}
-                className="absolute -bottom-2 -right-2 p-2 bg-white text-blue-600 rounded-full hover:bg-blue-50 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-110"
-            >
-                <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
           </div>
             
             {/* Profile Info */}
@@ -772,151 +657,6 @@ const Profile = () => {
         </div>
       )}
 
-      {/* Photo Upload Modal */}
-      {showPhotoModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CameraIcon className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Update Profile Photo</h3>
-                  <p className="text-xs sm:text-sm text-gray-500">Upload your student photo</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  resetPhotoForm();
-                  setShowPhotoModal(false);
-                }}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <XMarkIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-4 sm:p-6">
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                if (!studentPhoto) {
-                  toast.error('Please select a photo to upload');
-                  return;
-                }
-                setPhotoLoading(true);
-                try {
-                  const formData = new FormData();
-                  formData.append('studentPhoto', studentPhoto);
-                  const res = await api.put('/api/students/profile/photos', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                  });
-                  if (res.data.success) {
-                    toast.success('Profile photo updated successfully!');
-                    const updatedUser = {
-                      ...user,
-                      studentPhoto: res.data.data.studentPhoto || user.studentPhoto,
-                    };
-                    updateUser(updatedUser);
-                    resetPhotoForm();
-                    setShowPhotoModal(false);
-                  } else {
-                    throw new Error(res.data.message || 'Failed to update photo');
-                  }
-                } catch (err) {
-                  toast.error(err.response?.data?.message || 'Failed to update photo');
-                } finally {
-                  setPhotoLoading(false);
-                }
-              }} className="space-y-6">
-                {/* Student Photo */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo</label>
-                  <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {studentPhotoPreview ? (
-                          <div className="relative">
-                            <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setStudentPhoto(null);
-                                setStudentPhotoPreview(null);
-                              }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                            >
-                              <XCircleIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                            <p className="text-sm text-gray-500">Click to upload student photo</p>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handlePhotoChange(e, 'student')}
-                      />
-                    </label>
-                  </div>
-                </div>
-                {/* Photo Requirements */}
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <h4 className="text-xs sm:text-sm font-medium text-blue-800 mb-2">Photo Requirements:</h4>
-                  <ul className="text-xs text-blue-700 space-y-1">
-                    <li>• Maximum file size: 5MB</li>
-                    <li>• Supported formats: JPG, PNG, GIF</li>
-                  </ul>
-                </div>
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      resetPhotoForm();
-                      setShowPhotoModal(false);
-                    }}
-                    className="flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={photoLoading || !studentPhoto}
-                    className={`flex-1 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base text-white rounded-lg font-medium transition-colors ${
-                      photoLoading || !studentPhoto
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                  >
-                    {photoLoading ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <LoadingSpinner size="sm" className="border-white" />
-                        <span>Uploading...</span>
-                      </div>
-                    ) : (
-                      'Upload Photo'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </motion.div>
   );
 };

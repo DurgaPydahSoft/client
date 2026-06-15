@@ -35,6 +35,7 @@ const Students = lazy(() => import('./pages/admin/Students'));
 const StudentRegistrationSQL = lazy(() => import('./pages/admin/StudentRegistrationSQL'));
 const AdmitCards = lazy(() => import('./pages/admin/AdmitCards'));
 const PreRegistrationRequests = lazy(() => import('./pages/admin/PreRegistrationRequests'));
+const ApplicationExpirySettings = lazy(() => import('./pages/admin/ApplicationExpirySettings'));
 const Complaints = lazy(() => import('./pages/admin/Complaints'));
 const FoundLostManagement = lazy(() => import('./pages/admin/FoundLostManagement'));
 const Announcements = lazy(() => import('./pages/admin/Announcements'));
@@ -193,6 +194,11 @@ function App() {
                       <PreRegistrationRequests />
                     </ProtectedSection>
                   } />
+                  <Route path="students/application-expiry-settings" element={
+                    <ProtectedSection permission="student_management" sectionName="Application Expiry Settings">
+                      <ApplicationExpirySettings />
+                    </ProtectedSection>
+                  } />
                   <Route path="complaints" element={
                     <ProtectedSection permission="maintenance_ticket_management" sectionName="Complaints">
                       <Complaints />
@@ -345,11 +351,11 @@ function App() {
                   <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
                 </Route>
 
-                {/* Student reset password route */}
+                {/* Student reset password route (optional — change password from profile is preferred) */}
                 <Route
                   path="/student/reset-password"
                   element={
-                    <ProtectedRoute requireAuth={true} requirePasswordChange={true}>
+                    <ProtectedRoute requireAuth={true}>
                       <ResetPassword />
                     </ProtectedRoute>
                   }
@@ -359,7 +365,7 @@ function App() {
                 <Route
                   path="/student/*"
                   element={
-                    <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
+                    <ProtectedRoute requireAuth={true}>
                       <StudentDashboard />
                     </ProtectedRoute>
                   }
@@ -368,7 +374,7 @@ function App() {
                 <Route
                   path="/student/payment-status/:billId?"
                   element={
-                    <ProtectedRoute requireAuth={true} requirePasswordChange={false}>
+                    <ProtectedRoute requireAuth={true}>
                       <PaymentStatus />
                     </ProtectedRoute>
                   }

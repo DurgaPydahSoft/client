@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -20,6 +20,31 @@ const TABS = [
   { label: 'All Students', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
   { label: 'Bulk Upload', value: 'bulkUpload', icon: <ArrowUpTrayIcon className="w-5 h-5" /> },
 ];
+
+const FILTER_LABELS = {
+  course: 'Course',
+  branch: 'Branch',
+  hostel: 'Hostel',
+  category: 'Category',
+  roomNumber: 'Room',
+  academicYear: 'Academic Year',
+  hostelStatus: 'Status'
+};
+
+const formatFilterChipValue = (key, value) => {
+  if (key === 'hostelStatus') {
+    return value === 'Active' ? 'Active' : value === 'Inactive' ? 'Expired' : value;
+  }
+  return value;
+};
+
+const shouldShowFilterChip = (key, value) => {
+  if (!value || key === 'search') return false;
+  // Default list view is active students — don't show as a removable chip
+  if (key === 'hostelStatus' && value === 'Active') return false;
+  if (key === 'academicYear' && value === getDefaultAcademicYear()) return false;
+  return true;
+};
 
 const initialForm = {
   name: '',
@@ -147,6 +172,53 @@ const generateAcademicYears = () => {
   return years;
 };
 
+const getDefaultAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
+
+const formatDisplayDate = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const isStudentExpired = (student) =>
+  student?.hostelStatus === 'Inactive' || student?.applicationStatus === 'Expired';
+
+const getHostelStatusDisplay = (student) => {
+  if (student?.hostelStatus === 'Active' && !isStudentExpired(student)) {
+    return {
+      label: 'Active',
+      badgeClass: 'bg-green-100 text-green-800',
+      expiryText: null
+    };
+  }
+
+  if (isStudentExpired(student)) {
+    const expiryDate = student.resolvedExpiryDate || student.applicationExpiryDate;
+    return {
+      label: 'Expired',
+      badgeClass: 'bg-red-100 text-red-800',
+      expiryText: formatDisplayDate(expiryDate)
+    };
+  }
+
+  return {
+    label: student?.hostelStatus || '—',
+    badgeClass: 'bg-gray-100 text-gray-800',
+    expiryText: null
+  };
+};
+
+const shouldShowGraduationStatus = (status) =>
+  status && status !== 'Enrolled';
+
 const Students = () => {
 
   const { user } = useAuth();
@@ -177,13 +249,15 @@ const Students = () => {
     search: '',
     course: '',
     branch: '',
-    gender: '',
+    hostel: '',
     category: '',
     roomNumber: '',
-    batch: '',
-    academicYear: '',
+    academicYear: getDefaultAcademicYear(),
     hostelStatus: 'Active' // Default to show only active students
   });
+  const [filterCategories, setFilterCategories] = useState([]);
+  const [filterRooms, setFilterRooms] = useState([]);
+  const [loadingFilterRooms, setLoadingFilterRooms] = useState(false);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -203,9 +277,6 @@ const Students = () => {
   const [editingRow, setEditingRow] = useState(null);
   const [tempStudentsSummary, setTempStudentsSummary] = useState([]);
   const [loadingTempSummary, setLoadingTempSummary] = useState(false);
-  const [renewalModalOpen, setRenewalModalOpen] = useState(false);
-  const [renewalResultsModal, setRenewalResultsModal] = useState(false);
-  const [renewalResults, setRenewalResults] = useState(null);
 
   // Email service status
   const [emailServiceStatus, setEmailServiceStatus] = useState(null);
@@ -413,10 +484,9 @@ const Students = () => {
       // Add filters only if they have values (excluding search and pagination)
       if (filters.course) params.append('course', filters.course);
       if (filters.branch) params.append('branch', filters.branch);
-      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.hostel) params.append('hostel', filters.hostel);
       if (filters.category) params.append('category', filters.category);
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
-      if (filters.batch) params.append('batch', filters.batch);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
       if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
 
@@ -453,12 +523,12 @@ const Students = () => {
       if (res.data.success) {
         setCourses(res.data.data);
       } else {
-        console.error('❌ Failed to fetch courses:', res.data.message);
+        console.error('âŒ Failed to fetch courses:', res.data.message);
         toast.error('Failed to fetch courses');
       }
     } catch (err) {
-      console.error('❌ Error fetching courses:', err);
-      console.error('❌ Error response:', err.response?.data);
+      console.error('âŒ Error fetching courses:', err);
+      console.error('âŒ Error response:', err.response?.data);
       toast.error(err.response?.data?.message || 'Error fetching courses');
     } finally {
       setLoadingCourses(false);
@@ -482,13 +552,13 @@ const Students = () => {
 
         setBranches(filtered);
       } else {
-        console.error('❌ Failed to fetch branches:', res.data.message);
+        console.error('âŒ Failed to fetch branches:', res.data.message);
         toast.error('Failed to fetch branches');
       }
     } catch (err) {
-      console.error('❌ Error fetching branches:', err);
-      console.error('❌ Error response:', err.response?.data);
-      console.error('❌ Error status:', err.response?.status);
+      console.error('âŒ Error fetching branches:', err);
+      console.error('âŒ Error response:', err.response?.data);
+      console.error('âŒ Error status:', err.response?.status);
       toast.error(err.response?.data?.message || 'Error fetching branches');
     } finally {
       setLoadingBranches(false);
@@ -511,6 +581,62 @@ const Students = () => {
       toast.error('Error fetching hostels');
     } finally {
       setLoadingHostels(false);
+    }
+  };
+
+  const fetchFilterCategories = async (hostelId) => {
+    if (!hostelId) {
+      setFilterCategories([]);
+      return [];
+    }
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        const data = res.data.data || [];
+        setFilterCategories(data);
+        return data;
+      }
+      setFilterCategories([]);
+      return [];
+    } catch (err) {
+      console.error('Error fetching filter categories:', err);
+      setFilterCategories([]);
+      return [];
+    }
+  };
+
+  const fetchFilterRooms = async (hostelId, categoryName, categoryList = filterCategories) => {
+    if (!hostelId) {
+      setFilterRooms([]);
+      return;
+    }
+    setLoadingFilterRooms(true);
+    try {
+      const params = { hostel: hostelId };
+      if (categoryName) {
+        const matchedCategory = categoryList.find(
+          (c) => normalizeText(c.name) === normalizeText(categoryName)
+        );
+        if (matchedCategory?._id) {
+          params.category = matchedCategory._id;
+        }
+      }
+      const res = await api.get('/api/admin/rooms', { params });
+      if (res.data.success) {
+        const rooms = res.data.data?.rooms || [];
+        const uniqueRooms = [...new Map(rooms.map((room) => [room.roomNumber, room])).values()]
+          .sort((a, b) =>
+            String(a.roomNumber).localeCompare(String(b.roomNumber), undefined, { numeric: true })
+          );
+        setFilterRooms(uniqueRooms);
+      } else {
+        setFilterRooms([]);
+      }
+    } catch (err) {
+      console.error('Error fetching filter rooms:', err);
+      setFilterRooms([]);
+    } finally {
+      setLoadingFilterRooms(false);
     }
   };
 
@@ -891,10 +1017,9 @@ const Students = () => {
       if (filters.search) params.append('search', filters.search);
       if (filters.course) params.append('course', filters.course);
       if (filters.branch) params.append('branch', filters.branch);
-      if (filters.gender) params.append('gender', filters.gender);
+      if (filters.hostel) params.append('hostel', filters.hostel);
       if (filters.category) params.append('category', filters.category);
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
-      if (filters.batch) params.append('batch', filters.batch);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
       if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
 
@@ -921,7 +1046,7 @@ const Students = () => {
         setTableLoading(false);
       }
     }
-  }, [currentPage, filters.search, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
+  }, [currentPage, filters.search, filters.course, filters.branch, filters.hostel, filters.category, filters.roomNumber, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
 
   // Fetch students:
@@ -945,7 +1070,7 @@ const Students = () => {
     fetchStudents(false);
     // update course counts as filters change
     fetchCourseCounts();
-  }, [tab, currentPage, filters.course, filters.branch, filters.gender, filters.category, filters.roomNumber, filters.batch, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
+  }, [tab, currentPage, filters.course, filters.branch, filters.hostel, filters.category, filters.roomNumber, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
   // Check email service status and fetch courses on component mount
   useEffect(() => {
@@ -976,26 +1101,26 @@ const Students = () => {
 
   // Debug: Log when branches change
   useEffect(() => {
-    console.log('🔄 Branches state updated:', branches.length, 'branches');
+    console.log('ðŸ”„ Branches state updated:', branches.length, 'branches');
     if (branches.length > 0) {
-      console.log('📋 Available branches:', branches.map(b => `${b.name} (${b.code})`));
+      console.log('ðŸ“‹ Available branches:', branches.map(b => `${b.name} (${b.code})`));
     }
   }, [branches]);
 
   // Update form when branches are loaded (for preregistration prefilling)
   useEffect(() => {
     if (branches.length > 0 && form.branch && form.course) {
-      console.log('🔍 Checking branch mapping:');
+      console.log('ðŸ” Checking branch mapping:');
       console.log('  - Current branch ID:', form.branch);
       console.log('  - Available branches:', branches.map(b => ({ id: b._id, name: b.name })));
 
       // Check if the current branch is in the loaded branches
       const branchExists = branches.find(b => b._id === form.branch);
       if (!branchExists) {
-        console.log('⚠️ Branch not found in loaded branches, clearing branch selection');
+        console.log('âš ï¸ Branch not found in loaded branches, clearing branch selection');
         setForm(prev => ({ ...prev, branch: '' }));
       } else {
-        console.log('✅ Branch found in loaded branches:', branchExists.name);
+        console.log('âœ… Branch found in loaded branches:', branchExists.name);
       }
     }
   }, [branches, form.branch, form.course]);
@@ -1072,14 +1197,14 @@ const Students = () => {
   const handleFormChange = e => {
     const { name, value, type, checked } = e.target;
     const fieldValue = type === 'checkbox' ? checked : value;
-    console.log('🔄 Form field changed:', name, '=', fieldValue, 'type:', type);
+    console.log('ðŸ”„ Form field changed:', name, '=', fieldValue, 'type:', type);
 
     setForm(prev => {
       const newForm = { ...prev, [name]: fieldValue };
 
       // Reset dependent fields when parent field changes
       if (name === 'course') {
-        console.log('📚 Course changed to:', value);
+        console.log('ðŸ“š Course changed to:', value);
         newForm.branch = '';
         newForm.batch = ''; // Reset batch when course changes
         // Fetch branches for the selected course
@@ -1156,7 +1281,7 @@ const Students = () => {
   // Camera functions
   const startCamera = async (type) => {
     try {
-      console.log('📸 Starting camera for type:', type);
+      console.log('ðŸ“¸ Starting camera for type:', type);
       setCameraReady(false);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -1165,7 +1290,7 @@ const Students = () => {
           height: { ideal: 720 }
         }
       });
-      console.log('📸 Camera stream obtained:', mediaStream);
+      console.log('ðŸ“¸ Camera stream obtained:', mediaStream);
       setStream(mediaStream);
       setCameraType(type);
       setShowCamera(true);
@@ -1173,19 +1298,19 @@ const Students = () => {
       // Set video source after component mounts
       setTimeout(() => {
         if (videoRef) {
-          console.log('📸 Setting video source');
+          console.log('ðŸ“¸ Setting video source');
           videoRef.srcObject = mediaStream;
           videoRef.onloadedmetadata = () => {
-            console.log('📸 Video metadata loaded');
+            console.log('ðŸ“¸ Video metadata loaded');
             videoRef.play();
             setCameraReady(true);
           };
         } else {
-          console.log('📸 Video ref not available yet');
+          console.log('ðŸ“¸ Video ref not available yet');
         }
       }, 100);
     } catch (error) {
-      console.error('❌ Error accessing camera:', error);
+      console.error('âŒ Error accessing camera:', error);
       toast.error('Unable to access camera. Please check permissions.');
     }
   };
@@ -1202,17 +1327,17 @@ const Students = () => {
   };
 
   const capturePhoto = () => {
-    console.log('📸 Capturing photo...', { videoRef: !!videoRef, cameraType, videoWidth: videoRef?.videoWidth, videoHeight: videoRef?.videoHeight });
+    console.log('ðŸ“¸ Capturing photo...', { videoRef: !!videoRef, cameraType, videoWidth: videoRef?.videoWidth, videoHeight: videoRef?.videoHeight });
 
     if (!videoRef || !cameraType) {
-      console.error('❌ Missing videoRef or cameraType');
+      console.error('âŒ Missing videoRef or cameraType');
       toast.error('Camera not ready. Please try again.');
       return;
     }
 
     if (!videoRef.videoWidth || !videoRef.videoHeight) {
-      console.error('❌ Video dimensions not available');
-      console.log('📸 Video element state:', {
+      console.error('âŒ Video dimensions not available');
+      console.log('ðŸ“¸ Video element state:', {
         readyState: videoRef.readyState,
         networkState: videoRef.networkState,
         paused: videoRef.paused,
@@ -1229,7 +1354,7 @@ const Students = () => {
     canvas.width = videoRef.videoWidth;
     canvas.height = videoRef.videoHeight;
 
-    console.log('📸 Canvas dimensions:', canvas.width, 'x', canvas.height);
+    console.log('ðŸ“¸ Canvas dimensions:', canvas.width, 'x', canvas.height);
 
     try {
       // Draw video frame to canvas
@@ -1238,7 +1363,7 @@ const Students = () => {
       // Convert canvas to blob
       canvas.toBlob((blob) => {
         if (blob) {
-          console.log('📸 Photo captured successfully, blob size:', blob.size);
+          console.log('ðŸ“¸ Photo captured successfully, blob size:', blob.size);
           const file = new File([blob], `camera_${cameraType}_${Date.now()}.jpg`, { type: 'image/jpeg' });
 
           // Create preview URL
@@ -1249,35 +1374,35 @@ const Students = () => {
             case 'student':
               setStudentPhoto(file);
               setStudentPhotoPreview(previewUrl);
-              console.log('📸 Student photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Student photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             case 'guardian1':
               setGuardianPhoto1(file);
               setGuardianPhoto1Preview(previewUrl);
-              console.log('📸 Guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             case 'guardian2':
               setGuardianPhoto2(file);
               setGuardianPhoto2Preview(previewUrl);
-              console.log('📸 Guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             case 'edit_student':
               setPhotoEditStudentPhoto(file);
               setPhotoEditStudentPhotoPreview(previewUrl);
-              console.log('📸 Edit student photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Edit student photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             case 'edit_guardian1':
               setPhotoEditGuardianPhoto1(file);
               setPhotoEditGuardianPhoto1Preview(previewUrl);
-              console.log('📸 Edit guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Edit guardian 1 photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             case 'edit_guardian2':
               setPhotoEditGuardianPhoto2(file);
               setPhotoEditGuardianPhoto2Preview(previewUrl);
-              console.log('📸 Edit guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
+              console.log('ðŸ“¸ Edit guardian 2 photo set:', file.name, 'Preview URL:', previewUrl);
               break;
             default:
-              console.log('📸 Unknown camera type:', cameraType);
+              console.log('ðŸ“¸ Unknown camera type:', cameraType);
               break;
           }
 
@@ -1285,12 +1410,12 @@ const Students = () => {
           stopCamera();
           toast.success('Photo captured successfully!');
         } else {
-          console.error('❌ Failed to create blob from canvas');
+          console.error('âŒ Failed to create blob from canvas');
           toast.error('Failed to capture photo. Please try again.');
         }
       }, 'image/jpeg', 0.8);
     } catch (error) {
-      console.error('❌ Error capturing photo:', error);
+      console.error('âŒ Error capturing photo:', error);
       toast.error('Error capturing photo. Please try again.');
     }
   };
@@ -1387,19 +1512,48 @@ const Students = () => {
     }
   };
 
-  const handleDelete = async id => {
+  const canRemoveStudentEnrollment = (student) => {
+    const viewYear = filters.academicYear;
+    const currentYear = student.currentAcademicYear || student.academicYear;
+    if (!viewYear || !currentYear) return false;
+    return viewYear === currentYear;
+  };
+
+  const handleDelete = async (id, studentRecord) => {
     // Check permission before proceeding
     if (!canDeleteStudent) {
       toast.error('You do not have permission to delete students');
       return;
     }
 
-    if (!window.confirm('Are you sure you want to delete this student?')) return;
+    const currentYear = studentRecord?.currentAcademicYear || studentRecord?.academicYear;
+    const academicYear = filters.academicYear || currentYear;
+    if (!academicYear) {
+      toast.error('Select an academic year filter or ensure the student has an academic year set');
+      return;
+    }
+
+    if (currentYear && academicYear !== currentYear) {
+      toast.error(
+        `Only the student's current academic year (${currentYear}) can be removed.`
+      );
+      return;
+    }
+
+    const confirmMessage =
+      `Remove this student from academic year ${academicYear}?\n\n` +
+      'Historical enrollments from previous years cannot be removed from here.';
+
+    if (!window.confirm(confirmMessage)) return;
+
     setDeletingId(id);
     try {
-      await api.delete(`/api/admin/students/${id}`);
-      toast.success('Student deleted successfully');
-      await fetchStudents(); // Refresh list
+      const res = await api.delete(`/api/admin/students/${id}`, {
+        params: { academicYear: currentYear || academicYear }
+      });
+      const msg = res.data?.message || 'Student removed successfully';
+      toast.success(msg);
+      await fetchStudents();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete student');
     } finally {
@@ -1693,7 +1847,7 @@ const Students = () => {
       };
 
       console.log('Submitting data:', submitData);
-      console.log('🔧 parentPermissionForOuting value:', submitData.parentPermissionForOuting, 'type:', typeof submitData.parentPermissionForOuting);
+      console.log('ðŸ”§ parentPermissionForOuting value:', submitData.parentPermissionForOuting, 'type:', typeof submitData.parentPermissionForOuting);
 
       // Update student without photos (photos are managed separately)
       await api.put(`/api/admin/students/${editId}`, submitData);
@@ -1744,21 +1898,36 @@ const Students = () => {
       // Reset dependent fields when parent field changes
       if (name === 'course') {
         newFilters.branch = '';
-        // Fetch branches for the selected course
         fetchBranches(value);
       }
-      if (name === 'gender') {
+      if (name === 'hostel') {
         newFilters.category = '';
         newFilters.roomNumber = '';
+        setFilterRooms([]);
+        fetchFilterCategories(value);
       }
       if (name === 'category') {
         newFilters.roomNumber = '';
       }
+      if (name === 'academicYear') {
+        const defaultYear = getDefaultAcademicYear();
+        if (value && value !== defaultYear) {
+          // Past year: show all enrollments (active + expired/renewed)
+          newFilters.hostelStatus = '';
+        } else if (value === defaultYear) {
+          newFilters.hostelStatus = 'Active';
+        }
+      }
 
       return newFilters;
     });
-    setCurrentPage(1); // Reset to first page on filter change
+    setCurrentPage(1);
   };
+
+  useEffect(() => {
+    if (tab !== 'list' || !filters.hostel) return;
+    fetchFilterRooms(filters.hostel, filters.category);
+  }, [tab, filters.hostel, filters.category, filterCategories]);
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
@@ -1935,23 +2104,23 @@ const Students = () => {
 
   const handleUpdateStudentYears = async () => {
     try {
-      console.log('🔄 Frontend: Starting student year update...');
+      console.log('ðŸ”„ Frontend: Starting student year update...');
 
       const response = await api.post('/api/admin/students/update-years');
-      console.log('📡 Frontend: API response:', response.data);
+      console.log('ðŸ“¡ Frontend: API response:', response.data);
 
       if (response.data.success) {
         toast.success(response.data.message);
-        console.log('✅ Frontend: Update successful, refreshing student list...');
+        console.log('âœ… Frontend: Update successful, refreshing student list...');
         // Refresh the student list to show updated years
         fetchStudents();
       } else {
-        console.log('❌ Frontend: API returned success: false');
+        console.log('âŒ Frontend: API returned success: false');
         toast.error(response.data.message || 'Failed to update student years');
       }
     } catch (error) {
-      console.error('❌ Frontend: Error updating student years:', error);
-      console.error('❌ Frontend: Error response:', error.response?.data);
+      console.error('âŒ Frontend: Error updating student years:', error);
+      console.error('âŒ Frontend: Error response:', error.response?.data);
       toast.error('Failed to update student years. Please try again.');
     }
   };
@@ -2506,7 +2675,7 @@ const Students = () => {
               >
                 <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
                 {(() => {
-                  console.log('🎯 Rendering branch dropdown with', branches.length, 'branches');
+                  console.log('ðŸŽ¯ Rendering branch dropdown with', branches.length, 'branches');
                   return branches.map(branch => (
                     <option key={branch._id} value={branch._id}>
                       {branch.name} ({branch.code})
@@ -2586,7 +2755,7 @@ const Students = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Concession Amount (₹)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Concession Amount (â‚¹)</label>
               <input
                 type="number"
                 name="concession"
@@ -2776,19 +2945,19 @@ const Students = () => {
               <div className="bg-white rounded-lg p-4 border border-green-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
+                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
                     <div className="text-xs text-gray-600">Term 1</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
+                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
                     <div className="text-xs text-gray-600">Term 2</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
+                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
                     <div className="text-xs text-gray-600">Term 3</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
+                    <div className="text-lg font-bold text-green-600">â‚¹{feeStructure.totalFee?.toLocaleString() || 0}</div>
                     <div className="text-xs text-gray-600">Total</div>
                   </div>
                 </div>
@@ -2798,10 +2967,10 @@ const Students = () => {
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-sm font-medium text-yellow-800">Concession Applied</div>
-                        <div className="text-xs text-yellow-600">₹{form.concession} off total fee</div>
+                        <div className="text-xs text-yellow-600">â‚¹{form.concession} off total fee</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-lg font-bold text-yellow-800">₹{calculatedFees.total.toLocaleString()}</div>
+                        <div className="text-lg font-bold text-yellow-800">â‚¹{calculatedFees.total.toLocaleString()}</div>
                         <div className="text-xs text-yellow-600">Final Amount</div>
                       </div>
                     </div>
@@ -2813,10 +2982,10 @@ const Students = () => {
                     <div className="text-sm font-medium text-gray-700">
                       Term 1 {form.concession > 0 ? '(Concession Applied)' : ''}
                     </div>
-                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term1.toLocaleString()}</div>
+                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term1.toLocaleString()}</div>
                     {form.concession > 0 && (
                       <div className="text-xs text-gray-500">
-                        Original: ₹{feeStructure.term1Fee.toLocaleString()}
+                        Original: â‚¹{feeStructure.term1Fee.toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -2824,10 +2993,10 @@ const Students = () => {
                     <div className="text-sm font-medium text-gray-700">
                       Term 2 {form.concession > feeStructure.term1Fee ? '(Excess Concession)' : ''}
                     </div>
-                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term2.toLocaleString()}</div>
+                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term2.toLocaleString()}</div>
                     {form.concession > feeStructure.term1Fee && (
                       <div className="text-xs text-gray-500">
-                        Original: ₹{feeStructure.term2Fee.toLocaleString()}
+                        Original: â‚¹{feeStructure.term2Fee.toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -2835,10 +3004,10 @@ const Students = () => {
                     <div className="text-sm font-medium text-gray-700">
                       Term 3 {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) ? '(Excess Concession)' : ''}
                     </div>
-                    <div className="text-lg font-bold text-green-600">₹{calculatedFees.term3.toLocaleString()}</div>
+                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term3.toLocaleString()}</div>
                     {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) && (
                       <div className="text-xs text-gray-500">
-                        Original: ₹{feeStructure.term3Fee.toLocaleString()}
+                        Original: â‚¹{feeStructure.term3Fee.toLocaleString()}
                       </div>
                     )}
                   </div>
@@ -3172,12 +3341,6 @@ const Students = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800">All Students ( {totalStudents} )</h2>
             <div className="flex items-center gap-2 mt-2 sm:mt-0">
-              <button
-                onClick={() => setRenewalModalOpen(true)}
-                className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Renew Batches
-              </button>
               <span className="text-sm text-gray-600">
                 Showing {students.length} of {totalStudents} students
                 {Object.entries(filters).some(([key, value]) => value && key !== 'search') && ' (filtered)'}
@@ -3238,14 +3401,18 @@ const Students = () => {
             </div>
             <div>
               <select
-                name="gender"
-                value={filters.gender}
+                name="hostel"
+                value={filters.hostel}
                 onChange={handleFilterChange}
+                disabled={loadingHostels}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">All Genders</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
+                <option value="">{loadingHostels ? 'Loading hostels...' : 'All Hostels'}</option>
+                {hostels.map((hostel) => (
+                  <option key={hostel._id} value={hostel._id}>
+                    {hostel.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
@@ -3253,60 +3420,36 @@ const Students = () => {
                 name="category"
                 value={filters.category}
                 onChange={handleFilterChange}
-                disabled={!filters.gender}
+                disabled={!filters.hostel}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">All Categories</option>
-                {filters.gender && (filters.gender === 'Male'
-                  ? ['A+', 'A', 'B+', 'B'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                    </option>
-                  ))
-                  : ['A+', 'A', 'B'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category}
-                    </option>
-                  ))
-                )}
+                {filterCategories.map((category) => (
+                  <option key={category._id} value={category.name}>
+                    {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
+                  </option>
+                ))}
               </select>
             </div>
             <div>
-              <input
-                type="text"
+              <select
                 name="roomNumber"
                 value={filters.roomNumber}
                 onChange={handleFilterChange}
-                placeholder="Filter by room number"
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <select
-                name="batch"
-                value={filters.batch}
-                onChange={handleFilterChange}
+                disabled={!filters.hostel || loadingFilterRooms}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">All Batches</option>
-                {filters.course && generateBatches(filters.course, courses).map(batch => (
-                  <option key={batch} value={batch}>{batch}</option>
-                ))}
-                {!filters.course && BATCHES.map(batch => (
-                  <option key={batch} value={batch}>{batch}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="academicYear"
-                value={filters.academicYear}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Academic Years</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
+                <option value="">
+                  {!filters.hostel
+                    ? 'Select hostel first'
+                    : loadingFilterRooms
+                      ? 'Loading rooms...'
+                      : 'All Rooms'}
+                </option>
+                {filterRooms.map((room) => (
+                  <option key={room._id || room.roomNumber} value={room.roomNumber}>
+                    Room {room.roomNumber}
+                  </option>
                 ))}
               </select>
             </div>
@@ -3319,7 +3462,7 @@ const Students = () => {
               >
                 <option value="">All Status</option>
                 <option value="Active">Active Students</option>
-                <option value="Inactive">Inactive Students</option>
+                <option value="Inactive">Expired Students</option>
               </select>
             </div>
           </div>
@@ -3333,13 +3476,14 @@ const Students = () => {
                     search: '',
                     course: '',
                     branch: '',
-                    gender: '',
+                    hostel: '',
                     category: '',
                     roomNumber: '',
-                    batch: '',
-                    academicYear: '',
+                    academicYear: getDefaultAcademicYear(),
                     hostelStatus: 'Active'
                   });
+                  setFilterCategories([]);
+                  setFilterRooms([]);
                   setCurrentPage(1);
                 }}
                 className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -3348,26 +3492,42 @@ const Students = () => {
               </button>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(filters).map(([key, value]) => {
-                  if (value && key !== 'search') {
-                    return (
-                      <span
-                        key={key}
-                        className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full flex items-center gap-1"
+                  if (!shouldShowFilterChip(key, value)) return null;
+                  const label = FILTER_LABELS[key] || key;
+                  const chipValue = key === 'hostel'
+                    ? (hostels.find((h) => h._id === value)?.name || value)
+                    : formatFilterChipValue(key, value);
+                  return (
+                    <span
+                      key={key}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full inline-flex items-center gap-1"
+                    >
+                      <span>{label}: {chipValue}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilters((prev) => ({
+                            ...prev,
+                            [key]:
+                              key === 'hostelStatus'
+                                ? 'Active'
+                                : key === 'academicYear'
+                                  ? getDefaultAcademicYear()
+                                  : ''
+                          }));
+                          if (key === 'hostel') {
+                            setFilterCategories([]);
+                            setFilterRooms([]);
+                          }
+                          setCurrentPage(1);
+                        }}
+                        className="p-0.5 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-200/60"
+                        aria-label={`Remove ${label} filter`}
                       >
-                        {key}: {value}
-                        <button
-                          onClick={() => {
-                            setFilters(prev => ({ ...prev, [key]: '' }));
-                            setCurrentPage(1);
-                          }}
-                          className="ml-1 text-blue-500 hover:text-blue-700"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    );
-                  }
-                  return null;
+                        <XMarkIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  );
                 })}
               </div>
             </div>
@@ -3445,24 +3605,43 @@ const Students = () => {
                             </td>
                             <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex flex-col">
-                                <span>Room {student.roomNumber}</span>
+                                <span>Room {student.roomNumber || '—'}</span>
+                                {student.category && (
+                                  <span className="text-xs text-purple-600">Cat: {student.category}</span>
+                                )}
                                 {student.bedNumber && (
                                   <span className="text-xs text-blue-600">Bed: {student.bedNumber}</span>
                                 )}
                                 {student.lockerNumber && (
                                   <span className="text-xs text-green-600">Locker: {student.lockerNumber}</span>
                                 )}
+                                {student.isHistoricalView && student.currentAcademicYear && (
+                                  <span className="text-xs text-amber-600">
+                                    Now in {student.currentAcademicYear}
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
                               <div className="flex flex-col gap-1">
-                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.hostelStatus === 'Active'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                                  }`}>
-                                  {student.hostelStatus}
-                                </span>
-                                {student.graduationStatus && (
+                                {(() => {
+                                  const statusDisplay = getHostelStatusDisplay(student);
+                                  return (
+                                    <>
+                                      <span
+                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
+                                      >
+                                        {statusDisplay.label}
+                                      </span>
+                                      {statusDisplay.expiryText && (
+                                        <span className="text-xs text-gray-500">
+                                          Expired on {statusDisplay.expiryText}
+                                        </span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                                {shouldShowGraduationStatus(student.graduationStatus) && (
                                   <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.graduationStatus === 'Graduated'
                                     ? 'bg-blue-100 text-blue-800'
                                     : student.graduationStatus === 'Dropped'
@@ -3496,17 +3675,25 @@ const Students = () => {
                                     <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </button>
                                 )}
-                                {canDeleteStudent ? (
+                                {canDeleteStudent && canRemoveStudentEnrollment(student) ? (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleDelete(student._id);
+                                      handleDelete(student._id, student);
                                     }}
                                     disabled={deletingId === student._id}
                                     className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                                    title="Delete student"
+                                    title={`Remove from ${student.academicYear}`}
                                   >
                                     <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : canDeleteStudent ? (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Only the student's current academic year enrollment can be removed"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </button>
                                 ) : (
                                   <button
@@ -3671,7 +3858,7 @@ const Students = () => {
                     <div className="flex items-center justify-between">
                       <span className="text-xs sm:text-sm text-orange-700">Concession:</span>
                       <span className="font-medium text-orange-900 text-sm sm:text-base">
-                        ₹{(selectedStudent.concession || 0).toLocaleString()}
+                        â‚¹{(selectedStudent.concession || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
@@ -3696,7 +3883,7 @@ const Students = () => {
                       <div className="flex items-center justify-between">
                         <span className="text-xs sm:text-sm text-orange-700">Total Fee (After Concession):</span>
                         <span className="font-medium text-orange-900 text-sm sm:text-base">
-                          ₹{selectedStudent.totalCalculatedFee.toLocaleString()}
+                          â‚¹{selectedStudent.totalCalculatedFee.toLocaleString()}
                         </span>
                       </div>
                     )}
@@ -3781,13 +3968,25 @@ const Students = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
-                        }`}>
-                        {selectedStudent.hostelStatus}
-                      </span>
+                      {(() => {
+                        const statusDisplay = getHostelStatusDisplay(selectedStudent);
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
+                            >
+                              {statusDisplay.label}
+                            </span>
+                            {statusDisplay.expiryText && (
+                              <span className="text-xs text-gray-500">
+                                Expired on {statusDisplay.expiryText}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
+                    {shouldShowGraduationStatus(selectedStudent.graduationStatus) && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
                       <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
@@ -3799,6 +3998,7 @@ const Students = () => {
                         {selectedStudent.graduationStatus}
                       </span>
                     </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3978,10 +4178,10 @@ const Students = () => {
 
         <form onSubmit={handleEditSubmit} className="space-y-6">
 
-          {/* Personal Info — read-only (SQL source) */}
+          {/* Personal Info â€” read-only (SQL source) */}
           <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Personal Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
+            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
@@ -4002,10 +4202,10 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Academic Info — read-only (SQL source) */}
+          {/* Academic Info â€” read-only (SQL source) */}
           <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Academic Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
+            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
@@ -4026,7 +4226,7 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Hostel Info — editable */}
+          {/* Hostel Info â€” editable */}
           <div className="p-4 border rounded-lg space-y-4 border-blue-100 bg-blue-50/30">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Hostel Info</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -4184,10 +4384,10 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Contact Info — read-only */}
+          {/* Contact Info â€” read-only */}
           <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Contact Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records — not editable here</p>
+            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
@@ -4323,35 +4523,35 @@ const Students = () => {
                 </a>
               </div>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>• Name (Student's full name)</li>
-                <li>• RollNumber (Unique roll number)</li>
-                <li>• Gender (Male/Female)</li>
-                <li>• Course (B.Tech/Diploma/Pharmacy/Degree)</li>
-                <li>• Branch (Based on course)</li>
-                <li>• Year (1-4 for B.Tech/Pharmacy, 1-3 for others)</li>
-                <li>• Category (A+/A/B+/B for Male, A+/A/B/C for Female)</li>
-                <li>• RoomNumber (Based on gender and category)</li>
-                <li>• StudentPhone (10-digit mobile number)</li>
-                <li>• ParentPhone (10-digit mobile number)</li>
-                <li>• Email (Optional - Valid email address for credential delivery)</li>
-                <li>• Batch (Format based on course duration):
+                <li>â€¢ Name (Student's full name)</li>
+                <li>â€¢ RollNumber (Unique roll number)</li>
+                <li>â€¢ Gender (Male/Female)</li>
+                <li>â€¢ Course (B.Tech/Diploma/Pharmacy/Degree)</li>
+                <li>â€¢ Branch (Based on course)</li>
+                <li>â€¢ Year (1-4 for B.Tech/Pharmacy, 1-3 for others)</li>
+                <li>â€¢ Category (A+/A/B+/B for Male, A+/A/B/C for Female)</li>
+                <li>â€¢ RoomNumber (Based on gender and category)</li>
+                <li>â€¢ StudentPhone (10-digit mobile number)</li>
+                <li>â€¢ ParentPhone (10-digit mobile number)</li>
+                <li>â€¢ Email (Optional - Valid email address for credential delivery)</li>
+                <li>â€¢ Batch (Format based on course duration):
                   <ul className="ml-4 mt-1 space-y-1">
                     <li>- B.Tech/Pharmacy: YYYY-YYYY (4 years, e.g., 2020-2024)</li>
                     <li>- Diploma/Degree: YYYY-YYYY (3 years, e.g., 2020-2023)</li>
                   </ul>
                 </li>
-                <li>• AcademicYear (e.g., 2023-2024)</li>
-                <li>• <strong>Hostel ID will be automatically generated</strong> based on gender (BH for Male, GH for Female)</li>
-                <li>• <strong>Password will be automatically generated</strong> and sent to email if provided</li>
+                <li>â€¢ AcademicYear (e.g., 2023-2024)</li>
+                <li>â€¢ <strong>Hostel ID will be automatically generated</strong> based on gender (BH for Male, GH for Female)</li>
+                <li>â€¢ <strong>Password will be automatically generated</strong> and sent to email if provided</li>
               </ul>
             </div>
 
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="text-sm font-medium text-yellow-800 mb-2">Batch Validation Rules:</h3>
               <ul className="text-sm text-yellow-700 space-y-1">
-                <li>• B.Tech/Pharmacy batches must be 4 years (e.g., 2020-2024)</li>
-                <li>• Diploma/Degree batches must be 3 years (e.g., 2020-2023)</li>
-                <li>• Batch end year must match course duration</li>
+                <li>â€¢ B.Tech/Pharmacy batches must be 4 years (e.g., 2020-2024)</li>
+                <li>â€¢ Diploma/Degree batches must be 3 years (e.g., 2020-2023)</li>
+                <li>â€¢ Batch end year must match course duration</li>
               </ul>
             </div>
           </div>
@@ -4390,7 +4590,7 @@ const Students = () => {
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-md font-medium text-gray-800">Validation Summary</h4>
                   <div className="text-sm text-gray-600">
-                    Click on any cell to edit • Changes are saved automatically
+                    Click on any cell to edit â€¢ Changes are saved automatically
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -4898,499 +5098,6 @@ const Students = () => {
     </div>
   );
 
-  // Batch Renewal Modal Component
-  const BatchRenewalModal = ({ isOpen, onClose, onRenew }) => {
-    const academicYears = generateAcademicYears();
-    const [fromAcademicYear, setFromAcademicYear] = useState('');
-    const [toAcademicYear, setToAcademicYear] = useState('');
-    const [selectedCourse, setSelectedCourse] = useState('');
-    const [allStudents, setAllStudents] = useState([]); // All active students from the year
-    const [filteredStudents, setFilteredStudents] = useState([]); // Filtered by course
-    const [selectedStudents, setSelectedStudents] = useState(new Set());
-    const [loadingStudents, setLoadingStudents] = useState(false);
-    const [isRenewing, setIsRenewing] = useState(false);
-
-    // Fetch students when academic year changes
-    useEffect(() => {
-      if (fromAcademicYear) {
-        const fetchStudentsForRenewal = async () => {
-          setLoadingStudents(true);
-          try {
-            const res = await api.get('/api/admin/students', {
-              params: { academicYear: fromAcademicYear, limit: 1000 }
-            });
-            if (res.data.success) {
-              const activeStudents = res.data.data.students.filter(s => s.hostelStatus === 'Active');
-              setAllStudents(activeStudents);
-              setFilteredStudents(activeStudents);
-              setSelectedStudents(new Set(activeStudents.map(s => s._id)));
-              setSelectedCourse(''); // Reset course filter
-            } else {
-              toast.error('Failed to fetch students for renewal.');
-            }
-          } catch (err) {
-            toast.error(err.response?.data?.message || 'Error fetching students.');
-          } finally {
-            setLoadingStudents(false);
-          }
-        };
-        fetchStudentsForRenewal();
-      } else {
-        setAllStudents([]);
-        setFilteredStudents([]);
-        setSelectedStudents(new Set());
-        setSelectedCourse('');
-      }
-    }, [fromAcademicYear]);
-
-    // Filter students when course changes
-    useEffect(() => {
-      if (selectedCourse) {
-        const filtered = allStudents.filter(s =>
-          s.course?._id === selectedCourse || s.courseId === selectedCourse
-        );
-        setFilteredStudents(filtered);
-        setSelectedStudents(new Set(filtered.map(s => s._id)));
-      } else {
-        setFilteredStudents(allStudents);
-        setSelectedStudents(new Set(allStudents.map(s => s._id)));
-      }
-    }, [selectedCourse, allStudents]);
-
-    // Get unique courses from all students
-    const availableCourses = useMemo(() => {
-      const courseMap = new Map();
-      allStudents.forEach(s => {
-        const courseId = s.course?._id || s.courseId;
-        const courseName = s.course?.name || getCourseName(s.course) || 'Unknown';
-        if (courseId && !courseMap.has(courseId)) {
-          courseMap.set(courseId, courseName);
-        }
-      });
-      return Array.from(courseMap.entries()).map(([id, name]) => ({ id, name }));
-    }, [allStudents]);
-
-    const handleSelectAll = (e) => {
-      if (e.target.checked) {
-        setSelectedStudents(new Set(filteredStudents.map(s => s._id)));
-      } else {
-        setSelectedStudents(new Set());
-      }
-    };
-
-    const handleSelectStudent = (studentId) => {
-      const newSelection = new Set(selectedStudents);
-      if (newSelection.has(studentId)) {
-        newSelection.delete(studentId);
-      } else {
-        newSelection.add(studentId);
-      }
-      setSelectedStudents(newSelection);
-    };
-
-    const handleRenew = async () => {
-      if (!fromAcademicYear || !toAcademicYear) {
-        toast.error('Please select both "From" and "To" academic years.');
-        return;
-      }
-
-      // Only pass displayedStudentIds if a course filter is applied
-      // If no course filter, we don't deactivate anyone - just renew selected
-      const shouldDeactivateUnchecked = !!selectedCourse;
-      const displayedStudentIds = shouldDeactivateUnchecked ? filteredStudents.map(s => s._id) : null;
-
-      if (selectedStudents.size === 0) {
-        toast.error('Please select at least one student to renew.');
-        return;
-      }
-
-      // Warning only when course filter is applied and some students are unchecked
-      if (shouldDeactivateUnchecked && selectedStudents.size < filteredStudents.length) {
-        const uncheckedCount = filteredStudents.length - selectedStudents.size;
-        if (!confirm(`${uncheckedCount} student(s) are not selected and will be marked as INACTIVE. Do you want to proceed?`)) {
-          return;
-        }
-      }
-
-      setIsRenewing(true);
-      try {
-        // Pass displayedStudentIds only when course filter is applied
-        await onRenew(fromAcademicYear, toAcademicYear, Array.from(selectedStudents), displayedStudentIds);
-        onClose();
-      } finally {
-        setIsRenewing(false);
-      }
-    };
-
-    return (
-      isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 flex flex-col max-h-[90vh]">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Renew Student Batches</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">From Academic Year</label>
-                <select
-                  value={fromAcademicYear}
-                  onChange={(e) => setFromAcademicYear(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">Select Year to Renew From</option>
-                  {academicYears.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">To New Academic Year</label>
-                <select
-                  value={toAcademicYear}
-                  onChange={(e) => setToAcademicYear(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">Select New Academic Year</option>
-                  {academicYears.filter(y => y > fromAcademicYear).map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Filter by Course</label>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  disabled={!fromAcademicYear || allStudents.length === 0}
-                >
-                  <option value="">All Courses ({allStudents.length})</option>
-                  {availableCourses.map(course => (
-                    <option key={course.id} value={course.id}>
-                      {course.name} ({allStudents.filter(s => (s.course?._id || s.courseId) === course.id).length})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Info banner based on course filter status */}
-            {selectedCourse ? (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 flex items-start">
-                <svg className="w-5 h-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <div className="text-sm text-orange-700">
-                  <span className="font-medium">Course Filter Active:</span> Unchecked students from this course will be <strong>DEACTIVATED</strong>.
-                  Students from other courses will not be affected.
-                </div>
-              </div>
-            ) : fromAcademicYear && allStudents.length > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-start">
-                <svg className="w-5 h-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div className="text-sm text-green-700">
-                  <span className="font-medium">Safe Mode:</span> Only selected students will be renewed.
-                  Unchecked students will <strong>NOT</strong> be deactivated. Apply a course filter to enable deactivation.
-                </div>
-              </div>
-            )}
-
-            <div className="flex-grow overflow-y-auto border rounded-lg p-2 bg-gray-50">
-              {loadingStudents ? (
-                <div className="flex justify-center items-center h-full"><LoadingSpinner /></div>
-              ) : filteredStudents.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="flex items-center p-2 border-b">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      checked={selectedStudents.size === filteredStudents.length && filteredStudents.length > 0}
-                      onChange={handleSelectAll}
-                    />
-                    <label className="ml-3 block text-sm font-medium text-gray-900">
-                      Select All ({selectedStudents.size} / {filteredStudents.length})
-                    </label>
-                  </div>
-                  {filteredStudents.map(student => (
-                    <div key={student._id} className="flex items-center p-2 rounded-md hover:bg-gray-100">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        checked={selectedStudents.has(student._id)}
-                        onChange={() => handleSelectStudent(student._id)}
-                      />
-                      <div className="ml-3 text-sm">
-                        <label className="font-medium text-gray-900">{student.name}</label>
-                        <p className="text-gray-500">{student.rollNumber} - {getCourseDisplay(student.course)} • {getBranchName(student.branch)} • Year {student.year}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center text-gray-500 py-10">
-                  {fromAcademicYear ? (selectedCourse ? 'No active students found for this course.' : 'No active students found for this year.') : 'Select an academic year to see students.'}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={onClose} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-              <button
-                onClick={handleRenew}
-                disabled={isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear}
-                className={`px-4 py-2 text-white rounded-lg transition-colors ${(isRenewing || loadingStudents || !fromAcademicYear || !toAcademicYear)
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
-                  }`}
-              >
-                {isRenewing ? 'Renewing...' : 'Renew Batches'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )
-    );
-  };
-
-  // Function to handle the renewal API call
-  const handleRenewBatches = async (fromAcademicYear, toAcademicYear, studentIds, displayedStudentIds) => {
-    try {
-      const res = await api.post('/api/admin/students/renew-batch', {
-        fromAcademicYear,
-        toAcademicYear,
-        studentIds,
-        displayedStudentIds // Only deactivate from this list, not all students
-      });
-      if (res.data.success) {
-        const { renewedCount, graduatedCount, deactivatedCount, graduationDetails, renewalDetails } = res.data.data;
-
-        // Store the results for displaying in the modal
-        setRenewalResults({
-          renewedCount,
-          graduatedCount,
-          deactivatedCount,
-          graduationDetails: graduationDetails || [],
-          renewalDetails: renewalDetails || [],
-          fromAcademicYear,
-          toAcademicYear
-        });
-        setRenewalResultsModal(true);
-
-        toast.success(`Batch renewal completed: ${renewedCount} renewed, ${graduatedCount} graduated, ${deactivatedCount} deactivated.`);
-        console.log('Renewal Results:', res.data.data);
-
-        // Refresh data
-        if (tab === 'list') {
-          fetchStudents(true);
-        }
-      } else {
-        toast.error(res.data.message || 'Renewal failed.');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'An error occurred during batch renewal.');
-    }
-  };
-
-  // Renewal Results Modal Component
-  const RenewalResultsModal = ({ isOpen, onClose, results }) => {
-    if (!isOpen || !results) return null;
-
-    const formatCurrency = (amount) => {
-      return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-      }).format(amount || 0);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 flex flex-col max-h-[90vh]">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-gray-800">Batch Renewal Results</h3>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Summary Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-green-600">{results.renewedCount}</div>
-              <div className="text-sm text-green-700">Renewed</div>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-blue-600">{results.graduatedCount}</div>
-              <div className="text-sm text-blue-700">Graduated</div>
-            </div>
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-              <div className="text-3xl font-bold text-orange-600">{results.deactivatedCount}</div>
-              <div className="text-sm text-orange-700">Deactivated</div>
-            </div>
-          </div>
-
-          {/* Academic Year Info */}
-          <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center">
-            <span className="text-gray-600">Renewal: </span>
-            <span className="font-semibold text-gray-800">{results.fromAcademicYear}</span>
-            <span className="mx-2 text-gray-400">→</span>
-            <span className="font-semibold text-gray-800">{results.toAcademicYear}</span>
-          </div>
-
-          {/* Scrollable Content */}
-          <div className="flex-grow overflow-y-auto">
-            {/* Renewed Students with Fee Details */}
-            {results.renewalDetails && results.renewalDetails.length > 0 && (
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
-                  <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
-                  Renewed Students - Fee Updates
-                </h4>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">Student</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-600">Year</th>
-                        <th className="px-3 py-2 text-right font-medium text-gray-600">Previous Total</th>
-                        <th className="px-3 py-2 text-right font-medium text-gray-600">New Total</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-600">Prev. Concession</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-600">Renewals</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {results.renewalDetails.map((detail, idx) => (
-                        <tr key={idx} className="hover:bg-gray-50">
-                          <td className="px-3 py-2">
-                            <div className="font-medium text-gray-900">{detail.name}</div>
-                            <div className="text-xs text-gray-500">{detail.rollNumber}</div>
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="text-gray-500">{detail.previousYear}</span>
-                            <span className="mx-1 text-gray-400">→</span>
-                            <span className="font-medium text-gray-800">{detail.newYear}</span>
-                          </td>
-                          <td className="px-3 py-2 text-right text-gray-600">
-                            {formatCurrency(detail.previousFees?.totalFee)}
-                          </td>
-                          <td className="px-3 py-2 text-right font-medium text-green-600">
-                            {formatCurrency(detail.newFees?.totalFee)}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            {detail.concessionAutoRequested ? (
-                              <div className="flex flex-col items-center">
-                                <span className="text-purple-600 font-medium text-xs">
-                                  {formatCurrency(detail.previousConcession)}
-                                </span>
-                                <span className="text-xs text-orange-500 font-medium">Pending</span>
-                              </div>
-                            ) : detail.previousConcession > 0 ? (
-                              <div className="flex flex-col items-center">
-                                <span className="text-gray-400 line-through text-xs">
-                                  {formatCurrency(detail.previousConcession)}
-                                </span>
-                                <span className="text-xs text-red-500 font-medium">Not Renewed</span>
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
-                              {detail.totalRenewals}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Concession Auto-Request Notice */}
-                {results.renewalDetails.some(d => d.concessionAutoRequested) && (
-                  <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <div className="flex items-start">
-                      <svg className="w-5 h-5 text-purple-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="text-sm text-purple-700">
-                        <span className="font-medium">Concession Requests Created:</span> Students with previously approved concessions have automatic requests created for {results.toAcademicYear}.
-                        These requests are now in the <strong>Pending Approvals</strong> queue and need Super Admin approval before the concession is applied.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Non-renewed concession notice */}
-                {results.renewalDetails.some(d => d.previousConcession > 0 && !d.concessionAutoRequested) && (
-                  <div className="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
-                    <div className="flex items-start">
-                      <svg className="w-5 h-5 text-gray-500 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div className="text-sm text-gray-600">
-                        <span className="font-medium">Note:</span> Some students had pending (unapproved) concessions that were not renewed.
-                        To apply concession for these students, please create a new request through Fee Management.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Graduated Students */}
-            {results.graduationDetails && results.graduationDetails.length > 0 && (
-              <div className="mb-6">
-                <h4 className="font-semibold text-gray-700 mb-3 flex items-center">
-                  <span className="w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
-                  Graduated Students
-                </h4>
-                <div className="space-y-2">
-                  {results.graduationDetails.map((detail, idx) => (
-                    <div key={idx} className="bg-blue-50 border border-blue-100 rounded-lg p-3 flex justify-between items-center">
-                      <div>
-                        <span className="font-medium text-gray-900">{detail.name}</span>
-                        <span className="text-gray-500 ml-2">({detail.rollNumber})</span>
-                      </div>
-                      <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded">
-                        Year {detail.year} - {detail.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* No Fee Structure Warning */}
-            {results.renewalDetails && results.renewalDetails.some(d => d.newFees?.totalFee === 0) && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <div>
-                    <h5 className="font-medium text-yellow-800">Fee Structure Missing</h5>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      Some students show ₹0 for new fees because no fee structure exists for their course, year, and category in {results.toAcademicYear}. Please configure fee structures in the Fee Management section.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Close Button */}
-          <div className="flex justify-end mt-6 pt-4 border-t">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Photo Edit Modal
   const renderPhotoEditModal = () => (
     photoEditModal && (
@@ -5416,52 +5123,17 @@ const Students = () => {
 
           <form onSubmit={handlePhotoEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Student Photo */}
+              {/* Student Photo (from SDMS) */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo</label>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-center w-full">
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        {photoEditStudentPhotoPreview ? (
-                          <div className="relative">
-                            <img src={photoEditStudentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                setPhotoEditStudentPhoto(null);
-                                setPhotoEditStudentPhotoPreview(null);
-                              }}
-                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                            >
-                              <XCircleIcon className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <>
-                            <PhotoIcon className="w-8 h-8 mb-2 text-gray-400" />
-                            <p className="text-sm text-gray-500">Click to upload</p>
-                          </>
-                        )}
-                      </div>
-                      <input
-                        type="file"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => handlePhotoEditChange(e, 'student')}
-                      />
-                    </label>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => startCamera('edit_student')}
-                    className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
-                  >
-                    <CameraIcon className="w-4 h-4" />
-                    <span>Take Photo</span>
-                  </button>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Student Photo (SDMS)</label>
+                <div className="flex items-center justify-center w-full h-32 border-2 border-gray-200 rounded-lg bg-gray-50">
+                  {photoEditStudentPhotoPreview ? (
+                    <img src={photoEditStudentPhotoPreview} alt="Student" className="h-28 w-auto object-cover rounded-lg" />
+                  ) : (
+                    <p className="text-sm text-gray-400 text-center px-2">No photo in SDMS</p>
+                  )}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Managed in SDMS; not editable here.</p>
               </div>
 
               {/* Guardian Photo 1 */}
@@ -5655,10 +5327,7 @@ const Students = () => {
       // Create FormData for multipart upload
       const formData = new FormData();
 
-      // Add photos if selected
-      if (photoEditStudentPhoto) {
-        formData.append('studentPhoto', photoEditStudentPhoto);
-      }
+      // Add guardian photos if selected
       if (photoEditGuardianPhoto1) {
         formData.append('guardianPhoto1', photoEditGuardianPhoto1);
       }
@@ -5667,7 +5336,7 @@ const Students = () => {
       }
 
       // Only proceed if at least one photo is selected
-      if (!photoEditStudentPhoto && !photoEditGuardianPhoto1 && !photoEditGuardianPhoto2) {
+      if (!photoEditGuardianPhoto1 && !photoEditGuardianPhoto2) {
         toast.error('Please select at least one photo to update');
         return;
       }
@@ -6006,8 +5675,8 @@ const Students = () => {
             <div className="bg-blue-50 p-3 rounded-lg">
               <h4 className="text-sm font-medium text-blue-800 mb-2">Password Requirements:</h4>
               <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Minimum 6 characters long</li>
-                <li>• Both password fields must match</li>
+                <li>â€¢ Minimum 6 characters long</li>
+                <li>â€¢ Both password fields must match</li>
               </ul>
             </div>
 
@@ -6183,7 +5852,7 @@ const Students = () => {
             {/* Concession Amount Input */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Concession Amount (₹) *
+                Concession Amount (â‚¹) *
               </label>
               <input
                 type="number"
@@ -6233,7 +5902,7 @@ const Students = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Original Total Fee:</span>
                     <span className="font-medium text-gray-900">
-                      ₹{concessionFeeStructure.totalFee.toLocaleString()}
+                      â‚¹{concessionFeeStructure.totalFee.toLocaleString()}
                     </span>
                   </div>
                   {Number(concessionRequestForm.amount) > 0 && (
@@ -6241,20 +5910,20 @@ const Students = () => {
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Concession Amount:</span>
                         <span className="font-medium text-orange-600">
-                          - ₹{Number(concessionRequestForm.amount).toLocaleString()}
+                          - â‚¹{Number(concessionRequestForm.amount).toLocaleString()}
                         </span>
                       </div>
                       <div className="border-t border-orange-200 pt-2 mt-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">After Concession:</span>
                           <span className="font-semibold text-orange-800">
-                            ₹{concessionCalculatedFees.total.toLocaleString()}
+                            â‚¹{concessionCalculatedFees.total.toLocaleString()}
                           </span>
                         </div>
                         <div className="mt-2 text-xs text-gray-500">
-                          <div>Term 1: ₹{concessionCalculatedFees.term1.toLocaleString()}</div>
-                          <div>Term 2: ₹{concessionCalculatedFees.term2.toLocaleString()}</div>
-                          <div>Term 3: ₹{concessionCalculatedFees.term3.toLocaleString()}</div>
+                          <div>Term 1: â‚¹{concessionCalculatedFees.term1.toLocaleString()}</div>
+                          <div>Term 2: â‚¹{concessionCalculatedFees.term2.toLocaleString()}</div>
+                          <div>Term 3: â‚¹{concessionCalculatedFees.term3.toLocaleString()}</div>
                         </div>
                       </div>
                     </>
@@ -6264,7 +5933,7 @@ const Students = () => {
             ) : concessionRequestForm.amount && Number(concessionRequestForm.amount) > 0 ? (
               <div className="bg-yellow-50 rounded-lg p-4 mb-4 border border-yellow-200">
                 <p className="text-sm text-yellow-800">
-                  ⚠️ Fee structure not available. Fee calculation preview unavailable.
+                  âš ï¸ Fee structure not available. Fee calculation preview unavailable.
                 </p>
               </div>
             ) : null}
@@ -6278,7 +5947,7 @@ const Students = () => {
                   <p className="text-xs">
                     This concession request will be submitted for approval. Once approved by super admin,
                     the fees will be recalculated automatically. You can track the approval status in the
-                    Fee Management → Concessions tab.
+                    Fee Management â†’ Concessions tab.
                   </p>
                 </div>
               </div>
@@ -6412,7 +6081,8 @@ const Students = () => {
       {/* Enhanced Tab Navigation */}
       <div className="mb-6 sm:mb-8">
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1 sm:p-2">
-          <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="flex flex-wrap gap-1 sm:gap-2 justify-center sm:justify-start flex-1">
             {TABS.map(t => {
               if (t.value === 'bulkUpload' && !canAddStudent) {
                 return null; // Hide Bulk Upload tab if no permission
@@ -6454,6 +6124,26 @@ const Students = () => {
                 </button>
               );
             })}
+            </div>
+            {tab === 'list' && (
+              <div className="flex items-center gap-2 shrink-0 px-1 sm:px-2">
+                <label htmlFor="students-academic-year" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                  Academic Year
+                </label>
+                <select
+                  id="students-academic-year"
+                  name="academicYear"
+                  value={filters.academicYear}
+                  onChange={handleFilterChange}
+                  className="min-w-[140px] px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                >
+                  <option value="">All Years</option>
+                  {generateAcademicYears().map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -6469,19 +6159,6 @@ const Students = () => {
       {editModal && renderEditModal()}
       {photoEditModal && renderPhotoEditModal()}
       {studentDetailsModal && renderStudentDetailsModal()}
-      <BatchRenewalModal
-        isOpen={renewalModalOpen}
-        onClose={() => setRenewalModalOpen(false)}
-        onRenew={handleRenewBatches}
-      />
-      <RenewalResultsModal
-        isOpen={renewalResultsModal}
-        onClose={() => {
-          setRenewalResultsModal(false);
-          setRenewalResults(null);
-        }}
-        results={renewalResults}
-      />
       {passwordResetModal && renderPasswordResetModal()}
       {renderShareModal()}
       {renderCameraModal()}
