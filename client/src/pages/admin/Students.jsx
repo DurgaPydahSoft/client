@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -3383,10 +3383,16 @@ const Students = () => {
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">All Students ( {totalStudents} )</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+              {filters.hostelStatus === 'Active'
+                ? `Active Students ( ${totalStudents} )`
+                : filters.hostelStatus === 'Inactive'
+                  ? `Expired Students ( ${totalStudents} )`
+                  : `All Students ( ${totalStudents} )`}
+            </h2>
             <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <span className="text-sm text-gray-600">
-                Showing {students.length} of {totalStudents} students
+                Showing {students.length} of {totalStudents} {filters.hostelStatus === 'Inactive' ? 'expired' : filters.hostelStatus === 'Active' ? 'active' : ''} students
                 {Object.entries(filters).some(([key, value]) => value && key !== 'search') && ' (filtered)'}
               </span>
             </div>
