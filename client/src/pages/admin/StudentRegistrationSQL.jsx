@@ -7,6 +7,11 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import { canPerformAction } from '../../utils/permissionUtils';
 
+const getDefaultAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
+
 const initialForm = {
   name: '',
   rollNumber: '',
@@ -28,7 +33,7 @@ const initialForm = {
   localGuardianName: '',
   localGuardianPhone: '',
   batch: '',
-  academicYear: '',
+  academicYear: getDefaultAcademicYear(),
   email: '',
   concession: 0,
   hostel: '',
@@ -279,8 +284,11 @@ const StudentRegistrationSQL = () => {
         const match = list.find(c => c._id === categoryIdOrName || (c.name || '').toLowerCase() === (categoryIdOrName || '').toLowerCase());
         if (match) finalCategoryId = match._id;
       }
-      const params = new URLSearchParams({ hostel: hostelId, category: finalCategoryId });
-      if (academicYear) params.set('academicYear', academicYear);
+      const params = new URLSearchParams({
+        hostel: hostelId,
+        category: finalCategoryId,
+        academicYear: academicYear || getDefaultAcademicYear()
+      });
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
       if (res.data.success) {
         setRoomsWithAvailability(res.data.data.rooms || []);
@@ -298,8 +306,9 @@ const StudentRegistrationSQL = () => {
     if (!roomNumber) return;
     setLoadingBedLocker(true);
     try {
-      const params = new URLSearchParams();
-      if (academicYear) params.set('academicYear', academicYear);
+      const params = new URLSearchParams({
+        academicYear: academicYear || getDefaultAcademicYear()
+      });
       if (hostelId) params.set('hostel', hostelId);
       if (categoryId) params.set('category', categoryId);
       const query = params.toString();

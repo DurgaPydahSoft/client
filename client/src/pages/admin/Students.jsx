@@ -47,6 +47,11 @@ const shouldShowFilterChip = (key, value) => {
   return true;
 };
 
+const getDefaultAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
+
 const initialForm = {
   name: '',
   rollNumber: '',
@@ -68,7 +73,7 @@ const initialForm = {
   localGuardianName: '',
   localGuardianPhone: '',
   batch: '',
-  academicYear: '',
+  academicYear: getDefaultAcademicYear(),
   email: '',
   hostelId: '', // Add hostelId field
   concession: 0 // Add concession field
@@ -199,10 +204,6 @@ const getCategoryValue = (category) => {
   return toDisplayText(category).replace(/\s*\(AC\)\s*$/i, '').trim();
 };
 
-const getDefaultAcademicYear = () => {
-  const year = new Date().getFullYear();
-  return `${year}-${year + 1}`;
-};
 
 const formatDisplayDate = (value) => {
   if (!value) return null;
@@ -765,7 +766,7 @@ const Students = () => {
   };
 
   // Fetch rooms with bed availability (using hostel and category)
-  const fetchRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName) => {
+  const fetchRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName, academicYear) => {
     if (!hostelIdOrGender || !categoryIdOrName) {
       setRoomsWithAvailability([]);
       return;
@@ -774,7 +775,7 @@ const Students = () => {
     // Normalize hostel: accept either hostel ObjectId or gender and map to hostel
     let finalHostelId = hostelIdOrGender;
     if (!/^[0-9a-fA-F]{24}$/.test(finalHostelId)) {
-      const mappedHostel = getHostelIdFromGender(finalHostelId);
+      const mappedHostel = getHostelIdFromGender(hostelIdOrGender);
       if (mappedHostel) {
         finalHostelId = mappedHostel;
       } else {
@@ -809,7 +810,8 @@ const Students = () => {
     try {
       const params = new URLSearchParams({
         hostel: finalHostelId,
-        category: finalCategoryId
+        category: finalCategoryId,
+        academicYear: academicYear || getDefaultAcademicYear()
       });
 
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
@@ -828,7 +830,7 @@ const Students = () => {
   };
 
   // Fetch rooms with bed availability for edit form (using hostel and category)
-  const fetchEditRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName) => {
+  const fetchEditRoomsWithAvailability = async (hostelIdOrGender, categoryIdOrName, academicYear) => {
     if (!hostelIdOrGender || !categoryIdOrName) {
       setEditRoomsWithAvailability([]);
       return;
@@ -837,7 +839,7 @@ const Students = () => {
     // Normalize hostel: accept hostel ObjectId or gender and map to hostel
     let finalHostelId = hostelIdOrGender;
     if (!/^[0-9a-fA-F]{24}$/.test(finalHostelId)) {
-      const mappedHostel = getHostelIdFromGender(finalHostelId);
+      const mappedHostel = getHostelIdFromGender(hostelIdOrGender);
       if (mappedHostel) {
         finalHostelId = mappedHostel;
       } else {
@@ -872,7 +874,8 @@ const Students = () => {
     try {
       const params = new URLSearchParams({
         hostel: finalHostelId,
-        category: finalCategoryId
+        category: finalCategoryId,
+        academicYear: academicYear || getDefaultAcademicYear()
       });
 
       const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
@@ -912,7 +915,7 @@ const Students = () => {
   };
 
   // Fetch bed and locker availability for a room
-  const fetchBedLockerAvailability = async (roomNumber) => {
+  const fetchBedLockerAvailability = async (roomNumber, academicYear) => {
     if (!roomNumber) {
       setBedLockerAvailability(null);
       return;
@@ -920,7 +923,10 @@ const Students = () => {
 
     setLoadingBedLocker(true);
     try {
-      const response = await api.get(`/api/admin/rooms/${roomNumber}/bed-locker-availability`);
+      const params = new URLSearchParams({
+        academicYear: academicYear || getDefaultAcademicYear()
+      });
+      const response = await api.get(`/api/admin/rooms/${roomNumber}/bed-locker-availability?${params.toString()}`);
       if (response.data.success) {
         const data = response.data.data;
         setBedLockerAvailability(data);
@@ -938,6 +944,7 @@ const Students = () => {
       setLoadingBedLocker(false);
     }
   };
+
 
   // Auto-select first available bed and corresponding locker
   const autoSelectBedAndLocker = (availabilityData) => {
@@ -1185,11 +1192,11 @@ const Students = () => {
   // Fetch rooms with availability when gender, category, or categories change
   useEffect(() => {
     if (form.gender && form.category && categories.length > 0) {
-      fetchRoomsWithAvailability(form.gender, form.category);
+      fetchRoomsWithAvailability(form.gender, form.category, form.academicYear);
     } else {
       setRoomsWithAvailability([]);
     }
-  }, [form.gender, form.category, categories]);
+  }, [form.gender, form.category, categories, form.academicYear]);
 
   // Fetch categories for edit form when gender changes (maps to hostel)
   useEffect(() => {
@@ -1206,16 +1213,16 @@ const Students = () => {
   // Fetch rooms with availability for edit form when gender, category, or categories change
   useEffect(() => {
     if (editForm.gender && editForm.category && categories.length > 0) {
-      fetchEditRoomsWithAvailability(editForm.gender, editForm.category);
+      fetchEditRoomsWithAvailability(editForm.gender, editForm.category, editForm.academicYear);
     } else {
       setEditRoomsWithAvailability([]);
     }
-  }, [editForm.gender, editForm.category, categories]);
+  }, [editForm.gender, editForm.category, categories, editForm.academicYear]);
 
   // Fetch bed/locker availability when room is selected
   useEffect(() => {
     if (form.roomNumber) {
-      fetchBedLockerAvailability(form.roomNumber);
+      fetchBedLockerAvailability(form.roomNumber, form.academicYear);
     } else {
       setBedLockerAvailability(null);
       // Clear bed and locker selections when room changes
@@ -1225,7 +1232,7 @@ const Students = () => {
         lockerNumber: ''
       }));
     }
-  }, [form.roomNumber]);
+  }, [form.roomNumber, form.academicYear]);
 
   // Fetch fee structure when course, year, category or academic year changes
   useEffect(() => {
@@ -1270,7 +1277,7 @@ const Students = () => {
         newForm.lockerNumber = '';
         // Fetch bed/locker availability and auto-select
         if (value) {
-          fetchBedLockerAvailability(value);
+          fetchBedLockerAvailability(value, newForm.academicYear);
         } else {
           setBedLockerAvailability(null);
         }
@@ -1279,6 +1286,7 @@ const Students = () => {
       return newForm;
     });
   };
+
 
   // Photo handling functions
   const handlePhotoChange = (e, type) => {
@@ -1711,11 +1719,12 @@ const Students = () => {
     if (student.gender && getCategoryValue(student.category)) {
       const categoryName = getCategoryValue(student.category);
       console.log('Fetching rooms for edit form:', student.gender, categoryName);
-      fetchEditRoomsWithAvailability(student.gender, categoryName);
+      fetchEditRoomsWithAvailability(student.gender, categoryName, student.academicYear);
     }
 
     setEditModal(true);
   };
+
 
   const handleEditFormChange = e => {
     const { name, value, type, checked } = e.target;

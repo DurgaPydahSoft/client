@@ -364,6 +364,20 @@ const RoomManagement = () => {
     setShowEditModal(true);
   };
 
+  const handleCreateHostel = () => {
+    setShowEditModal(false);
+    setAddTab('hostel');
+    setShowAddModal(true);
+  };
+
+  const handleCreateCategory = () => {
+    setShowEditModal(false);
+    setAddTab('category');
+    setCategoryForm(prev => ({ ...prev, hostel: formData.hostel }));
+    setShowAddModal(true);
+  };
+
+
   // Filter rooms based on selected filters
   const filteredRooms = rooms.filter(room => {
     if (filters.hostel && (room.hostel?._id || room.hostel) !== filters.hostel) return false;
