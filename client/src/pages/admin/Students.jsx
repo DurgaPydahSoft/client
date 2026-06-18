@@ -3651,7 +3651,7 @@ const Students = () => {
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
                             <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
                             <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {getCourseDisplay(student.course)}
+                              {getCourseDisplay(student.course)} - Year {student.year}
                             </td>
                             <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
                               <div className="flex flex-col">

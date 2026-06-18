@@ -573,25 +573,39 @@ const FeeStructureManagement = () => {
     });
   };
 
-  // Group structures by academic year, course, year, hostel, category, and fee type
+  // Group structures by academic year, course, year, hostel, and fee type (consolidating categories)
   const groupedStructures = useMemo(() => {
     const groups = {};
     rows.forEach((row) => {
-      const key = `${row.academicYear}-${row.course}-${row.year}-${row.hostelId?._id || row.hostelId || 'all'}-${row.categoryId?._id || row.categoryId || 'all'}-${row.feeType}`;
+      const hostelIdVal = row.hostelId?._id || row.hostelId || 'all';
+      const hostelName = row.hostelId?.name || 'All Hostels';
+      const key = `${row.academicYear}-${row.course}-${row.year}-${hostelIdVal}-${row.feeType}`;
       if (!groups[key]) {
         groups[key] = {
           academicYear: row.academicYear,
           course: row.course,
           year: row.year,
           hostelId: row.hostelId,
-          categoryId: row.categoryId,
+          hostelName: hostelName,
           feeType: row.feeType,
-          amount: row.amount,
-          _id: row._id,
+          categories: [],
         };
       }
+      groups[key].categories.push({
+        categoryId: row.categoryId?._id || row.categoryId || null,
+        categoryName: row.categoryId?.name || 'All Categories',
+        amount: row.amount,
+        _id: row._id,
+        rawRow: row,
+      });
     });
-    return Object.values(groups);
+
+    const result = Object.values(groups);
+    // Sort categories within each group to ensure uniform ordering
+    result.forEach((group) => {
+      group.categories.sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+    });
+    return result;
   }, [rows]);
 
   const renderStructureTab = () => (
@@ -745,74 +759,76 @@ const FeeStructureManagement = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
                           Hostel
                         </th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                          Category
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider border-r border-gray-200">
-                          Amount
-                        </th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Actions
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                          Category Prices
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {rows.map((row) => (
-                        <tr key={row._id} className="hover:bg-gray-50 transition-colors duration-150">
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                            <div className="flex items-center">
-                              <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
-                              {row.academicYear}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                            <div className="flex items-center">
-                              <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                              {getCourseLabel(row.course)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
-                            <div className="flex items-center justify-center">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                Year {row.year}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 border-r border-gray-200">
-                            {row.hostelId?.name || '-'}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 border-r border-gray-200">
-                            {row.categoryId?.name || '-'}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-center border-r border-gray-200">
-                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200">
-                              <div className="text-lg font-bold text-green-700">
-                                ₹{row.amount?.toLocaleString() || 0}
+                      {groupedStructures.map((group) => {
+                        const groupKey = `${group.academicYear}-${group.course}-${group.year}-${group.hostelId?._id || group.hostelId || 'all'}-${group.feeType}`;
+                        return (
+                          <tr key={groupKey} className="hover:bg-gray-50 transition-colors duration-150">
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center">
+                                <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
+                                {group.academicYear}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-center">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => openModal(row)}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors duration-200"
-                                title="Edit"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              <button
-                                onClick={() => handleDelete(row._id)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors duration-200"
-                                title="Delete"
-                              >
-                                <TrashIcon className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center">
+                                <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
+                                {getCourseLabel(group.course)}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                              <div className="flex items-center justify-center">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  Year {group.year}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 border-r border-gray-200">
+                              {group.hostelId?.name || 'All Hostels'}
+                            </td>
+                            <td className="px-4 py-4 text-sm text-gray-700">
+                              <div className="flex flex-wrap gap-2">
+                                {group.categories.map((cat) => (
+                                  <div
+                                    key={cat._id}
+                                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 transition-colors duration-150 shadow-sm"
+                                  >
+                                    <span className="text-xs font-semibold text-indigo-950">
+                                      {cat.categoryName === 'A+' ? 'A+ (AC)' : cat.categoryName === 'B+' ? 'B+ (AC)' : cat.categoryName}
+                                    </span>
+                                    <span className="text-sm font-bold text-green-700">
+                                      ₹{cat.amount?.toLocaleString() || 0}
+                                    </span>
+                                    <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-indigo-200">
+                                      <button
+                                        onClick={() => openModal(cat.rawRow)}
+                                        className="text-blue-600 hover:text-blue-900 p-0.5 rounded hover:bg-blue-100 transition-colors duration-150"
+                                        title="Edit"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => handleDelete(cat._id)}
+                                        className="text-red-600 hover:text-red-900 p-0.5 rounded hover:bg-red-100 transition-colors duration-150"
+                                        title="Delete"
+                                      >
+                                        <TrashIcon className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -820,65 +836,76 @@ const FeeStructureManagement = () => {
 
               {/* Mobile Card View */}
               <div className="lg:hidden space-y-4">
-                {rows.map((row) => (
-                  <div
-                    key={row._id}
-                    className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-1">
-                          <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
-                          <span className="text-sm font-semibold text-gray-900">{row.academicYear}</span>
-                        </div>
-                        <div className="flex items-center mb-1">
-                          <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
-                          <span className="text-sm font-medium text-gray-700">{getCourseLabel(row.course)}</span>
-                        </div>
-                        <div className="mt-2 space-y-1">
-                          <div className="text-xs text-gray-600">
-                            Hostel: <span className="font-medium">{row.hostelId?.name || 'All'}</span>
+                {groupedStructures.map((group) => {
+                  const groupKey = `${group.academicYear}-${group.course}-${group.year}-${group.hostelId?._id || group.hostelId || 'all'}-${group.feeType}`;
+                  return (
+                    <div
+                      key={groupKey}
+                      className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center">
+                            <AcademicCapIcon className="w-4 h-4 text-blue-500 mr-2" />
+                            <span className="text-sm font-semibold text-gray-900">{group.academicYear}</span>
                           </div>
-                          <div className="text-xs text-gray-600">
-                            Category: <span className="font-medium">{row.categoryId?.name || 'All'}</span>
+                          <div className="flex items-center">
+                            <UserGroupIcon className="w-4 h-4 text-green-500 mr-2" />
+                            <span className="text-sm font-medium text-gray-700">{getCourseLabel(group.course)}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 pl-6">
+                            Hostel: <span className="font-semibold text-gray-700">{group.hostelId?.name || 'All Hostels'}</span>
                           </div>
                         </div>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                            Year {row.year}
+                        <div className="mt-2 sm:mt-0">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                            Year {group.year}
                           </span>
                         </div>
                       </div>
-                      <div className="ml-4 text-right">
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-3 border border-green-200 mb-2">
-                          <div className="text-base sm:text-lg font-bold text-green-700">
-                            ₹{row.amount?.toLocaleString() || 0}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => openModal(row)}
-                            className="text-blue-600 hover:text-blue-900 p-2 rounded hover:bg-blue-50"
-                            title="Edit"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(row._id)}
-                            className="text-red-600 hover:text-red-900 p-2 rounded hover:bg-red-50"
-                            title="Delete"
-                          >
-                            <TrashIcon className="w-4 h-4" />
-                          </button>
+
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Category Prices</div>
+                        <div className="flex flex-wrap gap-2">
+                          {group.categories.map((cat) => (
+                            <div
+                              key={cat._id}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 transition-colors duration-150 shadow-sm"
+                            >
+                              <span className="text-xs font-semibold text-indigo-950">
+                                {cat.categoryName === 'A+' ? 'A+ (AC)' : cat.categoryName === 'B+' ? 'B+ (AC)' : cat.categoryName}
+                              </span>
+                              <span className="text-sm font-bold text-green-700">
+                                ₹{cat.amount?.toLocaleString() || 0}
+                              </span>
+                              <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-indigo-200">
+                                <button
+                                  onClick={() => openModal(cat.rawRow)}
+                                  className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-100 transition-colors duration-150"
+                                  title="Edit"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(cat._id)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-100 transition-colors duration-150"
+                                  title="Delete"
+                                >
+                                  <TrashIcon className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
+
           )}
         </div>
       </div>
