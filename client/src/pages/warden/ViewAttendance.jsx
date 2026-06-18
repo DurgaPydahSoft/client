@@ -30,12 +30,28 @@ const ViewAttendance = () => {
     startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+  const getDefaultAcademicYear = () => {
+    const year = new Date().getFullYear();
+    return `${year}-${year + 1}`;
+  };
+
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    return years;
+  };
+
   const [filters, setFilters] = useState({
     studentId: '',
     course: '',
     branch: '',
     gender: '',
-    status: ''
+    status: '',
+    academicYear: getDefaultAcademicYear()
   });
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
@@ -94,6 +110,7 @@ const ViewAttendance = () => {
       if (filters.branch) params.append('branch', filters.branch);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
 
       const response = await api.get(`/api/attendance/date?${params}`);
       
@@ -127,6 +144,7 @@ const ViewAttendance = () => {
       // Add other filters that don't involve course/branch IDs
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
 
       console.log('🔍 ViewAttendance: API params for range view:', params.toString());
       console.log('🔍 ViewAttendance: Current filters:', filters);
@@ -457,7 +475,24 @@ const ViewAttendance = () => {
           transition={{ delay: 0.2 }}
           className="bg-white rounded-lg shadow-sm p-6 mb-6"
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+            {/* Academic Year Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+              <select
+                name="academicYear"
+                value={filters.academicYear}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-700 bg-white"
+              >
+                {generateAcademicYears().map((year) => (
+                  <option key={year} value={year}>
+                    {year} AY
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* View Mode Toggle */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">View Mode</label>

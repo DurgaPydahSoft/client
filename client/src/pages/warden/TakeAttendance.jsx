@@ -53,11 +53,28 @@ const TakeAttendance = () => {
   const [students, setStudents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(getCurrentISTDate());
   const [attendanceData, setAttendanceData] = useState({});
+
+  const getDefaultAcademicYear = () => {
+    const year = new Date().getFullYear();
+    return `${year}-${year + 1}`;
+  };
+
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    return years;
+  };
+
   const [filters, setFilters] = useState({
     gender: '',
     hostel: '',
     category: '',
-    roomNumber: ''
+    roomNumber: '',
+    academicYear: getDefaultAcademicYear()
   });
   const [roomInput, setRoomInput] = useState('');
   const [stats, setStats] = useState({
@@ -324,6 +341,7 @@ const TakeAttendance = () => {
       }
 
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
 
       console.log('🔍 API params:', params.toString());
 
@@ -825,6 +843,23 @@ const TakeAttendance = () => {
           {showMobileFilters && (
             <div className="lg:hidden mb-4 p-3 bg-gray-50 rounded-lg">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Academic Year Filter */}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+                  <select
+                    name="academicYear"
+                    value={filters.academicYear}
+                    onChange={handleFilterChange}
+                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
+                  >
+                    {generateAcademicYears().map(year => (
+                      <option key={year} value={year}>
+                        {year} AY
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Hostel Filter - Disabled for wardens (auto-selected based on hostelType) */}
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Hostel</label>
@@ -923,6 +958,23 @@ const TakeAttendance = () => {
 
           {/* Desktop Controls */}
           <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4">
+            {/* Academic Year Filter */}
+            <div className="sm:col-span-1">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
+              <select
+                name="academicYear"
+                value={filters.academicYear}
+                onChange={handleFilterChange}
+                className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm font-medium text-gray-700 bg-white"
+              >
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>
+                    {year} AY
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Date Selector */}
             <div className="sm:col-span-1">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">

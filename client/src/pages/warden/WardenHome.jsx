@@ -19,6 +19,23 @@ const WardenHome = () => {
   const [loading, setLoading] = useState(true);
   const [announcements, setAnnouncements] = useState([]);
   const [genderFilter, setGenderFilter] = useState(''); // 'All', 'Male', 'Female'
+
+  const getDefaultAcademicYear = () => {
+    const year = new Date().getFullYear();
+    return `${year}-${year + 1}`;
+  };
+
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    return years;
+  };
+
+  const [academicYear, setAcademicYear] = useState(getDefaultAcademicYear());
   const [stats, setStats] = useState({
     totalStudents: 0,
     activeStudents: 0,
@@ -33,7 +50,7 @@ const WardenHome = () => {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [genderFilter]);
+  }, [genderFilter, academicYear]);
 
   const fetchDashboardData = async () => {
     try {
@@ -56,25 +73,25 @@ const WardenHome = () => {
         api.get('/api/announcements/warden'),
         
         // Get total students count (optimized endpoint)
-        api.get('/api/admin/students/count'),
+        api.get(`/api/admin/students/count?academicYear=${academicYear}`),
         
         // Get today's attendance (single call)
-        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}`),
+        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}&academicYear=${academicYear}`),
         
         // Get active students count (optimized)
-        api.get('/api/admin/students/count?hostelStatus=Active'),
+        api.get(`/api/admin/students/count?hostelStatus=Active&academicYear=${academicYear}`),
         
         // Get gender-specific counts (optimized)
-        api.get('/api/admin/students/count?gender=Male'),
-        api.get('/api/admin/students/count?gender=Female'),
+        api.get(`/api/admin/students/count?gender=Male&academicYear=${academicYear}`),
+        api.get(`/api/admin/students/count?gender=Female&academicYear=${academicYear}`),
         
         // Get gender-specific active counts (optimized)
-        api.get('/api/admin/students/count?gender=Male&hostelStatus=Active'),
-        api.get('/api/admin/students/count?gender=Female&hostelStatus=Active'),
+        api.get(`/api/admin/students/count?gender=Male&hostelStatus=Active&academicYear=${academicYear}`),
+        api.get(`/api/admin/students/count?gender=Female&hostelStatus=Active&academicYear=${academicYear}`),
         
         // Get gender-specific attendance (optimized)
-        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}&gender=Male`),
-        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}&gender=Female`)
+        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}&gender=Male&academicYear=${academicYear}`),
+        api.get(`/api/attendance/date?date=${new Date().toISOString().split('T')[0]}&gender=Female&academicYear=${academicYear}`)
       ]);
 
       // Process announcements
@@ -179,20 +196,33 @@ const WardenHome = () => {
               Welcome back! Here's an overview of hostel announcements and student management.
             </p>
           </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
                 <FunnelIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500" />
-              <select
-                value={genderFilter}
-                onChange={(e) => setGenderFilter(e.target.value)}
+                <select
+                  value={genderFilter}
+                  onChange={(e) => setGenderFilter(e.target.value)}
                   className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm"
-              >
-                <option value="">All Students</option>
-                <option value="Male">Male Students</option>
-                <option value="Female">Female Students</option>
-              </select>
+                >
+                  <option value="">All Students</option>
+                  <option value="Male">Male Students</option>
+                  <option value="Female">Female Students</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={academicYear}
+                  onChange={(e) => setAcademicYear(e.target.value)}
+                  className="px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm font-medium text-gray-700 bg-white"
+                >
+                  {generateAcademicYears().map((year) => (
+                    <option key={year} value={year}>
+                      {year} AY
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
         </div>
         </motion.div>
 
