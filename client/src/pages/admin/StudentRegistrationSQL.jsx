@@ -332,7 +332,7 @@ const StudentRegistrationSQL = () => {
   };
 
   // Fetch fee structure
-  const fetchFeeStructure = async (courseIdOrName, branchIdOrName, year, categoryName, academicYear) => {
+  const fetchFeeStructure = async (courseIdOrName, branchIdOrName, year, categoryName, academicYear, studentId = '') => {
     const courseName = getCourseNameById(courseIdOrName);
     const branchName = getBranchNameById(branchIdOrName);
     if (!courseName || !branchName || !year || !categoryName || !academicYear) {
@@ -341,7 +341,9 @@ const StudentRegistrationSQL = () => {
     }
     setLoadingFeeStructure(true);
     try {
-      const res = await api.get(`/api/fee-structures/admit-card/${academicYear}/${encodeURIComponent(courseName)}/${encodeURIComponent(branchName)}/${year}/${encodeURIComponent(categoryName)}`);
+      const id = studentId || form.rollNumber || form.admissionNumber;
+      const url = `/api/fee-structures/admit-card/${academicYear}/${encodeURIComponent(courseName)}/${encodeURIComponent(branchName)}/${year}/${encodeURIComponent(categoryName)}${id ? `?identifier=${encodeURIComponent(id)}` : ''}`;
+      const res = await api.get(url);
       if (res.data.success) {
         setFeeStructure(res.data.data);
         const term1 = res.data.data.term1Fee || 0;
@@ -516,7 +518,8 @@ const StudentRegistrationSQL = () => {
           updatedForm.branch,
           updatedForm.year,
           updatedForm.category,
-          updatedForm.academicYear
+          updatedForm.academicYear,
+          updatedForm.rollNumber || updatedForm.admissionNumber
         );
       }
     }
@@ -707,11 +710,18 @@ const StudentRegistrationSQL = () => {
   // Fetch fee structure when relevant fields change (derived values)
   useEffect(() => {
     if (form.course && form.branch && form.year && form.category && form.academicYear) {
-      fetchFeeStructure(form.course, form.branch, form.year, form.category, form.academicYear);
+      fetchFeeStructure(
+        form.course,
+        form.branch,
+        form.year,
+        form.category,
+        form.academicYear,
+        form.rollNumber || form.admissionNumber
+      );
     } else {
       setFeeStructure(null);
     }
-  }, [form.course, form.branch, form.year, form.category, form.academicYear]);
+  }, [form.course, form.branch, form.year, form.category, form.academicYear, form.rollNumber, form.admissionNumber]);
 
   if (!canAddStudent) {
     return (
@@ -995,20 +1005,7 @@ const StudentRegistrationSQL = () => {
                   <p className="text-xs text-red-600 mt-1">{academicYearError}</p>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Concession (₹)</label>
-                <input
-                  type="number"
-                  name="concession"
-                  min="0"
-                  step="1"
-                  value={form.concession}
-                  onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Enter concession amount"
-                />
-                <p className="text-xs text-gray-500 mt-1">Optional: fixed amount to deduct from fee</p>
-              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Hostel *</label>
                 <select
@@ -1131,8 +1128,20 @@ const StudentRegistrationSQL = () => {
 
           {/* Fee Structure Display (moved just after hostel info for visibility) */}
           {feeStructure && (
-            <div className="bg-green-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Fee Structure</h3>
+            <div className={`${feeStructure.isRevisedFee ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-green-50'} rounded-lg p-6 transition-all duration-300`}>
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold text-gray-900">Fee Structure</h3>
+                {feeStructure.isRevisedFee && (
+                  <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold border border-amber-300 animate-pulse">
+                    Revised Fee Applied
+                  </span>
+                )}
+              </div>
+              {feeStructure.isRevisedFee && (
+                <p className="text-sm text-amber-800 mb-4 bg-amber-100 bg-opacity-50 p-2 rounded-md">
+                  Note: A custom revised fee was found in the database for this student and has been applied automatically.
+                </p>
+              )}
               <div className="grid grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
@@ -1147,7 +1156,7 @@ const StudentRegistrationSQL = () => {
                   <div className="text-sm text-gray-600">Term 3</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
+                  <div className={`${feeStructure.isRevisedFee ? 'text-amber-600' : 'text-green-600'} text-2xl font-bold`}>₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
                   <div className="text-sm text-gray-600">Total</div>
                 </div>
               </div>

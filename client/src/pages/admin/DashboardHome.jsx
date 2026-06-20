@@ -371,7 +371,6 @@ const DashboardHome = () => {
 
         // Fetch all data in parallel
         const [
-          studentsRes,
           studentsCountRes,
           courseCountsRes,
           attendanceStatsRes,
@@ -386,7 +385,6 @@ const DashboardHome = () => {
           todaysMenuRes
         ] = await Promise.allSettled(
           [
-            api.get('/api/admin/students?hostelStatus=Active&limit=5000'),
             api.get('/api/admin/students/count'),
             api.get('/api/admin/students/course-counts?hostelStatus=Active'),
             api.get(`/api/attendance/stats?date=${today}`),
@@ -416,30 +414,9 @@ const DashboardHome = () => {
 
         if (studentsCountRes.status === 'fulfilled' && studentsCountRes.value.data.success) {
           activeCount = studentsCountRes.value.data.data.count || 0;
+          newThisWeek = studentsCountRes.value.data.data.newThisWeek || 0;
         }
 
-        if (studentsRes.status === 'fulfilled' && studentsRes.value.data.success) {
-          let students = studentsRes.value.data.data.students || [];
-
-          if (user?.role === 'principal') {
-            const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
-            if (allowedCourses.length > 0) {
-              const allowed = new Set(allowedCourses.map(c => normalizeText(c)));
-              students = students.filter(s => {
-                const studentCourse = s.course?.name || s.course;
-                return allowed.has(normalizeText(studentCourse));
-              });
-            }
-          }
-
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          newThisWeek = students.filter(s => new Date(s.createdAt) >= oneWeekAgo).length;
-
-          if (!activeCount) {
-            activeCount = students.length;
-          }
-        }
 
         if (courseCountsRes.status === 'fulfilled' && courseCountsRes.value.data.success) {
           const countsData = courseCountsRes.value.data.data || {};
