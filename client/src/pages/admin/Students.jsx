@@ -224,7 +224,8 @@ const getHostelStatusDisplay = (student) => {
     return {
       label: 'Active',
       badgeClass: 'bg-green-100 text-green-800',
-      expiryText: null
+      expiryText: null,
+      nocDateText: null
     };
   }
 
@@ -233,14 +234,16 @@ const getHostelStatusDisplay = (student) => {
     return {
       label: 'Expired',
       badgeClass: 'bg-red-100 text-red-800',
-      expiryText: formatDisplayDate(expiryDate)
+      expiryText: formatDisplayDate(expiryDate),
+      nocDateText: student.nocDate ? formatDisplayDate(student.nocDate) : null
     };
   }
 
   return {
     label: student?.hostelStatus || '—',
     badgeClass: 'bg-gray-100 text-gray-800',
-    expiryText: null
+    expiryText: null,
+    nocDateText: null
   };
 };
 
@@ -3692,11 +3695,15 @@ const Students = () => {
                                       >
                                         {statusDisplay.label}
                                       </span>
-                                      {statusDisplay.expiryText && (
+                                      {statusDisplay.nocDateText ? (
+                                        <span className="text-xs text-gray-500">
+                                          NOC taken on {statusDisplay.nocDateText}
+                                        </span>
+                                      ) : statusDisplay.expiryText ? (
                                         <span className="text-xs text-gray-500">
                                           Expired on {statusDisplay.expiryText}
                                         </span>
-                                      )}
+                                      ) : null}
                                     </>
                                   );
                                 })()}
@@ -4036,11 +4043,15 @@ const Students = () => {
                             >
                               {statusDisplay.label}
                             </span>
-                            {statusDisplay.expiryText && (
+                            {statusDisplay.nocDateText ? (
+                              <span className="text-xs text-gray-500">
+                                NOC taken on {statusDisplay.nocDateText}
+                              </span>
+                            ) : statusDisplay.expiryText ? (
                               <span className="text-xs text-gray-500">
                                 Expired on {statusDisplay.expiryText}
                               </span>
-                            )}
+                            ) : null}
                           </div>
                         );
                       })()}

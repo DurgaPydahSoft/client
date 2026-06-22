@@ -9,10 +9,10 @@ import {
   XCircleIcon,
   EyeIcon,
   UserIcon,
-  CalendarIcon,
   FunnelIcon,
   PlusIcon,
-  MagnifyingGlassIcon
+  MagnifyingGlassIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -22,26 +22,9 @@ const NOCManagement = () => {
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [action, setAction] = useState(''); // 'verify', 'reject', or 'view'
+  const [action, setAction] = useState(''); // 'verify' (approve), 'reject', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checklistItems, setChecklistItems] = useState([]);
-  const [checklistResponses, setChecklistResponses] = useState([]);
-
-  // Meter reading state
-  const [showMeterReadingModal, setShowMeterReadingModal] = useState(false);
-  const [meterReadingForm, setMeterReadingForm] = useState({
-    meterType: 'single',
-    startUnits: '',
-    endUnits: '',
-    meter1StartUnits: '',
-    meter1EndUnits: '',
-    meter2StartUnits: '',
-    meter2EndUnits: '',
-    rate: ''
-  });
-  const [isSubmittingMeterReading, setIsSubmittingMeterReading] = useState(false);
-  const [roomInfo, setRoomInfo] = useState(null);
 
   // Create NOC on behalf of student state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -146,68 +129,15 @@ const NOCManagement = () => {
     }
   };
 
-  const fetchChecklistItems = async () => {
-    try {
-      const response = await api.get('/api/noc/warden/checklist');
-      if (response.data.success) {
-        setChecklistItems(response.data.data);
-        // Initialize checklist responses
-        const initialResponses = response.data.data.map(item => ({
-          checklistItemId: item.id || item._id,
-          amount: '',
-          remarks: ''
-        }));
-        setChecklistResponses(initialResponses);
-      }
-    } catch (error) {
-      console.error('Error fetching checklist items:', error);
-      toast.error('Failed to fetch checklist items');
-    }
-  };
-
   const handleAction = async (request, actionType) => {
     setSelectedRequest(request);
     setAction(actionType);
     setRemarks('');
-    
-    if (actionType === 'verify') {
-      // Fetch checklist items and initialize responses
-      await fetchChecklistItems();
-      
-      // If resubmitting after correction, populate existing responses
-      if (request.checklistResponses && request.checklistResponses.length > 0) {
-        const existingResponses = request.checklistResponses.map(response => ({
-          checklistItemId: response.checklistItemId?.id || response.checklistItemId?._id || response.checklistItemId,
-          amount: response.amount || '',
-          remarks: response.remarks || ''
-        }));
-        setChecklistResponses(existingResponses);
-      }
-    }
-    
     setShowModal(true);
   };
 
   const handleSubmitAction = async () => {
     if (!selectedRequest) return;
-
-    if (action === 'verify') {
-      // Validate checklist responses
-      const activeItems = checklistItems.filter(item => item.isActive);
-      if (activeItems.length > 0) {
-        const missingItems = activeItems.filter(item => {
-          const response = checklistResponses.find(r => 
-            (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
-          );
-          return !response || !response.amount || !response.amount.trim();
-        });
-
-        if (missingItems.length > 0) {
-          toast.error(`Please fill amount for all checklist items`);
-            return;
-        }
-      }
-    }
 
     setIsSubmitting(true);
     try {
@@ -217,24 +147,16 @@ const NOCManagement = () => {
         : `/api/noc/warden/${requestId}/reject`;
       
       const payload = action === 'verify' 
-        ? { 
-            remarks,
-            checklistResponses: checklistResponses.map(r => ({
-              checklistItemId: r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId,
-              amount: r.amount.trim(),
-              remarks: r.remarks ? r.remarks.trim() : ''
-            }))
-          }
+        ? { remarks }
         : { rejectionReason: remarks };
 
       const response = await api.post(url, payload);
       
       if (response.data.success) {
-        toast.success(`NOC request ${action === 'verify' ? 'verified' : 'rejected'} successfully`);
+        toast.success(`NOC request ${action === 'verify' ? 'approved' : 'rejected'} successfully`);
         setShowModal(false);
         setSelectedRequest(null);
         setRemarks('');
-        setChecklistResponses([]);
         fetchNOCRequests();
       }
     } catch (error) {
@@ -245,46 +167,16 @@ const NOCManagement = () => {
     }
   };
 
-  const updateChecklistResponse = (itemId, field, value) => {
-    setChecklistResponses(prev => {
-      const existing = prev.find(r => 
-        (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (itemId?.id || itemId?._id || itemId)
-      );
-      
-      if (existing) {
-        return prev.map(r => 
-          (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (itemId?.id || itemId?._id || itemId)
-            ? { ...r, [field]: value }
-            : r
-        );
-      } else {
-        return [...prev, {
-          checklistItemId: itemId?.id || itemId?._id || itemId,
-          amount: field === 'amount' ? value : '',
-          remarks: field === 'remarks' ? value : ''
-        }];
-      }
-    });
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Warden Verified':
-        return 'bg-blue-100 text-blue-800';
-      case 'Sent for Correction':
-        return 'bg-orange-100 text-orange-800';
-      case 'Admin Approved - Pending Meter Reading':
-        return 'bg-purple-100 text-purple-800';
-      case 'Ready for Deactivation':
-        return 'bg-indigo-100 text-indigo-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'Approved':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'Rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
@@ -292,12 +184,6 @@ const NOCManagement = () => {
     switch (status) {
       case 'Pending':
         return <ClockIcon className="h-4 w-4" />;
-      case 'Warden Verified':
-        return <CheckCircleIcon className="h-4 w-4" />;
-      case 'Admin Approved - Pending Meter Reading':
-        return <ClockIcon className="h-4 w-4" />;
-      case 'Ready for Deactivation':
-        return <CheckCircleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Rejected':
@@ -351,8 +237,7 @@ const NOCManagement = () => {
                     className="flex items-center px-3 py-1.5 sm:py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 text-xs sm:text-sm"
                   >
                     <PlusIcon className="h-4 w-4 mr-1" />
-                    <span className="hidden sm:inline">Create NOC</span>
-                    <span className="sm:hidden">Create</span>
+                    <span>Create NOC</span>
                   </button>
                   <div className="flex items-center">
                     <FunnelIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 mr-1 sm:mr-2" />
@@ -363,10 +248,6 @@ const NOCManagement = () => {
                     >
                       <option value="all">All Requests</option>
                       <option value="Pending">Pending</option>
-                      <option value="Sent for Correction">Sent for Correction</option>
-                      <option value="Warden Verified">Warden Verified</option>
-                      <option value="Admin Approved - Pending Meter Reading">Admin Approved - Pending Meter Reading</option>
-                      <option value="Ready for Deactivation">Ready for Deactivation</option>
                       <option value="Approved">Approved</option>
                       <option value="Rejected">Rejected</option>
                     </select>
@@ -412,6 +293,12 @@ const NOCManagement = () => {
                               Raised by Warden
                             </span>
                           )}
+                          {request.raisedBy === 'admin' && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit mt-1 sm:mt-0">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Raised by Admin
+                            </span>
+                          )}
                           <span className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-0">
                             Submitted on {formatDate(request.createdAt)}
                           </span>
@@ -455,11 +342,11 @@ const NOCManagement = () => {
                           )}
                         </div>
 
-                        {/* Admin Remarks (if sent for correction) */}
-                        {request.adminRemarks && (
-                          <div className="mt-3 p-2 sm:p-3 bg-orange-50 rounded-md">
-                            <p className="text-xs sm:text-sm text-orange-800 break-words">
-                              <span className="font-medium">Admin Remarks (Corrections Required):</span> {request.adminRemarks}
+                        {/* Rejection Reason */}
+                        {request.rejectionReason && (
+                          <div className="mt-3 p-2 sm:p-3 bg-red-50 rounded-md">
+                            <p className="text-xs sm:text-sm text-red-800 break-words">
+                              <span className="font-medium">Rejection Reason:</span> {request.rejectionReason}
                             </p>
                           </div>
                         )}
@@ -468,7 +355,16 @@ const NOCManagement = () => {
                         {request.wardenRemarks && (
                           <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md">
                             <p className="text-xs sm:text-sm text-blue-800 break-words">
-                              <span className="font-medium">Your Remarks:</span> {request.wardenRemarks}
+                              <span className="font-medium">Remarks:</span> {request.wardenRemarks}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Admin Remarks */}
+                        {request.adminRemarks && (
+                          <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md">
+                            <p className="text-xs sm:text-sm text-blue-800 break-words">
+                              <span className="font-medium">Admin Remarks:</span> {request.adminRemarks}
                             </p>
                           </div>
                         )}
@@ -487,13 +383,13 @@ const NOCManagement = () => {
                           <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                         </button>
                         
-                        {(request.status === 'Pending' || request.status === 'Sent for Correction') && (
+                        {request.status === 'Pending' && (
                           <div className="flex space-x-1 sm:space-x-2">
                             <button
                               onClick={() => handleAction(request, 'verify')}
                               className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 whitespace-nowrap"
                             >
-                              Verify
+                              Approve
                             </button>
                             <button
                               onClick={() => handleAction(request, 'reject')}
@@ -502,37 +398,6 @@ const NOCManagement = () => {
                               Reject
                             </button>
                           </div>
-                        )}
-                        
-                        {request.status === 'Admin Approved - Pending Meter Reading' && (
-                          <button
-                            onClick={async () => {
-                              setSelectedRequest(request);
-                              // Fetch room info to get meter type
-                              try {
-                                const studentRes = await api.get(`/api/admin/students/${request.student?._id || request.student}`);
-                                if (studentRes.data.success && studentRes.data.data.roomNumber) {
-                                  const roomsRes = await api.get(`/api/admin/rooms?gender=${studentRes.data.data.gender}`);
-                                  if (roomsRes.data.success) {
-                                    const room = roomsRes.data.data.rooms.find(r => r.roomNumber === studentRes.data.data.roomNumber);
-                                    if (room) {
-                                      setRoomInfo(room);
-                                      setMeterReadingForm(prev => ({
-                                        ...prev,
-                                        meterType: room.meterType || 'single'
-                                      }));
-                                    }
-                                  }
-                                }
-                              } catch (err) {
-                                console.error('Error fetching room info:', err);
-                              }
-                              setShowMeterReadingModal(true);
-                            }}
-                            className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors duration-200 whitespace-nowrap"
-                          >
-                            Enter Meter Reading
-                          </button>
                         )}
                       </div>
                     </div>
@@ -553,7 +418,7 @@ const NOCManagement = () => {
                 <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
                   <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                     {action === 'view' ? 'NOC Request Details' : 
-                     action === 'verify' ? 'Verify NOC Request' : 'Reject NOC Request'}
+                     action === 'verify' ? 'Approve NOC Request' : 'Reject NOC Request'}
                   </h3>
                 </div>
                 
@@ -595,75 +460,20 @@ const NOCManagement = () => {
                     </div>
                   ) : (
                     <div className="space-y-3 sm:space-y-4">
-                      {/* Admin Remarks (if sent for correction) */}
-                      {selectedRequest.adminRemarks && (
-                        <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
-                          <h4 className="text-xs sm:text-sm font-medium text-orange-800 mb-1">Admin Remarks (Corrections Required)</h4>
-                          <p className="text-xs sm:text-sm text-orange-900 whitespace-pre-wrap">{selectedRequest.adminRemarks}</p>
-                        </div>
-                      )}
-
-                      {/* Checklist Form */}
-                      {action === 'verify' && checklistItems.length > 0 && (
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-3">
-                            Checklist Verification *
-                          </label>
-                          <div className="overflow-x-auto border border-gray-200 rounded-md">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">S.No.</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount *</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                            {checklistItems
-                              .filter(item => item.isActive)
-                              .sort((a, b) => a.order - b.order)
-                              .map((item, index) => {
-                                const response = checklistResponses.find(r => 
-                                  (r.checklistItemId?.id || r.checklistItemId?._id || r.checklistItemId) === (item.id || item._id)
-                                );
-                                return (
-                                      <tr key={item.id || item._id}>
-                                        <td className="px-3 py-2 whitespace-nowrap text-xs sm:text-sm text-gray-900">
-                                          {index + 1}
-                                        </td>
-                                        <td className="px-3 py-2 text-xs sm:text-sm text-gray-900">
-                                          {item.description}
-                                        </td>
-                                        <td className="px-3 py-2 whitespace-nowrap">
-                                        <input
-                                          type="text"
-                                            value={response?.amount || ''}
-                                            onChange={(e) => updateChecklistResponse(item, 'amount', e.target.value)}
-                                          className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                                            placeholder="e.g., 5000/-"
-                                          required
-                                        />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <textarea
-                                            value={response?.remarks || ''}
-                                            onChange={(e) => updateChecklistResponse(item, 'remarks', e.target.value)}
-                                            rows={2}
-                                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500"
-                                            placeholder="Enter remarks..."
-                                          />
-                                        </td>
-                                      </tr>
-                                );
-                              })}
-                              </tbody>
-                            </table>
+                      {action === 'verify' && (
+                        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                          <div className="flex">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <h4 className="text-xs sm:text-sm font-medium text-yellow-800">Approve NOC Request</h4>
+                              <p className="mt-1 text-xs text-yellow-700">
+                                Approving this NOC request will immediately deactivate the student's hostel profile for this academic year and vacate their room allotment. This action cannot be undone.
+                              </p>
+                            </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Warden Remarks */}
                       <div>
                         <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                           {action === 'verify' ? 'Remarks (Optional)' : 'Rejection Reason *'}
@@ -690,9 +500,8 @@ const NOCManagement = () => {
                       setShowModal(false);
                       setSelectedRequest(null);
                       setRemarks('');
-                      setChecklistResponses([]);
                     }}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                   >
                     {action === 'view' ? 'Close' : 'Cancel'}
                   </button>
@@ -700,13 +509,13 @@ const NOCManagement = () => {
                     <button
                       onClick={handleSubmitAction}
                       disabled={isSubmitting || (action === 'reject' && !remarks.trim())}
-                      className={`w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      className={`w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
                         action === 'verify' 
-                          ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                          : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+                          ? 'bg-green-600 hover:bg-green-700'
+                          : 'bg-red-600 hover:bg-red-700'
                       }`}
                     >
-                      {isSubmitting ? 'Processing...' : (action === 'verify' ? 'Verify' : 'Reject')}
+                      {isSubmitting ? 'Processing...' : (action === 'verify' ? 'Approve' : 'Reject')}
                     </button>
                   )}
                 </div>
@@ -852,269 +661,16 @@ const NOCManagement = () => {
                       setVacatingDate('');
                       setStudentSearch('');
                     }}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateNOC}
                     disabled={isCreating || !selectedStudent || nocReason.trim().length < 10 || !vacatingDate}
-                    className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isCreating ? 'Creating...' : 'Create NOC Request'}
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-
-          {/* Meter Reading Modal */}
-          {showMeterReadingModal && selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3 sm:p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-              >
-                <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-                    Enter Meter Readings
-                  </h3>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Enter meter readings for {selectedRequest.studentName} ({selectedRequest.rollNumber})
-                  </p>
-                  {selectedRequest.vacatingDate && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Vacating Date: {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                  )}
-                </div>
-
-                <div className="px-4 sm:px-6 py-4 space-y-4">
-                  {/* Meter Type */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                      Meter Type *
-                    </label>
-                    <select
-                      value={meterReadingForm.meterType}
-                      onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meterType: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                    >
-                      <option value="single">Single Meter</option>
-                      <option value="dual">Dual Meter</option>
-                    </select>
-                  </div>
-
-                  {/* Single Meter Fields */}
-                  {meterReadingForm.meterType === 'single' && (
-                    <>
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                          Start Units *
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={meterReadingForm.startUnits}
-                          onChange={(e) => setMeterReadingForm({ ...meterReadingForm, startUnits: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                          placeholder="Enter start units"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                          End Units *
-                        </label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={meterReadingForm.endUnits}
-                          onChange={(e) => setMeterReadingForm({ ...meterReadingForm, endUnits: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                          placeholder="Enter end units"
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {/* Dual Meter Fields */}
-                  {meterReadingForm.meterType === 'dual' && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                            Meter 1 Start Units *
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={meterReadingForm.meter1StartUnits}
-                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter1StartUnits: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                            placeholder="Meter 1 start"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                            Meter 1 End Units *
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={meterReadingForm.meter1EndUnits}
-                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter1EndUnits: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                            placeholder="Meter 1 end"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                            Meter 2 Start Units *
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={meterReadingForm.meter2StartUnits}
-                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter2StartUnits: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                            placeholder="Meter 2 start"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                            Meter 2 End Units *
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={meterReadingForm.meter2EndUnits}
-                            onChange={(e) => setMeterReadingForm({ ...meterReadingForm, meter2EndUnits: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                            placeholder="Meter 2 end"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Rate */}
-                  <div>
-                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                      Rate per Unit (Optional - will use default if not provided)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={meterReadingForm.rate}
-                      onChange={(e) => setMeterReadingForm({ ...meterReadingForm, rate: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
-                      placeholder="Enter rate per unit"
-                    />
-                  </div>
-                </div>
-
-                <div className="px-4 sm:px-6 py-4 bg-gray-50 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowMeterReadingModal(false);
-                      setSelectedRequest(null);
-                      setMeterReadingForm({
-                        meterType: 'single',
-                        startUnits: '',
-                        endUnits: '',
-                        meter1StartUnits: '',
-                        meter1EndUnits: '',
-                        meter2StartUnits: '',
-                        meter2EndUnits: '',
-                        rate: ''
-                      });
-                      setRoomInfo(null);
-                    }}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={async () => {
-                      // Validate form
-                      if (meterReadingForm.meterType === 'single') {
-                        if (!meterReadingForm.startUnits || !meterReadingForm.endUnits) {
-                          toast.error('Please enter start and end units');
-                          return;
-                        }
-                        if (Number(meterReadingForm.endUnits) < Number(meterReadingForm.startUnits)) {
-                          toast.error('End units must be greater than or equal to start units');
-                          return;
-                        }
-                      } else {
-                        if (!meterReadingForm.meter1StartUnits || !meterReadingForm.meter1EndUnits || 
-                            !meterReadingForm.meter2StartUnits || !meterReadingForm.meter2EndUnits) {
-                          toast.error('Please enter all meter readings');
-                          return;
-                        }
-                        if (Number(meterReadingForm.meter1EndUnits) < Number(meterReadingForm.meter1StartUnits) ||
-                            Number(meterReadingForm.meter2EndUnits) < Number(meterReadingForm.meter2StartUnits)) {
-                          toast.error('End units must be greater than or equal to start units');
-                          return;
-                        }
-                      }
-
-                      setIsSubmittingMeterReading(true);
-                      try {
-                        const payload = {
-                          meterType: meterReadingForm.meterType,
-                          ...(meterReadingForm.meterType === 'single' 
-                            ? { startUnits: Number(meterReadingForm.startUnits), endUnits: Number(meterReadingForm.endUnits) }
-                            : {
-                                meter1StartUnits: Number(meterReadingForm.meter1StartUnits),
-                                meter1EndUnits: Number(meterReadingForm.meter1EndUnits),
-                                meter2StartUnits: Number(meterReadingForm.meter2StartUnits),
-                                meter2EndUnits: Number(meterReadingForm.meter2EndUnits)
-                              }
-                          ),
-                          ...(meterReadingForm.rate ? { rate: Number(meterReadingForm.rate) } : {})
-                        };
-
-                        const response = await api.post(`/api/noc/warden/${selectedRequest.id || selectedRequest._id}/meter-readings`, payload);
-                        
-                        if (response.data.success) {
-                          toast.success('Meter readings entered and bill calculated successfully');
-                          setShowMeterReadingModal(false);
-                          setSelectedRequest(null);
-                          setMeterReadingForm({
-                            meterType: 'single',
-                            startUnits: '',
-                            endUnits: '',
-                            meter1StartUnits: '',
-                            meter1EndUnits: '',
-                            meter2StartUnits: '',
-                            meter2EndUnits: '',
-                            rate: ''
-                          });
-                          setRoomInfo(null);
-                          fetchNOCRequests();
-                        }
-                      } catch (error) {
-                        console.error('Error entering meter readings:', error);
-                        toast.error(error.response?.data?.message || 'Failed to enter meter readings');
-                      } finally {
-                        setIsSubmittingMeterReading(false);
-                      }
-                    }}
-                    disabled={isSubmittingMeterReading}
-                    className={`w-full sm:w-auto px-4 py-2 border border-transparent rounded-md text-xs sm:text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      'bg-purple-600 hover:bg-purple-700 focus:ring-purple-500'
-                    }`}
-                  >
-                    {isSubmittingMeterReading ? 'Submitting...' : 'Submit Meter Readings'}
                   </button>
                 </div>
               </motion.div>

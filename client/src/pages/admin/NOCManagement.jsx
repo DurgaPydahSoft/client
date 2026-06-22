@@ -9,24 +9,18 @@ import {
   XCircleIcon,
   EyeIcon,
   UserIcon,
-  CalendarIcon,
   FunnelIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  CogIcon,
   PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
+  MagnifyingGlassIcon,
+  ExclamationTriangleIcon,
+  ChartBarIcon,
   InformationCircleIcon,
-  ArrowRightIcon,
-  BoltIcon
+  TrashIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const NOCManagement = () => {
-  const [activeTab, setActiveTab] = useState('requests'); // 'requests', 'checklist', or 'process'
+  const [activeTab, setActiveTab] = useState('requests'); // 'requests' or 'process'
   
   // NOC Requests state
   const [nocRequests, setNocRequests] = useState([]);
@@ -35,30 +29,101 @@ const NOCManagement = () => {
   const [filter, setFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [action, setAction] = useState(''); // 'approve', 'final-approve', 'reject', 'send-for-correction', or 'view'
+  const [action, setAction] = useState(''); // 'approve', 'reject', or 'view'
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Checklist Configuration state
-  const [checklistItems, setChecklistItems] = useState([]);
-  const [loadingChecklist, setLoadingChecklist] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [showChecklistModal, setShowChecklistModal] = useState(false);
-  const [checklistForm, setChecklistForm] = useState({
-    description: '',
-    order: 0,
-    isActive: true
-  });
+  // Create NOC on behalf of student state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [students, setStudents] = useState([]);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [nocReason, setNocReason] = useState('');
+  const [vacatingDate, setVacatingDate] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'requests') {
       fetchNOCRequests();
       fetchStats();
-    } else if (activeTab === 'checklist') {
-      fetchChecklistItems();
     }
-    // Process guide tab doesn't need data fetching
   }, [filter, activeTab]);
+
+  // Fetch students when create modal is open and search changes
+  useEffect(() => {
+    if (showCreateModal) {
+      fetchStudents();
+    }
+  }, [showCreateModal, studentSearch]);
+
+  const fetchStudents = async () => {
+    setLoadingStudents(true);
+    try {
+      const params = new URLSearchParams();
+      if (studentSearch) params.append('search', studentSearch);
+      
+      const response = await api.get(`/api/noc/admin/students?${params.toString()}`);
+      if (response.data.success) {
+        setStudents(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      toast.error('Failed to fetch students');
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const handleCreateNOC = async () => {
+    if (!selectedStudent) {
+      toast.error('Please select a student');
+      return;
+    }
+    if (!nocReason.trim() || nocReason.trim().length < 10) {
+      toast.error('Please enter a valid reason (at least 10 characters)');
+      return;
+    }
+
+    if (!vacatingDate) {
+      toast.error('Please select a vacating date');
+      return;
+    }
+
+    // Validate vacating date is not in the past
+    const selectedDate = new Date(vacatingDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate < today) {
+      toast.error('Vacating date cannot be in the past');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const response = await api.post('/api/noc/admin/create', {
+        studentId: selectedStudent._id,
+        reason: nocReason.trim(),
+        vacatingDate: vacatingDate
+      });
+
+      if (response.data.success) {
+        toast.success('NOC request created successfully');
+        setShowCreateModal(false);
+        setSelectedStudent(null);
+        setNocReason('');
+        setVacatingDate('');
+        setStudentSearch('');
+        fetchNOCRequests();
+        fetchStats();
+      }
+    } catch (error) {
+      console.error('Error creating NOC:', error);
+      toast.error(error.response?.data?.message || 'Failed to create NOC request');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const fetchNOCRequests = async () => {
     try {
@@ -96,40 +161,30 @@ const NOCManagement = () => {
   const handleSubmitAction = async () => {
     if (!selectedRequest) return;
 
-    if (action === 'send-for-correction' && !remarks.trim()) {
-      toast.error('Admin remarks are required when sending for correction');
+    if (action === 'reject' && !remarks.trim()) {
+      toast.error('Rejection reason is required');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const requestId = selectedRequest.id || selectedRequest._id;
-      let url, payload;
+      let response;
 
-      if (action === 'approve') {
-        url = `/api/noc/admin/${requestId}/approve`;
-        payload = { adminRemarks: remarks };
-      } else if (action === 'final-approve') {
-        url = `/api/noc/admin/${requestId}/final-approve`;
-        payload = {}; // No remarks needed for final approval
-      } else if (action === 'send-for-correction') {
-        url = `/api/noc/admin/${requestId}/send-for-correction`;
-        payload = { adminRemarks: remarks };
+      if (action === 'delete') {
+        response = await api.delete(`/api/noc/admin/${requestId}`);
+      } else if (action === 'approve') {
+        response = await api.post(`/api/noc/admin/${requestId}/approve`, { adminRemarks: remarks });
       } else {
-        url = `/api/noc/admin/${requestId}/reject`;
-        payload = { rejectionReason: remarks };
+        response = await api.post(`/api/noc/admin/${requestId}/reject`, { rejectionReason: remarks });
       }
-
-      const response = await api.post(url, payload);
       
       if (response.data.success) {
-        const actionMessages = {
-          'approve': 'approved (pending meter reading)',
-          'final-approve': 'finalized and student deactivated',
-          'send-for-correction': 'sent for correction',
-          'reject': 'rejected'
-        };
-        toast.success(`NOC request ${actionMessages[action]} successfully`);
+        toast.success(
+          action === 'delete' 
+            ? 'NOC request deleted and student reactivated successfully'
+            : `NOC request ${action === 'approve' ? 'approved and student deactivated' : 'rejected'} successfully`
+        );
         setShowModal(false);
         setSelectedRequest(null);
         setRemarks('');
@@ -144,126 +199,16 @@ const NOCManagement = () => {
     }
   };
 
-  // Checklist Configuration functions
-  const fetchChecklistItems = async () => {
-    setLoadingChecklist(true);
-    try {
-      const response = await api.get('/api/noc/checklist');
-      if (response.data.success) {
-        setChecklistItems(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching checklist items:', error);
-      toast.error('Failed to fetch checklist items');
-    } finally {
-      setLoadingChecklist(false);
-    }
-  };
-
-  const handleCreateChecklistItem = () => {
-    setEditingItem(null);
-    setChecklistForm({
-      description: '',
-      isActive: true
-    });
-    setShowChecklistModal(true);
-  };
-
-  const handleEditChecklistItem = (item) => {
-    setEditingItem(item);
-    setChecklistForm({
-      description: item.description,
-      order: item.order,
-      isActive: item.isActive
-    });
-    setShowChecklistModal(true);
-  };
-
-  const handleSaveChecklistItem = async () => {
-    if (!checklistForm.description.trim()) {
-      toast.error('Description is required');
-      return;
-    }
-
-    try {
-      if (editingItem) {
-        // When editing, include order to preserve it
-        await api.put(`/api/noc/checklist/${editingItem.id || editingItem._id}`, checklistForm);
-        toast.success('Checklist item updated successfully');
-      } else {
-        // When creating, don't send order - backend will auto-assign
-        const { order, ...createForm } = checklistForm;
-        await api.post('/api/noc/checklist', createForm);
-        toast.success('Checklist item created successfully');
-      }
-      setShowChecklistModal(false);
-      fetchChecklistItems();
-    } catch (error) {
-      console.error('Error saving checklist item:', error);
-      toast.error(error.response?.data?.message || 'Failed to save checklist item');
-    }
-  };
-
-  const handleDeleteChecklistItem = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this checklist item?')) {
-      return;
-    }
-
-    try {
-      await api.delete(`/api/noc/checklist/${id}`);
-      toast.success('Checklist item deleted successfully');
-      fetchChecklistItems();
-    } catch (error) {
-      console.error('Error deleting checklist item:', error);
-      toast.error('Failed to delete checklist item');
-    }
-  };
-
-  const handleReorderChecklist = async (itemId, direction) => {
-    const itemIndex = checklistItems.findIndex(item => (item.id || item._id) === itemId);
-    if (itemIndex === -1) return;
-
-    const newIndex = direction === 'up' ? itemIndex - 1 : itemIndex + 1;
-    if (newIndex < 0 || newIndex >= checklistItems.length) return;
-
-    const items = [...checklistItems];
-    const [movedItem] = items.splice(itemIndex, 1);
-    items.splice(newIndex, 0, movedItem);
-
-    // Update orders
-    const reorderData = items.map((item, index) => ({
-      id: item.id || item._id,
-      order: index
-    }));
-
-    try {
-      await api.post('/api/noc/checklist/reorder', { items: reorderData });
-      toast.success('Checklist reordered successfully');
-      fetchChecklistItems();
-    } catch (error) {
-      console.error('Error reordering checklist:', error);
-      toast.error('Failed to reorder checklist');
-    }
-  };
-
   const getStatusColor = (status) => {
     switch (status) {
       case 'Pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Warden Verified':
-        return 'bg-blue-100 text-blue-800';
-      case 'Sent for Correction':
-        return 'bg-orange-100 text-orange-800';
-      case 'Admin Approved - Pending Meter Reading':
-        return 'bg-purple-100 text-purple-800';
-      case 'Ready for Deactivation':
-        return 'bg-indigo-100 text-indigo-800';
+        return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
       case 'Approved':
-        return 'bg-green-100 text-green-800';
+        return 'bg-green-100 text-green-800 border border-green-200';
       case 'Rejected':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 border border-red-200';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 border border-gray-200';
     }
   };
 
@@ -271,14 +216,6 @@ const NOCManagement = () => {
     switch (status) {
       case 'Pending':
         return <ClockIcon className="h-4 w-4" />;
-      case 'Warden Verified':
-        return <CheckCircleIcon className="h-4 w-4" />;
-      case 'Sent for Correction':
-        return <ExclamationTriangleIcon className="h-4 w-4" />;
-      case 'Admin Approved - Pending Meter Reading':
-        return <ClockIcon className="h-4 w-4" />;
-      case 'Ready for Deactivation':
-        return <CheckCircleIcon className="h-4 w-4" />;
       case 'Approved':
         return <CheckCircleIcon className="h-4 w-4" />;
       case 'Rejected':
@@ -308,8 +245,8 @@ const NOCManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -318,7 +255,7 @@ const NOCManagement = () => {
           {/* Header */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
             <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center">
                   <DocumentTextIcon className="h-8 w-8 text-blue-600 mr-3" />
                   <div>
@@ -328,19 +265,22 @@ const NOCManagement = () => {
                 </div>
                 {activeTab === 'requests' && (
                   <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setShowCreateModal(true)}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-sm"
+                    >
+                      <PlusIcon className="h-5 w-5 mr-1" />
+                      <span>Create NOC</span>
+                    </button>
                     <div className="flex items-center">
                       <FunnelIcon className="h-5 w-5 text-gray-400 mr-2" />
                       <select
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
-                        className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                       >
                         <option value="all">All Requests</option>
                         <option value="Pending">Pending</option>
-                        <option value="Warden Verified">Warden Verified</option>
-                        <option value="Sent for Correction">Sent for Correction</option>
-                        <option value="Admin Approved - Pending Meter Reading">Admin Approved - Pending Meter Reading</option>
-                        <option value="Ready for Deactivation">Ready for Deactivation</option>
                         <option value="Approved">Approved</option>
                         <option value="Rejected">Rejected</option>
                       </select>
@@ -363,19 +303,6 @@ const NOCManagement = () => {
                 NOC Requests
               </button>
               <button
-                onClick={() => setActiveTab('checklist')}
-                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'checklist'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-center">
-                  <CogIcon className="h-4 w-4 mr-2" />
-                  Checklist Configuration
-                </div>
-              </button>
-              <button
                 onClick={() => setActiveTab('process')}
                 className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'process'
@@ -395,1098 +322,563 @@ const NOCManagement = () => {
           {activeTab === 'process' ? (
             /* Process Guide Tab */
             <div className="space-y-6">
-              {/* Overview Section */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center mb-4">
                   <InformationCircleIcon className="h-6 w-6 text-blue-600 mr-2" />
                   <h2 className="text-xl font-semibold text-gray-900">NOC Process Overview</h2>
                 </div>
-                <p className="text-gray-600 mb-4">
-                  The NOC (No Objection Certificate) process allows students to formally request permission to vacate the hostel. 
-                  The process involves multiple verification stages and includes automatic calculation and adjustment of electricity bills.
+                <p className="text-gray-600 mb-6">
+                  The simplified NOC (No Objection Certificate) workflow allows students to request vacating the hostel for their current academic year. 
+                  Admins and Wardens can review pending requests and approve them directly. Once approved, the student is immediately deactivated, and their room, bed, and locker assignments are vacated.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <UserIcon className="h-8 w-8 text-blue-600 mb-2" />
-                    <h3 className="font-semibold text-gray-900">Student</h3>
-                    <p className="text-sm text-gray-600">Initiates the NOC request</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-blue-50 p-5 rounded-lg border border-blue-100">
+                    <h3 className="font-semibold text-blue-900 text-lg mb-2">1. Creation</h3>
+                    <p className="text-sm text-blue-800">
+                      Requests can be raised by the student directly from their portal, or on their behalf by a Warden or Admin. 
+                      Every request is tied specifically to the student's active academic year.
+                    </p>
                   </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <DocumentTextIcon className="h-8 w-8 text-green-600 mb-2" />
-                    <h3 className="font-semibold text-gray-900">Warden</h3>
-                    <p className="text-sm text-gray-600">Performs verification and enters meter readings</p>
-                  </div>
-                  <div className="bg-purple-50 p-4 rounded-lg">
-                    <CogIcon className="h-8 w-8 text-purple-600 mb-2" />
-                    <h3 className="font-semibold text-gray-900">Admin</h3>
-                    <p className="text-sm text-gray-600">Reviews and approves/rejects requests</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Process Flow */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Process Flow</h2>
-                
-                <div className="space-y-6">
-                  {/* Stage 1 */}
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 text-blue-600 font-semibold">
-                        1
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">Student Request Submission</h3>
-                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-orange-600">Pending Warden Verification</span></p>
-                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">Student submits NOC request with:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li>Reason for leaving</li>
-                          <li>Intended vacating date</li>
-                          <li>Required documents</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-
-                  {/* Stage 2 */}
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 font-semibold">
-                        2
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">Warden Verification (First Level)</h3>
-                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-blue-600">Pending Admin Approval</span> or <span className="font-medium text-orange-600">Sent for Correction</span></p>
-                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">Warden verifies hostel clearance items:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li>Keys returned</li>
-                          <li>Room condition checked</li>
-                          <li>Dues cleared</li>
-                          <li>Other checklist items</li>
-                        </ul>
-                        <p className="text-sm text-gray-700 mt-2">Warden can either forward to admin or send for correction.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-
-                  {/* Stage 3 */}
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-purple-100 text-purple-600 font-semibold">
-                        3
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">Admin Review</h3>
-                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-indigo-600">Admin Approved - Pending Meter Reading</span> or <span className="font-medium text-orange-600">Sent for Correction</span></p>
-                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">Admin reviews the forwarded request and can:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li><strong>Approve:</strong> Request moves to meter reading stage</li>
-                          <li><strong>Send for Correction:</strong> Returns to warden with remarks</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-
-                  {/* Stage 4 */}
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 font-semibold">
-                        4
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">Meter Reading Entry</h3>
-                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-yellow-600">Ready for Deactivation</span></p>
-                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">Warden enters electricity meter readings:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li><strong>Single Meter:</strong> Start units and end units</li>
-                          <li><strong>Dual Meter:</strong> Meter 1 (start/end) and Meter 2 (start/end)</li>
-                          <li>Electricity rate (or uses default)</li>
-                        </ul>
-                        <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                          <p className="text-sm font-semibold text-blue-900 mb-1">System automatically calculates:</p>
-                          <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
-                            <li>Consumption (units used)</li>
-                            <li>Bill period (from last bill to vacating date)</li>
-                            <li>Total room bill</li>
-                            <li>Student's share (divided by number of students)</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center">
-                    <ArrowDownIcon className="h-6 w-6 text-gray-400" />
-                  </div>
-
-                  {/* Stage 5 */}
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0">
-                      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-green-100 text-green-600 font-semibold">
-                        5
-                      </div>
-                    </div>
-                    <div className="ml-4 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">Final Approval & Student Deactivation</h3>
-                      <p className="text-sm text-gray-600 mt-1">Status: <span className="font-medium text-green-600">Approved</span></p>
-                      <div className="mt-2 p-3 bg-gray-50 rounded-md">
-                        <p className="text-sm text-gray-700">Admin performs final approval. System automatically:</p>
-                        <ul className="list-disc list-inside text-sm text-gray-600 mt-2 space-y-1">
-                          <li>Deactivates the student account</li>
-                          <li>Vacates the room/bed/locker</li>
-                          <li>Updates student status to inactive</li>
-                        </ul>
-                      </div>
-                    </div>
+                  <div className="bg-green-50 p-5 rounded-lg border border-green-100">
+                    <h3 className="font-semibold text-green-900 text-lg mb-2">2. Direct Approval & Deactivation</h3>
+                    <p className="text-sm text-green-800">
+                      An Admin or Warden reviews the pending request. Approving it directly marks the student profile as **Inactive** for the hostel and **Expired** for the application status. 
+                      All allotted resources (room, bed, locker layouts) are instantly cleared.
+                    </p>
                   </div>
                 </div>
               </div>
-
-              {/* Electricity Bill Calculation */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center mb-4">
-                  <BoltIcon className="h-6 w-6 text-yellow-600 mr-2" />
-                  <h2 className="text-xl font-semibold text-gray-900">Electricity Bill Calculation</h2>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 mb-2">How It Works:</h3>
-                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                      <li><strong>Determine Bill Period:</strong> From last bill date (or start of month) to student's vacating date</li>
-                      <li><strong>Calculate Consumption:</strong> End units - Start units (for single meter) or sum of both meters (for dual meter)</li>
-                      <li><strong>Calculate Total Room Bill:</strong> Consumption × Electricity Rate</li>
-                      <li><strong>Count Students:</strong> Number of active students in the room</li>
-                      <li><strong>Calculate Student's Share:</strong> Total Room Bill ÷ Number of Students</li>
-                    </ol>
-                  </div>
-
-                  {/* Scenario 1: Single Student NOC */}
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <h3 className="font-semibold text-blue-900 mb-2">Scenario 1: Single Student NOC (Simple Case)</h3>
-                    <div className="text-sm text-blue-800 space-y-1">
-                      <p><strong>Room:</strong> 321 | <strong>Students:</strong> 3 (A, B, C) | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>Last Bill End Units:</strong> 1000 units</p>
-                      <p><strong>Student A Vacating:</strong> 2024-02-15 | <strong>Meter Reading:</strong> 1050 units</p>
-                      <div className="mt-2 p-2 bg-white rounded border border-blue-200">
-                        <p className="font-semibold">NOC Calculation:</p>
-                        <p>Consumption: 1050 - 1000 = 50 units</p>
-                        <p>Total Room Bill: 50 × ₹5 = ₹250</p>
-                        <p>Student A's Share: ₹250 ÷ 3 = ₹83</p>
-                      </div>
-                      <div className="mt-2 p-2 bg-blue-100 rounded border border-blue-300">
-                        <p className="text-xs font-semibold text-blue-900">When Monthly Bill (₹300) is Uploaded:</p>
-                        <p className="text-xs text-blue-800">NOC Adjustment: ₹83 | Remaining: ₹217</p>
-                        <p className="text-xs text-blue-800">Student B & C pay: ₹217 ÷ 2 = ₹109 each</p>
-                        <p className="text-xs text-blue-800">Student A pays: ₹0 (already paid ₹83 via NOC)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Scenario 2: Dual Meter */}
-                  <div className="p-4 bg-purple-50 rounded-lg">
-                    <h3 className="font-semibold text-purple-900 mb-2">Scenario 2: Dual Meter Room</h3>
-                    <div className="text-sm text-purple-800 space-y-1">
-                      <p><strong>Room:</strong> 209 | <strong>Meter Type:</strong> Dual | <strong>Students:</strong> 2 (A, B) | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>Last Bill:</strong> Meter 1: 500 units | Meter 2: 300 units</p>
-                      <p><strong>Student A Vacating:</strong> 2024-02-15</p>
-                      <p><strong>Meter Readings:</strong> Meter 1: 550 units | Meter 2: 350 units</p>
-                      <div className="mt-2 p-2 bg-white rounded border border-purple-200">
-                        <p className="font-semibold">NOC Calculation:</p>
-                        <p>Meter 1 Consumption: 550 - 500 = 50 units</p>
-                        <p>Meter 2 Consumption: 350 - 300 = 50 units</p>
-                        <p>Total Consumption: 50 + 50 = 100 units</p>
-                        <p>Total Room Bill: 100 × ₹5 = ₹500</p>
-                        <p>Student A's Share: ₹500 ÷ 2 = ₹250</p>
-                      </div>
-                      <div className="mt-2 p-2 bg-purple-100 rounded border border-purple-300">
-                        <p className="text-xs font-semibold text-purple-900">When Monthly Bill (₹600) is Uploaded:</p>
-                        <p className="text-xs text-purple-800">NOC Adjustment: ₹250 | Remaining: ₹350</p>
-                        <p className="text-xs text-purple-800">Student B pays: ₹350 (only remaining student)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Scenario 3: Multiple Students with NOC */}
-                  <div className="p-4 bg-indigo-50 rounded-lg">
-                    <h3 className="font-semibold text-indigo-900 mb-2">Scenario 3: Multiple Students with NOC</h3>
-                    <div className="text-sm text-indigo-800 space-y-1">
-                      <p><strong>Room:</strong> 320 | <strong>Students:</strong> 4 (A, B, C, D) | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>Last Bill End Units:</strong> 2000 units</p>
-                      <p><strong>Student A:</strong> Vacating 2024-02-10, Meter: 2050 units</p>
-                      <p><strong>Student B:</strong> Vacating 2024-02-20, Meter: 2100 units</p>
-                      <div className="mt-2 p-2 bg-white rounded border border-indigo-200">
-                        <p className="font-semibold">NOC Calculations:</p>
-                        <p className="text-xs"><strong>Student A:</strong> (2050-2000) × ₹5 ÷ 4 = ₹63</p>
-                        <p className="text-xs"><strong>Student B:</strong> (2100-2050) × ₹5 ÷ 4 = ₹63</p>
-                        <p className="text-xs mt-1"><strong>Total NOC Adjustments:</strong> ₹126</p>
-                      </div>
-                      <div className="mt-2 p-2 bg-indigo-100 rounded border border-indigo-300">
-                        <p className="text-xs font-semibold text-indigo-900">When Monthly Bill (₹400) is Uploaded:</p>
-                        <p className="text-xs text-indigo-800">NOC Adjustments: ₹126 (A: ₹63 + B: ₹63)</p>
-                        <p className="text-xs text-indigo-800">Remaining: ₹400 - ₹126 = ₹274</p>
-                        <p className="text-xs text-indigo-800">Students C & D pay: ₹274 ÷ 2 = ₹137 each</p>
-                        <p className="text-xs text-indigo-800">Students A & B pay: ₹0 (already paid via NOC)</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Scenario 4: Early Month Vacating */}
-                  <div className="p-4 bg-yellow-50 rounded-lg">
-                    <h3 className="font-semibold text-yellow-900 mb-2">Scenario 4: Early Month Vacating</h3>
-                    <div className="text-sm text-yellow-800 space-y-1">
-                      <p><strong>Room:</strong> 101 | <strong>Students:</strong> 3 | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>Last Bill:</strong> 2024-01 (End Units: 1500)</p>
-                      <p><strong>Student A Vacating:</strong> 2024-02-05 (Early in month)</p>
-                      <p><strong>Meter Reading:</strong> 1520 units</p>
-                      <div className="mt-2 p-2 bg-white rounded border border-yellow-200">
-                        <p className="font-semibold">NOC Calculation:</p>
-                        <p>Bill Period: Feb 1-5 (5 days only)</p>
-                        <p>Consumption: 1520 - 1500 = 20 units</p>
-                        <p>Total Room Bill: 20 × ₹5 = ₹100</p>
-                        <p>Student A's Share: ₹100 ÷ 3 = ₹33</p>
-                        <p className="text-xs text-yellow-700 mt-1">Note: Student pays only for 5 days, not full month</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Scenario 5: Late Month Vacating */}
-                  <div className="p-4 bg-orange-50 rounded-lg">
-                    <h3 className="font-semibold text-orange-900 mb-2">Scenario 5: Late Month Vacating</h3>
-                    <div className="text-sm text-orange-800 space-y-1">
-                      <p><strong>Room:</strong> 205 | <strong>Students:</strong> 2 | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>Last Bill:</strong> 2024-01 (End Units: 800)</p>
-                      <p><strong>Student A Vacating:</strong> 2024-02-28 (Last day of month)</p>
-                      <p><strong>Meter Reading:</strong> 900 units</p>
-                      <div className="mt-2 p-2 bg-white rounded border border-orange-200">
-                        <p className="font-semibold">NOC Calculation:</p>
-                        <p>Bill Period: Feb 1-28 (Full month)</p>
-                        <p>Consumption: 900 - 800 = 100 units</p>
-                        <p>Total Room Bill: 100 × ₹5 = ₹500</p>
-                        <p>Student A's Share: ₹500 ÷ 2 = ₹250</p>
-                        <p className="text-xs text-orange-700 mt-1">Note: Student pays for almost full month</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Scenario 6: All Students Have NOC */}
-                  <div className="p-4 bg-red-50 rounded-lg">
-                    <h3 className="font-semibold text-red-900 mb-2">Scenario 6: All Students Have NOC</h3>
-                    <div className="text-sm text-red-800 space-y-1">
-                      <p><strong>Room:</strong> 101 | <strong>Students:</strong> 3 (A, B, C) | <strong>Rate:</strong> ₹5/unit</p>
-                      <p><strong>All students have approved NOCs for the same month</strong></p>
-                      <div className="mt-2 p-2 bg-white rounded border border-red-200">
-                        <p className="font-semibold">NOC Adjustments:</p>
-                        <p className="text-xs">Student A: ₹100 | Student B: ₹100 | Student C: ₹100</p>
-                        <p className="text-xs mt-1"><strong>Total NOC Adjustments:</strong> ₹300</p>
-                      </div>
-                      <div className="mt-2 p-2 bg-red-100 rounded border border-red-300">
-                        <p className="text-xs font-semibold text-red-900">When Monthly Bill (₹300) is Uploaded:</p>
-                        <p className="text-xs text-red-800">NOC Adjustments: ₹300 (all students)</p>
-                        <p className="text-xs text-red-800">Remaining: ₹300 - ₹300 = ₹0</p>
-                        <p className="text-xs text-red-800">All students pay: ₹0 (already paid via NOC)</p>
-                        <p className="text-xs text-red-700 mt-1 font-semibold">✓ Perfect match - no additional charges</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <h3 className="font-semibold text-green-900 mb-2">Adjustment in Final Monthly Bill:</h3>
-                    <p className="text-sm text-green-800 mb-2">When the monthly electricity bill is uploaded:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-sm text-green-800">
-                      <li>System checks for approved NOCs that overlap with the billing period</li>
-                      <li>Subtracts NOC student shares from total room bill</li>
-                      <li>Calculates remaining amount</li>
-                      <li>Divides remaining amount equally among students without NOC</li>
-                    </ol>
-                    <div className="mt-3 p-3 bg-white rounded border border-green-200">
-                      <p className="text-xs font-semibold text-green-900 mb-2">Key Points:</p>
-                      <ul className="list-disc list-inside text-xs text-green-800 space-y-1">
-                        <li>NOC students are charged ₹0 in monthly bill (already paid via NOC)</li>
-                        <li>Remaining students share only the remaining amount</li>
-                        <li>System ensures no double-charging</li>
-                        <li>All calculations are transparent and stored in the database</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Reference */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Status Reference</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Next Action By</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-orange-600">Pending Warden Verification</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Initial request submitted by student</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Warden</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-blue-600">Pending Admin Approval</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Forwarded by warden, awaiting admin review</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Admin</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-indigo-600">Admin Approved - Pending Meter Reading</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Approved by admin, waiting for meter readings</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Warden</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-yellow-600">Ready for Deactivation</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Meter readings entered, bill calculated</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Admin</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-green-600">Approved</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Final approval, student deactivated</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">-</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-orange-600">Sent for Correction</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Issues found, needs correction</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Student/Warden</td>
-                      </tr>
-                      <tr>
-                        <td className="px-4 py-3 text-sm font-medium text-red-600">Rejected</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">Request rejected</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">-</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          ) : activeTab === 'requests' ? (
-            <>
-          {/* Stats Cards */}
-          {stats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <ChartBarIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-yellow-100 rounded-lg">
-                    <ClockIcon className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Pending</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.byStatus.Pending || 0}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <CheckCircleIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Warden Verified</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.byStatus['Warden Verified'] || 0}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Deactivated Students</p>
-                    <p className="text-2xl font-bold text-gray-900">{stats.deactivatedStudents}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* NOC Requests List */}
-          {filteredRequests.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No NOC Requests</h3>
-              <p className="text-gray-600">
-                {filter === 'all' 
-                  ? 'No NOC requests found.' 
-                  : `No ${filter.toLowerCase()} NOC requests found.`
-                }
-              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredRequests.map((request, index) => (
-                <motion.div
-                  key={request.id || request._id || `noc-request-${index}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
-                >
-                  <div className="px-6 py-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center flex-wrap gap-2 mb-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
-                            {getStatusIcon(request.status)}
-                            <span className="ml-1">{request.status}</span>
-                          </span>
-                          {request.raisedBy === 'warden' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                              <UserIcon className="h-3 w-3 mr-1" />
-                              Raised by Warden
-                            </span>
-                          )}
-                          <span className="text-sm text-gray-500">
-                            Submitted on {formatDate(request.createdAt)}
-                          </span>
-                        </div>
-                        
-                        <div className="mb-3">
-                          <h3 className="text-lg font-medium text-gray-900 mb-1">
-                            NOC Request #{(request.id || request._id) ? (request.id || request._id).slice(-8).toUpperCase() : 'N/A'}
-                          </h3>
-                          <p className="text-gray-600 line-clamp-2">{request.reason}</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
-                          <div>
-                            <span className="font-medium">Student:</span> {request.studentName}
-                          </div>
-                          <div>
-                            <span className="font-medium">Roll No:</span> {request.rollNumber}
-                          </div>
-                          <div>
-                            <span className="font-medium">Course:</span> {request.course?.name}
-                          </div>
-                          <div>
-                            <span className="font-medium">Year:</span> {request.year}
-                          </div>
-                          {request.vacatingDate && (
-                            <div>
-                              <span className="font-medium">Vacating Date:</span>{' '}
-                              {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Warden Remarks */}
-                        {request.wardenRemarks && (
-                          <div className="mt-3 p-3 bg-blue-50 rounded-md">
-                            <p className="text-sm text-blue-800">
-                              <span className="font-medium">Warden Remarks:</span> {request.wardenRemarks}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Rejection Reason */}
-                        {request.rejectionReason && (
-                          <div className="mt-3 p-3 bg-red-50 rounded-md">
-                            <p className="text-sm text-red-800">
-                              <span className="font-medium">Rejection Reason:</span> {request.rejectionReason}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Account Status */}
-                        {request.studentDeactivated && (
-                          <div className="mt-3 p-3 bg-green-50 rounded-md">
-                            <p className="text-sm text-green-800">
-                              <span className="font-medium">Account Status:</span> Deactivated
-                            </p>
-                          </div>
-                        )}
+            <>
+              {/* Stats Cards */}
+              {stats && (
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <ChartBarIcon className="h-6 w-6 text-blue-600" />
                       </div>
-
-                      <div className="flex items-center space-x-2 ml-4">
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setAction('view');
-                            setShowModal(true);
-                          }}
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
-                          title="View Details"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
-                        
-                        {(request.status === 'Warden Verified' || request.status === 'Sent for Correction') && (
-                          <>
-                            <button
-                              onClick={() => handleAction(request, 'approve')}
-                              className="px-3 py-1 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleAction(request, 'send-for-correction')}
-                              className="px-3 py-1 text-sm bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors duration-200"
-                            >
-                              Send for Correction
-                            </button>
-                            <button
-                              onClick={() => handleAction(request, 'reject')}
-                              className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                        
-                        {request.status === 'Ready for Deactivation' && (
-                          <button
-                            onClick={() => handleAction(request, 'final-approve')}
-                            className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors duration-200"
-                          >
-                            Final Approve & Deactivate
-                          </button>
-                        )}
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
 
-          {/* Action Modal */}
-          {showModal && selectedRequest && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-              >
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {action === 'view' ? 'NOC Request Details' : 
-                     action === 'approve' ? 'Approve NOC Request' : 
-                     action === 'final-approve' ? 'Final Approve & Deactivate Student' :
-                     action === 'send-for-correction' ? 'Send for Correction' :
-                     'Reject NOC Request'}
-                  </h3>
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <ClockIcon className="h-6 w-6 text-yellow-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Pending</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.byStatus.Pending || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Approved</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.byStatus.Approved || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <XCircleIcon className="h-6 w-6 text-red-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Rejected</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.byStatus.Rejected || 0}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-center">
+                      <div className="p-2 bg-indigo-100 rounded-lg">
+                        <UserIcon className="h-6 w-6 text-indigo-600" />
+                      </div>
+                      <div className="ml-4">
+                        <p className="text-sm font-medium text-gray-600">Deactivated</p>
+                        <p className="text-2xl font-bold text-gray-900">{stats.deactivatedStudents}</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="px-6 py-4">
-                  {action === 'view' ? (
-                    <div className="space-y-6">
-                      {/* Student Information */}
-                      <div>
-                        <h4 className="text-md font-semibold text-gray-900 mb-3">Student Information</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Name</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.studentName}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Roll Number</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.rollNumber}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Course</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.course?.name}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Branch</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.branch?.name}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Year</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.year}</p>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700">Academic Year</label>
-                            <p className="mt-1 text-sm text-gray-900">{selectedRequest.academicYear}</p>
-                          </div>
-                        </div>
-                      </div>
+              )}
 
-                      {/* NOC Details */}
-                      <div>
-                        <h4 className="text-md font-semibold text-gray-900 mb-3">NOC Request Details</h4>
-                        <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
-                          <div className="p-4 bg-gray-50 rounded-md">
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedRequest.reason}</p>
-                          </div>
-                          </div>
-                          {selectedRequest.vacatingDate && (
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Vacating Date from Hostel</label>
-                              <p className="text-sm text-gray-900">
-                                {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  weekday: 'long'
-                                })}
-                              </p>
+              {/* NOC Requests List */}
+              {filteredRequests.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                  <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No NOC Requests</h3>
+                  <p className="text-gray-600">
+                    {filter === 'all' 
+                      ? 'No NOC requests found.' 
+                      : `No ${filter.toLowerCase()} NOC requests found.`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredRequests.map((request, index) => (
+                    <motion.div
+                      key={request.id || request._id || `noc-request-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
+                    >
+                      <div className="px-6 py-4">
+                        <div className="flex items-start justify-between flex-wrap gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center flex-wrap gap-2 mb-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
+                                {getStatusIcon(request.status)}
+                                <span className="ml-1">{request.status}</span>
+                              </span>
+                              {request.raisedBy === 'warden' && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                  <UserIcon className="h-3 w-3 mr-1" />
+                                  Raised by Warden
+                                </span>
+                              )}
+                              {request.raisedBy === 'admin' && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  <UserIcon className="h-3 w-3 mr-1" />
+                                  Raised by Admin
+                                </span>
+                              )}
+                              <span className="text-sm text-gray-500">
+                                Submitted on {formatDate(request.createdAt)}
+                              </span>
                             </div>
-                          )}
-                        </div>
-                      </div>
+                            
+                            <div className="mb-3">
+                              <h3 className="text-lg font-medium text-gray-900 mb-1">
+                                NOC Request #{(request.id || request._id) ? (request.id || request._id).slice(-8).toUpperCase() : 'N/A'}
+                              </h3>
+                              <p className="text-gray-600 break-words">{request.reason}</p>
+                            </div>
 
-                      {/* Checklist Responses */}
-                      {selectedRequest.checklistResponses && selectedRequest.checklistResponses.length > 0 && (
-                        <div>
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Checklist Verification</h4>
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                              <thead className="bg-gray-50">
-                                <tr>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">S.No.</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-200">
-                                {selectedRequest.checklistResponses.map((response, index) => (
-                                  <tr key={index}>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">
-                                      {response.checklistItemId?.description || 'N/A'}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">{response.amount || '—'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-900">
-                                      {response.remarks || '—'}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm text-gray-600">
+                              <div>
+                                <span className="font-medium">Student:</span> {request.studentName}
+                              </div>
+                              <div>
+                                <span className="font-medium">Roll No:</span> {request.rollNumber}
+                              </div>
+                              <div>
+                                <span className="font-medium">Course:</span> {request.course?.name}
+                              </div>
+                              <div>
+                                <span className="font-medium">Year:</span> {request.year} (AY: {request.academicYear})
+                              </div>
+                              {request.vacatingDate && (
+                                <div>
+                                  <span className="font-medium">Vacating Date:</span>{' '}
+                                  {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Rejection Reason */}
+                            {request.rejectionReason && (
+                              <div className="mt-3 p-3 bg-red-50 rounded-md">
+                                <p className="text-sm text-red-800">
+                                  <span className="font-medium">Rejection Reason:</span> {request.rejectionReason}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Admin Remarks */}
+                            {request.adminRemarks && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded-md">
+                                <p className="text-sm text-blue-800">
+                                  <span className="font-medium">Remarks:</span> {request.adminRemarks}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Warden Remarks */}
+                            {request.wardenRemarks && (
+                              <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                                <p className="text-sm text-gray-800">
+                                  <span className="font-medium">Warden Remarks:</span> {request.wardenRemarks}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
 
-                      {/* Warden Remarks */}
-                      {selectedRequest.wardenRemarks && (
-                        <div>
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Warden Remarks</h4>
-                          <div className="p-4 bg-blue-50 rounded-md">
-                            <p className="text-sm text-blue-900 whitespace-pre-wrap">{selectedRequest.wardenRemarks}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Admin Remarks (for corrections) */}
-                      {selectedRequest.adminRemarks && (
-                        <div>
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Admin Remarks</h4>
-                          <div className="p-4 bg-orange-50 rounded-md">
-                            <p className="text-sm text-orange-900 whitespace-pre-wrap">{selectedRequest.adminRemarks}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Meter Readings & Calculated Bill */}
-                      {selectedRequest.meterReadings && selectedRequest.meterReadings.meterType && (
-                        <div>
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Meter Readings</h4>
-                          <div className="p-4 bg-gray-50 rounded-md space-y-2">
-                            <p className="text-sm text-gray-700">
-                              <span className="font-medium">Meter Type:</span> {selectedRequest.meterReadings.meterType === 'single' ? 'Single Meter' : 'Dual Meter'}
-                            </p>
-                            {selectedRequest.meterReadings.meterType === 'single' ? (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setAction('view');
+                                setShowModal(true);
+                              }}
+                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                              title="View Details"
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                            </button>
+                            <button
+                              onClick={() => handleAction(request, 'delete')}
+                              className="p-2 text-gray-400 hover:text-red-600 transition-colors duration-200"
+                              title="Delete NOC Request"
+                            >
+                              <TrashIcon className="h-5 w-5" />
+                            </button>
+                            
+                            {request.status === 'Pending' && (
                               <>
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">Start Units:</span> {selectedRequest.meterReadings.startUnits}
-                                </p>
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">End Units:</span> {selectedRequest.meterReadings.endUnits}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">Meter 1:</span> {selectedRequest.meterReadings.meter1StartUnits} - {selectedRequest.meterReadings.meter1EndUnits}
-                                </p>
-                                <p className="text-sm text-gray-700">
-                                  <span className="font-medium">Meter 2:</span> {selectedRequest.meterReadings.meter2StartUnits} - {selectedRequest.meterReadings.meter2EndUnits}
-                                </p>
+                                <button
+                                  onClick={() => handleAction(request, 'approve')}
+                                  className="px-4 py-1.5 text-sm font-semibold bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleAction(request, 'reject')}
+                                  className="px-4 py-1.5 text-sm font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
+                                >
+                                  Reject
+                                </button>
                               </>
                             )}
-                            {selectedRequest.meterReadings.readingDate && (
-                              <p className="text-sm text-gray-500">
-                                Reading Date: {new Date(selectedRequest.meterReadings.readingDate).toLocaleDateString('en-IN', {
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+
+              {/* Action Modal */}
+              {showModal && selectedRequest && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+                  >
+                    <div className="px-6 py-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {action === 'view' ? 'NOC Request Details' : 
+                         action === 'approve' ? 'Approve NOC Request' : 
+                         action === 'delete' ? 'Delete NOC Request' : 'Reject NOC Request'}
+                      </h3>
+                    </div>
+                    
+                    <div className="px-6 py-4">
+                      {action === 'view' ? (
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2">Student Information</h4>
+                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-700 bg-gray-50 p-3 rounded-md">
+                              <div><span className="font-medium text-gray-500">Name:</span> {selectedRequest.studentName}</div>
+                              <div><span className="font-medium text-gray-500">Roll No:</span> {selectedRequest.rollNumber}</div>
+                              <div><span className="font-medium text-gray-500">Course:</span> {selectedRequest.course?.name}</div>
+                              <div><span className="font-medium text-gray-500">Branch:</span> {selectedRequest.branch?.name}</div>
+                              <div><span className="font-medium text-gray-500">Year:</span> {selectedRequest.year}</div>
+                              <div><span className="font-medium text-gray-500">Academic Year:</span> {selectedRequest.academicYear}</div>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-500 mb-1">Reason</label>
+                            <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md whitespace-pre-wrap">{selectedRequest.reason}</p>
+                          </div>
+
+                          {selectedRequest.vacatingDate && (
+                            <div>
+                              <span className="font-medium text-sm text-gray-500">Vacating Date:</span>{' '}
+                              <span className="text-sm text-gray-900">
+                                {new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN', {
                                   year: 'numeric',
                                   month: 'long',
                                   day: 'numeric'
                                 })}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Calculated Electricity Bill */}
-                      {selectedRequest.calculatedElectricityBill && selectedRequest.calculatedElectricityBill.total && (
-                        <div>
-                          <h4 className="text-md font-semibold text-gray-900 mb-3">Calculated Electricity Bill</h4>
-                          <div className="p-4 bg-green-50 rounded-md space-y-2">
-                            <p className="text-sm text-gray-700">
-                              <span className="font-medium">Consumption:</span> {selectedRequest.calculatedElectricityBill.consumption} units
-                            </p>
-                            <p className="text-sm text-gray-700">
-                              <span className="font-medium">Rate:</span> ₹{selectedRequest.calculatedElectricityBill.rate} per unit
-                            </p>
-                            {selectedRequest.calculatedElectricityBill.totalRoomBill && (
-                              <p className="text-sm text-gray-700">
-                                <span className="font-medium">Total Room Bill:</span> ₹{selectedRequest.calculatedElectricityBill.totalRoomBill}
-                              </p>
-                            )}
-                            {selectedRequest.calculatedElectricityBill.numberOfStudents && (
-                              <p className="text-sm text-gray-700">
-                                <span className="font-medium">Number of Students:</span> {selectedRequest.calculatedElectricityBill.numberOfStudents} students
-                              </p>
-                            )}
-                            <p className="text-sm font-semibold text-green-900">
-                              <span className="font-medium">Student's Share:</span> ₹{selectedRequest.calculatedElectricityBill.studentShare || selectedRequest.calculatedElectricityBill.total}
-                            </p>
-                            {selectedRequest.calculatedElectricityBill.billPeriodStart && selectedRequest.calculatedElectricityBill.billPeriodEnd && (
-                              <p className="text-sm text-gray-500">
-                                Bill Period: {new Date(selectedRequest.calculatedElectricityBill.billPeriodStart).toLocaleDateString('en-IN')} to {new Date(selectedRequest.calculatedElectricityBill.billPeriodEnd).toLocaleDateString('en-IN')}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Status */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedRequest.status)}`}>
-                          {getStatusIcon(selectedRequest.status)}
-                          <span className="ml-1">{selectedRequest.status}</span>
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {action === 'approve' && (
-                        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                          <div className="flex">
-                            <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2 mt-0.5" />
-                            <div>
-                              <h4 className="text-sm font-medium text-yellow-800">First Approval</h4>
-                              <p className="mt-1 text-sm text-yellow-700">
-                                Approving this NOC request will send it to warden for meter reading entry. 
-                                The student will be deactivated only after meter readings are entered and final approval is given.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {action === 'final-approve' && (
-                        <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                          <div className="flex">
-                            <ExclamationTriangleIcon className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
-                            <div>
-                              <h4 className="text-sm font-medium text-red-800">Final Approval Warning</h4>
-                              <p className="mt-1 text-sm text-red-700">
-                                Final approval will deactivate the student's account and vacate their room allocation. 
-                                This action cannot be undone. Make sure meter readings have been entered and the electricity bill has been calculated.
-                              </p>
-                              {selectedRequest.calculatedElectricityBill && selectedRequest.calculatedElectricityBill.total && (
-                                <p className="mt-2 text-sm font-semibold text-red-900">
-                                  Calculated Electricity Bill (Student's Share): ₹{selectedRequest.calculatedElectricityBill.studentShare || selectedRequest.calculatedElectricityBill.total}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {action === 'send-for-correction' && (
-                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-md">
-                          <div className="flex">
-                            <ExclamationTriangleIcon className="h-5 w-5 text-orange-400 mr-2 mt-0.5" />
-                            <div>
-                              <h4 className="text-sm font-medium text-orange-800">Send for Correction</h4>
-                              <p className="mt-1 text-sm text-orange-700">
-                                This will send the NOC request back to the warden for corrections. 
-                                The warden will need to review and resubmit.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {action !== 'final-approve' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {action === 'approve' ? 'Approval Notes (Optional)' : 
-                             action === 'send-for-correction' ? 'Correction Remarks *' :
-                             'Rejection Reason *'}
-                          </label>
-                        <textarea
-                          value={remarks}
-                          onChange={(e) => setRemarks(e.target.value)}
-                          rows={4}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          placeholder={action === 'approve' 
-                            ? 'Add any notes about this approval...'
-                            : action === 'send-for-correction'
-                            ? 'Please specify what needs to be corrected...'
-                            : 'Please provide a reason for rejection...'
-                          }
-                          required={action === 'reject' || action === 'send-for-correction'}
-                        />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
-                  <button
-                    onClick={() => {
-                      setShowModal(false);
-                      setSelectedRequest(null);
-                      setRemarks('');
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    {action === 'view' ? 'Close' : 'Cancel'}
-                  </button>
-                  {action !== 'view' && (
-                    <button
-                      onClick={handleSubmitAction}
-                      disabled={isSubmitting || ((action === 'reject' || action === 'send-for-correction') && !remarks.trim())}
-                      className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        action === 'approve' 
-                          ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                          : action === 'final-approve'
-                          ? 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
-                          : action === 'send-for-correction'
-                          ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                          : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                      }`}
-                    >
-                      {isSubmitting ? 'Processing...' : 
-                       action === 'approve' ? 'Approve (Pending Meter Reading)' : 
-                       action === 'final-approve' ? 'Final Approve & Deactivate' :
-                       action === 'send-for-correction' ? 'Send for Correction' :
-                       'Reject'}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          )}
-            </>
-          ) : (
-            /* Checklist Configuration Tab */
-            <div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-                <div className="px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">Checklist Items</h2>
-                    <p className="text-sm text-gray-600">Configure checklist items for NOC verification</p>
-                  </div>
-                  <button
-                    onClick={handleCreateChecklistItem}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Checklist Item
-                  </button>
-                </div>
-              </div>
-
-              {loadingChecklist ? (
-                <LoadingSpinner />
-              ) : checklistItems.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                  <CogIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Checklist Items</h3>
-                  <p className="text-gray-600 mb-4">Create checklist items that wardens will fill during NOC verification.</p>
-                  <button
-                    onClick={handleCreateChecklistItem}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add First Checklist Item
-                  </button>
-                </div>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {checklistItems
-                        .sort((a, b) => a.order - b.order)
-                        .map((item, index) => (
-                          <tr key={item.id || item._id} className={!item.isActive ? 'opacity-50' : ''}>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => handleReorderChecklist(item.id || item._id, 'up')}
-                                  disabled={index === 0}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                                >
-                                  <ArrowUpIcon className="h-4 w-4" />
-                                </button>
-                                <span className="text-sm font-medium text-gray-900">{item.order + 1}</span>
-                                <button
-                                  onClick={() => handleReorderChecklist(item.id || item._id, 'down')}
-                                  disabled={index === checklistItems.length - 1}
-                                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                                >
-                                  <ArrowDownIcon className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="text-sm font-medium text-gray-900">{item.description}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                item.isActive 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {item.isActive ? 'Active' : 'Inactive'}
                               </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                              <div className="flex items-center justify-end space-x-2">
-                                <button
-                                  onClick={() => handleEditChecklistItem(item)}
-                                  className="text-blue-600 hover:text-blue-900"
-                                >
-                                  <PencilIcon className="h-5 w-5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteChecklistItem(item.id || item._id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  <TrashIcon className="h-5 w-5" />
-                                </button>
+                            </div>
+                          )}
+
+                          <div>
+                            <span className="font-medium text-sm text-gray-500 mr-2">Status:</span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedRequest.status)}`}>
+                              {getStatusIcon(selectedRequest.status)}
+                              <span className="ml-1">{selectedRequest.status}</span>
+                            </span>
+                          </div>
+
+                          {selectedRequest.rejectionReason && (
+                            <div>
+                              <label className="block text-sm font-medium text-red-500 mb-1">Rejection Reason</label>
+                              <p className="text-sm text-red-900 bg-red-50 p-3 rounded-md">{selectedRequest.rejectionReason}</p>
+                            </div>
+                          )}
+
+                          {selectedRequest.adminRemarks && (
+                            <div>
+                              <label className="block text-sm font-medium text-blue-500 mb-1">Admin Remarks</label>
+                              <p className="text-sm text-blue-900 bg-blue-50 p-3 rounded-md">{selectedRequest.adminRemarks}</p>
+                            </div>
+                          )}
+
+                          {selectedRequest.wardenRemarks && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500 mb-1">Warden Remarks</label>
+                              <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{selectedRequest.wardenRemarks}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {action === 'approve' && (
+                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                              <div className="flex">
+                                <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <h4 className="text-sm font-medium text-yellow-800">Direct Approval & Deactivation</h4>
+                                  <p className="mt-1 text-xs text-yellow-700">
+                                    Approving this NOC request will immediately deactivate the student's hostel profile for this academic year ({selectedRequest.academicYear}) and vacate their room allotment. This action cannot be undone.
+                                  </p>
+                                </div>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                            </div>
+                          )}
 
-              {/* Checklist Item Modal */}
-              {showChecklistModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-                  >
-                    <div className="px-6 py-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {editingItem ? 'Edit Checklist Item' : 'Create Checklist Item'}
-                      </h3>
-                    </div>
-                    
-                    <div className="px-6 py-4 space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Description *
-                        </label>
-                        <input
-                          type="text"
-                          value={checklistForm.description}
-                          onChange={(e) => setChecklistForm({ ...checklistForm, description: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          placeholder="e.g., Room, Key, Almirah/Locker"
-                          required
-                        />
-                      </div>
+                          {action === 'delete' && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                              <div className="flex">
+                                <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <h4 className="text-sm font-medium text-red-800">Delete Request & Reactivate Student</h4>
+                                  <p className="mt-1 text-xs text-red-700">
+                                    Are you sure you want to delete this NOC request? If this request was already approved, deleting it will restore the student's status to <strong>Active</strong> and re-allocate their original room, bed, and locker layouts.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
-                      <div className="flex items-center">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={checklistForm.isActive}
-                            onChange={(e) => setChecklistForm({ ...checklistForm, isActive: e.target.checked })}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">Active</span>
-                        </label>
-                      </div>
+                          {action !== 'delete' && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {action === 'approve' ? 'Remarks / Approval Notes (Optional)' : 'Rejection Reason *'}
+                              </label>
+                              <textarea
+                                value={remarks}
+                                onChange={(e) => setRemarks(e.target.value)}
+                                rows={4}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                placeholder={action === 'approve' 
+                                  ? 'Add any notes or remarks about this approval...'
+                                  : 'Please provide a detailed reason for rejection...'
+                                }
+                                required={action === 'reject'}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
                       <button
                         onClick={() => {
-                          setShowChecklistModal(false);
-                          setEditingItem(null);
+                          setShowModal(false);
+                          setSelectedRequest(null);
+                          setRemarks('');
                         }}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                       >
-                        Cancel
+                        {action === 'view' ? 'Close' : 'Cancel'}
                       </button>
-                      <button
-                        onClick={handleSaveChecklistItem}
-                        className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                      >
-                        {editingItem ? 'Update' : 'Create'}
-                      </button>
+                      {action !== 'view' && (
+                        <button
+                          onClick={handleSubmitAction}
+                          disabled={isSubmitting || (action === 'reject' && !remarks.trim())}
+                          className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
+                            action === 'approve' 
+                              ? 'bg-green-600 hover:bg-green-700'
+                              : 'bg-red-600 hover:bg-red-700'
+                          }`}
+                        >
+                          {isSubmitting ? 'Processing...' : (action === 'approve' ? 'Approve' : action === 'delete' ? 'Delete' : 'Reject')}
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 </div>
               )}
+            </>
+          )}
+
+          {/* Create NOC Modal */}
+          {showCreateModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+              >
+                <div className="px-6 py-4 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Create NOC Request for Student
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Create a NOC request on behalf of a student for their active academic year
+                  </p>
+                </div>
+
+                <div className="px-6 py-4 space-y-4">
+                  {/* Student Search */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Search Student *
+                    </label>
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={studentSearch}
+                        onChange={(e) => setStudentSearch(e.target.value)}
+                        placeholder="Search by name or roll number..."
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Student Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Student *
+                    </label>
+                    {loadingStudents ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                        <span className="ml-2 text-sm text-gray-500">Loading students...</span>
+                      </div>
+                    ) : students.length === 0 ? (
+                      <div className="text-center py-4 bg-gray-50 rounded-md">
+                        <UserIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          {studentSearch ? 'No students found matching your search' : 'No eligible students found'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                        {students.map((student) => (
+                          <div
+                            key={student._id}
+                            onClick={() => setSelectedStudent(student)}
+                            className={`p-3 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0 ${
+                              selectedStudent?._id === student._id
+                                ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium text-gray-900 text-sm">{student.name}</p>
+                                <p className="text-xs text-gray-500">{student.rollNumber}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-gray-600">{student.course?.name}</p>
+                                <p className="text-xs text-gray-500">Year {student.year} (AY: {student.academicYear})</p>
+                              </div>
+                            </div>
+                            {student.roomNumber && (
+                              <p className="text-xs text-gray-400 mt-1">Room: {student.roomNumber}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected Student Display */}
+                  {selectedStudent && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <p className="text-xs font-medium text-blue-800">Selected Student:</p>
+                      <p className="text-sm font-semibold text-blue-900">{selectedStudent.name} ({selectedStudent.rollNumber})</p>
+                      <p className="text-xs text-blue-700">{selectedStudent.course?.name} - Year {selectedStudent.year} (Academic Year: {selectedStudent.academicYear})</p>
+                    </div>
+                  )}
+
+                  {/* NOC Reason */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for NOC *
+                    </label>
+                    <textarea
+                      value={nocReason}
+                      onChange={(e) => setNocReason(e.target.value)}
+                      rows={4}
+                      maxLength={500}
+                      className="w-full px-3 py-2 border border-blue-500 focus:border-blue-500 text-sm rounded-md shadow-sm focus:outline-none focus:ring-blue-500"
+                      placeholder="Enter the reason for requesting NOC (minimum 10 characters)..."
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-right">
+                      {nocReason.length}/500 characters
+                    </p>
+                  </div>
+
+                  {/* Vacating Date */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Vacating Date from Hostel *
+                    </label>
+                    <input
+                      type="date"
+                      value={vacatingDate}
+                      onChange={(e) => setVacatingDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      required
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Select the date when the student plans to vacate the hostel
+                    </p>
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 bg-gray-50 flex justify-end space-x-3">
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setSelectedStudent(null);
+                      setNocReason('');
+                      setVacatingDate('');
+                      setStudentSearch('');
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateNOC}
+                    disabled={isCreating || !selectedStudent || nocReason.trim().length < 10 || !vacatingDate}
+                    className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isCreating ? 'Creating...' : 'Create NOC Request'}
+                  </button>
+                </div>
+              </motion.div>
             </div>
           )}
         </motion.div>
