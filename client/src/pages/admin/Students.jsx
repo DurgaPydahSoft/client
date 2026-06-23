@@ -3697,7 +3697,7 @@ const Students = () => {
                                       </span>
                                       {statusDisplay.nocDateText ? (
                                         <span className="text-xs text-gray-500">
-                                          NOC taken on {statusDisplay.nocDateText}
+                                          NOC Vacating Date: {statusDisplay.nocDateText}
                                         </span>
                                       ) : statusDisplay.expiryText ? (
                                         <span className="text-xs text-gray-500">
@@ -4045,7 +4045,7 @@ const Students = () => {
                             </span>
                             {statusDisplay.nocDateText ? (
                               <span className="text-xs text-gray-500">
-                                NOC taken on {statusDisplay.nocDateText}
+                                NOC Vacating Date: {statusDisplay.nocDateText}
                               </span>
                             ) : statusDisplay.expiryText ? (
                               <span className="text-xs text-gray-500">

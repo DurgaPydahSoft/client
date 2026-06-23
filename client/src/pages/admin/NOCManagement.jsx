@@ -90,14 +90,7 @@ const NOCManagement = () => {
       return;
     }
 
-    // Validate vacating date is not in the past
-    const selectedDate = new Date(vacatingDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      toast.error('Vacating date cannot be in the past');
-      return;
-    }
+    // Allow any date (past or future) for vacating date
 
     setIsCreating(true);
     try {
@@ -847,7 +840,6 @@ const NOCManagement = () => {
                       type="date"
                       value={vacatingDate}
                       onChange={(e) => setVacatingDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
                       required
                     />

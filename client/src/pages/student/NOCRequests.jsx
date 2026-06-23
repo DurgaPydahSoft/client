@@ -73,14 +73,7 @@ const NOCRequests = () => {
       return;
     }
 
-    // Validate vacating date is not in the past
-    const selectedDate = new Date(vacatingDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      toast.error('Vacating date cannot be in the past');
-      return;
-    }
+    // Allow any date (past or future) for vacating date
 
     setIsSubmitting(true);
 
@@ -250,8 +243,12 @@ const NOCRequests = () => {
                               Raised by Warden
                             </span>
                           )}
-                          <span className="text-xs sm:text-sm text-gray-500">
-                            {formatDate(request.createdAt)}
+                          <span className="text-xs sm:text-sm text-gray-500 font-medium">
+                            Vacating Date: {request.vacatingDate ? new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            }) : 'N/A'}
                           </span>
                         </div>
                         
@@ -272,16 +269,9 @@ const NOCRequests = () => {
                           <div>
                             <span className="font-medium">Year:</span> {request.year || 'N/A'}
                           </div>
-                          {request.vacatingDate && (
-                            <div>
-                              <span className="font-medium">Vacating Date:</span>{' '}
-                              {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </div>
-                          )}
+                          <div>
+                            <span className="font-medium">Applied Date:</span> {formatDate(request.createdAt)}
+                          </div>
                         </div>
 
                         {/* Additional info based on status */}
@@ -487,7 +477,7 @@ const NOCRequests = () => {
                         id="vacatingDate"
                         value={vacatingDate}
                         onChange={(e) => setVacatingDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
+
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                         required
                       />

@@ -399,11 +399,13 @@ const TakeAttendance = () => {
     fetchStudentsData();
   }, [fetchStudentsData]);
 
-  // Filter students based on search query
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter students based on search query and sort alphabetically by name
+  const filteredStudents = students
+    .filter(student =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const fetchHostels = async () => {
     try {
