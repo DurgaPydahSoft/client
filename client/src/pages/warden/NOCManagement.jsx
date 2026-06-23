@@ -12,7 +12,8 @@ import {
   FunnelIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  InformationCircleIcon
 } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
@@ -35,23 +36,46 @@ const NOCManagement = () => {
   const [vacatingDate, setVacatingDate] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [selectedAY, setSelectedAY] = useState('');
+
+  const getDefaultAcademicYear = () => {
+    const year = new Date().getFullYear();
+    return `${year}-${year + 1}`;
+  };
+
+  const generateAcademicYears = () => {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = -3; i <= 3; i++) {
+      const year = currentYear + i;
+      years.push(`${year}-${year + 1}`);
+    }
+    return years;
+  };
 
   useEffect(() => {
     fetchNOCRequests();
   }, [filter]);
 
-  // Fetch students when create modal is open and search changes
+  // Fetch students when create modal is open and search or selectedAY changes
   useEffect(() => {
-    if (showCreateModal) {
+    if (showCreateModal && selectedAY) {
       fetchStudents();
+    } else {
+      setStudents([]);
     }
-  }, [showCreateModal, studentSearch]);
+  }, [showCreateModal, studentSearch, selectedAY]);
 
   const fetchStudents = async () => {
+    if (!selectedAY) {
+      setStudents([]);
+      return;
+    }
     setLoadingStudents(true);
     try {
       const params = new URLSearchParams();
       if (studentSearch) params.append('search', studentSearch);
+      params.append('academicYear', selectedAY);
       
       const response = await api.get(`/api/noc/warden/students?${params.toString()}`);
       if (response.data.success) {
@@ -97,6 +121,7 @@ const NOCManagement = () => {
         setNocReason('');
         setVacatingDate('');
         setStudentSearch('');
+        setSelectedAY('');
         fetchNOCRequests();
       }
     } catch (error) {
@@ -263,140 +288,116 @@ const NOCManagement = () => {
               </p>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
-              {filteredRequests.map((request, index) => (
-                <motion.div
-                  key={request.id || request._id || `noc-request-${index}`}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
-                >
-                  <div className="px-3 sm:px-6 py-4">
-                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between space-y-3 lg:space-y-0">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${getStatusColor(request.status)}`}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        NOC ID
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Student
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Academics
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Vacating Date
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Raised By
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredRequests.map((request, index) => (
+                      <tr key={request.id || request._id || `noc-request-${index}`} className="hover:bg-gray-50 transition-colors duration-150">
+                        <td className="px-6 py-4 whitespace-nowrap text-xs font-medium text-gray-900">
+                          #{(request.id || request._id) ? (request.id || request._id).slice(-8).toUpperCase() : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{request.studentName}</div>
+                          <div className="text-xs text-gray-500">{request.rollNumber}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-xs text-gray-900">{request.course?.name}</div>
+                          <div className="text-xs text-gray-500">Year {request.year} (AY: {request.academicYear})</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-700 font-sans">
+                          {request.vacatingDate ? new Date(request.vacatingDate).toLocaleDateString('en-IN', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          }) : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {request.raisedBy === 'warden' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Warden
+                            </span>
+                          ) : request.raisedBy === 'admin' ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Admin
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <UserIcon className="h-3 w-3 mr-1" />
+                              Student
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </span>
-                          {request.raisedBy === 'warden' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit mt-1 sm:mt-0">
-                              <UserIcon className="h-3 w-3 mr-1" />
-                              Raised by Warden
-                            </span>
-                          )}
-                          {request.raisedBy === 'admin' && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit mt-1 sm:mt-0">
-                              <UserIcon className="h-3 w-3 mr-1" />
-                              Raised by Admin
-                            </span>
-                          )}
-                          <span className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-0">
-                            Submitted on {formatDate(request.createdAt)}
-                          </span>
-                        </div>
-                        
-                        <div className="mb-3">
-                          <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-1 break-all">
-                            NOC Request #{(request.id || request._id) ? (request.id || request._id).slice(-8).toUpperCase() : 'N/A'}
-                          </h3>
-                          <p className="text-sm sm:text-base text-gray-600 line-clamp-2 break-words">{request.reason}</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                          <div className="truncate">
-                            <span className="font-medium">Student:</span> 
-                            <span className="ml-1 truncate block sm:inline">{request.studentName}</span>
-                          </div>
-                          <div className="truncate">
-                            <span className="font-medium">Roll No:</span> 
-                            <span className="ml-1">{request.rollNumber}</span>
-                          </div>
-                          <div className="truncate">
-                            <span className="font-medium">Course:</span> 
-                            <span className="ml-1 truncate block sm:inline">{request.course?.name}</span>
-                          </div>
-                          <div className="truncate">
-                            <span className="font-medium">Year:</span> 
-                            <span className="ml-1">{request.year}</span>
-                          </div>
-                          {request.vacatingDate && (
-                            <div className="truncate">
-                              <span className="font-medium">Vacating Date:</span>{' '}
-                              <span className="ml-1">
-                                {new Date(request.vacatingDate).toLocaleDateString('en-IN', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Rejection Reason */}
-                        {request.rejectionReason && (
-                          <div className="mt-3 p-2 sm:p-3 bg-red-50 rounded-md">
-                            <p className="text-xs sm:text-sm text-red-800 break-words">
-                              <span className="font-medium">Rejection Reason:</span> {request.rejectionReason}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Warden Remarks */}
-                        {request.wardenRemarks && (
-                          <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md">
-                            <p className="text-xs sm:text-sm text-blue-800 break-words">
-                              <span className="font-medium">Remarks:</span> {request.wardenRemarks}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Admin Remarks */}
-                        {request.adminRemarks && (
-                          <div className="mt-3 p-2 sm:p-3 bg-blue-50 rounded-md">
-                            <p className="text-xs sm:text-sm text-blue-800 break-words">
-                              <span className="font-medium">Admin Remarks:</span> {request.adminRemarks}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center justify-end space-x-2 lg:ml-4">
-                        <button
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setAction('view');
-                            setShowModal(true);
-                          }}
-                          className="p-2 text-gray-400 hover:text-blue-600 transition-colors duration-200"
-                          title="View Details"
-                        >
-                          <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                        </button>
-                        
-                        {request.status === 'Pending' && (
-                          <div className="flex space-x-1 sm:space-x-2">
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-xs font-medium">
+                          <div className="flex items-center justify-end space-x-2">
                             <button
-                              onClick={() => handleAction(request, 'verify')}
-                              className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200 whitespace-nowrap"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setAction('view');
+                                setShowModal(true);
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                              title="View Details"
                             >
-                              Approve
+                              <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
                             </button>
-                            <button
-                              onClick={() => handleAction(request, 'reject')}
-                              className="px-2 sm:px-3 py-1 text-xs sm:text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200 whitespace-nowrap"
-                            >
-                              Reject
-                            </button>
+                            
+                            {request.status === 'Pending' && (
+                              <div className="flex space-x-1.5">
+                                <button
+                                  onClick={() => handleAction(request, 'verify')}
+                                  className="px-2.5 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors duration-200 whitespace-nowrap"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleAction(request, 'reject')}
+                                  className="px-2.5 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors duration-200 whitespace-nowrap"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -534,6 +535,28 @@ const NOCManagement = () => {
                 </div>
 
                 <div className="px-4 sm:px-6 py-4 space-y-4">
+                  {/* Academic Year Selection */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      Academic Year *
+                    </label>
+                    <select
+                      value={selectedAY}
+                      onChange={(e) => {
+                        setSelectedAY(e.target.value);
+                        setSelectedStudent(null); // Reset selected student when AY changes
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                    >
+                      <option value="">Select Academic Year...</option>
+                      {generateAcademicYears().map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Student Search */}
                   <div>
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
@@ -545,8 +568,9 @@ const NOCManagement = () => {
                         type="text"
                         value={studentSearch}
                         onChange={(e) => setStudentSearch(e.target.value)}
-                        placeholder="Search by name or roll number..."
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm"
+                        disabled={!selectedAY}
+                        placeholder={selectedAY ? "Search by name or roll number..." : "Select Academic Year first..."}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -556,7 +580,14 @@ const NOCManagement = () => {
                     <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                       Select Student *
                     </label>
-                    {loadingStudents ? (
+                    {!selectedAY ? (
+                      <div className="text-center py-4 bg-gray-50 rounded-md">
+                        <InformationCircleIcon className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                        <p className="text-sm text-gray-500">
+                          Please select an Academic Year first to load students
+                        </p>
+                      </div>
+                    ) : loadingStudents ? (
                       <div className="flex items-center justify-center py-4">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
                         <span className="ml-2 text-sm text-gray-500">Loading students...</span>
@@ -565,11 +596,11 @@ const NOCManagement = () => {
                       <div className="text-center py-4 bg-gray-50 rounded-md">
                         <UserIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                         <p className="text-sm text-gray-500">
-                          {studentSearch ? 'No students found matching your search' : 'No eligible students found'}
+                          {studentSearch ? 'No students found matching your search' : 'No eligible active students found for this Academic Year'}
                         </p>
                       </div>
                     ) : (
-                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md">
+                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md font-sans">
                         {students.map((student) => (
                           <div
                             key={student._id}
@@ -587,7 +618,7 @@ const NOCManagement = () => {
                               </div>
                               <div className="text-right">
                                 <p className="text-xs text-gray-600">{student.course?.name}</p>
-                                <p className="text-xs text-gray-500">Year {student.year}</p>
+                                <p className="text-xs text-gray-500">Year {student.year} (AY: {student.academicYear})</p>
                               </div>
                             </div>
                             {student.roomNumber && (
@@ -604,7 +635,7 @@ const NOCManagement = () => {
                     <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                       <p className="text-xs font-medium text-green-800">Selected Student:</p>
                       <p className="text-sm font-semibold text-green-900">{selectedStudent.name} ({selectedStudent.rollNumber})</p>
-                      <p className="text-xs text-green-700">{selectedStudent.course?.name} - Year {selectedStudent.year}</p>
+                      <p className="text-xs text-green-700">{selectedStudent.course?.name} - Year {selectedStudent.year} (AY: {selectedStudent.academicYear})</p>
                     </div>
                   )}
 
@@ -653,6 +684,7 @@ const NOCManagement = () => {
                       setNocReason('');
                       setVacatingDate('');
                       setStudentSearch('');
+                      setSelectedAY('');
                     }}
                     className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md text-xs sm:text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                   >
