@@ -40,6 +40,8 @@ const MyComplaints = () => {
   const [feedback, setFeedback] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [photoModal, setPhotoModal] = useState({ open: false, src: '', name: '' });
+
 
   // Add event listener for complaint submission
   useEffect(() => {
@@ -665,15 +667,24 @@ const MyComplaints = () => {
                           <PhotoIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-gray-500 flex-shrink-0" />
                           <span className="font-medium text-gray-700 text-xs sm:text-sm lg:text-base">Complaint Image</span>
                         </div>
-                        <div className="relative aspect-video w-full overflow-hidden rounded-lg">
+                        <div 
+                          className="relative aspect-video w-full overflow-hidden rounded-lg cursor-pointer group"
+                          onClick={() => setPhotoModal({ open: true, src: selected.imageUrl, name: selected.title })}
+                        >
                           <img
                             src={selected.imageUrl}
                             alt="Complaint"
                             className="object-cover w-full h-full hover:scale-105 transition-transform duration-300"
                           />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                            <span className="text-white text-xs bg-black bg-opacity-50 px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 font-semibold shadow-md">
+                              Click to view larger
+                            </span>
+                          </div>
                         </div>
                       </div>
                     )}
+
 
                     {/* Assigned Member Information */}
                     {selected.assignedTo && (
@@ -842,7 +853,54 @@ const MyComplaints = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Photo Modal */}
+      <AnimatePresence>
+        {photoModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-[95vw] max-h-[95vh] bg-white rounded-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+                className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-full p-2 transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Image */}
+              <div className="flex items-center justify-center p-4">
+                <img
+                  src={photoModal.src}
+                  alt={photoModal.name}
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Image Title */}
+              {photoModal.name && (
+                <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg">
+                  <p className="text-sm font-medium truncate">{photoModal.name}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 };
 

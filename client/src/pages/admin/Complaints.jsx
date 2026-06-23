@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import { FunnelIcon, XMarkIcon, ClockIcon, UserIcon, CheckCircleIcon, ExclamationCircleIcon, ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassIcon, CogIcon } from '@heroicons/react/24/outline';
@@ -8,6 +10,8 @@ import SEO from '../../components/SEO';
 import AIConfigPanel from '../../components/AIConfigPanel';
 import useDebounce from '../../hooks/useDebounce';
 import { useAuth } from '../../context/AuthContext';
+import { canPerformAction } from '../../utils/permissionUtils';
+
 
 const STATUS_OPTIONS = ['All', 'Received', 'In Progress', 'Resolved', 'Closed'];
 
@@ -134,6 +138,8 @@ const Complaints = () => {
   
   // Check if user is super_admin
   const isSuperAdmin = user?.role === 'super_admin';
+  const canDeleteComplaint = isSuperAdmin || canPerformAction(user, 'maintenance_ticket_management', 'delete');
+
 
   // Simplified filters
   const [filterStatus, setFilterStatus] = useState('All');
@@ -179,6 +185,10 @@ const Complaints = () => {
 
   // Mobile filters state
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Photo modal state
+  const [photoModal, setPhotoModal] = useState({ open: false, src: '', name: '' });
+
 
   // Desktop filters state
   const [showDesktopFilters, setShowDesktopFilters] = useState(false);
@@ -749,7 +759,8 @@ const Complaints = () => {
                       {c.currentStatus || 'Received'}
                     </span>
                     <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
-                      {c.currentStatus === 'Received' && !isLocked && (
+                      {c.currentStatus === 'Received' && !isLocked && canDeleteComplaint && (
+
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -811,7 +822,8 @@ const Complaints = () => {
         {filteredComplaints.map((c, index) => {
           const complaintKey = `mobile-${c._id || c.student?._id || 'unknown'}-${index}`;
           const isLocked = c.isLockedForUpdates === true;
-          const canDelete = c.currentStatus === 'Received' && !isLocked;
+          const canDelete = c.currentStatus === 'Received' && !isLocked && canDeleteComplaint;
+
 
           return (
             <div 
@@ -920,7 +932,8 @@ const Complaints = () => {
   // Render individual complaint card for Kanban columns
   const renderComplaintCard = (complaint) => {
     const isLocked = complaint.isLockedForUpdates === true;
-    const canDelete = complaint.currentStatus === 'Received' && !isLocked;
+    const canDelete = complaint.currentStatus === 'Received' && !isLocked && canDeleteComplaint;
+
 
     return (
       <div
@@ -1640,16 +1653,25 @@ const Complaints = () => {
 
                 {selected.imageUrl && (
                   <div className="mb-4 sm:mb-6">
-                    <div className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200 bg-gray-100">
+                    <div 
+                      className="relative w-full pt-[56.25%] overflow-hidden rounded-lg border border-gray-200 bg-gray-100 cursor-pointer group"
+                      onClick={() => setPhotoModal({ open: true, src: selected.imageUrl, name: selected.category })}
+                    >
                       <img
                         src={selected.imageUrl}
                         alt="Complaint"
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200 flex items-center justify-center">
+                        <span className="text-white text-xs bg-black bg-opacity-50 px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 font-semibold shadow-md">
+                          Click to view larger
+                        </span>
+                      </div>
                     </div>
                     <p className="mt-2 text-xs text-gray-500 text-center">Complaint Image</p>
                   </div>
                 )}
+
 
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 gap-3 sm:gap-4 mb-4 sm:mb-6">
@@ -1954,7 +1976,53 @@ const Complaints = () => {
       {showAIConfig && (
         <AIConfigPanel onClose={() => setShowAIConfig(false)} />
       )}
+
+      {/* Photo Modal */}
+      <AnimatePresence>
+        {photoModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60] p-4"
+            onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-[95vw] max-h-[95vh] bg-white rounded-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+                className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-full p-2 transition-all duration-200"
+              >
+                <XMarkIcon className="w-6 h-6" />
+              </button>
+
+              {/* Image */}
+              <div className="flex items-center justify-center p-4">
+                <img
+                  src={photoModal.src}
+                  alt={photoModal.name}
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Image Title */}
+              {photoModal.name && (
+                <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg">
+                  <p className="text-sm font-medium truncate">{photoModal.name}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
+
   );
 };
 

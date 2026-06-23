@@ -52,6 +52,8 @@ const WardenViewComplaints = () => {
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'student', 'facility', 'warden'
   const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'in-progress', 'resolved'
+  const [photoModal, setPhotoModal] = useState({ open: false, src: '', name: '' });
+
 
   // Add event listener for complaint submission
   useEffect(() => {
@@ -522,13 +524,22 @@ const WardenViewComplaints = () => {
                 {selected.imageUrl && (
                   <div>
                     <h3 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Image</h3>
-                    <img
-                      src={selected.imageUrl}
-                      alt="Complaint"
-                      className="max-w-full h-auto rounded-lg border"
-                    />
+                    <div className="relative group max-w-md">
+                      <img
+                        src={selected.imageUrl}
+                        alt="Complaint"
+                        className="w-full h-auto rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => setPhotoModal({ open: true, src: selected.imageUrl, name: selected.category })}
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200 rounded-lg flex items-center justify-center pointer-events-none">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <PhotoIcon className="w-8 h-8 text-white drop-shadow-lg" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
+
 
                 {/* Timeline */}
                 <div>
@@ -612,7 +623,54 @@ const WardenViewComplaints = () => {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Photo Modal */}
+      <AnimatePresence>
+        {photoModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+            onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-[95vw] max-h-[95vh] bg-white rounded-xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setPhotoModal({ open: false, src: '', name: '' })}
+                className="absolute top-4 right-4 z-10 bg-black bg-opacity-50 hover:bg-opacity-75 text-white rounded-full p-2 transition-all duration-200"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+
+              {/* Image */}
+              <div className="flex items-center justify-center p-4">
+                <img
+                  src={photoModal.src}
+                  alt={photoModal.name}
+                  className="max-w-full max-h-[85vh] object-contain rounded-lg"
+                />
+              </div>
+
+              {/* Image Title */}
+              {photoModal.name && (
+                <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 text-white px-4 py-2 rounded-lg">
+                  <p className="text-sm font-medium truncate">{photoModal.name}</p>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+
   );
 };
 
