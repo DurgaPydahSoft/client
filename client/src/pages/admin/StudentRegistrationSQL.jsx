@@ -46,6 +46,14 @@ const readOnlyInputClass =
 const readOnlySelectClass =
   'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
 
+const normalizeGenderFromSql = (value) => {
+  if (!value) return '';
+  const normalized = value.toString().trim().toUpperCase();
+  if (['M', 'MALE', 'BOY'].includes(normalized)) return 'Male';
+  if (['F', 'FEMALE', 'GIRL'].includes(normalized)) return 'Female';
+  return '';
+};
+
 const StudentRegistrationSQL = () => {
   const normalizeText = (val) => (val || '').toString().trim().toUpperCase();
   const { user } = useAuth();
@@ -144,7 +152,7 @@ const StudentRegistrationSQL = () => {
         ...prev,
         name: data.name || prev.name,
         rollNumber: data.rollNumber || prev.rollNumber,
-        gender: data.gender || prev.gender,
+        gender: normalizeGenderFromSql(data.gender) || prev.gender,
         course: data.course || prev.course,
         year: data.year || prev.year,
         branch: data.branch || prev.branch,
@@ -390,7 +398,7 @@ const StudentRegistrationSQL = () => {
           name: sqlData.name || '',
           rollNumber: sqlData.rollNumber || identifier,
           admissionNumber: sqlData.admissionNumber || identifier,
-          gender: sqlData.gender || '',
+          gender: normalizeGenderFromSql(sqlData.gender) || '',
           course: sqlData.courseId || '',
           branch: sqlData.branchId || '',
           year: yearOfStudy,
@@ -648,7 +656,7 @@ const StudentRegistrationSQL = () => {
       Object.keys(form).forEach(key => {
         if (key === 'college' && form[key] && typeof form[key] === 'object') {
           formData.append(key, JSON.stringify(form[key]));
-        } else if (form[key] !== null && form[key] !== undefined) {
+        } else if (form[key] !== null && form[key] !== undefined && form[key] !== '') {
           formData.append(key, form[key]);
         }
       });
@@ -877,15 +885,17 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gender{form.gender ? '' : ' (optional)'}
+                </label>
                 <select
                   name="gender"
                   value={form.gender}
-                  disabled
-                  required
-                  className={readOnlySelectClass}
+                  onChange={handleFormChange}
+                  disabled={sqlDataFetched && Boolean(form.gender)}
+                  className={sqlDataFetched && form.gender ? readOnlySelectClass : 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'}
                 >
-                  <option value="">Select Gender</option>
+                  <option value="">Not specified</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
