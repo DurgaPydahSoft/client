@@ -219,6 +219,12 @@ const formatDisplayDate = (value) => {
 const isStudentExpired = (student) =>
   student?.hostelStatus === 'Inactive' || student?.applicationStatus === 'Expired';
 
+const canDeactivateStudent = (student) =>
+  student &&
+  !student.isHistoricalView &&
+  student.hostelStatus === 'Active' &&
+  student.applicationStatus !== 'Expired';
+
 const getHostelStatusDisplay = (student) => {
   if (student?.hostelStatus === 'Active' && !isStudentExpired(student)) {
     return {
@@ -230,7 +236,11 @@ const getHostelStatusDisplay = (student) => {
   }
 
   if (isStudentExpired(student)) {
-    const expiryDate = student.resolvedExpiryDate || student.applicationExpiryDate;
+    // Use actual deactivation date — not resolvedExpiryDate (scheduled course/year end)
+    const expiryDate =
+      student.actualExpiredAt ||
+      student.allocatedTo ||
+      student.applicationExpiryDate;
     return {
       label: 'Expired',
       badgeClass: 'bg-red-100 text-red-800',
@@ -374,6 +384,9 @@ const Students = () => {
   // Student details modal states
   const [studentDetailsModal, setStudentDetailsModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [showStatusUpdateModal, setShowStatusUpdateModal] = useState(false);
+  const [statusUpdateReason, setStatusUpdateReason] = useState('');
+  const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
 
   // Share credentials modal states
   const [shareModal, setShareModal] = useState(false);
@@ -3822,7 +3835,7 @@ const Students = () => {
   // Student Details Modal
   const renderStudentDetailsModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col mx-2 sm:mx-0">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col mx-2 sm:mx-0 relative">
         {selectedStudent && (
           <>
             {/* Header */}
@@ -4122,8 +4135,65 @@ const Students = () => {
                 </svg>
                 Reset Password
               </button>
+              {canDeactivateStudent(selectedStudent) && (
+                <button
+                  onClick={() => {
+                    setStatusUpdateReason('');
+                    setShowStatusUpdateModal(true);
+                  }}
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm sm:text-base"
+                >
+                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                  Status Update
+                </button>
+              )}
             </div>
           </>
+        )}
+
+        {showStatusUpdateModal && selectedStudent && (
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-xl z-10 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 sm:p-6">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">Mark Student Inactive</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                This will set <span className="font-medium">{selectedStudent.name}</span> ({selectedStudent.rollNumber}) as{' '}
+                <span className="font-medium text-red-600">Inactive</span> and mark their application as{' '}
+                <span className="font-medium text-red-600">Expired</span>. Bed and locker will be freed.
+              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for status update <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={statusUpdateReason}
+                onChange={(e) => setStatusUpdateReason(e.target.value)}
+                rows={4}
+                placeholder="Enter reason for deactivating this student..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                disabled={statusUpdateLoading}
+              />
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStatusUpdateModal(false);
+                    setStatusUpdateReason('');
+                  }}
+                  disabled={statusUpdateLoading}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeactivateStudent}
+                  disabled={statusUpdateLoading || !statusUpdateReason.trim()}
+                  className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {statusUpdateLoading ? 'Updating...' : 'Done'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -5443,6 +5513,46 @@ const Students = () => {
   const openStudentDetailsModal = (student) => {
     setSelectedStudent(student);
     setStudentDetailsModal(true);
+    setShowStatusUpdateModal(false);
+    setStatusUpdateReason('');
+  };
+
+  const handleDeactivateStudent = async () => {
+    if (!selectedStudent?._id) return;
+
+    const reason = statusUpdateReason.trim();
+    if (!reason) {
+      toast.error('Please enter a reason for deactivation');
+      return;
+    }
+
+    try {
+      setStatusUpdateLoading(true);
+      const response = await api.post(
+        `/api/admin/students/${selectedStudent._id}/deactivate-application`,
+        { reason }
+      );
+
+      if (response.data.success) {
+        toast.success(response.data.message || 'Student marked as inactive');
+        const updatedStudent = {
+          ...selectedStudent,
+          hostelStatus: 'Inactive',
+          applicationStatus: 'Expired',
+          bedNumber: undefined,
+          lockerNumber: undefined,
+          actualExpiredAt: response.data.data?.actualExpiredAt || new Date().toISOString()
+        };
+        setSelectedStudent(updatedStudent);
+        setShowStatusUpdateModal(false);
+        setStatusUpdateReason('');
+        fetchStudents();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update student status');
+    } finally {
+      setStatusUpdateLoading(false);
+    }
   };
 
   // Open concession request modal
