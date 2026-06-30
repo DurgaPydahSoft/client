@@ -709,24 +709,65 @@ const TakeAttendance = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
         >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent flex items-center gap-1.5 sm:gap-2">
-                <UserGroupIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0" />
-                <span>Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}</span>
-              </h1>
-              <p className="text-gray-600 mt-1 text-xs sm:text-sm lg:text-base">
-                Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
-              </p>
-            </div>
-            <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 sm:gap-4 text-center lg:text-right">
-              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
-                <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{stats.totalStudents}</p>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-start flex-1 min-w-0">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                  <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
+                    Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}
+                  </h1>
+                  {/* Mobile Academic Year Select */}
+                  <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
+                    {loadingStudents && (
+                      <div className="w-3.5 h-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                    <select
+                      name="academicYear"
+                      value={filters.academicYear}
+                      onChange={handleFilterChange}
+                      className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-xs font-semibold text-gray-700 bg-white shadow-sm"
+                    >
+                      {generateAcademicYears().map(year => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-gray-500 mt-0.5 text-xs sm:text-sm lg:text-base">
+                  Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
+                </p>
               </div>
-              <div className="bg-gray-50 rounded-lg p-2 sm:p-3 lg:bg-transparent lg:p-0">
-                <p className="text-xs sm:text-sm text-gray-500">Attendance Taken</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600">{stats.attendanceTaken}</p>
+            </div>
+            
+            {/* Desktop Stats & Academic Year */}
+            <div className="flex flex-row items-center justify-between lg:justify-end gap-3 sm:gap-4 border-t lg:border-t-0 border-gray-100 pt-3 lg:pt-0">
+              <div className="bg-gray-50 rounded-lg p-2 min-w-[100px] text-center">
+                <p className="text-[10px] sm:text-xs text-gray-500">Total Students</p>
+                <p className="text-base sm:text-lg font-bold text-green-600">{stats.totalStudents}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2 min-w-[100px] text-center">
+                <p className="text-[10px] sm:text-xs text-gray-500">Attendance Taken</p>
+                <p className="text-base sm:text-lg font-bold text-blue-600">{stats.attendanceTaken}</p>
+              </div>
+              {/* Desktop Academic Year Select */}
+              <div className="hidden lg:flex items-center gap-2">
+                {loadingStudents && (
+                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                )}
+                <select
+                  name="academicYear"
+                  value={filters.academicYear}
+                  onChange={handleFilterChange}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold text-gray-700 bg-white shadow-sm"
+                >
+                  {generateAcademicYears().map(year => (
+                    <option key={year} value={year}>
+                      {year} AY
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
