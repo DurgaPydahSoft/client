@@ -9,6 +9,7 @@ import autoTable from 'jspdf-autotable';
 import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction, hasPermission } from '../../utils/permissionUtils';
 import { downloadAdmitCard } from '../../utils/admitCardGenerator';
+import PrintableLiveStudents from '../../components/PrintableLiveStudents';
 
 // Dynamic course and branch data will be fetched from backend
 
@@ -286,6 +287,7 @@ const Students = () => {
   const [editId, setEditId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [originalEditForm, setOriginalEditForm] = useState(null); // Store original form data
+  const [isLiveMode, setIsLiveMode] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     course: '',
@@ -303,6 +305,7 @@ const Students = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
+  const [printStudents, setPrintStudents] = useState([]);
   const [courseCounts, setCourseCounts] = useState({});
   const [generatedPassword, setGeneratedPassword] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -2477,6 +2480,217 @@ const Students = () => {
     }
   };
 
+  // Function to handle printing live student list grouped by Hostel -> Category -> Room Number
+  const handlePrintLiveStudentsReport = async () => {
+    const loadingToast = toast.loading('Preparing printable report...');
+    try {
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.hostel) params.append('hostel', filters.hostel);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      // We always print active students for live/active report
+      params.append('hostelStatus', 'Active');
+      params.append('page', '1');
+      params.append('limit', '1000000'); // get all matching active students
+
+      const res = await api.get(`/api/admin/students?${params}`);
+      if (!res.data.success) {
+        throw new Error(res.data.message || 'Failed to fetch students');
+      }
+
+      const allActiveStudents = res.data.data.students || [];
+      if (allActiveStudents.length === 0) {
+        toast.error('No active students found matching the current filters', { id: loadingToast });
+        return;
+      }
+
+      // Update local state to trigger render of PrintableLiveStudents component
+      setPrintStudents(allActiveStudents);
+
+      // Wait for state update and React render
+      setTimeout(() => {
+        const printElement = document.getElementById('printable-area');
+        const iframe = document.getElementById('print-iframe');
+        if (!printElement || !iframe) {
+          toast.error('Failed to locate printable elements', { id: loadingToast });
+          return;
+        }
+
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        
+        // Write the HTML with styles into the iframe
+        iframeDoc.open();
+        iframeDoc.write(`
+          <html>
+            <head>
+              <title>Live Students Report</title>
+              <style>
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  color: #1e293b;
+                  margin: 1.5cm;
+                  padding: 0;
+                  background-color: #ffffff;
+                }
+                .page-break {
+                  page-break-after: always;
+                  break-after: page;
+                }
+                .header-container {
+                  text-align: center;
+                  margin-bottom: 25px;
+                  border-bottom: 2px solid #1e3a8a;
+                  padding-bottom: 12px;
+                }
+                h1 {
+                  font-size: 24px;
+                  color: #1e3a8a;
+                  margin: 0 0 5px 0;
+                  text-transform: uppercase;
+                  letter-spacing: 0.5px;
+                }
+                .report-subtitle {
+                  font-size: 13px;
+                  color: #475569;
+                  margin: 5px 0;
+                  font-weight: 500;
+                }
+                .report-date {
+                  font-size: 11px;
+                  color: #64748b;
+                  margin: 0;
+                }
+                /* Abstract Summary Styles */
+                .abstract-section {
+                  margin-top: 15px;
+                }
+                .abstract-title {
+                  font-size: 16px;
+                  font-weight: 700;
+                  color: #1e3a8a;
+                  margin: 20px 0 10px 0;
+                  text-transform: uppercase;
+                  border-bottom: 1px solid #cbd5e1;
+                  padding-bottom: 4px;
+                }
+                .summary-row {
+                  display: flex;
+                  justify-content: space-around;
+                  align-items: center;
+                  border: 1px solid #cbd5e1;
+                  border-radius: 6px;
+                  padding: 12px 10px;
+                  background-color: #f8fafc;
+                  margin-bottom: 25px;
+                  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                }
+                .summary-item {
+                  font-size: 13px;
+                  color: #334155;
+                  font-weight: 500;
+                }
+                .summary-item strong {
+                  color: #1d4ed8;
+                  font-size: 16px;
+                  margin-left: 5px;
+                }
+                .summary-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 25px;
+                }
+                .summary-table th, .summary-table td {
+                  border: 1px solid #cbd5e1;
+                  padding: 8px 10px;
+                  font-size: 12px;
+                  text-align: left;
+                }
+                .summary-table th {
+                  background-color: #eff6ff;
+                  color: #1d4ed8;
+                  font-weight: 600;
+                }
+                /* Detail Lists Styles */
+                .hostel-section {
+                  margin-bottom: 30px;
+                }
+                .hostel-title {
+                  font-size: 18px;
+                  font-weight: bold;
+                  color: #1e3a8a;
+                  border-bottom: 1.5px solid #1e3a8a;
+                  padding-bottom: 4px;
+                  margin-bottom: 15px;
+                }
+                .category-section {
+                  margin-bottom: 20px;
+                }
+                .category-title {
+                  font-size: 13px;
+                  font-weight: bold;
+                  color: #334155;
+                  background-color: #f1f5f9;
+                  padding: 5px 10px;
+                  border-radius: 4px;
+                  margin-bottom: 10px;
+                }
+                .room-section {
+                  margin-bottom: 15px;
+                  page-break-inside: avoid;
+                }
+                .room-title {
+                  font-size: 12px;
+                  font-weight: 600;
+                  color: #334155;
+                  margin-bottom: 5px;
+                }
+                .detail-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  margin-bottom: 8px;
+                }
+                .detail-table th, .detail-table td {
+                  border: 1px solid #cbd5e1;
+                  padding: 5px 8px;
+                  font-size: 11px;
+                  text-align: left;
+                }
+                .detail-table th {
+                  background-color: #f8fafc;
+                  color: #475569;
+                  font-weight: 600;
+                }
+                .detail-table tr:nth-child(even) {
+                  background-color: #f8fafc;
+                }
+              </style>
+            </head>
+            <body>
+              ${printElement.innerHTML}
+            </body>
+          </html>
+        `);
+        iframeDoc.close();
+
+        toast.dismiss(loadingToast);
+
+        // Trigger print dialog on the iframe contentWindow
+        setTimeout(() => {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        }, 150);
+      }, 300);
+
+    } catch (err) {
+      console.error('Error printing live list:', err);
+      toast.error(err.message || 'Error printing live list', { id: loadingToast });
+    }
+  };
+
   // Function to generate PDF for pending students
   const generatePendingStudentsPDF = () => {
     if (!tempStudentsSummary || tempStudentsSummary.length === 0) return;
@@ -3409,16 +3623,18 @@ const Students = () => {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-              {filters.hostelStatus === 'Active'
-                ? `Active Students ( ${totalStudents} )`
-                : filters.hostelStatus === 'Inactive'
-                  ? `Expired Students ( ${totalStudents} )`
-                  : `All Students ( ${totalStudents} )`}
+              {isLiveMode
+                ? `Live Students ( ${totalStudents} )`
+                : filters.hostelStatus === 'Active'
+                  ? `Active Students ( ${totalStudents} )`
+                  : filters.hostelStatus === 'Inactive'
+                    ? `Expired Students ( ${totalStudents} )`
+                    : `All Students ( ${totalStudents} )`}
             </h2>
             <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <span className="text-sm text-gray-600">
-                Showing {students.length} of {totalStudents} {filters.hostelStatus === 'Inactive' ? 'expired' : filters.hostelStatus === 'Active' ? 'active' : ''} students
-                {Object.entries(filters).some(([key, value]) => value && key !== 'search') && ' (filtered)'}
+                Showing {students.length} of {totalStudents} {isLiveMode ? 'live' : filters.hostelStatus === 'Inactive' ? 'expired' : filters.hostelStatus === 'Active' ? 'active' : ''} students
+                {Object.entries(filters).some(([key, value]) => value && key !== 'search' && !(isLiveMode && key === 'hostelStatus')) && ' (filtered)'}
               </span>
             </div>
           </div>
@@ -3531,9 +3747,10 @@ const Students = () => {
             <div>
               <select
                 name="hostelStatus"
-                value={filters.hostelStatus}
+                disabled={isLiveMode}
+                value={isLiveMode ? 'Active' : filters.hostelStatus}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
               >
                 <option value="">All Status</option>
                 <option value="Active">Active Students</option>
@@ -3554,16 +3771,23 @@ const Students = () => {
                     hostel: '',
                     category: '',
                     roomNumber: '',
-                    academicYear: getDefaultAcademicYear(),
+                    academicYear: isLiveMode ? '' : getDefaultAcademicYear(),
                     hostelStatus: 'Active'
                   });
                   setFilterCategories([]);
                   setFilterRooms([]);
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
               >
                 Clear Filters
+              </button>
+              <button
+                onClick={handlePrintLiveStudentsReport}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                Print
               </button>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(filters).map(([key, value]) => {
@@ -6312,22 +6536,67 @@ const Students = () => {
             })}
             </div>
             {tab === 'list' && (
-              <div className="flex items-center gap-2 shrink-0 px-1 sm:px-2">
-                <label htmlFor="students-academic-year" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
-                  Academic Year
-                </label>
-                <select
-                  id="students-academic-year"
-                  name="academicYear"
-                  value={filters.academicYear}
-                  onChange={handleFilterChange}
-                  className="min-w-[140px] px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                >
-                  <option value="">All Years</option>
-                  {generateAcademicYears().map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+              <div className="flex flex-wrap items-center gap-3 shrink-0 px-1 sm:px-2">
+                {/* Live / AY-Wise Toggle */}
+                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLiveMode(false);
+                      setFilters(prev => ({
+                        ...prev,
+                        academicYear: getDefaultAcademicYear(),
+                        hostelStatus: 'Active'
+                      }));
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                      !isLiveMode
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    AY-Wise
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLiveMode(true);
+                      setFilters(prev => ({
+                        ...prev,
+                        academicYear: '',
+                        hostelStatus: 'Active'
+                      }));
+                      setCurrentPage(1);
+                    }}
+                    className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                      isLiveMode
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Live
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label htmlFor="students-academic-year" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
+                    Academic Year
+                  </label>
+                  <select
+                    id="students-academic-year"
+                    name="academicYear"
+                    disabled={isLiveMode}
+                    value={isLiveMode ? "" : filters.academicYear}
+                    onChange={handleFilterChange}
+                    className="min-w-[140px] px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  >
+                    <option value="">All Years</option>
+                    {generateAcademicYears().map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -6582,6 +6851,15 @@ const Students = () => {
           </div>
         </div>
       )}
+      {/* Hidden container and iframe for silent printing */}
+      <div id="printable-area" style={{ display: 'none' }}>
+        <PrintableLiveStudents students={printStudents} />
+      </div>
+      <iframe
+        id="print-iframe"
+        style={{ display: 'none', width: 0, height: 0, border: 'none' }}
+        title="Print Frame"
+      />
     </div>
   );
 };
