@@ -1,6 +1,16 @@
 import React from 'react';
 
-const PrintableLiveStudents = ({ students = [] }) => {
+const getDefaultAcademicYear = () => {
+  const date = new Date();
+  const currentMonth = date.getMonth(); // 0-indexed: 0 = Jan, 11 = Dec
+  const currentYear = date.getFullYear();
+  if (currentMonth >= 5) { // June or later
+    return `${currentYear}-${currentYear + 1}`;
+  }
+  return `${currentYear - 1}-${currentYear}`;
+};
+
+const PrintableLiveStudents = ({ students = [], isLiveMode = false, academicYear = '' }) => {
   // 1. Group students for detail report: Hostel -> Category -> Room Number
   const grouped = {};
   
@@ -24,8 +34,7 @@ const PrintableLiveStudents = ({ students = [] }) => {
     if (!hostelSummaries[hostelName]) {
       hostelSummaries[hostelName] = {
         total: 0,
-        categories: {},
-        courses: {}
+        categories: {}
       };
     }
     hostelSummaries[hostelName].total++;
@@ -35,23 +44,22 @@ const PrintableLiveStudents = ({ students = [] }) => {
       hostelSummaries[hostelName].categories[categoryName] = 0;
     }
     hostelSummaries[hostelName].categories[categoryName]++;
-
-    // Course summary calculations
-    if (!hostelSummaries[hostelName].courses[courseName]) {
-      hostelSummaries[hostelName].courses[courseName] = 0;
-    }
-    hostelSummaries[hostelName].courses[courseName]++;
   });
 
   const sortedHostels = Object.keys(grouped).sort();
+  const uniqueYears = Array.from(new Set(students.map(s => s.academicYear).filter(Boolean)));
+  const resolvedYear = academicYear || (uniqueYears.length === 1 ? uniqueYears[0] : (uniqueYears.length > 1 ? 'All Years' : ''));
+  const displayYear = resolvedYear || getDefaultAcademicYear();
 
   return (
     <div>
       {/* PAGE 1: ABSTRACT & SUMMARY */}
       <div className="abstract-page page-break">
         <div className="header-container">
-          <h1>Hostel Occupancy Report</h1>
-          <div className="report-subtitle">Live Overall Abstract & Summary</div>
+          <h1>{isLiveMode ? 'Live Hostel Occupancy Report' : `Hostel Occupancy Report (${displayYear})`}</h1>
+          <div className="report-subtitle">
+            {isLiveMode ? 'Live Overall Abstract & Summary' : 'Overall Abstract & Summary'}
+          </div>
           <div className="report-date">
             Generated on: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -63,7 +71,7 @@ const PrintableLiveStudents = ({ students = [] }) => {
           {/* Top overall counts in a single row */}
           <div className="summary-row">
             <span className="summary-item">
-              Total Active Residents: <strong>{grandTotal}</strong>
+              {isLiveMode ? 'Total Active Residents' : 'Total Registered Students'}: <strong>{grandTotal}</strong>
             </span>
             {sortedHostels.map((hostelName) => (
               <span key={hostelName} className="summary-item">
@@ -78,7 +86,9 @@ const PrintableLiveStudents = ({ students = [] }) => {
               <tr>
                 <th style={{ width: '40%' }}>Hostel</th>
                 <th style={{ width: '40%' }}>Category</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Residents Count</th>
+                <th style={{ width: '20%', textAlign: 'right' }}>
+                  {isLiveMode ? 'Residents Count' : 'Students Count'}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -99,40 +109,9 @@ const PrintableLiveStudents = ({ students = [] }) => {
                 ));
               })}
               <tr style={{ backgroundColor: '#ebf8ff', fontWeight: 'bold' }}>
-                <td colSpan={2}>Grand Total Active Residents</td>
-                <td style={{ textAlign: 'right' }}>{grandTotal}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div className="abstract-title">Breakdown by Course</div>
-          <table className="summary-table">
-            <thead>
-              <tr>
-                <th style={{ width: '40%' }}>Hostel</th>
-                <th style={{ width: '40%' }}>Course</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>Residents Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedHostels.flatMap((hostelName) => {
-                const courses = hostelSummaries[hostelName].courses;
-                const sortedCourses = Object.keys(courses).sort();
-                
-                return sortedCourses.map((courseName, idx) => (
-                  <tr key={`${hostelName}-${courseName}`}>
-                    {idx === 0 ? (
-                      <td rowSpan={sortedCourses.length} style={{ fontWeight: 'bold', verticalAlign: 'middle' }}>
-                        {hostelName}
-                      </td>
-                    ) : null}
-                    <td>{courseName}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{courses[courseName]}</td>
-                  </tr>
-                ));
-              })}
-              <tr style={{ backgroundColor: '#ebf8ff', fontWeight: 'bold' }}>
-                <td colSpan={2}>Grand Total Active Residents</td>
+                <td colSpan={2}>
+                  {isLiveMode ? 'Grand Total Active Residents' : 'Grand Total Registered Students'}
+                </td>
                 <td style={{ textAlign: 'right' }}>{grandTotal}</td>
               </tr>
             </tbody>
@@ -143,8 +122,10 @@ const PrintableLiveStudents = ({ students = [] }) => {
       {/* PAGE 2+: DETAIL LISTS (Grouped by Hostel -> Category -> Room) */}
       <div className="detail-pages">
         <div className="header-container">
-          <h1>Hostel Occupancy Report</h1>
-          <div className="report-subtitle">Detailed Room-Wise Active List</div>
+          <h1>{isLiveMode ? 'Live Hostel Occupancy Report' : `Hostel Occupancy Report (${displayYear})`}</h1>
+          <div className="report-subtitle">
+            {isLiveMode ? 'Detailed Room-Wise Active List' : 'Detailed Room-Wise Student List'}
+          </div>
         </div>
 
         {sortedHostels.map((hostelName) => {
@@ -168,7 +149,9 @@ const PrintableLiveStudents = ({ students = [] }) => {
 
                       return (
                         <div key={roomNo} className="room-section">
-                          <div className="room-title">Room {roomNo} ({roomStudentsList.length} Residents)</div>
+                          <div className="room-title">
+                            Room {roomNo} ({roomStudentsList.length} {isLiveMode ? 'Residents' : 'Students'})
+                          </div>
                           <table className="detail-table">
                             <thead>
                               <tr>

@@ -2492,10 +2492,12 @@ const Students = () => {
       if (filters.category) params.append('category', filters.category);
       if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
-      // We always print active students for live/active report
-      params.append('hostelStatus', 'Active');
+      // If in Live mode, force active status. If in AY-Wise, do not filter by status to print all.
+      if (isLiveMode) {
+        params.append('hostelStatus', 'Active');
+      }
       params.append('page', '1');
-      params.append('limit', '1000000'); // get all matching active students
+      params.append('limit', '1000000'); // get all matching students
 
       const res = await api.get(`/api/admin/students?${params}`);
       if (!res.data.success) {
@@ -2504,7 +2506,7 @@ const Students = () => {
 
       const allActiveStudents = res.data.data.students || [];
       if (allActiveStudents.length === 0) {
-        toast.error('No active students found matching the current filters', { id: loadingToast });
+        toast.error('No students found matching the current filters', { id: loadingToast });
         return;
       }
 
@@ -6853,7 +6855,11 @@ const Students = () => {
       )}
       {/* Hidden container and iframe for silent printing */}
       <div id="printable-area" style={{ display: 'none' }}>
-        <PrintableLiveStudents students={printStudents} />
+        <PrintableLiveStudents
+          students={printStudents}
+          isLiveMode={isLiveMode}
+          academicYear={filters.academicYear}
+        />
       </div>
       <iframe
         id="print-iframe"
