@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction, hasPermission } from '../../utils/permissionUtils';
 import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 import PrintableLiveStudents from '../../components/PrintableLiveStudents';
+import * as XLSX from 'xlsx';
+
 
 // Dynamic course and branch data will be fetched from backend
 
@@ -2693,6 +2695,259 @@ const Students = () => {
     }
   };
 
+  // Function to handle downloading live student list as Excel grouped/styled
+  const handleDownloadExcelReport = async () => {
+    const loadingToast = toast.loading('Preparing Excel report...');
+    try {
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.hostel) params.append('hostel', filters.hostel);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      // If in Live mode, force active status. If in AY-Wise, do not filter by status to print all.
+      if (isLiveMode) {
+        params.append('hostelStatus', 'Active');
+      }
+      params.append('page', '1');
+      params.append('limit', '1000000'); // get all matching students
+
+      const res = await api.get(`/api/admin/students?${params}`);
+      if (!res.data.success) {
+        throw new Error(res.data.message || 'Failed to fetch students');
+      }
+
+      const students = res.data.data.students || [];
+      if (students.length === 0) {
+        toast.error('No students found matching the current filters', { id: loadingToast });
+        return;
+      }
+
+      // Grouping data (Hostel -> Category -> Room Number)
+      const grouped = {};
+      const hostelSummaries = {};
+      let grandTotal = 0;
+
+      students.forEach(student => {
+        const hostelName = student.hostel?.name || 'Unassigned Hostel';
+        const categoryName = student.hostelCategory?.name || student.category || 'Unassigned Category';
+        const roomNo = student.roomNumber || 'Unassigned Room';
+
+        if (!grouped[hostelName]) grouped[hostelName] = {};
+        if (!grouped[hostelName][categoryName]) grouped[hostelName][categoryName] = {};
+        if (!grouped[hostelName][categoryName][roomNo]) grouped[hostelName][categoryName][roomNo] = [];
+        grouped[hostelName][categoryName][roomNo].push(student);
+
+        if (!hostelSummaries[hostelName]) {
+          hostelSummaries[hostelName] = { total: 0, categories: {} };
+        }
+        hostelSummaries[hostelName].total++;
+        grandTotal++;
+
+        if (!hostelSummaries[hostelName].categories[categoryName]) {
+          hostelSummaries[hostelName].categories[categoryName] = 0;
+        }
+        hostelSummaries[hostelName].categories[categoryName]++;
+      });
+
+      const workbook = XLSX.utils.book_new();
+
+      // --- SHEET 1: Summary ---
+      const summaryRows = [];
+      summaryRows.push(['Hostel Summary & Abstract']);
+      summaryRows.push([]);
+      summaryRows.push(['Hostel Name', isLiveMode ? 'Active Residents Count' : 'Registered Students Count']);
+      
+      Object.keys(hostelSummaries).sort().forEach(hostelName => {
+        summaryRows.push([hostelName, hostelSummaries[hostelName].total]);
+      });
+      summaryRows.push(['Grand Total', grandTotal]);
+      summaryRows.push([]);
+      summaryRows.push([]);
+      summaryRows.push(['Detailed Category Breakdown']);
+      summaryRows.push(['Hostel', 'Category', isLiveMode ? 'Residents Count' : 'Students Count']);
+
+      Object.keys(grouped).sort().forEach(hostelName => {
+        const categories = hostelSummaries[hostelName].categories;
+        Object.keys(categories).sort().forEach(catName => {
+          summaryRows.push([hostelName, catName, categories[catName]]);
+        });
+      });
+
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+      
+      // Auto-fit summary sheet cols
+      const summaryCols = [{ width: 25 }, { width: 25 }, { width: 20 }];
+      summarySheet['!cols'] = summaryCols;
+
+      // --- SHEET 2: Detailed Room-Wise ---
+      const detailedRows = [];
+      detailedRows.push(['Detailed Room-Wise Student List']);
+      detailedRows.push([]);
+      detailedRows.push([
+        'S.No',
+        'Roll Number',
+        'Name',
+        'Hostel',
+        'Category',
+        'Room Number',
+        'Course',
+        'Branch',
+        'Gender',
+        'Phone',
+        'Academic Year',
+        'Next AY Details'
+      ]);
+
+      let serialNo = 1;
+      const sortedHostels = Object.keys(grouped).sort();
+      sortedHostels.forEach(hostelName => {
+        const categories = grouped[hostelName];
+        const sortedCats = Object.keys(categories).sort();
+        sortedCats.forEach(catName => {
+          const rooms = categories[catName];
+          const sortedRooms = Object.keys(rooms).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+          sortedRooms.forEach(roomNo => {
+            const roomStudents = rooms[roomNo];
+            roomStudents.forEach(student => {
+              detailedRows.push([
+                serialNo++,
+                student.rollNumber || 'N/A',
+                student.name || 'Unknown',
+                hostelName,
+                catName,
+                roomNo,
+                student.course || 'N/A',
+                student.branch || 'N/A',
+                student.gender || 'N/A',
+                student.studentPhone || 'N/A',
+                student.academicYear || 'N/A',
+                (student.isHistoricalView && student.currentAcademicYear) ? `Now in ${student.currentAcademicYear}` : '—'
+              ]);
+            });
+          });
+        });
+      });
+
+      const detailedSheet = XLSX.utils.aoa_to_sheet(detailedRows);
+      const detailedCols = [
+        { width: 8 },   // S.No
+        { width: 15 },  // Roll Number
+        { width: 25 },  // Name
+        { width: 20 },  // Hostel
+        { width: 15 },  // Category
+        { width: 12 },  // Room Number
+        { width: 12 },  // Course
+        { width: 15 },  // Branch
+        { width: 10 },  // Gender
+        { width: 15 },  // Phone
+        { width: 15 },  // Academic Year
+        { width: 20 }   // Next AY Details
+      ];
+      detailedSheet['!cols'] = detailedCols;
+
+      // Professional styling definitions
+      const titleStyle = {
+        font: { bold: true, size: 14, color: { rgb: "1F4E79" } }
+      };
+
+      const headerStyle = {
+        font: { bold: true, size: 11, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1F4E79" } },
+        alignment: { horizontal: "center", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "D9D9D9" } },
+          bottom: { style: "thin", color: { rgb: "D9D9D9" } },
+          left: { style: "thin", color: { rgb: "D9D9D9" } },
+          right: { style: "thin", color: { rgb: "D9D9D9" } }
+        }
+      };
+
+      const dataStyle = {
+        font: { size: 10 },
+        alignment: { horizontal: "left", vertical: "center" },
+        border: {
+          top: { style: "thin", color: { rgb: "E0E0E0" } },
+          bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+          left: { style: "thin", color: { rgb: "E0E0E0" } },
+          right: { style: "thin", color: { rgb: "E0E0E0" } }
+        }
+      };
+
+      const centerDataStyle = {
+        ...dataStyle,
+        alignment: { horizontal: "center", vertical: "center" }
+      };
+
+      const totalStyle = {
+        font: { bold: true, size: 11 },
+        fill: { fgColor: { rgb: "F2F2F2" } },
+        border: {
+          top: { style: "thin", color: { rgb: "D9D9D9" } },
+          bottom: { style: "double", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "D9D9D9" } },
+          right: { style: "thin", color: { rgb: "D9D9D9" } }
+        }
+      };
+
+      // Apply styles to Summary Sheet
+      const numHostels = Object.keys(hostelSummaries).length;
+      const summaryRange = XLSX.utils.decode_range(summarySheet['!ref'] || 'A1:C20');
+      for (let r = summaryRange.s.r; r <= summaryRange.e.r; r++) {
+        for (let c = summaryRange.s.c; c <= summaryRange.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          const cell = summarySheet[cellRef];
+          if (!cell) continue;
+
+          if (r === 0 || r === (6 + numHostels)) {
+            cell.s = titleStyle;
+          } else if (r === 2 || r === (7 + numHostels)) {
+            cell.s = headerStyle;
+          } else if (r === (3 + numHostels)) {
+            cell.s = totalStyle;
+          } else if (r > 2) {
+            cell.s = (c > 0) ? centerDataStyle : dataStyle;
+          }
+        }
+      }
+
+      // Apply styles to Detailed Sheet
+      const detailedRange = XLSX.utils.decode_range(detailedSheet['!ref'] || 'A1:L50');
+      for (let r = detailedRange.s.r; r <= detailedRange.e.r; r++) {
+        for (let c = detailedRange.s.c; c <= detailedRange.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          const cell = detailedSheet[cellRef];
+          if (!cell) continue;
+
+          if (r === 0) {
+            cell.s = titleStyle;
+          } else if (r === 2) {
+            cell.s = headerStyle;
+          } else if (r > 2) {
+            const shouldCenter = [0, 1, 5, 8, 9, 10, 11].includes(c);
+            cell.s = shouldCenter ? centerDataStyle : dataStyle;
+          }
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Abstract & Summary');
+      XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed List');
+
+      // Generate filename
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const resolvedYear = filters.academicYear || 'All_Years';
+      const filename = `${isLiveMode ? 'Live_Hostel_Occupancy' : `Hostel_Occupancy_${resolvedYear}`}_${timestamp}.xlsx`;
+
+      XLSX.writeFile(workbook, filename);
+      toast.success('Excel report downloaded successfully!', { id: loadingToast });
+    } catch (err) {
+      console.error('Error generating Excel:', err);
+      toast.error(err.message || 'Error generating Excel report', { id: loadingToast });
+    }
+  };
+
   // Function to generate PDF for pending students
   const generatePendingStudentsPDF = () => {
     if (!tempStudentsSummary || tempStudentsSummary.length === 0) return;
@@ -3790,6 +4045,13 @@ const Students = () => {
               >
                 <PrinterIcon className="w-4 h-4" />
                 Print
+              </button>
+              <button
+                onClick={handleDownloadExcelReport}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"
+              >
+                <DocumentArrowDownIcon className="w-4 h-4" />
+                Export Excel
               </button>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(filters).map(([key, value]) => {
