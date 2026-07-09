@@ -1,9 +1,39 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { useGlobalSettings } from '../context/GlobalSettingsContext';
+import api from '../utils/axios';
 
 const ReceiptGenerator = {
-  generateReceipt: (payment, user = null, settings = null) => {
+  generateReceipt: async (payment, user = null, settings = null) => {
+    try {
+      const receiptId = payment._id || payment.id || payment;
+      console.log('Requesting Fee Receipt from Print API for payment ID:', receiptId);
+      
+      const response = await api.post('/api/print', {
+        template: 'fee-receipt',
+        data: {
+          receiptId
+        }
+      }, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const receiptNumber = payment.receiptNumber || payment._id?.toString().slice(-8) || 'receipt';
+      link.setAttribute('download', `payment_receipt_${receiptNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return true;
+    } catch (error) {
+      console.error('Error generating receipt from Print API:', error);
+      return false;
+    }
+
     try {
       const doc = new jsPDF();
       

@@ -2512,19 +2512,51 @@ const Students = () => {
         return;
       }
 
+      // Call new backend print service API to generate and return the formatted HTML
+      console.log('Requesting Live Occupancy HTML from Print API...');
+      const printResponse = await api.post('/api/print', {
+        template: 'live-occupancy-report',
+        data: {
+          students: allActiveStudents,
+          filters: { academicYear: filters.academicYear },
+          isLiveMode
+        }
+      });
+
+      const iframe = document.getElementById('print-iframe');
+      if (!iframe) {
+        toast.error('Failed to locate print frame', { id: loadingToast });
+        return;
+      }
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+      iframeDoc.open();
+      iframeDoc.write(printResponse.data);
+      iframeDoc.close();
+
+      toast.dismiss(loadingToast);
+
+      // Trigger print dialog on the iframe contentWindow
+      setTimeout(() => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }, 150);
+
+      return; // Intercept local execution and return early
+
       // Update local state to trigger render of PrintableLiveStudents component
       setPrintStudents(allActiveStudents);
 
       // Wait for state update and React render
       setTimeout(() => {
         const printElement = document.getElementById('printable-area');
-        const iframe = document.getElementById('print-iframe');
-        if (!printElement || !iframe) {
+        const iframeEl = document.getElementById('print-iframe');
+        if (!printElement || !iframeEl) {
           toast.error('Failed to locate printable elements', { id: loadingToast });
           return;
         }
 
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow.document;
         
         // Write the HTML with styles into the iframe
         iframeDoc.open();

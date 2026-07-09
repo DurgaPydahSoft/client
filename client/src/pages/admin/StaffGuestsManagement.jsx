@@ -669,6 +669,35 @@ const StaffGuestsManagement = () => {
   // Generate PDF for staff/guest admit card with two copies
   const generateStaffAdmitCardPDF = async (staffGuest) => {
     try {
+      const staffGuestId = staffGuest._id || staffGuest.id || staffGuest;
+      console.log('Requesting Staff/Guest Admit Card from Print API for ID:', staffGuestId);
+      
+      const response = await api.post('/api/print', {
+        template: 'staff-guest-admit',
+        data: {
+          staffGuestId
+        }
+      }, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `AdmitCard_${staffGuest.name || 'Staff'}_${staffGuest.type || 'Admit'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      return;
+    } catch (error) {
+      console.error('Error generating Staff/Guest Admit Card from Print API:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+      return;
+    }
+
+    try {
       console.log('Generating PDF for staff/guest:', staffGuest);
 
       // Pre-load photo if it's a URL and convert to base64

@@ -308,6 +308,63 @@ const AdmitCards = () => {
   // Generate PDF for individual admit card with student and warden copies
   const generateAdmitCardPDF = async (student) => {
     try {
+      const studentId = student._id || student.id || student;
+      console.log('Requesting Admit Card from Print API for student ID:', studentId);
+      
+      const response = await api.post('/api/print', {
+        template: 'hostel-admit',
+        data: {
+          studentId
+        }
+      }, {
+        responseType: 'blob'
+      });
+
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '-9999px';
+      iframe.style.width = '800px';
+      iframe.style.height = '600px';
+      iframe.style.border = '0';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+      
+      let printTriggered = false;
+      const triggerPrint = () => {
+        if (printTriggered) return;
+        printTriggered = true;
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+        } catch (err) {
+          console.error('Error invoking print inside iframe:', err);
+        }
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch (e) {}
+          window.URL.revokeObjectURL(url);
+        }, 60000);
+      };
+
+      iframe.onload = () => {
+        setTimeout(triggerPrint, 500);
+      };
+      
+      // Fallback if onload doesn't fire
+      setTimeout(triggerPrint, 1500);
+      return; // Intercept local execution and return early
+    } catch (error) {
+      console.error('Error generating PDF from Print API:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+      return;
+    }
+
+    try {
       console.log('Generating PDF for student:', student);
       console.log('Student data types:', {
         name: typeof student.name,
