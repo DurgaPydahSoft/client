@@ -656,6 +656,32 @@ const StaffGuestsManagement = () => {
     }
   };
 
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+  const parseLocalDate = (dateValue) => {
+    if (!dateValue) return null;
+    if (typeof dateValue === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      const [year, month, day] = dateValue.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+    const parsed = new Date(dateValue);
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const calculateStayDays = (checkinDate, checkoutDate) => {
+    const startDate = parseLocalDate(checkinDate);
+    if (!startDate) return 0;
+
+    const endDate = checkoutDate ? parseLocalDate(checkoutDate) : new Date();
+    endDate.setHours(0, 0, 0, 0);
+
+    const timeDiff = endDate.getTime() - startDate.getTime();
+    if (timeDiff < 0) return 0;
+
+    return Math.floor(timeDiff / MS_PER_DAY) + 1;
+  };
+
   // Helper function to format date as dd/mm/yyyy
   const formatDateDDMMYYYY = (date) => {
     if (!date) return 'N/A';
@@ -762,13 +788,10 @@ const StaffGuestsManagement = () => {
             const [year, month] = staffGuestWithPhoto.selectedMonth.split('-').map(Number);
             dayCount = new Date(year, month, 0).getDate(); // Days in the selected month
           } else if (staffGuestWithPhoto.checkinDate) {
-            // For daily basis, calculate days between checkin and checkout
-            const startDate = new Date(staffGuestWithPhoto.checkinDate);
-            const endDate = staffGuestWithPhoto.checkoutDate ? new Date(staffGuestWithPhoto.checkoutDate) : new Date();
-            startDate.setHours(0, 0, 0, 0);
-            endDate.setHours(0, 0, 0, 0);
-            const timeDiff = endDate.getTime() - startDate.getTime();
-            dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+            dayCount = calculateStayDays(
+              staffGuestWithPhoto.checkinDate,
+              staffGuestWithPhoto.checkoutDate
+            );
           }
         }
 
@@ -2432,11 +2455,7 @@ const StaffGuestsManagement = () => {
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
                                         return (daysInMonth * rateToUse).toLocaleString();
                                       } else if (formData.checkinDate) {
-                                        // Calculate for daily basis
-                                        const startDate = new Date(formData.checkinDate);
-                                        const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
-                                        const timeDiff = endDate.getTime() - startDate.getTime();
-                                        const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                        const dayCount = calculateStayDays(formData.checkinDate, formData.checkoutDate);
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
                                         return (dayCount * rateToUse).toLocaleString();
                                       }
@@ -2457,10 +2476,7 @@ const StaffGuestsManagement = () => {
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
                                         return `${daysInMonth} days × ₹${rateToUse}`;
                                       } else if (formData.checkinDate) {
-                                        const startDate = new Date(formData.checkinDate);
-                                        const endDate = formData.checkoutDate ? new Date(formData.checkoutDate) : new Date();
-                                        const timeDiff = endDate.getTime() - startDate.getTime();
-                                        const dayCount = Math.max(0, Math.ceil(timeDiff / (1000 * 3600 * 24)));
+                                        const dayCount = calculateStayDays(formData.checkinDate, formData.checkoutDate);
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
                                         return `${dayCount} days × ₹${rateToUse}`;
                                       }
