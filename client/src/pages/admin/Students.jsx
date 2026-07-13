@@ -1021,6 +1021,11 @@ const Students = () => {
 
       if (response.data.success) {
         const feeData = response.data.data;
+        if (feeData.found === false && !feeData.isRevisedFee) {
+          setFeeStructure(null);
+          setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+          return;
+        }
         setFeeStructure(feeData);
 
         // Calculate initial fees without concession
@@ -1504,6 +1509,13 @@ const Students = () => {
     // Check if student photo is required
     if (!studentPhoto && !studentPhotoPreview) {
       toast.error('Student photo is required. Please upload a photo before submitting.');
+      return;
+    }
+
+    if (!feeStructure) {
+      toast.error(
+        `No fee structure found for ${form.course}, ${form.branch}, year ${form.year}, category ${form.category}, academic year ${form.academicYear}. Please add the fee structure in Fee Management before registering.`
+      );
       return;
     }
 

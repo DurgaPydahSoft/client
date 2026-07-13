@@ -353,10 +353,16 @@ const StudentRegistrationSQL = () => {
       const url = `/api/fee-structures/admit-card/${academicYear}/${encodeURIComponent(courseName)}/${encodeURIComponent(branchName)}/${year}/${encodeURIComponent(categoryName)}${id ? `?identifier=${encodeURIComponent(id)}` : ''}`;
       const res = await api.get(url);
       if (res.data.success) {
-        setFeeStructure(res.data.data);
-        const term1 = res.data.data.term1Fee || 0;
-        const term2 = res.data.data.term2Fee || 0;
-        const term3 = res.data.data.term3Fee || 0;
+        const feeData = res.data.data;
+        if (feeData.found === false && !feeData.isRevisedFee) {
+          setFeeStructure(null);
+          setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
+          return;
+        }
+        setFeeStructure(feeData);
+        const term1 = feeData.term1Fee || 0;
+        const term2 = feeData.term2Fee || 0;
+        const term3 = feeData.term3Fee || 0;
         setCalculatedFees({
           term1,
           term2,
@@ -367,6 +373,7 @@ const StudentRegistrationSQL = () => {
     } catch (err) {
       console.error('Error fetching fee structure:', err);
       setFeeStructure(null);
+      setCalculatedFees({ term1: 0, term2: 0, term3: 0, total: 0 });
     } finally {
       setLoadingFeeStructure(false);
     }
@@ -647,6 +654,13 @@ const StudentRegistrationSQL = () => {
 
     if (academicYearError) {
       toast.error(academicYearError);
+      return;
+    }
+
+    if (!feeStructure) {
+      toast.error(
+        `No fee structure found for ${getCourseNameById(form.course) || 'selected course'}, ${getBranchNameById(form.branch) || 'selected branch'}, year ${form.year}, category ${form.category}, academic year ${form.academicYear}. Please add the fee structure in Fee Management before registering.`
+      );
       return;
     }
 
@@ -1137,7 +1151,7 @@ const StudentRegistrationSQL = () => {
           </div>
 
           {/* Fee Structure Display (moved just after hostel info for visibility) */}
-          {feeStructure && (
+          {feeStructure ? (
             <div className={`${feeStructure.isRevisedFee ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-green-50'} rounded-lg p-6 transition-all duration-300`}>
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-lg font-semibold text-gray-900">Fee Structure</h3>
@@ -1171,7 +1185,14 @@ const StudentRegistrationSQL = () => {
                 </div>
               </div>
             </div>
-          )}
+          ) : form.course && form.branch && form.year && form.category && form.academicYear && !loadingFeeStructure ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+              <p className="text-red-800 text-sm font-medium">
+                No fee structure found for category <strong>{form.category}</strong>, course <strong>{getCourseNameById(form.course)}</strong>, year <strong>{form.year}</strong>, academic year <strong>{form.academicYear}</strong>.
+              </p>
+              <p className="text-xs text-red-600 mt-1">Add the fee structure in Fee Management before registering this student.</p>
+            </div>
+          ) : null}
 
           {/* Contact Information */}
           <div className="bg-gray-50 rounded-lg p-6">
