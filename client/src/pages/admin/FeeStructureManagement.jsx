@@ -41,6 +41,7 @@ const FeeStructureManagement = () => {
   // Additional Fees state (mirrors Fee Management page behaviour)
   const [additionalFees, setAdditionalFees] = useState({});
   const [additionalFeesLoading, setAdditionalFeesLoading] = useState(false);
+  const [cautionFeeHead, setCautionFeeHead] = useState(null);
   const [showAdditionalFeeModal, setShowAdditionalFeeModal] = useState(false);
   const [selectedAdditionalFee, setSelectedAdditionalFee] = useState(null);
   const [availableCategories, setAvailableCategories] = useState([]); // fetched from API
@@ -160,11 +161,13 @@ const FeeStructureManagement = () => {
   const fetchAdditionalFees = useCallback(async () => {
     if (!additionalFeesFilter.academicYear) {
       setAdditionalFees({});
+      setCautionFeeHead(null);
       return;
     }
     // Require hostel to scope additional fees; if not selected, clear and return
     if (!additionalHostelId) {
       setAdditionalFees({});
+      setCautionFeeHead(null);
       return;
     }
     try {
@@ -180,12 +183,15 @@ const FeeStructureManagement = () => {
           withHostel[key] = { ...data[key], hostelId: additionalHostelId };
         });
         setAdditionalFees(withHostel);
+        setCautionFeeHead(res.data.cautionFeeHead || null);
       } else {
         setAdditionalFees({});
+        setCautionFeeHead(null);
       }
     } catch (err) {
       console.error('Error fetching additional fees', err);
       setAdditionalFees({});
+      setCautionFeeHead(null);
     } finally {
       setAdditionalFeesLoading(false);
     }
@@ -246,9 +252,9 @@ const FeeStructureManagement = () => {
     } else {
       setSelectedAdditionalFee(null);
       setAdditionalFeeForm({
-        feeType: '',
+        feeType: 'caution_deposit',
         amount: 0,
-        description: '',
+        description: 'Caution Deposit',
         isActive: true,
         categories: additionalCategories,
         categoryAmounts: {},
@@ -320,6 +326,7 @@ const FeeStructureManagement = () => {
       const res = await api.post('/api/admin/fee-structures/additional-fees', {
         academicYear: additionalFeesFilter.academicYear,
         additionalFees: updatedAdditionalFees,
+        hostelId: additionalHostelId,
       });
 
       if (res.data.success) {
@@ -355,6 +362,7 @@ const FeeStructureManagement = () => {
       const res = await api.post('/api/admin/fee-structures/additional-fees', {
         academicYear: additionalFeesFilter.academicYear,
         additionalFees: updatedAdditionalFees,
+        hostelId: additionalHostelId,
       });
       if (res.data.success) {
         toast.success('Additional fee deleted');
@@ -383,6 +391,7 @@ const FeeStructureManagement = () => {
       const res = await api.post('/api/admin/fee-structures/additional-fees', {
         academicYear: additionalFeesFilter.academicYear,
         additionalFees: updatedAdditionalFees,
+        hostelId: additionalHostelId,
       });
       if (res.data.success) {
         toast.success(`Additional fee ${updatedAdditionalFees[feeType].isActive ? 'activated' : 'deactivated'} successfully`);
@@ -1127,9 +1136,14 @@ const FeeStructureManagement = () => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
           <div>
-            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Additional Fees Setup</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-gray-900">Caution Deposit Setup</h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Configure additional fees (caution deposit, diesel charges, etc.) per academic year with category-specific amounts.
+              Configure the caution deposit per academic year with category-specific amounts.
+              {cautionFeeHead && (
+                <span className="block mt-1 text-blue-600 font-semibold">
+                  🔗 Mapped to Fee Head: {cautionFeeHead.name} ({cautionFeeHead.code})
+                </span>
+              )}
             </p>
           </div>
           <div className="flex gap-2">
@@ -1139,8 +1153,8 @@ const FeeStructureManagement = () => {
               disabled={!additionalFeesFilter.academicYear}
             >
               <PlusIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Add Additional Fee</span>
-              <span className="sm:hidden">Add</span>
+              <span className="hidden sm:inline">Configure Caution Deposit</span>
+              <span className="sm:hidden">Configure</span>
             </button>
           </div>
         </div>
@@ -1183,24 +1197,24 @@ const FeeStructureManagement = () => {
         {additionalFeesLoading ? (
           <div className="flex justify-center items-center py-12">
             <LoadingSpinner />
-            <p className="ml-3 text-gray-500">Loading additional fees...</p>
+            <p className="ml-3 text-gray-500">Loading caution deposit configuration...</p>
           </div>
         ) : !additionalFeesFilter.academicYear ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
             <Cog6ToothIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 text-lg">Select an academic year to view additional fees</p>
+            <p className="text-gray-500 text-lg">Select an academic year to view configurations</p>
           </div>
         ) : Object.keys(additionalFees).length === 0 ? (
           <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
             <PlusIcon className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 text-lg mb-2">No additional fees configured</p>
-            <p className="text-sm text-gray-400 mb-4">Click "Add Additional Fee" to create a new fee type</p>
+            <p className="text-gray-500 text-lg mb-2">No Caution Deposit configured for this hostel</p>
+            <p className="text-sm text-gray-400 mb-4">Click "Configure Caution Deposit" to configure amounts</p>
             <button
               onClick={() => openAdditionalFeeModal()}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
               disabled={!additionalFeesFilter.academicYear}
             >
-              Add Additional Fee
+              Configure Caution Deposit
             </button>
           </div>
         ) : (
@@ -1256,11 +1270,16 @@ const FeeStructureManagement = () => {
                   })()}
                 </div>
 
-                <div className="mb-3">
-                  <div className="text-xl font-bold text-blue-600">
-                    ₹{feeData.amount?.toLocaleString() || 0}
+                <div className="mb-3 border-t border-gray-100 pt-2">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Category-Wise Fees</div>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-2 bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                    {Object.entries(feeData.categoryAmounts || {}).map(([cat, amt]) => (
+                      <div key={cat} className="flex justify-between items-center text-xs py-0.5 border-b border-gray-100 last:border-b-0">
+                        <span className="font-medium text-gray-600">{cat}</span>
+                        <span className="font-bold text-blue-600">₹{Number(amt || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">Average amount (category specific applied)</div>
                 </div>
 
                 <div className="flex gap-2 pt-3 border-t border-gray-200">
@@ -1298,7 +1317,7 @@ const FeeStructureManagement = () => {
           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                {selectedAdditionalFee ? 'Edit Additional Fee' : 'Add Additional Fee'}
+                {selectedAdditionalFee ? 'Edit Caution Deposit Configuration' : 'Configure Caution Deposit'}
               </h3>
               <button
                 onClick={() => {
@@ -1350,17 +1369,12 @@ const FeeStructureManagement = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
                       Fee Type
                     </label>
-                    <input
-                      type="text"
-                      value={additionalFeeForm.feeType}
-                      onChange={(e) => setAdditionalFeeForm((p) => ({ ...p, feeType: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="e.g., caution_deposit"
-                      required
-                    />
+                    <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold text-gray-700 text-sm">
+                      Caution Deposit
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 mt-6 sm:mt-0">
                     <label className="text-sm font-medium text-gray-700">Active</label>
@@ -1446,25 +1460,24 @@ const FeeStructureManagement = () => {
   return (
     <div className="min-h-screen">
       <div className="mx-auto">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1 sm:mb-2">
-            Fee Structure Management
-          </h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            Manage fee structures mapped to courses, hostels, and categories
-          </p>
-        </div>
-
-        {/* Tab Navigation */}
-        <div className="mb-4 sm:mb-6">
-          <div className="border-b border-gray-200 overflow-x-auto">
-            <nav className="-mb-px flex space-x-2 sm:space-x-4 lg:space-x-8 min-w-max">
+        {/* Header Row with Inline Right Tabs */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-200 pb-2 mb-4 sm:mb-6 gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900 mb-1">
+              Fee Structure Management
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-600">
+              Manage fee structures mapped to courses, hostels, and categories
+            </p>
+          </div>
+          
+          <div className="flex overflow-x-auto sm:self-end">
+            <nav className="flex space-x-1 sm:space-x-2 min-w-max">
               <button
                 onClick={() => setActiveTab('structure')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                className={`py-2 px-3 border-b-2 font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 ${
                   activeTab === 'structure'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-lg'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -1472,13 +1485,13 @@ const FeeStructureManagement = () => {
               </button>
               <button
                 onClick={() => setActiveTab('additional')}
-                className={`py-2 px-2 sm:px-3 lg:px-4 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
+                className={`py-2 px-3 border-b-2 font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 ${
                   activeTab === 'additional'
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50 rounded-t-lg'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Additional Fees Setup
+                Caution Deposit Setup
               </button>
             </nav>
           </div>
