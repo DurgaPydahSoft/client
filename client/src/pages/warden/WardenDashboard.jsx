@@ -80,6 +80,7 @@ const WardenDashboardLayout = () => {
     if (pathname.includes('/leave-management') || pathname.includes('/stay-in-hostel-requests')) {
       setExpandedItems(prev => {
         const newSet = new Set(prev);
+        newSet.add('Leaves & Stays');
         newSet.add('Leave & Stay Requests');
         return newSet;
       });
@@ -160,6 +161,11 @@ const WardenDashboardLayout = () => {
           name: 'Leaves',
           path: '/warden/dashboard/leave-management',
           icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z'
+        },
+        {
+          name: 'Apply on Behalf',
+          path: '/warden/dashboard/leave-management/apply-on-behalf',
+          icon: 'M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z'
         },
         {
           name: "Stay In's",

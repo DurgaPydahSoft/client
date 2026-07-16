@@ -73,6 +73,7 @@ const WardenNotifications = lazy(() => import('./pages/warden/Notifications'));
 const StayInHostelRequests = lazy(() => import('./pages/warden/StayInHostelRequests'));
 const WardenFeeManagement = lazy(() => import('./pages/warden/FeeManagement'));
 const WardenLeaveManagement = lazy(() => import('./pages/warden/LeaveManagement'));
+const WardenApplyLeaveOnBehalf = lazy(() => import('./pages/warden/ApplyLeaveOnBehalf'));
 const WardenElectricityBills = lazy(() => import('./pages/warden/ElectricityBills'));
 const WardenTakeStaffAttendance = lazy(() => import('./pages/warden/TakeStaffAttendance'));
 const WardenNOCManagement = lazy(() => import('./pages/warden/NOCManagement'));
@@ -323,6 +324,7 @@ function App() {
                   <Route path="complaints/view" element={<WardenViewComplaints />} />
                   <Route path="notifications" element={<WardenNotifications />} />
                   <Route path="leave-management" element={<WardenLeaveManagement />} />
+                  <Route path="leave-management/apply-on-behalf" element={<WardenApplyLeaveOnBehalf />} />
                   <Route path="stay-in-hostel-requests" element={<StayInHostelRequests />} />
                   <Route path="fee-management" element={<WardenFeeManagement />} />
                   <Route path="electricity-bills" element={<WardenElectricityBills />} />
