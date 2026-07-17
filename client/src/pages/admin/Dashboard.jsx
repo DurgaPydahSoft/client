@@ -171,6 +171,11 @@ const AdminDashboard = () => {
           path: '/admin/dashboard/noc-management',
           icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
           locked: !isSuperAdmin && !hasPermission(user, 'noc_management')
+        },
+        {
+          name: 'Student Reports',
+          path: '/admin/dashboard/reports',
+          icon: 'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z'
         }
       ]
     },
@@ -378,8 +383,8 @@ const AdminDashboard = () => {
       }));
     }
 
-    // Auto-expand Students submenu if on students-related pages or NOC management
-    if (pathname.startsWith('/admin/dashboard/students') || pathname.startsWith('/admin/dashboard/noc-management')) {
+    // Auto-expand Students submenu if on students-related pages, NOC management, or reports
+    if (pathname.startsWith('/admin/dashboard/students') || pathname.startsWith('/admin/dashboard/noc-management') || pathname.startsWith('/admin/dashboard/reports')) {
       setExpandedMenus(prev => ({
         ...prev,
         'Student Portal': true

@@ -57,6 +57,7 @@ const SecuritySettings = lazy(() => import('./pages/admin/SecuritySettings'));
 const StaffGuestsManagement = lazy(() => import('./pages/admin/StaffGuestsManagement'));
 const GlobalSettings = lazy(() => import('./pages/admin/GlobalSettings'));
 const NOCManagement = lazy(() => import('./pages/admin/NOCManagement'));
+const StudentCountReports = lazy(() => import('./pages/admin/StudentCountReports'));
 // Student components
 const ResetPassword = lazy(() => import('./pages/student/ResetPassword'));
 const PaymentHistory = lazy(() => import('./pages/student/PaymentHistory'));
@@ -301,6 +302,11 @@ function App() {
                       <NOCManagement />
                     </ProtectedSection>
                   } />
+                  <Route path="reports" element={
+                    <ProtectedSection permission="student_management" sectionName="Student Reports">
+                      <StudentCountReports />
+                    </ProtectedSection>
+                  } />
                 </Route>
 
                 {/* Protected warden routes */}
@@ -351,6 +357,11 @@ function App() {
                   <Route path="complaints" element={<PrincipalViewComplaints />} />
                   <Route path="leave-management" element={<PrincipalLeaveManagement />} />
                   <Route path="stay-in-hostel-requests" element={<PrincipalStayInHostelRequests />} />
+                  <Route path="reports" element={
+                    <ProtectedSection permission="student_management" sectionName="Student Reports">
+                      <StudentCountReports />
+                    </ProtectedSection>
+                  } />
                 </Route>
 
                 {/* Student reset password route (optional — change password from profile is preferred) */}

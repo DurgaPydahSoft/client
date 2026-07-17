@@ -4083,20 +4083,6 @@ const Students = () => {
               >
                 Clear Filters
               </button>
-              <button
-                onClick={handlePrintLiveStudentsReport}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
-              >
-                <PrinterIcon className="w-4 h-4" />
-                Print
-              </button>
-              <button
-                onClick={handleDownloadExcelReport}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm font-medium"
-              >
-                <DocumentArrowDownIcon className="w-4 h-4" />
-                Export Excel
-              </button>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(filters).map(([key, value]) => {
                   if (!shouldShowFilterChip(key, value)) return null;
