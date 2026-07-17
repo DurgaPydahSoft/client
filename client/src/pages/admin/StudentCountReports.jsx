@@ -61,6 +61,8 @@ const StudentCountReports = () => {
   const [exportType, setExportType] = useState('pdf'); // 'pdf' | 'excel'
   const [includeSummary, setIncludeSummary] = useState(true);
   const [includeDetails, setIncludeDetails] = useState(true);
+  const [detailedReportMode, setDetailedReportMode] = useState('category-wise'); // 'category-wise' | 'course-wise'
+  const [detailedReportType, setDetailedReportType] = useState('room-wise'); // 'room-wise' | 'course-wise'
   const [stats, setStats] = useState({
     collegesCount: 0,
     coursesCount: 0,
@@ -168,6 +170,23 @@ const StudentCountReports = () => {
     });
     return cols;
   }, [hostelGroups]);
+
+  // Extract unique categories dynamically
+  const allCategories = useMemo(() => {
+    const cats = new Set();
+    data.forEach(college => {
+      college.courses.forEach(course => {
+        course.hostels.forEach(hostel => {
+          hostel.categories.forEach(category => {
+            if (category.name) {
+              cats.add(category.name);
+            }
+          });
+        });
+      });
+    });
+    return Array.from(cats).sort();
+  }, [data]);
 
   // Helper to get count for a specific college, hostel, and category
   const getCollegeColumnCount = (college, hostelName, categoryName) => {
@@ -376,38 +395,19 @@ const StudentCountReports = () => {
   const handlePrint = async (incSummary, incDetails) => {
     const loadingToast = toast.loading('Preparing printable report...');
     try {
-      const params = new URLSearchParams();
-      params.append('limit', '1000000');
-      params.append('skipFeesAndConcessions', 'true');
-      if (isLiveMode) {
-        params.append('hostelStatus', 'Active');
-      } else {
-        if (academicYear) params.append('academicYear', academicYear);
-      }
-      const res = await api.get(`/api/admin/students?${params.toString()}`);
-      if (!res.data.success) {
-        throw new Error(res.data.message || 'Failed to fetch students');
-      }
-
-      const allActiveStudents = res.data.data.students || [];
-      if (allActiveStudents.length === 0) {
-        toast.error('No students found', { id: loadingToast });
-        return;
-      }
-
-      // Generate custom pivot table html matching the frontend view
-      const customPivotMatrixHtml = buildPivotTableHtmlForPrint();
-
       console.log('Requesting Live Occupancy HTML from Print API...');
       const printResponse = await api.post('/api/print', {
         template: 'live-occupancy-report',
         data: {
-          students: allActiveStudents,
-          filters: { academicYear },
+          filters: { 
+            academicYear,
+            search: searchQuery
+          },
           isLiveMode,
           includeSummary: incSummary,
           includeDetails: incDetails,
-          pivotMatrixHtml: customPivotMatrixHtml
+          detailedReportMode,
+          detailedReportType
         }
       });
 
@@ -452,8 +452,8 @@ const StudentCountReports = () => {
         throw new Error(res.data.message || 'Failed to fetch students');
       }
 
-      const students = res.data.data.students || [];
-      if (students.length === 0) {
+      const rawStudents = res.data.data.students || [];
+      if (rawStudents.length === 0) {
         toast.error('No students found', { id: loadingToast });
         return;
       }
@@ -463,7 +463,7 @@ const StudentCountReports = () => {
       const hostelSummaries = {};
       let grandTotal = 0;
 
-      students.forEach(student => {
+      rawStudents.forEach(student => {
         const hostelName = student.hostel?.name || 'Unassigned Hostel';
         const categoryName = student.hostelCategory?.name || student.category || 'Unassigned Category';
         const roomNo = student.roomNumber || 'Unassigned Room';
@@ -487,121 +487,419 @@ const StudentCountReports = () => {
 
       const workbook = XLSX.utils.book_new();
 
+      const activeCols = columns;
+
       if (incSummary) {
-        // --- SHEET 1: Summary Pivot Matrix ---
-        const summaryRows = [];
-        summaryRows.push([isLiveMode ? 'Hostel Occupancy Pivot Matrix Summary (Live)' : `Hostel Occupancy Pivot Matrix Summary (AY ${academicYear || 'All'})`]);
-        summaryRows.push([]);
-
-        // Build categories header row: 'Institution / Course / Year', col1, col2, ..., 'Total Count'
-        const excelHeaders = ['Institution / Course / Year'];
-        columns.forEach(col => {
-          excelHeaders.push(`${col.hostelName} - ${col.categoryName}`);
-        });
-        excelHeaders.push('Total Count');
-        summaryRows.push(excelHeaders);
-
-        // Build data rows for colleges and courses
-        filteredData.forEach(college => {
-          // College Row
-          const collegeRow = [college.name];
-          columns.forEach(col => {
-            const val = getCollegeColumnCount(college, col.hostelName, col.categoryName);
-            collegeRow.push(val === 0 ? '-' : val);
+        if (incDetails && detailedReportMode === 'category-wise' && detailedReportType === 'course-wise') {
+          // --- SHEET 1: Course-Wise consolidated summary for all categories ---
+          const summaryRows = [];
+          
+          // Get unique categories
+          const categoriesSet = new Set();
+          rawStudents.forEach(s => {
+            categoriesSet.add(s.hostelCategory?.name || s.category || 'Unassigned Category');
           });
-          collegeRow.push(college.count);
-          summaryRows.push(collegeRow);
+          const sortedCats = Array.from(categoriesSet).sort();
 
-          // Course Rows
-          college.courses.forEach(course => {
-            const courseRow = [`   ↳ ${course.name}`];
-            columns.forEach(col => {
-              const val = getCourseColumnCount(course, col.hostelName, col.categoryName);
-              courseRow.push(val === 0 ? '-' : val);
+          sortedCats.forEach(catName => {
+            summaryRows.push([`Course-Wise Student Count - Category ${catName}`]);
+            summaryRows.push([]);
+
+            // Filter students in this category
+            const catStudents = rawStudents.filter(s => {
+              const c = s.hostelCategory?.name || s.category || 'Unassigned Category';
+              return c === catName;
             });
-            courseRow.push(course.count);
-            summaryRows.push(courseRow);
-          });
-        });
+            
+            // Gather unique courses and years
+            const coursesSet = new Set();
+            const yearsSet = new Set();
+            catStudents.forEach(s => {
+              coursesSet.add(s.course || 'Unassigned Course');
+              yearsSet.add(s.year ? String(s.year) : 'Unassigned Year');
+            });
+            const sortedCourses = Array.from(coursesSet).sort();
+            const sortedYears = Array.from(yearsSet).sort((a, b) => {
+              const numA = parseInt(a, 10);
+              const numB = parseInt(b, 10);
+              if (isNaN(numA) && isNaN(numB)) return a.localeCompare(b);
+              if (isNaN(numA)) return 1;
+              if (isNaN(numB)) return -1;
+              return numA - numB;
+            });
 
-        // Grand Total Row
-        const grandTotalRow = ['Total'];
-        let overallSum = 0;
-        columns.forEach(col => {
-          let colSum = 0;
+            // Build headers
+            const headers = ['Course'];
+            sortedYears.forEach(y => {
+              headers.push(y === 'Unassigned Year' ? 'Unassigned' : `Year ${y}`);
+            });
+            headers.push('Total');
+            summaryRows.push(headers);
+
+            // Matrix
+            const matrix = {};
+            sortedCourses.forEach(c => {
+              matrix[c] = {};
+              sortedYears.forEach(y => {
+                matrix[c][y] = 0;
+              });
+            });
+
+            catStudents.forEach(s => {
+              const course = s.course || 'Unassigned Course';
+              const year = s.year ? String(s.year) : 'Unassigned Year';
+              if (matrix[course]) {
+                matrix[course][year]++;
+              }
+            });
+
+            const yearTotals = {};
+            sortedYears.forEach(y => { yearTotals[y] = 0; });
+            let grandTotalSum = 0;
+
+            sortedCourses.forEach(c => {
+              const row = [c];
+              let rowSum = 0;
+              sortedYears.forEach(y => {
+                const val = matrix[c][y];
+                row.push(val === 0 ? '-' : val);
+                rowSum += val;
+                yearTotals[y] += val;
+              });
+              row.push(rowSum);
+              summaryRows.push(row);
+              grandTotalSum += rowSum;
+            });
+
+            // Total row
+            const totalRow = ['Total'];
+            sortedYears.forEach(y => {
+              totalRow.push(yearTotals[y]);
+            });
+            totalRow.push(grandTotalSum);
+            summaryRows.push(totalRow);
+            
+            // Add spacing between tables
+            summaryRows.push([]);
+            summaryRows.push([]);
+          });
+
+          const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+          summarySheet['!cols'] = [{ width: 25 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }];
+          XLSX.utils.book_append_sheet(workbook, summarySheet, 'Consolidated Summary');
+        } else {
+          // --- SHEET 1: Summary Pivot Matrix ---
+          const summaryRows = [];
+          summaryRows.push([isLiveMode ? 'Hostel Occupancy Pivot Matrix Summary (Live)' : `Hostel Occupancy Pivot Matrix Summary (AY ${academicYear || 'All'})`]);
+          summaryRows.push([]);
+
+          // Build categories header row: 'Institution / Course / Year', col1, col2, ..., 'Total Count'
+          const excelHeaders = ['Institution / Course / Year'];
+          activeCols.forEach(col => {
+            excelHeaders.push(`${col.hostelName} - ${col.categoryName}`);
+          });
+          excelHeaders.push('Total Count');
+          summaryRows.push(excelHeaders);
+
+          // Build data rows for colleges and courses
           filteredData.forEach(college => {
-            colSum += getCollegeColumnCount(college, col.hostelName, col.categoryName);
+            // College Row
+            const collegeRow = [college.name];
+            let collegeSum = 0;
+            activeCols.forEach(col => {
+              const val = getCollegeColumnCount(college, col.hostelName, col.categoryName);
+              collegeRow.push(val === 0 ? '-' : val);
+              collegeSum += val;
+            });
+            collegeRow.push(collegeSum);
+            summaryRows.push(collegeRow);
+
+            // Course Rows
+            college.courses.forEach(course => {
+              const courseRow = [`   ↳ ${course.name}`];
+              let courseSum = 0;
+              activeCols.forEach(col => {
+                const val = getCourseColumnCount(course, col.hostelName, col.categoryName);
+                courseRow.push(val === 0 ? '-' : val);
+                courseSum += val;
+              });
+              courseRow.push(courseSum);
+              summaryRows.push(courseRow);
+            });
           });
-          grandTotalRow.push(colSum === 0 ? '-' : colSum);
-          overallSum += colSum;
-        });
-        grandTotalRow.push(overallSum);
-        summaryRows.push(grandTotalRow);
 
-        const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
-        
-        // Auto-fit summary sheet cols
-        const summaryCols = [{ width: 45 }]; // first column wide
-        columns.forEach(() => {
-          summaryCols.push({ width: 18 });
-        });
-        summaryCols.push({ width: 15 });
-        summarySheet['!cols'] = summaryCols;
+          // Grand Total Row
+          const grandTotalRow = ['Total'];
+          let overallSum = 0;
+          activeCols.forEach(col => {
+            let colSum = 0;
+            filteredData.forEach(college => {
+              colSum += getCollegeColumnCount(college, col.hostelName, col.categoryName);
+            });
+            grandTotalRow.push(colSum === 0 ? '-' : colSum);
+            overallSum += colSum;
+          });
+          grandTotalRow.push(overallSum);
+          summaryRows.push(grandTotalRow);
 
-        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Abstract & Summary');
+          const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+          
+          // Auto-fit summary sheet cols
+          const summaryCols = [{ width: 45 }]; // first column wide
+          activeCols.forEach(() => {
+            summaryCols.push({ width: 18 });
+          });
+          summaryCols.push({ width: 15 });
+          summarySheet['!cols'] = summaryCols;
+
+          XLSX.utils.book_append_sheet(workbook, summarySheet, 'Abstract & Summary');
+        }
       }
 
       if (incDetails) {
-        // --- SHEET 2: Detailed Room-Wise ---
-        const detailedRows = [];
-        detailedRows.push(['Detailed Room-Wise Student List']);
-        detailedRows.push([]);
-        detailedRows.push([
-          'S.No',
-          'Roll Number',
-          'Name',
-          'Hostel',
-          'Category',
-          'Room Number',
-          'Course',
-          'Branch',
-          'Academic Year',
-          'Student Mobile',
-          'Parent Mobile'
-        ]);
+        if (detailedReportMode === 'category-wise' && detailedReportType === 'course-wise') {
+          // --- SHEET 2: Course-Wise distribution for each hostel ---
+          const courseExpectedYears = {};
+          rawStudents.forEach(s => {
+            if (!s.year) return;
+            const cName = s.course || 'Unassigned Course';
+            if (!courseExpectedYears[cName]) {
+              courseExpectedYears[cName] = new Set();
+            }
+            courseExpectedYears[cName].add(String(s.year));
+          });
 
-        let serialNo = 1;
-        Object.keys(grouped).sort().forEach(hostelName => {
-          Object.keys(grouped[hostelName]).sort().forEach(categoryName => {
-            Object.keys(grouped[hostelName][categoryName]).sort((a, b) => parseInt(a) - parseInt(b)).forEach(roomNo => {
-              grouped[hostelName][categoryName][roomNo].forEach(student => {
-                detailedRows.push([
-                  serialNo++,
-                  student.rollNumber || 'N/A',
-                  student.name || 'N/A',
-                  hostelName,
-                  categoryName,
-                  roomNo,
-                  student.course || 'N/A',
-                  student.branch || 'N/A',
-                  student.academicYear || 'N/A',
-                  student.studentPhone || 'N/A',
-                  student.parentPhone || 'N/A'
-                ]);
+          const studentsByHostel = {};
+          rawStudents.forEach(student => {
+            const hostelName = student.hostel?.name || 'Unassigned Hostel';
+            if (!studentsByHostel[hostelName]) {
+              studentsByHostel[hostelName] = [];
+            }
+            studentsByHostel[hostelName].push(student);
+          });
+
+          const sortedHostels = Object.keys(studentsByHostel).sort();
+          sortedHostels.forEach(hostelName => {
+            const detailedRows = [];
+            const hostelStudents = studentsByHostel[hostelName];
+
+            // Group by category within this hostel
+            const catSet = new Set();
+            hostelStudents.forEach(s => {
+              catSet.add(s.hostelCategory?.name || s.category || 'Unassigned Category');
+            });
+            const sortedCats = Array.from(catSet).sort();
+
+            sortedCats.forEach(catName => {
+              detailedRows.push([`Category: ${catName} - Course-Wise Summary`]);
+              detailedRows.push([]);
+
+              const catStudents = hostelStudents.filter(s => {
+                const c = s.hostelCategory?.name || s.category || 'Unassigned Category';
+                return c === catName;
+              });
+
+              // Gather courses and years
+              const coursesSet = new Set();
+              const yearsSet = new Set();
+              catStudents.forEach(s => {
+                coursesSet.add(s.course || 'Unassigned Course');
+                yearsSet.add(s.year ? String(s.year) : 'Unassigned Year');
+              });
+              const sortedCourses = Array.from(coursesSet).sort();
+              const sortedYears = Array.from(yearsSet).sort((a, b) => {
+                const numA = parseInt(a, 10);
+                const numB = parseInt(b, 10);
+                if (isNaN(numA) && isNaN(numB)) return a.localeCompare(b);
+                if (isNaN(numA)) return 1;
+                if (isNaN(numB)) return -1;
+                return numA - numB;
+              });
+
+              // Build headers
+              const headers = ['Course'];
+              sortedYears.forEach(y => {
+                headers.push(y === 'Unassigned Year' ? 'Unassigned' : `Year ${y}`);
+              });
+              headers.push('Total');
+              detailedRows.push(headers);
+
+              // Matrix
+              const matrix = {};
+              sortedCourses.forEach(c => {
+                matrix[c] = {};
+                sortedYears.forEach(y => {
+                  matrix[c][y] = 0;
+                });
+              });
+
+              catStudents.forEach(s => {
+                const course = s.course || 'Unassigned Course';
+                const year = s.year ? String(s.year) : 'Unassigned Year';
+                if (matrix[course]) {
+                  matrix[course][year]++;
+                }
+              });
+
+              const yearTotals = {};
+              sortedYears.forEach(y => { yearTotals[y] = 0; });
+              let grandTotalSum = 0;
+
+              sortedCourses.forEach(c => {
+                const row = [c];
+                let rowSum = 0;
+                sortedYears.forEach(y => {
+                  const val = matrix[c][y];
+                  row.push(val === 0 ? '-' : val);
+                  rowSum += val;
+                  yearTotals[y] += val;
+                });
+                row.push(rowSum);
+                detailedRows.push(row);
+                grandTotalSum += rowSum;
+              });
+
+              // Total row
+              const totalRow = ['Total'];
+              sortedYears.forEach(y => {
+                totalRow.push(yearTotals[y]);
+              });
+              totalRow.push(grandTotalSum);
+              detailedRows.push(totalRow);
+
+              detailedRows.push([]);
+              detailedRows.push([`Category: ${catName} - Student Listings (Grouped by Course)`]);
+              detailedRows.push([]);
+
+              // Group by Course for listing with Year as a column
+              const courseGroups = {};
+              catStudents.forEach(s => {
+                const course = s.course || 'Unassigned Course';
+                if (!courseGroups[course]) courseGroups[course] = [];
+                courseGroups[course].push(s);
+              });
+
+              const sortedCoursesList = Object.keys(courseGroups).sort();
+              sortedCoursesList.forEach(courseName => {
+                const courseStudents = courseGroups[courseName];
+                
+                // Get expected years for this course
+                const expectedYears = Array.from(courseExpectedYears[courseName] || []).sort((a, b) => parseInt(a) - parseInt(b));
+                
+                // Add dummy entry if a year is completely missing for this course
+                expectedYears.forEach(y => {
+                  const hasStudents = courseStudents.some(s => String(s.year) === y);
+                  if (!hasStudents) {
+                    courseStudents.push({
+                      year: y,
+                      rollNumber: '-',
+                      name: '-',
+                      branch: '-',
+                      roomNumber: '-',
+                      studentPhone: '-',
+                      isDummy: true
+                    });
+                  }
+                });
+
+                // Sort by Year (ascending), then by Roll Number or Name
+                courseStudents.sort((a, b) => {
+                  const yearA = a.year ? parseInt(a.year, 10) : 999;
+                  const yearB = b.year ? parseInt(b.year, 10) : 999;
+                  if (yearA !== yearB) return yearA - yearB;
+                  
+                  if (a.isDummy && !b.isDummy) return 1;
+                  if (!a.isDummy && b.isDummy) return -1;
+                  
+                  const rollA = a.rollNumber || '';
+                  const rollB = b.rollNumber || '';
+                  return rollA.localeCompare(rollB);
+                });
+
+                const activeCount = courseStudents.filter(s => !s.isDummy).length;
+                detailedRows.push([`${courseName} (${activeCount} Students)`]);
+                detailedRows.push(['Year', 'S.No', 'Roll Number', 'Student Name', 'Branch', 'Room Number', 'Mobile']);
+
+                let serialCounter = 1;
+                courseStudents.forEach((st) => {
+                  const formattedYear = st.year ? `Year ${st.year}` : 'Unassigned';
+                  const serialText = st.isDummy ? '-' : serialCounter++;
+                  detailedRows.push([
+                    formattedYear,
+                    serialText,
+                    st.rollNumber || 'N/A',
+                    st.name || 'N/A',
+                    st.branch || 'N/A',
+                    st.roomNumber || 'N/A',
+                    st.studentPhone || 'N/A'
+                  ]);
+                });
+                detailedRows.push([]);
+              });
+
+              detailedRows.push([]);
+              detailedRows.push([]);
+            });
+
+            const detailedSheet = XLSX.utils.aoa_to_sheet(detailedRows);
+            detailedSheet['!cols'] = [{ width: 25 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }];
+
+            // Safe tab name (limit 31 chars)
+            const tabName = hostelName.substring(0, 30);
+            XLSX.utils.book_append_sheet(workbook, detailedSheet, tabName);
+          });
+        } else {
+          // --- SHEET 2: Detailed Room-Wise ---
+          const detailedRows = [];
+          detailedRows.push(['Detailed Room-Wise Student List']);
+          detailedRows.push([]);
+          detailedRows.push([
+            'S.No',
+            'Roll Number',
+            'Name',
+            'Hostel',
+            'Category',
+            'Room Number',
+            'Course',
+            'Branch',
+            'Academic Year',
+            'Student Mobile',
+            'Parent Mobile'
+          ]);
+
+          let serialNo = 1;
+          Object.keys(grouped).sort().forEach(hostelName => {
+            Object.keys(grouped[hostelName]).sort().forEach(categoryName => {
+              Object.keys(grouped[hostelName][categoryName]).sort((a, b) => parseInt(a) - parseInt(b)).forEach(roomNo => {
+                grouped[hostelName][categoryName][roomNo].forEach(student => {
+                  detailedRows.push([
+                    serialNo++,
+                    student.rollNumber || 'N/A',
+                    student.name || 'N/A',
+                    hostelName,
+                    categoryName,
+                    roomNo,
+                    student.course || 'N/A',
+                    student.branch || 'N/A',
+                    student.academicYear || 'N/A',
+                    student.studentPhone || 'N/A',
+                    student.parentPhone || 'N/A'
+                  ]);
+                });
               });
             });
           });
-        });
 
-        const detailedSheet = XLSX.utils.aoa_to_sheet(detailedRows);
-        const detailedCols = [
-          { width: 8 }, { width: 18 }, { width: 30 }, { width: 18 }, 
-          { width: 15 }, { width: 12 }, { width: 15 }, { width: 15 }, 
-          { width: 15 }, { width: 16 }, { width: 16 }
-        ];
-        detailedSheet['!cols'] = detailedCols;
+          const detailedSheet = XLSX.utils.aoa_to_sheet(detailedRows);
+          const detailedCols = [
+            { width: 8 }, { width: 18 }, { width: 30 }, { width: 18 }, 
+            { width: 15 }, { width: 12 }, { width: 15 }, { width: 15 }, 
+            { width: 15 }, { width: 16 }, { width: 16 }
+          ];
+          detailedSheet['!cols'] = detailedCols;
 
-        XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed List');
+          XLSX.utils.book_append_sheet(workbook, detailedSheet, 'Detailed List');
+        }
       }
 
       const timestamp = new Date().toISOString().slice(0, 10);
@@ -687,6 +985,8 @@ const StudentCountReports = () => {
               setExportType('pdf');
               setIncludeSummary(true);
               setIncludeDetails(true);
+              setDetailedReportMode('category-wise');
+              setDetailedReportType('room-wise');
               setIsExportModalOpen(true);
             }}
             className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow hover:shadow-md transition-all flex items-center gap-1.5 text-sm font-medium w-full sm:w-auto justify-center"
@@ -699,6 +999,8 @@ const StudentCountReports = () => {
               setExportType('excel');
               setIncludeSummary(true);
               setIncludeDetails(true);
+              setDetailedReportMode('category-wise');
+              setDetailedReportType('room-wise');
               setIsExportModalOpen(true);
             }}
             className="px-3 py-2 bg-emerald-600 hover:bg-emerald-705 text-white rounded-lg shadow hover:shadow-md transition-all flex items-center gap-1.5 text-sm font-medium w-full sm:w-auto justify-center"
@@ -1053,6 +1355,38 @@ const StudentCountReports = () => {
                   <span className="text-xs text-gray-500">Include detailed hostel category and room-wise student listings.</span>
                 </div>
               </label>
+
+              {includeDetails && (
+                <div className="mt-3 space-y-3 pl-7">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Select Report Mode</label>
+                    <select
+                      value={detailedReportMode}
+                      onChange={(e) => {
+                        setDetailedReportMode(e.target.value);
+                      }}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white outline-none"
+                    >
+                      <option value="category-wise">Category Wise</option>
+                      <option value="course-wise" disabled>Course Wise (Blocked)</option>
+                    </select>
+                  </div>
+
+                  {detailedReportMode === 'category-wise' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Report Layout Type</label>
+                      <select
+                        value={detailedReportType}
+                        onChange={(e) => setDetailedReportType(e.target.value)}
+                        className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white outline-none"
+                      >
+                        <option value="room-wise">Room Wise</option>
+                        <option value="course-wise">Course Wise</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 justify-end">
