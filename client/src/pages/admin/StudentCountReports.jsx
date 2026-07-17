@@ -273,6 +273,106 @@ const StudentCountReports = () => {
     toast.success('All sections collapsed');
   };
 
+  const buildPivotTableHtmlForPrint = () => {
+    // Generate headers columns
+    const cols = [];
+    hostelGroups.forEach(group => {
+      group.categories.forEach(cat => {
+        cols.push({
+          key: `${group.hostelName}-${cat.categoryName}`,
+          hostelName: group.hostelName,
+          categoryName: cat.categoryName
+        });
+      });
+    });
+
+    let html = `
+      <table class="pivot-table">
+        <thead>
+          <tr class="header-row-1">
+            <th rowspan="2">Institution / Course / Year</th>
+            ${hostelGroups.map(group => `
+              <th colspan="${group.categories.length}" class="text-center" style="border-bottom: 1px solid #cbd5e1;">
+                ${group.hostelName}
+              </th>
+            `).join('')}
+            <th rowspan="2" class="text-right" style="width: 100px;">Total</th>
+          </tr>
+          <tr class="header-row-2">
+            ${hostelGroups.map(group => 
+              group.categories.map(cat => `
+                <th class="text-center">
+                  ${cat.categoryName}
+                </th>
+              `).join('')
+            ).join('')}
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    filteredData.forEach(college => {
+      html += `
+        <tr class="level-0">
+          <td>${college.name}</td>
+          ${cols.map(col => {
+            const val = getCollegeColumnCount(college, col.hostelName, col.categoryName);
+            return `<td class="text-center ${val === 0 ? 'cell-zero' : 'text-bold'}">${val === 0 ? '-' : val}</td>`;
+          }).join('')}
+          <td class="text-right text-bold">${college.count}</td>
+        </tr>
+      `;
+
+      // Check if college is expanded on the screen
+      const isCollExpanded = expandedRows[college.name];
+      if (isCollExpanded) {
+        college.courses.forEach(course => {
+          html += `
+            <tr class="level-1">
+              <td style="padding-left: 15px;"><span class="hierarchy-arrow">↳</span> ${course.name}</td>
+              ${cols.map(col => {
+                const val = getCourseColumnCount(course, col.hostelName, col.categoryName);
+                return `<td class="text-center ${val === 0 ? 'cell-zero' : 'text-bold'}">${val === 0 ? '-' : val}</td>`;
+              }).join('')}
+              <td class="text-right text-bold">${course.count}</td>
+            </tr>
+          `;
+        });
+      }
+    });
+
+    // Grand Total Row
+    const grandTotalRow = ['Total'];
+    let overallSum = 0;
+    cols.forEach(col => {
+      let colSum = 0;
+      filteredData.forEach(college => {
+        colSum += getCollegeColumnCount(college, col.hostelName, col.categoryName);
+      });
+      grandTotalRow.push(colSum === 0 ? '-' : colSum);
+      overallSum += colSum;
+    });
+    grandTotalRow.push(overallSum);
+
+    html += `
+      <tr style="background-color: #eff6ff; font-weight: bold; border-top: 2.5px double #1e3a8a;">
+        <td style="font-weight: bold; color: #1e3a8a;">Total</td>
+        ${cols.map((col, index) => {
+          const val = grandTotalRow[index + 1];
+          return `<td class="text-center text-bold" style="color: #1e3a8a;">${val}</td>`;
+        }).join('')}
+        <td class="text-right text-bold" style="background-color: #dbeafe; color: #1d4ed8;">${overallSum}</td>
+      </tr>
+    `;
+
+    html += `
+        </tbody>
+      </table>
+    `;
+
+    return html;
+  };
+
   const handlePrint = async (incSummary, incDetails) => {
     const loadingToast = toast.loading('Preparing printable report...');
     try {
@@ -295,6 +395,9 @@ const StudentCountReports = () => {
         return;
       }
 
+      // Generate custom pivot table html matching the frontend view
+      const customPivotMatrixHtml = buildPivotTableHtmlForPrint();
+
       console.log('Requesting Live Occupancy HTML from Print API...');
       const printResponse = await api.post('/api/print', {
         template: 'live-occupancy-report',
@@ -303,7 +406,8 @@ const StudentCountReports = () => {
           filters: { academicYear },
           isLiveMode,
           includeSummary: incSummary,
-          includeDetails: incDetails
+          includeDetails: incDetails,
+          pivotMatrixHtml: customPivotMatrixHtml
         }
       });
 
@@ -873,6 +977,34 @@ const StudentCountReports = () => {
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className={`${isPrincipal ? 'bg-purple-900 text-white' : 'bg-deepsea-900 text-white'} text-xs font-bold border-t border-slate-700`}>
+                  <td 
+                    className={`py-3.5 px-4 text-left sticky left-0 z-20 ${isPrincipal ? 'bg-purple-900 border-purple-800' : 'bg-deepsea-900 border-deepsea-800'} border-r shadow-[2px_0_5px_0_rgba(0,0,0,0.15)]`}
+                  >
+                    Total Count
+                  </td>
+                  {columns.map(col => {
+                    let colSum = 0;
+                    filteredData.forEach(college => {
+                      colSum += getCollegeColumnCount(college, col.hostelName, col.categoryName);
+                    });
+                    return (
+                      <td 
+                        key={col.key} 
+                        className={`py-3.5 px-4 text-center border-r ${isPrincipal ? 'border-purple-800' : 'border-deepsea-800'}`}
+                      >
+                        {colSum === 0 ? '-' : colSum}
+                      </td>
+                    );
+                  })}
+                  <td 
+                    className={`py-3.5 px-4 text-right pr-6 font-extrabold text-sm ${isPrincipal ? 'bg-purple-950/20' : 'bg-deepsea-950/20'}`}
+                  >
+                    {overallCount}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
