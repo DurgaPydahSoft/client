@@ -19,7 +19,7 @@ import { useCoursesBranches } from '../../context/CoursesBranchesContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import SEO from '../../components/SEO';
 
-const TakeAttendance = () => {
+const TakeAttendance = ({ onStatsUpdate }) => {
   const { courses, branches, getBranchesByCourse } = useCoursesBranches();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +65,12 @@ const TakeAttendance = () => {
       if (response.data.success) {
         setStudents(response.data.data.students);
         setStats(response.data.data);
+        if (onStatsUpdate) {
+          onStatsUpdate({
+            totalStudents: response.data.data.totalStudents || 0,
+            attendanceTaken: response.data.data.attendanceTaken || 0
+          });
+        }
 
         // Initialize attendance data
         const initialAttendance = {};
@@ -194,17 +200,6 @@ const TakeAttendance = () => {
 
   return (
     <div className="p-3 sm:p-4 lg:p-6">
-      {/* Stats Display */}
-      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 mb-4 sm:mb-6">
-        <div className="text-left sm:text-right">
-          <p className="text-xs sm:text-sm text-gray-500">Total Students</p>
-          <p className="text-lg sm:text-2xl font-bold text-blue-600">{stats.totalStudents}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs sm:text-sm text-gray-500">Attendance Taken</p>
-          <p className="text-lg sm:text-2xl font-bold text-green-600">{stats.attendanceTaken}</p>
-        </div>
-      </div>
 
       {/* Mobile Filter Toggle */}
       <div className="lg:hidden mb-4">

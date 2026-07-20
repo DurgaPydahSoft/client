@@ -23,7 +23,7 @@ import { useCoursesBranches } from '../../context/CoursesBranchesContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as XLSX from 'xlsx';
 
-const ViewAttendance = () => {
+const ViewAttendance = ({ onStatsUpdate }) => {
   const { user } = useAuth();
   const { courses, branches, getBranchesByCourse } = useCoursesBranches();
   const [loading, setLoading] = useState(true);
@@ -98,7 +98,14 @@ const ViewAttendance = () => {
 
       if (response.data.success) {
         setAttendance(response.data.data.attendance);
-        setStatistics(response.data.data.statistics);
+        const stats = response.data.data.statistics || {};
+        setStatistics(stats);
+        if (onStatsUpdate && response.data.data.statistics) {
+          onStatsUpdate({
+            totalStudents: stats.totalStudents || 0,
+            attendanceTaken: (stats.morningPresent || 0) + (stats.eveningPresent || 0) + (stats.nightPresent || 0) > 0 ? (stats.fullyPresent || stats.morningPresent || 0) : 0
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);

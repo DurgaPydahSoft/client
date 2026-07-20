@@ -200,8 +200,18 @@ const DashboardHome = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState('week');
+  const [analyticsMode, setAnalyticsMode] = useState('live'); // 'live' or 'ay'
+  const currentYearNum = new Date().getFullYear();
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(`${currentYearNum}-${currentYearNum + 1}`);
   const [activeId, setActiveId] = useState(null);
+
+  const ACADEMIC_YEARS = [
+    `${currentYearNum}-${currentYearNum + 1}`,
+    `${currentYearNum - 1}-${currentYearNum}`,
+    `${currentYearNum - 2}-${currentYearNum - 1}`,
+    `${currentYearNum - 3}-${currentYearNum - 2}`,
+    `${currentYearNum - 4}-${currentYearNum - 3}`
+  ];
 
   // Stat cards order state - stored in localStorage
   const getInitialCardOrder = useCallback(() => {
@@ -361,392 +371,81 @@ const DashboardHome = () => {
   // Safari detection
   const isSafari = useMemo(() => /^((?!chrome|android).)*safari/i.test(navigator.userAgent), []);
 
+  const isInitialMount = React.useRef(true);
+
   // Fetch all dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
       try {
-        const timeoutDuration = isSafari ? 45000 : 30000;
         const today = new Date().toISOString().split('T')[0];
+        const summaryEndpoint = analyticsMode === 'ay'
+          ? `/api/admin/dashboard-summary?academicYear=${selectedAcademicYear}`
+          : '/api/admin/dashboard-summary';
 
-        // Fetch all data in parallel
-        const [
-          studentsCountRes,
-          courseCountsRes,
-          attendanceStatsRes,
-          attendanceDateRes,
-          paymentStatsRes,
-          hostelFeeStatsRes,
-          complaintsRes,
-          leavesRes,
-          roomsStatsRes,
-          announcementsRes,
-          pollsRes,
-          todaysMenuRes
-        ] = await Promise.allSettled(
-          [
-            api.get('/api/admin/students/count'),
-            api.get('/api/admin/students/course-counts?hostelStatus=Active'),
+        // Fetch primary summary data from lightweight aggregated endpoint
+        const summaryRes = await api.get(summaryEndpoint).catch(() => null);
+        if (summaryRes?.data?.success) {
+          const sData = summaryRes.data.data;
+          setStats(prev => ({
+            ...prev,
+            students: sData.students || prev.students,
+            complaints: sData.complaints || prev.complaints,
+            leaves: sData.leaves || prev.leaves,
+            rooms: sData.rooms || prev.rooms,
+            communication: sData.communication || prev.communication
+          }));
+        }
+
+        // Only fetch static attendance & cafeteria menu once on initial load
+        if (isInitialMount.current) {
+          isInitialMount.current = false;
+          const [attendanceStatsRes, todaysMenuRes] = await Promise.allSettled([
             api.get(`/api/attendance/stats?date=${today}`),
-            api.get(`/api/attendance/date?date=${today}`),
-            api.get('/api/payments/stats'),
-            api.get('/api/payments/hostel-fee/stats'),
-            api.get('/api/complaints/admin/all'),
-            api.get('/api/leave/all'),
-            api.get('/api/admin/rooms/stats'),
-            api.get('/api/announcements/admin/all'),
-            api.get('/api/polls/admin/all'),
             api.get('/api/cafeteria/menu/today')
-          ].map(call =>
-            Promise.race([
-              call,
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Request timeout')), timeoutDuration)
-              )
-            ])
-          )
-        );
+          ]);
 
-        // Process Students Data — single source for active count & course breakdown
-        let activeCount = 0;
-        let newThisWeek = 0;
-        let byCourse = [];
-
-        if (studentsCountRes.status === 'fulfilled' && studentsCountRes.value.data.success) {
-          activeCount = studentsCountRes.value.data.data.count || 0;
-          newThisWeek = studentsCountRes.value.data.data.newThisWeek || 0;
-        }
-
-
-        if (courseCountsRes.status === 'fulfilled' && courseCountsRes.value.data.success) {
-          const countsData = courseCountsRes.value.data.data || {};
-          byCourse = Object.entries(countsData)
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count);
-
-          if (user?.role === 'principal') {
-            const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
-            if (allowedCourses.length > 0) {
-              const allowed = new Set(allowedCourses.map(c => normalizeText(c)));
-              byCourse = byCourse.filter(c => allowed.has(normalizeText(c.name)));
-              activeCount = byCourse.reduce((sum, c) => sum + c.count, 0);
-            }
-          }
-        }
-
-        setStats(prev => ({
-          ...prev,
-          students: {
-            total: activeCount,
-            active: activeCount,
-            inactive: 0,
-            newThisWeek,
-            byCourse
-          }
-        }));
-
-        // Process Attendance Data
-        if (attendanceStatsRes.status === 'fulfilled' && attendanceStatsRes.value.data.success) {
-          const attendanceData = attendanceStatsRes.value.data.data.statistics || {};
-          setStats(prev => ({
-            ...prev,
-            attendance: {
-              ...prev.attendance,
-              today: {
-                total: attendanceData.totalStudents || 0,
-                present: attendanceData.fullyPresent || 0,
-                absent: attendanceData.absent || 0,
-                percentage: attendanceData.percentages?.fullyPresentPercentage || 0,
-                fullyPresent: attendanceData.fullyPresent || 0,
-                partiallyPresent: attendanceData.partiallyPresent || 0,
-                morningPresent: attendanceData.morningPresent || 0,
-                eveningPresent: attendanceData.eveningPresent || 0,
-                nightPresent: attendanceData.nightPresent || 0
+          // Process Attendance Data
+          if (attendanceStatsRes.status === 'fulfilled' && attendanceStatsRes.value?.data?.success) {
+            const attendanceData = attendanceStatsRes.value.data.data.statistics || {};
+            setStats(prev => ({
+              ...prev,
+              attendance: {
+                ...prev.attendance,
+                today: {
+                  total: attendanceData.totalStudents || 0,
+                  present: attendanceData.fullyPresent || 0,
+                  absent: attendanceData.absent || 0,
+                  percentage: attendanceData.percentages?.fullyPresentPercentage || 0,
+                  fullyPresent: attendanceData.fullyPresent || 0,
+                  partiallyPresent: attendanceData.partiallyPresent || 0,
+                  morningPresent: attendanceData.morningPresent || 0,
+                  eveningPresent: attendanceData.eveningPresent || 0,
+                  nightPresent: attendanceData.nightPresent || 0
+                }
               }
-            }
-          }));
-        }
+            }));
+          }
 
-        // Process Attendance Date Data for session-specific stats
-        if (attendanceDateRes.status === 'fulfilled' && attendanceDateRes.value.data.success) {
-          const dateData = attendanceDateRes.value.data.data.statistics || {};
-          const totalStudents = dateData.totalStudents || 0;
-
-          // Get current time in IST to determine active session
-          const getCurrentISTTime = () => {
-            const now = new Date();
-            return new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-          };
-
-          // Calculate percentage and present count based on the most recent/active session
-          const getCurrentSessionStats = () => {
-            const istTime = getCurrentISTTime();
-            const hour = istTime.getHours() + (istTime.getMinutes() / 60);
-            let sessionPresent = 0;
-            let sessionName = '';
-
-            // Session time windows (IST) - matching TakeAttendance.jsx
-            // Morning: 7:30 AM - 9:30 AM (7.5 - 9.5)
-            // Evening: 5:00 PM - 7:00 PM (17 - 19)
-            // Night: 8:00 PM - 10:00 PM (20 - 22)
-
-            if (hour >= 7.5 && hour < 9.5) {
-              // Morning session active
-              sessionPresent = dateData.morningPresent || 0;
-              sessionName = 'morning';
-            } else if (hour >= 17 && hour < 19) {
-              // Evening session active
-              sessionPresent = dateData.eveningPresent || 0;
-              sessionName = 'evening';
-            } else if (hour >= 20 && hour < 22) {
-              // Night session active
-              sessionPresent = dateData.nightPresent || 0;
-              sessionName = 'night';
-            } else {
-              // No active session - use the most recent completed session
-              // If before morning, show previous night; if after night, show night
-              if (hour < 7.5) {
-                sessionPresent = dateData.nightPresent || 0;
-                sessionName = 'night';
-              } else if (hour >= 9.5 && hour < 17) {
-                sessionPresent = dateData.morningPresent || 0;
-                sessionName = 'morning';
-              } else if (hour >= 19 && hour < 20) {
-                sessionPresent = dateData.eveningPresent || 0;
-                sessionName = 'evening';
-              } else {
-                // After 10 PM, show night session
-                sessionPresent = dateData.nightPresent || 0;
-                sessionName = 'night';
+          // Process Today's Menu Data
+          if (todaysMenuRes.status === 'fulfilled' && todaysMenuRes.value?.data?.success) {
+            const menuData = todaysMenuRes.value.data.data;
+            setStats(prev => ({
+              ...prev,
+              menu: {
+                todaysMenu: menuData,
+                hasMenu: !!menuData && !!menuData.meals
               }
-            }
-
-            // If no data for determined session, use the highest session attendance
-            if (sessionPresent === 0) {
-              const sessions = [
-                dateData.morningPresent || 0,
-                dateData.eveningPresent || 0,
-                dateData.nightPresent || 0
-              ];
-              sessionPresent = Math.max(...sessions);
-            }
-
-            const percentage = totalStudents > 0 ? Math.round((sessionPresent / totalStudents) * 100) : 0;
-
-            return { sessionPresent, percentage, sessionName };
-          };
-
-          const sessionStats = getCurrentSessionStats();
-
-          setStats(prev => ({
-            ...prev,
-            attendance: {
-              ...prev.attendance,
-              today: {
-                ...prev.attendance.today,
-                total: totalStudents || prev.attendance.today.total,
-                present: sessionStats.sessionPresent || prev.attendance.today.present,
-                percentage: sessionStats.percentage || prev.attendance.today.percentage,
-                morningPresent: dateData.morningPresent || prev.attendance.today.morningPresent || 0,
-                eveningPresent: dateData.eveningPresent || prev.attendance.today.eveningPresent || 0,
-                nightPresent: dateData.nightPresent || prev.attendance.today.nightPresent || 0
+            }));
+          } else {
+            setStats(prev => ({
+              ...prev,
+              menu: {
+                todaysMenu: null,
+                hasMenu: false
               }
-            }
-          }));
-        }
-
-        // Process Financial Data - Electricity Payments
-        let electricityPayments = 0;
-        let thisMonthTotal = 0;
-        let lastMonthTotal = 0;
-
-        if (paymentStatsRes.status === 'fulfilled' && paymentStatsRes.value.data.success) {
-          const paymentData = paymentStatsRes.value.data.data || {};
-          const currentMonthStats = paymentData.currentMonth?.stats || [];
-          const previousMonthStats = paymentData.previousMonth?.stats || [];
-
-          // Calculate totals from payment stats (electricity payments)
-          electricityPayments = currentMonthStats
-            .filter(s => s._id === 'success')
-            .reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-
-          thisMonthTotal = electricityPayments;
-          lastMonthTotal = previousMonthStats
-            .filter(s => s._id === 'success')
-            .reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-        }
-
-        // Process Financial Data - Hostel Fee Payments
-        let hostelFeeCollection = 0;
-        if (hostelFeeStatsRes.status === 'fulfilled' && hostelFeeStatsRes.value.data.success) {
-          const hostelFeeData = hostelFeeStatsRes.value.data.data || {};
-          hostelFeeCollection = hostelFeeData.currentMonthTotal || 0;
-          thisMonthTotal += hostelFeeCollection;
-        }
-
-        setStats(prev => ({
-          ...prev,
-          financial: {
-            totalCollection: thisMonthTotal,
-            pendingPayments: 0, // Would need separate calculation
-            electricityPayments,
-            hostelFeeCollection,
-            thisMonth: thisMonthTotal,
-            lastMonth: lastMonthTotal
+            }));
           }
-        }));
-
-        // Process Complaints Data
-        if (complaintsRes.status === 'fulfilled' && complaintsRes.value.data.success) {
-          let complaints = complaintsRes.value.data.data.complaints || [];
-
-          // Filter for Principals based on assigned courses
-          if (user?.role === 'principal') {
-            const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
-            if (allowedCourses.length > 0) {
-              complaints = complaints.filter(c => {
-                const course = c.course || c.student?.course?.name || c.student?.course;
-                return allowedCourses.includes(course);
-              });
-            }
-          }
-
-          const active = complaints.filter(c => c.currentStatus !== 'Resolved' && c.currentStatus !== 'Closed');
-          const resolved = complaints.filter(c => c.currentStatus === 'Resolved');
-          const inProgress = complaints.filter(c => c.currentStatus === 'In Progress');
-
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-          const resolvedThisWeek = resolved.filter(c => new Date(c.resolvedAt || c.updatedAt) >= oneWeekAgo).length;
-
-          // Calculate average resolution time
-          const resolvedWithTime = resolved.filter(c => c.resolvedAt && c.createdAt);
-          const avgResolutionTime = resolvedWithTime.length > 0
-            ? resolvedWithTime.reduce((sum, c) => {
-              const days = Math.floor((new Date(c.resolvedAt) - new Date(c.createdAt)) / (1000 * 60 * 60 * 24));
-              return sum + days;
-            }, 0) / resolvedWithTime.length
-            : 0;
-
-          setStats(prev => ({
-            ...prev,
-            complaints: {
-              total: complaints.length,
-              active: active.length,
-              resolved: resolved.length,
-              inProgress: inProgress.length,
-              resolvedThisWeek,
-              avgResolutionTime: Math.round(avgResolutionTime * 10) / 10
-            }
-          }));
-        }
-
-        // Process Leaves Data
-        if (leavesRes.status === 'fulfilled' && leavesRes.value.data.success) {
-          let leaves = leavesRes.value.data.data.leaves || [];
-
-          // Filter for Principals based on assigned courses
-          if (user?.role === 'principal') {
-            const allowedCourses = user.assignedCourses || (user.course ? [user.course] : []);
-            if (allowedCourses.length > 0) {
-              leaves = leaves.filter(l => {
-                const course = l.course || l.student?.course?.name || l.student?.course;
-                return allowedCourses.includes(course);
-              });
-            }
-          }
-
-          const pending = leaves.filter(l => l.status === 'Pending' || l.status === 'Pending OTP Verification' || l.status === 'Warden Verified');
-
-          const today = new Date().toISOString().split('T')[0];
-          const approvedToday = leaves.filter(l =>
-            l.status === 'Approved' &&
-            new Date(l.updatedAt || l.createdAt).toISOString().split('T')[0] === today
-          ).length;
-
-          const rejectedToday = leaves.filter(l =>
-            l.status === 'Rejected' &&
-            new Date(l.updatedAt || l.createdAt).toISOString().split('T')[0] === today
-          ).length;
-
-          setStats(prev => ({
-            ...prev,
-            leaves: {
-              pending: pending.length,
-              approvedToday,
-              rejectedToday,
-              thisWeek: []
-            }
-          }));
-        }
-
-        // Process Rooms Data
-        if (roomsStatsRes.status === 'fulfilled' && roomsStatsRes.value.data.success) {
-          const roomsData = roomsStatsRes.value.data.data || {};
-          const overallStats = roomsData.overall || {};
-
-          setStats(prev => ({
-            ...prev,
-            rooms: {
-              total: overallStats.totalRooms || 0,
-              occupied: overallStats.filledBeds || 0,
-              available: overallStats.availableBeds || 0,
-              occupancyRate: overallStats.totalBeds > 0
-                ? Math.round((overallStats.filledBeds / overallStats.totalBeds) * 100)
-                : 0,
-              byGender: roomsData.byGender || []
-            }
-          }));
-        }
-
-        // Process Communication Data
-        if (announcementsRes.status === 'fulfilled' && announcementsRes.value.data.success) {
-          const announcements = announcementsRes.value.data.data || [];
-          const activeAnnouncements = announcements.filter(a => a.status === 'active' || !a.status).length;
-
-          setStats(prev => ({
-            ...prev,
-            communication: {
-              ...prev.communication,
-              activeAnnouncements,
-              recentAnnouncements: announcements.slice(0, 3)
-            }
-          }));
-        }
-
-        if (pollsRes.status === 'fulfilled' && pollsRes.value.data.success) {
-          const polls = pollsRes.value.data.data || [];
-          const activePolls = polls.filter(p => p.status === 'active').length;
-
-          setStats(prev => ({
-            ...prev,
-            communication: {
-              ...prev.communication,
-              activePolls,
-              recentPolls: polls.slice(0, 2)
-            }
-          }));
-        }
-
-        // Process Today's Menu Data
-        if (todaysMenuRes.status === 'fulfilled' && todaysMenuRes.value.data.success) {
-          const menuData = todaysMenuRes.value.data.data;
-          setStats(prev => ({
-            ...prev,
-            menu: {
-              todaysMenu: menuData,
-              hasMenu: !!menuData && !!menuData.meals
-            }
-          }));
-        } else {
-          // 404 is expected when no menu exists for today
-          setStats(prev => ({
-            ...prev,
-            menu: {
-              todaysMenu: null,
-              hasMenu: false
-            }
-          }));
         }
 
       } catch (err) {
@@ -758,7 +457,7 @@ const DashboardHome = () => {
     };
 
     fetchDashboardData();
-  }, [isSafari]);
+  }, [analyticsMode, selectedAcademicYear]);
 
   // Calculate trends
   const financialTrend = useMemo(() => {
@@ -777,10 +476,12 @@ const DashboardHome = () => {
       items.push({
         id: 'students',
         icon: UserGroupIcon,
-        label: 'Active Students',
-        value: stats.students.active,
+        label: analyticsMode === 'ay' ? 'Overall Students' : 'Active Students',
+        value: analyticsMode === 'ay' ? (stats.students.total || stats.students.active) : stats.students.active,
         color: 'border-blue-500 text-blue-600',
-        extra: `${stats.students.newThisWeek} new this week`,
+        extra: analyticsMode === 'ay'
+          ? `${stats.students.active || 0} active | ${stats.students.inactive || 0} inactive`
+          : `${stats.students.inactive || 0} inactive students`,
         onClick: () => navigate('/admin/dashboard/students'),
         animateDelay: 0.05
       });
@@ -824,7 +525,7 @@ const DashboardHome = () => {
       });
     }
     return items;
-  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, stats, financialTrend, navigate]);
+  }, [canViewStudents, canViewAttendance, canViewFinancial, canViewComplaints, stats, financialTrend, navigate, analyticsMode]);
 
   // Get ordered stat cards (apply saved order if available)
   const orderedStatCards = useMemo(() => {
@@ -875,14 +576,6 @@ const DashboardHome = () => {
     setActiveId(event.active.id);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
   // Show message if user has no permissions
   if (!hasAnyPermission && !loading) {
     return (
@@ -912,34 +605,73 @@ const DashboardHome = () => {
         description="Comprehensive admin dashboard for hostel management system with real-time statistics and insights."
         keywords="Admin Dashboard, Hostel Management, Statistics, Analytics"
       />
-      <div className="mx-auto  mt-12 sm:mt-0  space-y-4 sm:space-y-6">
-        {/* Header */}
+      <div className="mx-auto mt-12 sm:mt-0 space-y-4 sm:space-y-6">
+        {/* Header - Always visible */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-900">Dashboard Overview</h1>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Welcome back! Here's your system overview.</p>
           </div>
-          <div className="flex gap-2 bg-white p-1.5 sm:p-2 rounded-lg shadow-sm w-full sm:w-auto">
-            <button
-              onClick={() => setTimeframe('week')}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${timeframe === 'week'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100'
+          <div className="flex flex-wrap items-center gap-3 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 w-full sm:w-auto">
+            <div className="relative grid grid-cols-2 items-center bg-gray-200/80 p-1 rounded-xl w-64 sm:w-72 border border-gray-300/60 shadow-inner">
+              <motion.div
+                className="absolute top-1 bottom-1 bg-blue-600 rounded-lg shadow-md"
+                initial={false}
+                animate={{
+                  left: analyticsMode === 'live' ? '4px' : 'calc(50% + 2px)',
+                  width: 'calc(50% - 6px)'
+                }}
+                transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setAnalyticsMode('live')}
+                className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                  analyticsMode === 'live' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => setTimeframe('month')}
-              className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all ${timeframe === 'month'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-gray-700 hover:bg-gray-100'
+              >
+                Live Analytics
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAnalyticsMode('ay')}
+                className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                  analyticsMode === 'ay' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
                 }`}
+              >
+                AY Wise Analytics
+              </button>
+            </div>
+
+            <select
+              value={selectedAcademicYear}
+              disabled={analyticsMode === 'live'}
+              onChange={(e) => setSelectedAcademicYear(e.target.value)}
+              className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm ${
+                analyticsMode === 'live'
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                  : 'bg-white text-gray-800 border-gray-300 hover:border-gray-400 cursor-pointer'
+              }`}
+              title={analyticsMode === 'live' ? 'Switch to AY Wise Analytics to select academic year' : 'Select Academic Year'}
             >
-              Month
-            </button>
+              {ACADEMIC_YEARS.map((ay) => (
+                <option key={ay} value={ay}>
+                  AY {ay}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+
+        {/* Inline Content / Loading Area below Header */}
+        {loading ? (
+          <div className="flex justify-center items-center h-64 bg-white/50 rounded-xl shadow-sm border border-gray-100">
+            <LoadingSpinner size="lg" />
+          </div>
+        ) : (
+          <>
 
         {/* Key Metrics Overview - Dynamic grid based on visible cards with drag and drop */}
         {visibleStatCards > 0 && (
@@ -1023,10 +755,17 @@ const DashboardHome = () => {
                               <div className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-900">{stats.students.active}</div>
                               <div className="text-xs sm:text-sm text-blue-600 mt-1">Active Students</div>
                             </div>
-                            <div className="bg-green-50 rounded-lg p-3 sm:p-4">
-                              <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
-                              <div className="text-xs sm:text-sm text-green-600 mt-1">New This Week</div>
-                            </div>
+                            {analyticsMode === 'live' ? (
+                              <div className="bg-green-50 rounded-lg p-3 sm:p-4">
+                                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900">{stats.students.newThisWeek}</div>
+                                <div className="text-xs sm:text-sm text-green-600 mt-1">New This Week</div>
+                              </div>
+                            ) : (
+                              <div className="bg-amber-50 rounded-lg p-3 sm:p-4">
+                                <div className="text-lg sm:text-xl lg:text-2xl font-bold text-amber-900">{stats.students.inactive || 0}</div>
+                                <div className="text-xs sm:text-sm text-amber-700 mt-1">Inactive Students</div>
+                              </div>
+                            )}
                           </div>
                           {stats.students.byCourse.length > 0 && (
                             <div>
@@ -1419,6 +1158,8 @@ const DashboardHome = () => {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
       </div>
     </>

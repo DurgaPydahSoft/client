@@ -11,6 +11,7 @@ import SEO from '../../components/SEO';
 
 const Attendance = () => {
   const [activeTab, setActiveTab] = useState('take');
+  const [stats, setStats] = useState({ totalStudents: 0, attendanceTaken: 0 });
 
   const tabs = [
     {
@@ -32,25 +33,35 @@ const Attendance = () => {
       <SEO title="Attendance Management - Admin Dashboard" />
 
       <div className="mx-auto">
-        {/* Header with Tabs */}
+        {/* Header with Tabs & Stats */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4 sm:mb-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6">
               <h1 className="text-xl sm:text-2xl font-bold text-blue-900 flex items-center gap-2">
                 <UserGroupIcon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
                 Attendance Management
               </h1>
-              <p className="text-gray-600 mt-1 text-sm sm:text-base">
-                Manage student attendance records and daily attendance marking
-              </p>
+
+              {/* Stats badges aligned in the header */}
+              <div className="flex items-center gap-3 sm:gap-4 bg-blue-50/80 border border-blue-100 px-3 sm:px-4 py-1.5 rounded-xl">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-medium text-gray-600">Total Students</span>
+                  <span className="text-sm sm:text-lg font-bold text-blue-700">{stats.totalStudents || 0}</span>
+                </div>
+                <div className="h-4 w-px bg-blue-200" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-medium text-gray-600">Attendance Taken</span>
+                  <span className="text-sm sm:text-lg font-bold text-emerald-600">{stats.attendanceTaken || 0}</span>
+                </div>
+              </div>
             </div>
             
             {/* Tab Navigation in Header */}
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg self-start md:self-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -93,16 +104,14 @@ const Attendance = () => {
           >
             {activeTab === 'take' ? (
               <div>
-
                 <div className="p-0">
-                  <TakeAttendance />
+                  <TakeAttendance onStatsUpdate={setStats} />
                 </div>
               </div>
             ) : (
               <div>
-
                 <div className="p-0">
-                  <ViewAttendance />
+                  <ViewAttendance onStatsUpdate={setStats} />
                 </div>
               </div>
             )}

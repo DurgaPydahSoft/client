@@ -1125,27 +1125,22 @@ const Students = () => {
   }, [currentPage, filters.search, filters.course, filters.branch, filters.hostel, filters.category, filters.roomNumber, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
 
+  const isInitialFetch = React.useRef(true);
+
   // Fetch students:
-  // - On tab change to 'list' (or initial mount) do a full initial load (shows the outer loading state)
-  // - On filter / page / search changes only update the table (use tableLoading)
+  // - On initial mount show full loading spinner
+  // - On filter / page / search changes show table loading overlay
   useEffect(() => {
     if (tab === 'list') {
-      // initial/full load when tab becomes 'list'
-      fetchStudents(true); // show global `loading` spinner for first load
-      fetchCourseCounts(); // Fetch course counts
+      const isFirst = isInitialFetch.current;
+      if (isFirst) {
+        isInitialFetch.current = false;
+      }
+      fetchStudents(isFirst);
+      fetchCourseCounts();
     } else if (tab === 'bulkUpload') {
       fetchTempStudentsSummary();
     }
-    // We only want this effect to re-run when the tab itself changes
-  }, [tab]);
-
-  // Only update students table when filters, pagination or search changes while on the list tab.
-  useEffect(() => {
-    if (tab !== 'list') return;
-    // use non-initial load so only the table shows a loading overlay
-    fetchStudents(false);
-    // update course counts as filters change
-    fetchCourseCounts();
   }, [tab, currentPage, filters.course, filters.branch, filters.hostel, filters.category, filters.roomNumber, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
   // Check email service status and fetch courses on component mount
@@ -4127,20 +4122,20 @@ const Students = () => {
           </div>
         </div>
 
-        {/* Table - Made responsive */}
-        <div className="relative">
-          {tableLoading && (
-            <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-10 rounded-b-xl">
-              <LoadingSpinner />
+        {/* Table - Made responsive with min-height so spinner is always visible during loading */}
+        <div className="relative min-h-[350px]">
+          {(tableLoading || loading) && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex justify-center items-center z-20 rounded-xl">
+              <LoadingSpinner size="lg" />
             </div>
           )}
-          {error && !students.length && !tableLoading && (
-            <div className="text-center text-red-600 py-10">{error}</div>
+          {error && !students.length && !tableLoading && !loading && (
+            <div className="text-center text-red-600 py-16 font-medium">{error}</div>
           )}
-          {!error && !tableLoading && students.length === 0 && (
-            <div className="text-center text-gray-500 py-10">No students found matching your criteria.</div>
+          {!error && !tableLoading && !loading && students.length === 0 && (
+            <div className="text-center text-gray-500 py-16 font-medium">No students found matching your criteria.</div>
           )}
-          {(!tableLoading || students.length > 0) && students.length > 0 && (
+          {students.length > 0 && (
             <>
               <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <div className="inline-block min-w-full align-middle">
