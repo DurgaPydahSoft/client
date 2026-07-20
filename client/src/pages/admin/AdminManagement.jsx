@@ -142,6 +142,7 @@ const AdminManagement = () => {
     permissions: [],
     permissionAccessLevels: {}, // New field for access levels
     hostelType: '',
+    assignedHostelId: '',
     course: '',
     branch: '', // Branch for principal (optional)
     leaveManagementCourses: [], // New field for course selection
@@ -174,6 +175,7 @@ const AdminManagement = () => {
   });
   const [courses, setCourses] = useState([]);
   const [colleges, setColleges] = useState([]); // New state for colleges
+  const [hostels, setHostels] = useState([]);
   const [branches, setBranches] = useState([]);
   const [filteredBranches, setFilteredBranches] = useState([]);
 
@@ -278,6 +280,12 @@ const AdminManagement = () => {
       const collegesRes = await api.get('/api/course-management/colleges');
       if (collegesRes.data.success) {
         setColleges(collegesRes.data.data);
+      }
+
+      // Fetch hostels for warden assignment
+      const hostelsRes = await api.get('/api/hostels');
+      if (hostelsRes.data.success) {
+        setHostels((hostelsRes.data.data || []).filter(h => h.isActive !== false));
       }
 
       // Fetch courses
@@ -466,7 +474,11 @@ const AdminManagement = () => {
         };
       } else if (activeTab === 'wardens') {
         endpoint = '/api/admin-management/wardens';
-        requestData = { ...hrmsFields, hostelType: formData.hostelType };
+        if (!formData.assignedHostelId) {
+          toast.error('Please select a hostel for the warden');
+          return;
+        }
+        requestData = { ...hrmsFields, assignedHostelId: formData.assignedHostelId };
       } else if (activeTab === 'principals') {
         endpoint = '/api/admin-management/principals';
         requestData = {
@@ -491,6 +503,7 @@ const AdminManagement = () => {
           permissions: [],
           permissionAccessLevels: {},
           hostelType: '',
+          assignedHostelId: '',
           course: '',
           branch: '',
           leaveManagementCourses: [],
@@ -540,7 +553,9 @@ const AdminManagement = () => {
         updateData.permissionAccessLevels = formData.permissionAccessLevels;
       } else if (activeTab === 'wardens') {
         endpoint = `/api/admin-management/wardens/${selectedAdmin._id}`;
-        if (formData.hostelType) {
+        if (formData.assignedHostelId) {
+          updateData.assignedHostelId = formData.assignedHostelId;
+        } else if (formData.hostelType) {
           updateData.hostelType = formData.hostelType;
         }
       } else if (activeTab === 'principals') {
@@ -593,6 +608,7 @@ const AdminManagement = () => {
           permissions: [],
           permissionAccessLevels: {},
           hostelType: '',
+          assignedHostelId: '',
           course: '',
           branch: '',
           leaveManagementCourses: [],
@@ -669,6 +685,7 @@ const AdminManagement = () => {
       permissions: admin.permissions || [],
       permissionAccessLevels: admin.permissionAccessLevels || {},
       hostelType: admin.hostelType || '',
+      assignedHostelId: admin.assignedHostelId?._id || admin.assignedHostelId || '',
       course: admin.course?.name || admin.course || '', // Course is now a string (name)
       branch: admin.branch || '', // Branch is now a string (name)
       leaveManagementCourses: leaveManagementCourses,
@@ -785,6 +802,7 @@ const AdminManagement = () => {
       permissions: [],
       permissionAccessLevels: {},
       hostelType: '',
+      assignedHostelId: '',
       course: '',
       branch: '',
       leaveManagementCourses: [],
@@ -1208,16 +1226,15 @@ const AdminManagement = () => {
                         )}
 
                         {/* Warden/Principal Specific Info */}
-                        {isWardenTab && admin.hostelType && (
+                        {isWardenTab && (
                           <div className="flex items-center gap-2">
                             <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${admin.hostelType === 'boys'
-                              ? 'bg-blue-50 text-blue-700'
-                              : 'bg-pink-50 text-pink-700'
-                              }`}>
-                              {admin.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                              {admin.assignedHostelId?.name
+                                || hostels.find(h => h._id === (admin.assignedHostelId?._id || admin.assignedHostelId))?.name
+                                || (admin.hostelType === 'boys' ? 'Boys Hostel' : admin.hostelType === 'girls' ? 'Girls Hostel' : 'No hostel assigned')}
                             </span>
                           </div>
                         )}
@@ -2257,19 +2274,25 @@ const AdminManagement = () => {
                       {isWardenTab && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Hostel Type <span className="text-red-500">*</span>
+                            Assigned Hostel <span className="text-red-500">*</span>
                           </label>
                           <select
-                            name="hostelType"
-                            value={formData.hostelType}
+                            name="assignedHostelId"
+                            value={formData.assignedHostelId}
                             onChange={handleFormChange}
                             required={isWardenTab}
                             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           >
-                            <option value="">Select Hostel Type</option>
-                            <option value="boys">Boys Hostel</option>
-                            <option value="girls">Girls Hostel</option>
+                            <option value="">Select Hostel</option>
+                            {hostels.map((hostel) => (
+                              <option key={hostel._id} value={hostel._id}>
+                                {hostel.name}
+                              </option>
+                            ))}
                           </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Warden will only see students and rooms for this hostel.
+                          </p>
                         </div>
                       )}
 

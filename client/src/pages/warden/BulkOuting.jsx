@@ -56,8 +56,22 @@ const BulkOuting = () => {
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
 
-  // Helper to map hostelType to gender
+  // Prefer assigned hostel id; fall back to legacy gender from hostelType
+  const getWardenHostelId = () => {
+    if (!user) return undefined;
+    return user.assignedHostelId?._id || user.assignedHostelId || undefined;
+  };
+
+  const getWardenHostelLabel = () => {
+    if (user?.assignedHostel?.name) return user.assignedHostel.name;
+    if (user?.assignedHostelId?.name) return user.assignedHostelId.name;
+    if (user?.hostelType?.toLowerCase() === 'boys') return 'Boys Hostel';
+    if (user?.hostelType?.toLowerCase() === 'girls') return 'Girls Hostel';
+    return 'Assigned Hostel';
+  };
+
   const getWardenGender = () => {
+    if (getWardenHostelId()) return undefined;
     if (!user?.hostelType) return undefined;
     if (user.hostelType.toLowerCase() === 'boys') return 'Male';
     if (user.hostelType.toLowerCase() === 'girls') return 'Female';
@@ -108,9 +122,13 @@ const BulkOuting = () => {
         }
       });
 
-      // Use mapped gender for filtering
+      // Scope by assigned hostel (preferred) or legacy gender
+      const wardenHostelId = getWardenHostelId();
       const wardenGender = getWardenGender();
-      if (wardenGender) {
+      if (wardenHostelId) {
+        params.delete('gender');
+        params.append('hostel', wardenHostelId);
+      } else if (wardenGender) {
         params.delete('gender');
         params.append('gender', wardenGender);
         console.log('🔍 BulkOuting: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
@@ -119,9 +137,14 @@ const BulkOuting = () => {
       const response = await api.get(`/api/bulk-outing/warden/students?${params}`);
       
       if (response.data.success) {
-        // Frontend filtering as fallback - ensure only students of warden's gender are shown
+        // Frontend safety filter
         let filteredStudents = response.data.data;
-        if (wardenGender) {
+        if (wardenHostelId) {
+          filteredStudents = response.data.data.filter(student => {
+            const studentHostel = student.hostel?._id || student.hostel;
+            return studentHostel?.toString() === wardenHostelId.toString();
+          });
+        } else if (wardenGender) {
           filteredStudents = response.data.data.filter(student => 
             student.gender === wardenGender
           );
@@ -328,10 +351,10 @@ const BulkOuting = () => {
             <div>
               <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent flex items-center gap-2 sm:gap-3">
                 <UsersIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0" />
-                <span>Bulk Outing Management {user?.hostelType && `(${user.hostelType} Students)`}</span>
+                <span>Bulk Outing Management {`( ${getWardenHostelLabel()} )`}</span>
               </h1>
               <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 sm:mt-2">
-                Create bulk outing requests for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
+                Create bulk outing requests for students in {getWardenHostelLabel()}
               </p>
             </div>
             <div className="grid grid-cols-2 lg:flex lg:flex-row gap-2 sm:gap-4 text-center lg:text-right">
@@ -478,15 +501,15 @@ const BulkOuting = () => {
                 </div>
                 <div>
                   <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                    Gender {user?.hostelType && `(${user.hostelType} Warden)`}
+                    Hostel
                   </label>
                   <select
-                    name="gender"
-                    value={user?.hostelType || ''}
+                    name="hostel"
+                    value={getWardenHostelLabel()}
                     disabled={true}
                     className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 text-xs sm:text-sm bg-gray-50 cursor-not-allowed"
                   >
-                    <option value="">{user?.hostelType || 'Not Assigned'}</option>
+                    <option value="">{getWardenHostelLabel()}</option>
                   </select>
                 </div>
                 <div>

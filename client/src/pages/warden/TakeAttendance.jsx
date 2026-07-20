@@ -286,8 +286,23 @@ const TakeAttendance = () => {
     }
   };
 
-  // Helper to map hostelType to gender (for backward compatibility with student filtering)
+  // Prefer assigned hostel id; fall back to legacy gender from hostelType
+  const getWardenHostelId = () => {
+    if (!user) return undefined;
+    return user.assignedHostelId?._id || user.assignedHostelId || undefined;
+  };
+
+  const getWardenHostelLabel = () => {
+    if (user?.assignedHostel?.name) return user.assignedHostel.name;
+    if (user?.assignedHostelId?.name) return user.assignedHostelId.name;
+    if (user?.hostelType?.toLowerCase() === 'boys') return 'Boys Hostel';
+    if (user?.hostelType?.toLowerCase() === 'girls') return 'Girls Hostel';
+    return 'Assigned Hostel';
+  };
+
   const getWardenGender = () => {
+    // Only use gender when no hostel id is assigned (legacy wardens)
+    if (getWardenHostelId()) return undefined;
     if (!user?.hostelType) return undefined;
     if (user.hostelType.toLowerCase() === 'boys') return 'Male';
     if (user.hostelType.toLowerCase() === 'girls') return 'Female';
@@ -321,9 +336,13 @@ const TakeAttendance = () => {
         date: selectedDate
       });
 
-      // Use mapped gender for filtering
+      // Scope by assigned hostel (preferred) or legacy gender
+      const wardenHostelId = getWardenHostelId();
       const wardenGender = getWardenGender();
-      if (wardenGender) {
+      if (wardenHostelId) {
+        params.append('hostel', wardenHostelId);
+        console.log('🔍 Warden assignedHostelId:', wardenHostelId);
+      } else if (wardenGender) {
         params.append('gender', wardenGender);
         console.log('🔍 Warden hostelType:', user?.hostelType, '| Gender for filter:', wardenGender);
       }
@@ -353,9 +372,14 @@ const TakeAttendance = () => {
         // Get students directly from the response
         let students = response.data.data.students;
 
-        // Frontend filtering - ensure only students of warden's gender are shown
-        // (Backend should already filter, but double-check for safety)
-        if (wardenGender) {
+        // Frontend safety filter by hostel or legacy gender
+        if (wardenHostelId) {
+          students = students.filter(student => {
+            const studentHostel = student.hostel?._id || student.hostel;
+            return studentHostel?.toString() === wardenHostelId.toString();
+          });
+          console.log('🔍 After hostel filtering:', students.length, 'students');
+        } else if (wardenGender) {
           students = students.filter(student =>
             student.gender === wardenGender
           );
@@ -393,7 +417,7 @@ const TakeAttendance = () => {
         setLoadingStudents(false);
       }
     }
-  }, [selectedDate, filters, user?.hostelType]);
+  }, [selectedDate, filters, user?.hostelType, user?.assignedHostelId]);
 
   useEffect(() => {
     fetchStudentsData();
@@ -401,10 +425,12 @@ const TakeAttendance = () => {
 
   // Filter students based on search query and sort alphabetically by name
   const filteredStudents = students
-    .filter(student =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      student.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    .filter(student => {
+      const q = (searchQuery || '').toLowerCase();
+      const name = (student.name || '').toLowerCase();
+      const roll = (student.rollNumber || student.admissionNumber || '').toLowerCase();
+      return name.includes(q) || roll.includes(q);
+    })
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const fetchHostels = async () => {
@@ -412,27 +438,30 @@ const TakeAttendance = () => {
       const res = await api.get('/api/hostels');
       if (res.data.success) {
         const allHostels = res.data.data || [];
+        const assignedId = getWardenHostelId()?.toString();
 
-        // Filter hostels based on warden's hostelType - only show their assigned hostel
-        if (user?.hostelType) {
+        // Prefer exact assigned hostel; fall back to name match from legacy hostelType
+        let matchingHostel = null;
+        if (assignedId) {
+          matchingHostel = allHostels.find(h => getId(h._id || h)?.toString() === assignedId);
+        }
+        if (!matchingHostel && user?.hostelType) {
           const hostelName = user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel';
-          const matchingHostel = allHostels.find(h =>
+          matchingHostel = allHostels.find(h =>
             h.name === hostelName ||
             h.name?.toLowerCase().includes(user.hostelType.toLowerCase())
           );
+        }
 
-          // Only set the matching hostel (warden should only see their hostel)
-          if (matchingHostel) {
-            setHostels([matchingHostel]); // Only show their assigned hostel
-            setSelectedHostel(matchingHostel);
-            const hostelId = getId(matchingHostel._id || matchingHostel);
-            setFilters(prev => ({ ...prev, hostel: hostelId }));
-            fetchCategoriesByHostel(hostelId);
-          } else {
-            setHostels([]);
-          }
+        if (matchingHostel) {
+          setHostels([matchingHostel]);
+          setSelectedHostel(matchingHostel);
+          const hostelId = getId(matchingHostel._id || matchingHostel);
+          setFilters(prev => ({ ...prev, hostel: hostelId }));
+          fetchCategoriesByHostel(hostelId);
+        } else if (assignedId || user?.hostelType) {
+          setHostels([]);
         } else {
-          // If no hostelType, show all (shouldn't happen for wardens)
           setHostels(allHostels);
         }
       }
@@ -714,7 +743,7 @@ const TakeAttendance = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
-                    Take Attendance {user?.hostelType && `(${user.hostelType} Students)`}
+                    Take Attendance {`( ${getWardenHostelLabel()} )`}
                   </h1>
                   {/* Mobile Academic Year Select */}
                   <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
@@ -736,7 +765,7 @@ const TakeAttendance = () => {
                   </div>
                 </div>
                 <p className="text-gray-500 mt-0.5 text-xs sm:text-sm lg:text-base">
-                  Mark daily attendance for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
+                  Mark daily attendance for students in {getWardenHostelLabel()}
                 </p>
               </div>
             </div>

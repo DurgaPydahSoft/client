@@ -36,8 +36,22 @@ const ElectricityBills = () => {
     isWarden,
     canManageBills,
     hostelType: user?.hostelType,
+    assignedHostelId: user?.assignedHostelId,
     permissions: user?.permissions
   });
+
+  const getWardenHostelId = () => {
+    if (!user) return undefined;
+    return user.assignedHostelId?._id || user.assignedHostelId || undefined;
+  };
+
+  const getWardenHostelLabel = () => {
+    if (user?.assignedHostel?.name) return user.assignedHostel.name;
+    if (user?.assignedHostelId?.name) return user.assignedHostelId.name;
+    if (user?.hostelType?.toLowerCase() === 'boys') return 'Boys Hostel';
+    if (user?.hostelType?.toLowerCase() === 'girls') return 'Girls Hostel';
+    return 'Assigned Hostel';
+  };
   
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,27 +86,29 @@ const ElectricityBills = () => {
       const res = await api.get('/api/hostels');
       if (res.data.success) {
         const allHostels = res.data.data || [];
-        
-        // Filter hostels based on warden's hostelType - only show their assigned hostel
-        if (user?.hostelType) {
+        const assignedId = getWardenHostelId()?.toString();
+
+        let matchingHostel = null;
+        if (assignedId) {
+          matchingHostel = allHostels.find(h => getId(h._id || h)?.toString() === assignedId);
+        }
+        if (!matchingHostel && user?.hostelType) {
           const hostelName = user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel';
-          const matchingHostel = allHostels.find(h => 
+          matchingHostel = allHostels.find(h => 
             h.name === hostelName || 
             h.name?.toLowerCase().includes(user.hostelType.toLowerCase())
           );
+        }
           
-          // Only set the matching hostel (warden should only see their hostel)
-          if (matchingHostel) {
-            setHostels([matchingHostel]); // Only show their assigned hostel
-            setSelectedHostel(matchingHostel);
-            const hostelId = getId(matchingHostel._id || matchingHostel);
-            setFilters(prev => ({ ...prev, hostel: hostelId }));
-            fetchCategoriesByHostel(hostelId);
-          } else {
-            setHostels([]);
-          }
+        if (matchingHostel) {
+          setHostels([matchingHostel]);
+          setSelectedHostel(matchingHostel);
+          const hostelId = getId(matchingHostel._id || matchingHostel);
+          setFilters(prev => ({ ...prev, hostel: hostelId }));
+          fetchCategoriesByHostel(hostelId);
+        } else if (assignedId || user?.hostelType) {
+          setHostels([]);
         } else {
-          // If no hostelType, show all (shouldn't happen for wardens)
           setHostels(allHostels);
         }
       }
@@ -384,9 +400,9 @@ const ElectricityBills = () => {
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-green-900 to-green-700 bg-clip-text text-transparent">Electricity Bills</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1 flex flex-wrap items-center gap-2">
             Manage electricity billing for your assigned rooms
-            {user?.hostelType && (
+            {getWardenHostelLabel() && (
               <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
-                {user.hostelType === 'boys' ? 'Boys Hostel' : 'Girls Hostel'}
+                {getWardenHostelLabel()}
               </span>
             )}
           </p>
@@ -437,10 +453,10 @@ const ElectricityBills = () => {
 
       {/* Filters */}
       <div className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 mb-4 sm:mb-6">
-        {user?.hostelType && (
+        {(user?.assignedHostelId || user?.hostelType) && (
           <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs sm:text-sm text-blue-800">
-              <strong>Note:</strong> You are viewing rooms for {user.hostelType === 'boys' ? 'Boys' : 'Girls'} Hostel only.
+              <strong>Note:</strong> You are viewing rooms for {getWardenHostelLabel()} only.
             </p>
           </div>
         )}

@@ -69,8 +69,22 @@ const ViewAttendance = () => {
   const [filteredBranches, setFilteredBranches] = useState([]);
   const [loadingFilters, setLoadingFilters] = useState(false);
 
-  // Helper to map hostelType to gender
+  // Prefer assigned hostel id; fall back to legacy gender from hostelType
+  const getWardenHostelId = () => {
+    if (!user) return undefined;
+    return user.assignedHostelId?._id || user.assignedHostelId || undefined;
+  };
+
+  const getWardenHostelLabel = () => {
+    if (user?.assignedHostel?.name) return user.assignedHostel.name;
+    if (user?.assignedHostelId?.name) return user.assignedHostelId.name;
+    if (user?.hostelType?.toLowerCase() === 'boys') return 'Boys Hostel';
+    if (user?.hostelType?.toLowerCase() === 'girls') return 'Girls Hostel';
+    return 'Assigned Hostel';
+  };
+
   const getWardenGender = () => {
+    if (getWardenHostelId()) return undefined;
     if (!user?.hostelType) return undefined;
     if (user.hostelType.toLowerCase() === 'boys') return 'Male';
     if (user.hostelType.toLowerCase() === 'girls') return 'Female';
@@ -101,9 +115,12 @@ const ViewAttendance = () => {
         date: selectedDate
       });
 
-      // Use mapped gender for filtering
+      // Scope by assigned hostel (preferred) or legacy gender
+      const wardenHostelId = getWardenHostelId();
       const wardenGender = getWardenGender();
-      if (wardenGender) {
+      if (wardenHostelId) {
+        params.append('hostel', wardenHostelId);
+      } else if (wardenGender) {
         params.append('gender', wardenGender);
         console.log('🔍 ViewAttendance: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
       }
@@ -137,9 +154,12 @@ const ViewAttendance = () => {
         endDate: dateRange.endDate
       });
 
-      // Use mapped gender for filtering
+      // Scope by assigned hostel (preferred) or legacy gender
+      const wardenHostelId = getWardenHostelId();
       const wardenGender = getWardenGender();
-      if (wardenGender) {
+      if (wardenHostelId) {
+        params.append('hostel', wardenHostelId);
+      } else if (wardenGender) {
         params.append('gender', wardenGender);
         console.log('🔍 ViewAttendance: Warden hostelType:', user.hostelType, '| Gender for filter:', wardenGender);
       }
@@ -155,9 +175,14 @@ const ViewAttendance = () => {
       const response = await api.get(`/api/attendance/range?${params}`);
       
       if (response.data.success) {
-        // Frontend filtering - ensure only students of warden's gender are shown
+        // Frontend safety filter by hostel or legacy gender
         let filteredAttendance = response.data.data.attendance;
-        if (wardenGender) {
+        if (wardenHostelId) {
+          filteredAttendance = filteredAttendance.filter(record => {
+            const studentHostel = record.student?.hostel?._id || record.student?.hostel;
+            return studentHostel?.toString() === wardenHostelId.toString();
+          });
+        } else if (wardenGender) {
           filteredAttendance = response.data.data.attendance.filter(record => 
             record.student?.gender === wardenGender
           );
@@ -414,7 +439,7 @@ const ViewAttendance = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
-                    View Attendance {user?.hostelType && `(${user.hostelType} Students)`}
+                    View Attendance {`( ${getWardenHostelLabel()} )`}
                   </h1>
                   {/* Mobile Academic Year Select */}
                   <div className="sm:hidden flex items-center gap-2 flex-shrink-0">
@@ -436,7 +461,7 @@ const ViewAttendance = () => {
                   </div>
                 </div>
                 <p className="text-gray-500 mt-0.5 text-xs sm:text-sm lg:text-base">
-                  View and analyze attendance records for {user?.hostelType ? `${user.hostelType.toLowerCase()}` : 'all'} students
+                  View and analyze attendance records for students in {getWardenHostelLabel()}
                 </p>
               </div>
             </div>
@@ -663,15 +688,15 @@ const ViewAttendance = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gender {user?.hostelType && `(${user.hostelType} Warden)`}
+                Hostel
               </label>
               <select
-                name="gender"
-                value={user?.hostelType || ''}
+                name="hostel"
+                value={getWardenHostelLabel()}
                 disabled={true}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 bg-gray-50 cursor-not-allowed"
               >
-                <option value="">{user?.hostelType || 'Not Assigned'}</option>
+                <option value="">{getWardenHostelLabel()}</option>
               </select>
             </div>
 

@@ -416,14 +416,16 @@ const WardenDashboardLayout = () => {
         <div className="p-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-bold shadow-md">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'W'}
+              {(user?.name || user?.username) ? (user?.name || user?.username).charAt(0).toUpperCase() : 'W'}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-gray-900 truncate">
-                {user?.name || 'Warden'}
+              <div className="text-sm font-semibold text-gray-900 truncate" title={user?.name || user?.username || 'Warden'}>
+                {user?.name || user?.username || 'Warden'}
               </div>
-              <div className="text-xs text-gray-500 truncate">
-                Warden
+              <div className="text-xs text-gray-500 truncate" title={user?.assignedHostel?.name || user?.hostelType || 'Warden'}>
+                {user?.assignedHostel?.name
+                  || (user?.hostelType === 'boys' ? 'Boys Hostel' : user?.hostelType === 'girls' ? 'Girls Hostel' : null)
+                  || 'Warden'}
               </div>
             </div>
           </div>

@@ -332,11 +332,11 @@ const PrincipalDashboard = () => {
         <div className="p-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md text-sm lg:text-base">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'P'}
+              {(user?.name || user?.username) ? (user?.name || user?.username).charAt(0).toUpperCase() : 'P'}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs lg:text-sm font-semibold text-gray-900 truncate">
-                {user?.name || 'Principal'}
+              <div className="text-xs lg:text-sm font-semibold text-gray-900 truncate" title={user?.name || user?.username || 'Principal'}>
+                {user?.name || user?.username || 'Principal'}
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-[10px] text-gray-500 truncate max-w-[120px]" title={user?.assignedCollegeDetails?.map(c => c.name).join(', ') || 'Principal'}>

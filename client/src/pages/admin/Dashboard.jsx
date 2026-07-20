@@ -850,7 +850,12 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center justify-between">
                 <div className="text-xs text-gray-500 truncate">
-                  {user?.role === 'super_admin' ? 'Super Admin' : user?.role === 'sub_admin' ? 'Sub Admin' : 'Admin'}
+                  {user?.role === 'super_admin' ? 'Super Admin'
+                    : user?.role === 'sub_admin' ? 'Sub Admin'
+                    : user?.role === 'custom' ? (user?.customRole || 'Custom Role')
+                    : user?.role === 'warden' ? 'Warden'
+                    : user?.role === 'principal' ? 'Principal'
+                    : 'Admin'}
                 </div>
                 {/* Password Reset Icon - Show for sub-admins, principals, and super admin */}
                 {(user?.role === 'sub_admin' || user?.role === 'principal' || user?.role === 'super_admin') && (
