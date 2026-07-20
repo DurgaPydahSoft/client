@@ -12,9 +12,19 @@ import {
   ArrowLeftIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
+import { useAuth } from '../../context/AuthContext';
 
 const ApplyLeaveOnBehalf = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const getWardenHostelLabel = () => {
+    if (user?.assignedHostel?.name) return user.assignedHostel.name;
+    if (user?.assignedHostelId?.name) return user.assignedHostelId.name;
+    if (user?.hostelType?.toLowerCase() === 'boys') return 'Boys Hostel';
+    if (user?.hostelType?.toLowerCase() === 'girls') return 'Girls Hostel';
+    return 'your assigned hostel';
+  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,7 +46,7 @@ const ApplyLeaveOnBehalf = () => {
   const [inTime, setInTime] = useState('');
   const [stayDate, setStayDate] = useState('');
 
-  // Handle student search
+  // Handle student search (backend scopes to warden's assigned hostel)
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -45,7 +55,11 @@ const ApplyLeaveOnBehalf = () => {
     setSearching(true);
     try {
       const response = await api.get('/api/admin/warden/students', {
-        params: { search: searchQuery.trim(), limit: 10 }
+        params: {
+          search: searchQuery.trim(),
+          limit: 10,
+          hostelStatus: 'Active'
+        }
       });
       if (response.data.success) {
         setSearchResults(response.data.data.students || []);
@@ -149,10 +163,10 @@ const ApplyLeaveOnBehalf = () => {
         >
           <h1 className="text-base sm:text-xl lg:text-2xl font-bold text-green-900 flex items-center gap-2 sm:gap-3">
             <DocumentTextIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0" />
-            <span>Apply Student Leave</span>
+            <span>Apply Student Leave ({getWardenHostelLabel()})</span>
           </h1>
           <p className="text-[11px] sm:text-xs lg:text-sm text-gray-600 mt-2 leading-relaxed">
-            Submit a leave, permission, or stay-in-hostel request on behalf of a student. The parent will be sent an OTP via SMS for verification.
+            Submit a leave, permission, or stay-in-hostel request on behalf of a student in {getWardenHostelLabel()}. The parent will be sent an OTP via SMS for verification.
           </p>
         </motion.div>
 
@@ -172,7 +186,7 @@ const ApplyLeaveOnBehalf = () => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search student by Roll Number or Name..."
+                placeholder={`Search ${getWardenHostelLabel()} student by Roll Number or Name...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-4 pr-10 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base sm:text-sm"
