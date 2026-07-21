@@ -36,7 +36,8 @@ const FeeStructureManagement = () => {
   const [showModal, setShowModal] = useState(false);
   const [selectedStructure, setSelectedStructure] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [selectedYearsToApply, setSelectedYearsToApply] = useState([]);
+  const [matrixAmounts, setMatrixAmounts] = useState({});
+  const [matrixLoading, setMatrixLoading] = useState(false);
 
   // Additional Fees state (mirrors Fee Management page behaviour)
   const [additionalFees, setAdditionalFees] = useState({});
@@ -211,6 +212,59 @@ const FeeStructureManagement = () => {
     if (!course) return [];
     return Array.from({ length: course.duration || 4 }, (_, i) => i + 1);
   }, [courses]);
+
+  useEffect(() => {
+    const loadFeeMatrix = async () => {
+      if (!showModal || !form.academicYear || !form.course || !form.hostelId || categories.length === 0) {
+        setMatrixAmounts({});
+        return;
+      }
+
+      const years = getAvailableYearsForCourse(form.course);
+      const blankMatrix = {};
+      years.forEach((year) => {
+        categories.forEach((category) => {
+          blankMatrix[`${year}:${category._id}`] = '';
+        });
+      });
+
+      setMatrixLoading(true);
+      try {
+        const res = await api.get('/api/admin/fee-structures', {
+          params: {
+            academicYear: form.academicYear,
+            course: form.course,
+            hostelId: form.hostelId,
+            feeType: 'Hostel Fee',
+          },
+        });
+        const nextMatrix = { ...blankMatrix };
+        (res.data.data || []).forEach((row) => {
+          const categoryId = row.categoryId?._id || row.categoryId;
+          const key = `${row.year}:${categoryId}`;
+          if (Object.prototype.hasOwnProperty.call(nextMatrix, key)) {
+            nextMatrix[key] = String(row.amount ?? '');
+          }
+        });
+        setMatrixAmounts(nextMatrix);
+      } catch (err) {
+        console.error('Error loading fee structure matrix', err);
+        setMatrixAmounts(blankMatrix);
+        toast.error(err.response?.data?.message || 'Failed to load existing fee values');
+      } finally {
+        setMatrixLoading(false);
+      }
+    };
+
+    loadFeeMatrix();
+  }, [
+    showModal,
+    form.academicYear,
+    form.course,
+    form.hostelId,
+    categories,
+    getAvailableYearsForCourse,
+  ]);
 
   const getCourseLabel = useCallback((courseValue) => {
     if (!courseValue) return '-';
@@ -468,63 +522,60 @@ const FeeStructureManagement = () => {
     });
     setSelectedStructure(null);
     setIsEditMode(false);
-    setSelectedYearsToApply([]);
+    setMatrixAmounts({});
     setCategories([]);
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!form.academicYear || !form.course || !form.year || form.amount === '') {
-      toast.error('Academic year, course, year, and amount are required');
+    const configuredYears = getAvailableYearsForCourse(form.course);
+    if (!form.academicYear || !form.course || !form.hostelId) {
+      toast.error('Academic year, course, and hostel are required');
       return;
     }
+    if (configuredYears.length === 0 || categories.length === 0) {
+      toast.error('The selected course must have configured years and the hostel must have categories');
+      return;
+    }
+
+    const entries = [];
+    for (const year of configuredYears) {
+      for (const category of categories) {
+        const value = matrixAmounts[`${year}:${category._id}`];
+        if (value === '' || value === undefined || value === null) {
+          toast.error(`Enter the fee for Year ${year} / ${category.name}`);
+          return;
+        }
+        const amount = Number(value);
+        if (!Number.isFinite(amount) || amount < 0) {
+          toast.error(`Enter a valid fee for Year ${year} / ${category.name}`);
+          return;
+        }
+        entries.push({ year, categoryId: category._id, amount });
+      }
+    }
+
     setSaving(true);
     try {
-      const course = courses.find(c => c.name === form.course);
-      if (!course) {
-        toast.error('Course not found');
-        return;
-      }
-
-      const currentYear = parseInt(form.year);
-      const yearsToSave = [currentYear, ...selectedYearsToApply].filter((year, index, self) => self.indexOf(year) === index);
-
-      const savePromises = yearsToSave.map(async (year) => {
-        const payload = {
-          academicYear: form.academicYear,
-          course: form.course,
-          year: year,
-          hostelId: form.hostelId || undefined,
-          categoryId: form.categoryId || undefined,
-          feeType: 'Hostel Fee',
-          amount: Number(form.amount),
-        };
-        if (isEditMode && selectedStructure) {
-          return api.put(`/api/admin/fee-structures/${selectedStructure._id}`, payload);
-        } else {
-          return api.post('/api/admin/fee-structures', payload);
-        }
+      const response = await api.post('/api/admin/fee-structures/bulk', {
+        academicYear: form.academicYear,
+        course: form.course,
+        hostelId: form.hostelId,
+        feeType: 'Hostel Fee',
+        entries,
       });
 
-      const responses = await Promise.allSettled(savePromises);
-      const successful = responses.filter(r => r.status === 'fulfilled' && r.value?.data?.success).length;
-      const failed = responses.length - successful;
-
-      if (successful > 0) {
-        toast.success(
-          yearsToSave.length === 1
-            ? `Fee rule ${isEditMode ? 'updated' : 'created'} successfully!`
-            : `Fee rule ${isEditMode ? 'updated' : 'created'} for ${successful} year(s)!${failed > 0 ? ` ${failed} failed.` : ''}`
-        );
+      if (response.data.success) {
+        toast.success(`Saved all ${entries.length} year/category fee values`);
         resetForm();
         setShowModal(false);
         fetchRows();
       } else {
-        toast.error('Failed to save fee rule(s)');
+        toast.error(response.data.message || 'Failed to save fee structure matrix');
       }
     } catch (err) {
-      console.error('Error saving fee rule', err);
-      toast.error(err.response?.data?.message || 'Failed to save fee rule');
+      console.error('Error saving fee structure matrix', err);
+      toast.error(err.response?.data?.message || 'Failed to save fee structure matrix');
     } finally {
       setSaving(false);
     }
@@ -534,14 +585,13 @@ const FeeStructureManagement = () => {
     setSelectedStructure(row);
     setIsEditMode(true);
     const hostelId = typeof row.hostelId === 'object' ? row.hostelId?._id : row.hostelId;
-    const categoryId = typeof row.categoryId === 'object' ? row.categoryId?._id : row.categoryId;
     setForm({
       academicYear: row.academicYear || '',
       course: getCourseLabel(row.course) === '-' ? (row.course || '') : getCourseLabel(row.course),
-      year: String(row.year || ''),
       hostelId: hostelId || '',
-      categoryId: categoryId || '',
-      amount: String(row.amount || ''),
+      year: '',
+      categoryId: '',
+      amount: '',
     });
     if (hostelId) {
       loadCategories(hostelId);
@@ -939,7 +989,7 @@ const FeeStructureManagement = () => {
             </div>
 
             <form onSubmit={handleSave}>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -963,41 +1013,13 @@ const FeeStructureManagement = () => {
                     </label>
                     <select
                       value={form.course}
-                      onChange={(e) => {
-                        setForm((p) => ({ ...p, course: e.target.value, year: '' }));
-                        setSelectedYearsToApply([]);
-                      }}
+                      onChange={(e) => setForm((p) => ({ ...p, course: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                     >
                       <option value="">Select Course</option>
                       {courses?.map((c) => (
                         <option key={c._id || c.name} value={c.name}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Year of Study
-                    </label>
-                    <select
-                      value={form.year}
-                      onChange={(e) => {
-                        setForm((p) => ({ ...p, year: e.target.value }));
-                        setSelectedYearsToApply([]);
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      required
-                      disabled={!form.course}
-                    >
-                      <option value="">
-                        {!form.course ? 'Select Course first' : 'Select Year'}
-                      </option>
-                      {getAvailableYearsForCourse(form.course).map(year => (
-                        <option key={year} value={String(year)}>Year {year}</option>
                       ))}
                     </select>
                   </div>
@@ -1008,99 +1030,89 @@ const FeeStructureManagement = () => {
                     </label>
                     <select
                       value={form.hostelId}
-                      onChange={(e) => {
-                        setForm((p) => ({ ...p, hostelId: e.target.value, categoryId: '' }));
-                      }}
+                      onChange={(e) => setForm((p) => ({ ...p, hostelId: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
                     >
-                      <option value="">All Hostels</option>
+                      <option value="">Select Hostel</option>
                       {hostels.map((h) => (
                         <option key={h._id} value={h._id}>{h.name}</option>
                       ))}
                     </select>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category
-                    </label>
-                    <select
-                      value={form.categoryId}
-                      onChange={(e) => setForm((p) => ({ ...p, categoryId: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      disabled={!form.hostelId}
-                    >
-                      <option value="">All Categories</option>
-                      {categories.map((c) => (
-                        <option key={c._id} value={c._id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fee Type
-                    </label>
-                    <div className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-sm text-gray-700">
-                      Hostel Fee
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Amount (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.amount}
-                      onChange={(e) => setForm((p) => ({ ...p, amount: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Enter amount"
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Apply to Other Years Section */}
-                {form.course && form.year && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                      <AcademicCapIcon className="w-4 h-4 text-blue-600 mr-2" />
-                      Apply Same Values to Other Years
-                    </h4>
-                    <p className="text-xs text-gray-600 mb-3">
-                      Select additional years to apply the same fee structure values. The current year (Year {form.year}) will always be saved.
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <AcademicCapIcon className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                    <p className="text-sm text-blue-800">
+                      Select a course and hostel. The configured course years appear as rows and
+                      every hostel category appears as a column. All values are saved together.
                     </p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                      {getAvailableYearsForCourse(form.course)
-                        .filter(year => year !== parseInt(form.year))
-                        .map(year => (
-                          <label key={year} className="flex items-center space-x-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedYearsToApply.includes(year)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedYearsToApply(prev => [...prev, year]);
-                                } else {
-                                  setSelectedYearsToApply(prev => prev.filter(y => y !== year));
-                                }
-                              }}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                            <span className="text-sm text-gray-700">Year {year}</span>
-                          </label>
-                        ))}
+                  </div>
+                </div>
+
+                {form.course && form.hostelId ? (
+                  matrixLoading ? (
+                    <div className="py-10 flex justify-center"><LoadingSpinner /></div>
+                  ) : categories.length === 0 ? (
+                    <div className="py-8 text-center text-sm text-amber-700 bg-amber-50 rounded-lg border border-amber-200">
+                      No categories are configured for the selected hostel.
                     </div>
-                    {selectedYearsToApply.length > 0 && (
-                      <div className="mt-3 p-2 bg-blue-100 rounded text-xs text-blue-800">
-                        Will apply to: Year {form.year} (current) + {selectedYearsToApply.length} other year(s)
-                      </div>
-                    )}
+                  ) : (
+                    <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                              Course Year
+                            </th>
+                            {categories.map((category) => (
+                              <th key={category._id} className="px-4 py-3 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider min-w-[150px]">
+                                {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {getAvailableYearsForCourse(form.course).map((year) => (
+                            <tr key={year}>
+                              <th className="sticky left-0 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                                Year {year}
+                              </th>
+                              {categories.map((category) => {
+                                const key = `${year}:${category._id}`;
+                                return (
+                                  <td key={category._id} className="px-3 py-2">
+                                    <div className="relative">
+                                      <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">₹</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={matrixAmounts[key] ?? ''}
+                                        onChange={(e) => setMatrixAmounts((prev) => ({
+                                          ...prev,
+                                          [key]: e.target.value,
+                                        }))}
+                                        className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md text-right focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="0"
+                                        aria-label={`Year ${year}, category ${category.name}`}
+                                        required
+                                      />
+                                    </div>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                ) : (
+                  <div className="py-8 text-center text-sm text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    Select a course and hostel to display the fee matrix.
                   </div>
                 )}
               </div>
@@ -1121,7 +1133,7 @@ const FeeStructureManagement = () => {
                   disabled={saving}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {saving ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
+                  {saving ? 'Saving All...' : 'Save All Fee Values'}
                 </button>
               </div>
             </form>

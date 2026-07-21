@@ -1069,11 +1069,11 @@ const LeaveManagement = () => {
                         </div>
                         <div className="flex justify-between items-center">
                           <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.hostelStatus === 'Active'
+                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${['Active','Extended'].includes(selectedStudent.applicationStatus)
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                             }`}>
-                            {selectedStudent.hostelStatus}
+                            {selectedStudent.applicationStatus || selectedStudent.hostelStatus}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">

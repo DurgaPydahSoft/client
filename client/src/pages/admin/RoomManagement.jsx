@@ -87,7 +87,7 @@ const RoomManagement = () => {
     bedCount: 1,
     meterType: 'single'
   });
-  const [hostelForm, setHostelForm] = useState({ name: '', description: '' });
+  const [hostelForm, setHostelForm] = useState({ name: '', code: '', description: '' });
   const [categoryForm, setCategoryForm] = useState({ hostel: '', name: '', description: '' });
   const [hostels, setHostels] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -274,12 +274,20 @@ const RoomManagement = () => {
       toast.error('Hostel name is required');
       return;
     }
+    if (!hostelForm.code.trim()) {
+      toast.error('Hostel code is required for sequence generation');
+      return;
+    }
     try {
-      const res = await api.post('/api/hostels', { name: hostelForm.name.trim(), description: hostelForm.description });
+      const res = await api.post('/api/hostels', {
+        name: hostelForm.name.trim(),
+        code: hostelForm.code.trim().toUpperCase(),
+        description: hostelForm.description
+      });
       if (res.data.success) {
         toast.success('Hostel created');
         await fetchHostels();
-        setHostelForm({ name: '', description: '' });
+        setHostelForm({ name: '', code: '', description: '' });
         setFormData(prev => ({ ...prev, hostel: res.data.data._id, category: '' }));
         setCategoryForm(prev => ({ ...prev, hostel: res.data.data._id }));
         fetchCategoriesByHostel(res.data.data._id);
@@ -1207,6 +1215,23 @@ const RoomManagement = () => {
                         required
                         className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                        Hostel Code <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="code"
+                        value={hostelForm.code}
+                        onChange={handleHostelFormChange}
+                        required
+                        placeholder="e.g. BH, GH1"
+                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm uppercase"
+                      />
+                      <p className="mt-1 text-[10px] sm:text-xs text-gray-500">
+                        Used in academic-year sequence: College + Course + Hostel Code + number
+                      </p>
                     </div>
                     <div>
                       <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">

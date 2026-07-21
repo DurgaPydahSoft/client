@@ -35,24 +35,6 @@ export const fetchFeeStructure = async (studentCourse, studentBranch, studentYea
   }
 };
 
-// Function to fetch password for a specific student
-export const fetchStudentPassword = async (studentId) => {
-  try {
-    console.log('🔍 Fetching password for student ID:', studentId);
-    const tempResponse = await api.get(`/api/admin/students/${studentId}/temp-password`);
-
-    if (tempResponse.data.success && tempResponse.data.data.password) {
-      console.log('🔍 Password found');
-      return tempResponse.data.data.password;
-    }
-    console.log('❌ No password found in response');
-    return null;
-  } catch (error) {
-    console.error('❌ Error fetching student password:', error);
-    return null;
-  }
-};
-
 // Helper function to get course name
 const getCourseName = (course) => {
   if (!course) return 'Unknown';
@@ -61,7 +43,7 @@ const getCourseName = (course) => {
 };
 
 // Generate PDF for individual admit card with student and warden copies
-export const generateAdmitCardPDF = async (student, passwordFromURL = null) => {
+export const generateAdmitCardPDF = async (student) => {
   try {
     const studentId = student._id || student.id || student;
     console.log('Requesting Admit Card from Print API for student ID:', studentId);

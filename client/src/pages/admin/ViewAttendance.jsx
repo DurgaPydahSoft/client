@@ -23,6 +23,21 @@ import { useCoursesBranches } from '../../context/CoursesBranchesContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import * as XLSX from 'xlsx';
 
+const getDefaultAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
+
+const generateAcademicYears = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let i = -3; i <= 3; i++) {
+    const year = currentYear + i;
+    years.push(`${year}-${year + 1}`);
+  }
+  return years;
+};
+
 const ViewAttendance = ({ onStatsUpdate }) => {
   const { user } = useAuth();
   const { courses, branches, getBranchesByCourse } = useCoursesBranches();
@@ -39,7 +54,8 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     course: '',
     branch: '',
     gender: '',
-    status: ''
+    status: '',
+    academicYear: getDefaultAcademicYear()
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [statistics, setStatistics] = useState({
@@ -626,6 +642,19 @@ const ViewAttendance = ({ onStatsUpdate }) => {
             {/* Additional Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
+                <select
+                  name="academicYear"
+                  value={filters.academicYear}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  {generateAcademicYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
                 <select
                   name="status"
@@ -778,6 +807,21 @@ const ViewAttendance = ({ onStatsUpdate }) => {
               </div>
             </>
           )}
+
+          {/* Academic Year Filter */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
+            <select
+              name="academicYear"
+              value={filters.academicYear}
+              onChange={handleFilterChange}
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+            >
+              {generateAcademicYears().map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
 
           {/* Status Filter */}
           <div>

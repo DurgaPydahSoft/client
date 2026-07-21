@@ -1964,7 +1964,7 @@ const FeeManagement = () => {
     }
 
     // 2. Student status validation
-    if (student && student.hostelStatus !== 'Active') {
+    if (student && !['Active', 'Extended'].includes(student.applicationStatus)) {
       errors.push('Student is not active in hostel');
     }
 

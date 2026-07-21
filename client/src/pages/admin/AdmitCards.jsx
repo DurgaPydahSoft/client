@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
 import {
@@ -18,7 +17,6 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const AdmitCards = () => {
-  const [searchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -44,32 +42,6 @@ const AdmitCards = () => {
   const [feeStructureCache, setFeeStructureCache] = useState({});
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
-
-  // Get password from URL parameters (for recently added students)
-  const passwordFromURL = searchParams.get('password');
-
-  // Check if we came from password popup (has password in URL)
-  const isFromPasswordPopup = !!passwordFromURL;
-
-  // Function to fetch password for a specific student
-  const fetchStudentPassword = async (studentId) => {
-    try {
-      console.log('🔍 Frontend: Fetching password for student ID:', studentId);
-      // Check if this student has a TempStudent record (recently added students)
-      const tempResponse = await api.get(`/api/admin/students/${studentId}/temp-password`);
-      console.log('🔍 Frontend: API response:', tempResponse.data);
-
-      if (tempResponse.data.success && tempResponse.data.data.password) {
-        console.log('🔍 Frontend: Password found:', tempResponse.data.data.password);
-        return tempResponse.data.data.password;
-      }
-      console.log('❌ Frontend: No password found in response');
-      return null;
-    } catch (error) {
-      console.error('❌ Frontend: Error fetching student password:', error);
-      return null;
-    }
-  };
 
   // Fetch courses from backend
   const fetchCourses = async () => {
@@ -393,19 +365,6 @@ const AdmitCards = () => {
       // Fetch fee structure for the student's course, year, category and academic year
       const feeStructure = await fetchFeeStructure(student.courseId, student.branch || student.branchName, student.year, student.category || 'A', studentAcademicYear);
 
-      // Fetch student password
-      let studentPassword = null;
-      if (student._id) {
-        studentPassword = await fetchStudentPassword(student._id);
-        console.log('Student password fetched:', studentPassword ? 'Yes' : 'No');
-      } else {
-        console.log('⚠️ Student ID is undefined, skipping password fetch');
-      }
-
-      // For recently added students, use URL password if available
-      const finalPassword = passwordFromURL || studentPassword;
-      console.log('Final password for student:', finalPassword ? 'Available' : 'Not available');
-
       // Create A4 size document for full page with two copies
       const doc = new jsPDF('p', 'mm', 'a4');
       console.log('doc.autoTable available:', typeof doc.autoTable);
@@ -418,7 +377,7 @@ const AdmitCards = () => {
       const contentWidth = pageWidth - (margin * 2);
 
       // Function to generate one copy of admit card
-      const generateOneCopy = (startY, copyLabel, password) => {
+      const generateOneCopy = (startY, copyLabel) => {
         // Validate student object
         if (!student || typeof student !== 'object') {
           console.error('❌ Invalid student object:', student);
@@ -633,16 +592,6 @@ const AdmitCards = () => {
           ['Category:', String(student.category || '')],
           ['Room:', String(student.roomNumber || '')]
         ];
-
-        // Add password to student copy only
-        if (copyLabel === 'STUDENT COPY') {
-          // Priority: URL password (for recently added) > fetched password (for existing)
-          const finalPassword = passwordFromURL || password;
-          if (finalPassword) {
-            studentDetails.push(['Password:', String(finalPassword)]);
-          }
-          // If no password available, don't add password field at all
-        }
 
         studentDetails.forEach(([label, value]) => {
           doc.setFont('helvetica', 'bold');
@@ -868,7 +817,7 @@ const AdmitCards = () => {
       };
 
       // Generate Student Copy (top half)
-      generateOneCopy(margin, 'STUDENT COPY', finalPassword);
+      generateOneCopy(margin, 'STUDENT COPY');
 
       // Add divider line between copies
       doc.setDrawColor(100, 100, 100);
@@ -876,7 +825,7 @@ const AdmitCards = () => {
       doc.line(margin + 5, halfPageHeight, pageWidth - margin - 5, halfPageHeight);
 
       // Generate Warden Copy (bottom half)
-      generateOneCopy(halfPageHeight + 2, 'WARDEN COPY', null);
+      generateOneCopy(halfPageHeight + 2, 'WARDEN COPY');
 
       // Save the PDF
       const fileName = `AdmitCard_${student.name || 'Student'}_${student.rollNumber || 'Unknown'}.pdf`;
@@ -1068,19 +1017,14 @@ const AdmitCards = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {students.map((student, index) => {
-                    // If we came from password popup, only enable the first student
-                    const isDisabled = isFromPasswordPopup && index !== 0;
-
-                    return (
-                      <tr key={student._id} className={`hover:bg-gray-50 ${isDisabled ? 'opacity-50 bg-gray-100' : ''}`}>
+                  {students.map((student) => (
+                      <tr key={student._id} className="hover:bg-gray-50">
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={selectedStudents.includes(student._id)}
                             onChange={() => handleStudentSelect(student._id)}
-                            disabled={isDisabled}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
                         <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
@@ -1101,11 +1045,6 @@ const AdmitCards = () => {
                             <div className="ml-2 sm:ml-4 min-w-0 flex-1">
                               <div className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                                 {student.name}
-                                {isFromPasswordPopup && index === 0 && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    Recent
-                                  </span>
-                                )}
                               </div>
                               <div className="text-xs sm:text-sm text-gray-500 truncate">
                                 {student.rollNumber}
@@ -1150,8 +1089,7 @@ const AdmitCards = () => {
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                             <button
                               onClick={() => handlePreview(student)}
-                              disabled={isDisabled}
-                              className="text-blue-600 hover:text-blue-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
+                              className="text-blue-600 hover:text-blue-900 flex items-center justify-center sm:justify-start"
                             >
                               <EyeIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                               <span className="text-xs sm:text-sm">Preview</span>
@@ -1159,7 +1097,7 @@ const AdmitCards = () => {
                             <div className="relative group">
                               <button
                                 onClick={() => handleGenerateAdmitCard(student)}
-                                disabled={!student.studentPhoto || generating || isDisabled || (student.concession > 0 && !student.concessionApproved)}
+                                disabled={!student.studentPhoto || generating || (student.concession > 0 && !student.concessionApproved)}
                                 className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center sm:justify-start"
                               >
                                 <DocumentArrowDownIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
@@ -1175,8 +1113,7 @@ const AdmitCards = () => {
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>

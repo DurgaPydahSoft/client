@@ -41,10 +41,13 @@ const initialForm = {
   college: null
 };
 
+const inputClass =
+  'w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
+const labelClass = 'block text-xs font-medium text-gray-600 mb-0.5';
 const readOnlyInputClass =
-  'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
+  'w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed';
 const readOnlySelectClass =
-  'w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700 cursor-not-allowed';
+  'w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed';
 
 const normalizeGenderFromSql = (value) => {
   if (!value) return '';
@@ -68,9 +71,6 @@ const StudentRegistrationSQL = () => {
   const [sqlFetchError, setSqlFetchError] = useState(null);
   const [sqlDataFetched, setSqlDataFetched] = useState(false);
   const [adding, setAdding] = useState(false);
-  // Password modal
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [generatedPassword, setGeneratedPassword] = useState(null);
 
   // Photo states
   const [studentPhoto, setStudentPhoto] = useState(null);
@@ -691,15 +691,18 @@ const StudentRegistrationSQL = () => {
       });
 
       if (res.data.success) {
-        const { generatedPassword: genPass, isRenewal, message } = res.data.data || {};
+        const {
+          isRenewal,
+          message,
+          hostelSequenceId
+        } = res.data.data || {};
+        const seqNote = hostelSequenceId ? ` Sequence: ${hostelSequenceId}` : '';
         if (isRenewal) {
-          toast.success(message || 'Returning student renewed. Existing login password kept.');
+          toast.success(
+            (message || 'Student registered for the academic year.') + seqNote
+          );
         } else {
-          if (genPass) {
-            setGeneratedPassword(genPass);
-            setShowPasswordModal(true);
-          }
-          toast.success('Student registered successfully');
+          toast.success('Student registered successfully. Login uses student database credentials.' + seqNote);
         }
         // Reset form
         setForm(initialForm);
@@ -756,53 +759,40 @@ const StudentRegistrationSQL = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      {showPasswordModal && (
-        <PasswordModal
-          password={generatedPassword}
-          onClose={() => {
-            setShowPasswordModal(false);
-            setGeneratedPassword(null);
-          }}
-        />
-      )}
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Student Registration from SQL Database</h1>
-        <p className="text-gray-600 mt-2">Fetch student details from central database and complete registration</p>
+    <div className="p-3 sm:p-4">
+      <div className="mb-3">
+        <h1 className="text-xl font-bold text-gray-900">Student Registration from SQL Database</h1>
+        <p className="text-sm text-gray-600">Fetch student details from central database and complete registration</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-6">
+      <div className="bg-white rounded-xl shadow-md p-4">
         {/* SQL Fetch Section */}
-        <div className="bg-blue-50 rounded-lg p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Step 1: Fetch Student Data from SQL Database</h2>
-
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search by
+        <div className="bg-blue-50 rounded-lg p-3 mb-4">
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="flex items-center gap-4 text-sm">
+              <span className="font-semibold text-gray-900">Step 1: Fetch from SQL</span>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="pin"
+                  checked={identifierType === 'pin'}
+                  onChange={(e) => setIdentifierType(e.target.value)}
+                  className="mr-1.5"
+                />
+                PIN
               </label>
-              <div className="flex gap-2 mb-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="pin"
-                    checked={identifierType === 'pin'}
-                    onChange={(e) => setIdentifierType(e.target.value)}
-                    className="mr-2"
-                  />
-                  PIN Number
-                </label>
-                <label className="flex items-center ml-4">
-                  <input
-                    type="radio"
-                    value="admission"
-                    checked={identifierType === 'admission'}
-                    onChange={(e) => setIdentifierType(e.target.value)}
-                    className="mr-2"
-                  />
-                  Admission Number
-                </label>
-              </div>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  value="admission"
+                  checked={identifierType === 'admission'}
+                  onChange={(e) => setIdentifierType(e.target.value)}
+                  className="mr-1.5"
+                />
+                Admission No.
+              </label>
+            </div>
+            <div className="flex-1 min-w-[220px]">
               <input
                 type="text"
                 value={identifier}
@@ -816,14 +806,14 @@ const StudentRegistrationSQL = () => {
                   }
                 }}
                 placeholder={identifierType === 'pin' ? 'Enter PIN Number' : 'Enter Admission Number'}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={inputClass}
                 disabled={fetchingFromSQL}
               />
             </div>
             <button
               onClick={fetchStudentFromSQL}
               disabled={fetchingFromSQL || !identifier.trim()}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {fetchingFromSQL ? (
                 <>
@@ -832,7 +822,7 @@ const StudentRegistrationSQL = () => {
                 </>
               ) : (
                 <>
-                  <MagnifyingGlassIcon className="w-5 h-5" />
+                  <MagnifyingGlassIcon className="w-4 h-4" />
                   Fetch Details
                 </>
               )}
@@ -840,33 +830,31 @@ const StudentRegistrationSQL = () => {
           </div>
 
           {sqlFetchError && (
-            <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <XCircleIcon className="w-5 h-5 text-red-600 mr-2" />
-                <p className="text-red-800">{sqlFetchError}</p>
-              </div>
+            <div className="mt-2 bg-red-50 border border-red-200 rounded-md px-3 py-1.5 flex items-center">
+              <XCircleIcon className="w-4 h-4 text-red-600 mr-2 shrink-0" />
+              <p className="text-sm text-red-800">{sqlFetchError}</p>
             </div>
           )}
 
           {sqlDataFetched && (
-            <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <CheckCircleIcon className="w-5 h-5 text-green-600 mr-2" />
-                <p className="text-green-800">Student data fetched successfully. Please complete the form below.</p>
-              </div>
+            <div className="mt-2 bg-green-50 border border-green-200 rounded-md px-3 py-1.5 flex items-center">
+              <CheckCircleIcon className="w-4 h-4 text-green-600 mr-2 shrink-0" />
+              <p className="text-sm text-green-800">Student data fetched successfully. Complete the form below.</p>
             </div>
           )}
         </div>
 
         {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-3">
           {/* Personal Information — from SQL, read-only */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Personal Information</h3>
-            <p className="text-xs text-gray-500 mb-4">Fetched from SQL — not editable</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Personal Information</h3>
+              <span className="text-[11px] text-gray-500">Fetched from SQL — not editable</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                <label className={labelClass}>Full Name *</label>
                 <input
                   type="text"
                   name="name"
@@ -877,7 +865,7 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PIN Number *</label>
+                <label className={labelClass}>PIN Number *</label>
                 <input
                   type="text"
                   name="rollNumber"
@@ -888,7 +876,7 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number *</label>
+                <label className={labelClass}>Admission Number *</label>
                 <input
                   type="text"
                   name="admissionNumber"
@@ -899,7 +887,7 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className={labelClass}>
                   Gender{form.gender ? '' : ' (optional)'}
                 </label>
                 <select
@@ -907,7 +895,7 @@ const StudentRegistrationSQL = () => {
                   value={form.gender}
                   onChange={handleFormChange}
                   disabled={sqlDataFetched && Boolean(form.gender)}
-                  className={sqlDataFetched && form.gender ? readOnlySelectClass : 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500'}
+                  className={sqlDataFetched && form.gender ? readOnlySelectClass : inputClass}
                 >
                   <option value="">Not specified</option>
                   <option value="Male">Male</option>
@@ -918,12 +906,14 @@ const StudentRegistrationSQL = () => {
           </div>
 
           {/* Academic Information — from SQL, read-only */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Academic Information</h3>
-            <p className="text-xs text-gray-500 mb-4">Fetched from SQL — not editable</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Academic Information</h3>
+              <span className="text-[11px] text-gray-500">Fetched from SQL — not editable</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">College *</label>
+                <label className={labelClass}>College *</label>
                 <select
                   name="college"
                   value={form.college ? form.college.id : ''}
@@ -938,7 +928,7 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
+                <label className={labelClass}>Course *</label>
                 <select
                   name="course"
                   value={form.course}
@@ -953,7 +943,7 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
+                <label className={labelClass}>Year *</label>
                 <select
                   name="year"
                   value={form.year}
@@ -968,7 +958,7 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
+                <label className={labelClass}>Branch *</label>
                 <select
                   name="branch"
                   value={form.branch}
@@ -983,7 +973,7 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
+                <label className={labelClass}>Batch *</label>
                 <select
                   name="batch"
                   value={form.batch}
@@ -1001,17 +991,17 @@ const StudentRegistrationSQL = () => {
           </div>
 
           {/* Hostel Information */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Hostel Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Hostel Information</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
+                <label className={labelClass}>Academic Year *</label>
                 <select
                   name="academicYear"
                   value={form.academicYear}
                   onChange={handleFormChange}
                   required
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-2 focus:ring-blue-500 ${
                     academicYearError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'
                   }`}
                 >
@@ -1031,13 +1021,13 @@ const StudentRegistrationSQL = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hostel *</label>
+                <label className={labelClass}>Hostel *</label>
                 <select
                   name="hostel"
                   value={form.hostel}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                   disabled={loadingHostels}
                 >
                   <option value="">{loadingHostels ? 'Loading...' : 'Select Hostel'}</option>
@@ -1047,14 +1037,14 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Hostel Category *</label>
+                <label className={labelClass}>Hostel Category *</label>
                 <select
                   name="hostelCategory"
                   value={form.hostelCategory}
                   onChange={handleFormChange}
                   required
                   disabled={!form.hostel || loadingHostelCategories}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 >
                   <option value="">{loadingHostelCategories ? 'Loading...' : 'Select Category'}</option>
                   {hostelCategories.map(cat => (
@@ -1063,14 +1053,14 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Room Number *</label>
+                <label className={labelClass}>Room Number *</label>
                 <select
                   name="roomNumber"
                   value={form.roomNumber}
                   onChange={handleFormChange}
                   required
                   disabled={!form.hostel || !form.hostelCategory || loadingRooms}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 >
                   <option value="">{loadingRooms ? 'Loading rooms...' : 'Select Room'}</option>
                   {roomsWithAvailability.map(room => (
@@ -1087,22 +1077,22 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Meal Type *</label>
+                <label className={labelClass}>Meal Type *</label>
                 <select
                   name="mealType"
                   value={form.mealType}
                   onChange={handleFormChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 >
                   <option value="">Select Meal Type</option>
                   <option value="veg">Veg</option>
                   <option value="non-veg">Non-Veg</option>
                 </select>
               </div>
-              <div className="md:col-span-2 lg:col-span-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
-                <div className="flex items-center space-x-2">
+              <div>
+                <label className={labelClass}>Parent Permission for Outing</label>
+                <label className="flex items-center gap-2 py-1.5 cursor-pointer">
                   <input
                     type="checkbox"
                     name="parentPermissionForOuting"
@@ -1110,19 +1100,19 @@ const StudentRegistrationSQL = () => {
                     onChange={handleFormChange}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                   />
-                  <span className="text-sm text-gray-700">Enable parent permission (OTP to parent)</span>
-                </div>
+                  <span className="text-xs text-gray-700">Enable (OTP to parent)</span>
+                </label>
               </div>
               {form.roomNumber && (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Bed Number</label>
+                    <label className={labelClass}>Bed Number</label>
                     <select
                       name="bedNumber"
                       value={form.bedNumber}
                       onChange={handleFormChange}
                       disabled={loadingBedLocker}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className={inputClass}
                     >
                       <option value="">Select Bed</option>
                       {bedLockerAvailability?.availableBeds?.map(bed => (
@@ -1131,13 +1121,13 @@ const StudentRegistrationSQL = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Locker Number</label>
+                    <label className={labelClass}>Locker Number</label>
                     <select
                       name="lockerNumber"
                       value={form.lockerNumber}
                       onChange={handleFormChange}
                       disabled={loadingBedLocker}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className={inputClass}
                     >
                       <option value="">Select Locker</option>
                       {bedLockerAvailability?.availableLockers?.map(locker => (
@@ -1152,55 +1142,45 @@ const StudentRegistrationSQL = () => {
 
           {/* Fee Structure Display (moved just after hostel info for visibility) */}
           {feeStructure ? (
-            <div className={`${feeStructure.isRevisedFee ? 'bg-amber-50 border border-amber-200 shadow-sm' : 'bg-green-50'} rounded-lg p-6 transition-all duration-300`}>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-lg font-semibold text-gray-900">Fee Structure</h3>
+            <div className={`${feeStructure.isRevisedFee ? 'bg-amber-50 border border-amber-200' : 'bg-green-50'} rounded-lg px-3 py-2`}>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+                <h3 className="text-sm font-semibold text-gray-900">Fee Structure</h3>
                 {feeStructure.isRevisedFee && (
-                  <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-bold border border-amber-300 animate-pulse">
+                  <span className="bg-amber-100 text-amber-800 text-[11px] px-2 py-0.5 rounded-full font-bold border border-amber-300">
                     Revised Fee Applied
                   </span>
                 )}
+                <div className="flex items-center gap-6 ml-auto">
+                  <div className="text-sm text-gray-600">Term 1: <span className="font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</span></div>
+                  <div className="text-sm text-gray-600">Term 2: <span className="font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</span></div>
+                  <div className="text-sm text-gray-600">Term 3: <span className="font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</span></div>
+                  <div className="text-sm text-gray-600">Total: <span className={`${feeStructure.isRevisedFee ? 'text-amber-600' : 'text-green-600'} font-bold`}>₹{feeStructure.totalFee?.toLocaleString() || 0}</span></div>
+                </div>
               </div>
               {feeStructure.isRevisedFee && (
-                <p className="text-sm text-amber-800 mb-4 bg-amber-100 bg-opacity-50 p-2 rounded-md">
-                  Note: A custom revised fee was found in the database for this student and has been applied automatically.
+                <p className="text-xs text-amber-800 mt-1">
+                  A custom revised fee was found for this student and applied automatically.
                 </p>
               )}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 1</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 2</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">₹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Term 3</div>
-                </div>
-                <div className="text-center">
-                  <div className={`${feeStructure.isRevisedFee ? 'text-amber-600' : 'text-green-600'} text-2xl font-bold`}>₹{feeStructure.totalFee?.toLocaleString() || 0}</div>
-                  <div className="text-sm text-gray-600">Total</div>
-                </div>
-              </div>
             </div>
           ) : form.course && form.branch && form.year && form.category && form.academicYear && !loadingFeeStructure ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2">
               <p className="text-red-800 text-sm font-medium">
                 No fee structure found for category <strong>{form.category}</strong>, course <strong>{getCourseNameById(form.course)}</strong>, year <strong>{form.year}</strong>, academic year <strong>{form.academicYear}</strong>.
               </p>
-              <p className="text-xs text-red-600 mt-1">Add the fee structure in Fee Management before registering this student.</p>
+              <p className="text-xs text-red-600 mt-0.5">Add the fee structure in Fee Management before registering this student.</p>
             </div>
           ) : null}
 
           {/* Contact Information */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Contact Information</h3>
-            <p className="text-xs text-gray-500 mb-4">Phone numbers from SQL — not editable</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="flex items-baseline gap-2 mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Contact Information</h3>
+              <span className="text-[11px] text-gray-500">Phone numbers from SQL — not editable</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
+                <label className={labelClass}>Student Phone</label>
                 <input
                   type="tel"
                   name="studentPhone"
@@ -1210,7 +1190,7 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone *</label>
+                <label className={labelClass}>Parent Phone *</label>
                 <input
                   type="tel"
                   name="parentPhone"
@@ -1221,17 +1201,17 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mother Name</label>
+                <label className={labelClass}>Mother Name</label>
                 <input
                   type="text"
                   name="motherName"
                   value={form.motherName}
                   onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mother Phone</label>
+                <label className={labelClass}>Mother Phone</label>
                 <input
                   type="tel"
                   name="motherPhone"
@@ -1241,33 +1221,33 @@ const StudentRegistrationSQL = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className={labelClass}>Email</label>
                 <input
                   type="email"
                   name="email"
                   value={form.email}
                   onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
+                <label className={labelClass}>Local Guardian Name</label>
                 <input
                   type="text"
                   name="localGuardianName"
                   value={form.localGuardianName}
                   onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
+                <label className={labelClass}>Local Guardian Phone</label>
                 <input
                   type="tel"
                   name="localGuardianPhone"
                   value={form.localGuardianPhone}
                   onChange={handleFormChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={inputClass}
                   placeholder="Enter local guardian phone"
                 />
               </div>
@@ -1275,60 +1255,59 @@ const StudentRegistrationSQL = () => {
           </div>
 
           {/* Photos */}
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Photos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-gray-50 rounded-lg p-3">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Photos</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Student Photo (from SDMS) *</label>
-                <p className="text-xs text-gray-500 mb-2">Loaded automatically when you fetch student data from SQL.</p>
+                <label className={labelClass}>Student Photo (from SDMS) *</label>
                 {studentPhotoPreview ? (
-                  <img src={studentPhotoPreview} alt="Student" className="w-32 h-32 object-cover rounded border border-gray-200" />
+                  <img src={studentPhotoPreview} alt="Student" className="w-24 h-24 object-cover rounded border border-gray-200" />
                 ) : (
-                  <div className="w-32 h-32 rounded border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 text-center px-2">
-                    Fetch student from SQL to load photo
+                  <div className="w-24 h-24 rounded border border-dashed border-gray-300 flex items-center justify-center text-[11px] text-gray-400 text-center px-2">
+                    Loads on SQL fetch
                   </div>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Guardian Photo 1</label>
+                <label className={labelClass}>Guardian Photo 1</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => handlePhotoChange(e, 'guardian1')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md"
                 />
                 {guardianPhoto1Preview && (
-                  <img src={guardianPhoto1Preview} alt="Guardian 1" className="mt-2 w-32 h-32 object-cover rounded" />
+                  <img src={guardianPhoto1Preview} alt="Guardian 1" className="mt-2 w-24 h-24 object-cover rounded" />
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Guardian Photo 2</label>
+                <label className={labelClass}>Guardian Photo 2</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => handlePhotoChange(e, 'guardian2')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md"
                 />
                 {guardianPhoto2Preview && (
-                  <img src={guardianPhoto2Preview} alt="Guardian 2" className="mt-2 w-32 h-32 object-cover rounded" />
+                  <img src={guardianPhoto2Preview} alt="Guardian 2" className="mt-2 w-24 h-24 object-cover rounded" />
                 )}
               </div>
             </div>
           </div>
 
           {/* Submit Button */}
-          <div className="flex justify-end gap-4">
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={() => navigate('/admin/students')}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-5 py-1.5 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={adding || !sqlDataFetched || Boolean(academicYearError)}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+              className="px-5 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {adding ? 'Registering...' : 'Register Student'}
             </button>
@@ -1340,34 +1319,4 @@ const StudentRegistrationSQL = () => {
 };
 
 export default StudentRegistrationSQL;
-
-// Password modal (simple inline component)
-const PasswordModal = ({ password, onClose }) => {
-  if (!password) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
-        <h3 className="text-lg font-bold text-gray-900">Credentials Generated</h3>
-        <p className="text-sm text-gray-700">Share this password with the student. They should change it after first login.</p>
-        <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-          <span className="text-xl font-semibold text-gray-900">{password}</span>
-          <button
-            onClick={() => navigator.clipboard.writeText(password)}
-            className="px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Copy
-          </button>
-        </div>
-        <div className="flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 

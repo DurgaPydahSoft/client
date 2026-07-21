@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { UserPlusIcon, TableCellsIcon, ArrowUpTrayIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, DocumentDuplicateIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, ShareIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/24/outline';
+import { TableCellsIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -15,13 +15,8 @@ import * as XLSX from 'xlsx';
 
 // Dynamic course and branch data will be fetched from backend
 
-const CATEGORIES = ['A+', 'A', 'B+', 'B'];
-
-const ROOM_NUMBERS = Array.from({ length: 11 }, (_, i) => (i + 30).toString());
-
 const TABS = [
-  { label: 'All Students', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
-  { label: 'Bulk Upload', value: 'bulkUpload', icon: <ArrowUpTrayIcon className="w-5 h-5" /> },
+  { label: 'Hostel Requests', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
 ];
 
 const FILTER_LABELS = {
@@ -34,18 +29,26 @@ const FILTER_LABELS = {
   hostelStatus: 'Status'
 };
 
+const REQUEST_STATUS_LABELS = {
+  active: 'Active',
+  expired: 'Expired',
+  cancelled: 'Cancelled',
+  // Legacy chip values (pre Phase 5)
+  Active: 'Active',
+  Inactive: 'Expired'
+};
+
 const formatFilterChipValue = (key, value) => {
   if (key === 'hostelStatus') {
-    if (value === 'Active') return 'Active';
-    if (value === 'Inactive') return 'Expired';
+    return REQUEST_STATUS_LABELS[value] || toDisplayText(value);
   }
   return toDisplayText(value);
 };
 
 const shouldShowFilterChip = (key, value) => {
   if (!value || key === 'search') return false;
-  // Default list view is active students — don't show as a removable chip
-  if (key === 'hostelStatus' && value === 'Active') return false;
+  // Default list view is active requests — don't show as a removable chip
+  if (key === 'hostelStatus' && (value === 'active' || value === 'Active')) return false;
   if (key === 'academicYear' && value === getDefaultAcademicYear()) return false;
   return true;
 };
@@ -219,17 +222,21 @@ const formatDisplayDate = (value) => {
   });
 };
 
-const isStudentExpired = (student) =>
-  student?.hostelStatus === 'Inactive' || student?.applicationStatus === 'Expired';
+const isStudentExpired = (student) => {
+  if (student?.hostelRequestStatus === 'expired') return true;
+  if (student?.hostelRequestStatus === 'cancelled') return true;
+  return student?.applicationStatus === 'Expired' || student?.applicationStatus === 'Withdrawn';
+};
 
 const canDeactivateStudent = (student) =>
   student &&
   !student.isHistoricalView &&
-  student.hostelStatus === 'Active' &&
-  student.applicationStatus !== 'Expired';
+  (student.hostelRequestStatus
+    ? student.hostelRequestStatus === 'active'
+    : ['Active', 'Extended'].includes(student.applicationStatus));
 
 const getHostelStatusDisplay = (student) => {
-  if (student?.hostelStatus === 'Active' && !isStudentExpired(student)) {
+  if (student?.hostelRequestStatus === 'active') {
     return {
       label: 'Active',
       badgeClass: 'bg-green-100 text-green-800',
@@ -238,7 +245,16 @@ const getHostelStatusDisplay = (student) => {
     };
   }
 
-  if (isStudentExpired(student)) {
+  if (student?.hostelRequestStatus === 'cancelled') {
+    return {
+      label: 'Cancelled',
+      badgeClass: 'bg-gray-100 text-gray-800',
+      expiryText: formatDisplayDate(student.cancelledAt || student.allocatedTo),
+      nocDateText: student.nocDate ? formatDisplayDate(student.nocDate) : null
+    };
+  }
+
+  if (student?.hostelRequestStatus === 'expired' || isStudentExpired(student)) {
     // Use actual deactivation date — not resolvedExpiryDate (scheduled course/year end)
     const expiryDate =
       student.actualExpiredAt ||
@@ -252,8 +268,17 @@ const getHostelStatusDisplay = (student) => {
     };
   }
 
+  if (['Active', 'Extended'].includes(student?.applicationStatus) && !isStudentExpired(student)) {
+    return {
+      label: student.applicationStatus === 'Extended' ? 'Extended' : 'Active',
+      badgeClass: 'bg-green-100 text-green-800',
+      expiryText: null,
+      nocDateText: null
+    };
+  }
+
   return {
-    label: student?.hostelStatus || '—',
+    label: student?.applicationStatus || '—',
     badgeClass: 'bg-gray-100 text-gray-800',
     expiryText: null,
     nocDateText: null
@@ -278,7 +303,6 @@ const Students = () => {
   const [tab, setTab] = useState('list');
   const [form, setForm] = useState(initialForm);
 
-  const [adding, setAdding] = useState(false);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tableLoading, setTableLoading] = useState(false);
@@ -298,7 +322,7 @@ const Students = () => {
     category: '',
     roomNumber: '',
     academicYear: getDefaultAcademicYear(),
-    hostelStatus: 'Active' // Default to show only active students
+    hostelStatus: 'active' // Default: active hostel requests for the year
   });
   const [filterCategories, setFilterCategories] = useState([]);
   const [filterRooms, setFilterRooms] = useState([]);
@@ -309,27 +333,6 @@ const Students = () => {
   const [totalStudents, setTotalStudents] = useState(0);
   const [printStudents, setPrintStudents] = useState([]);
   const [courseCounts, setCourseCounts] = useState({});
-  const [generatedPassword, setGeneratedPassword] = useState(null);
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-
-  // State for bulk upload
-  const [bulkFile, setBulkFile] = useState(null);
-  const [bulkProcessing, setBulkProcessing] = useState(false);
-  const [bulkUploadResults, setBulkUploadResults] = useState(null);
-  const [bulkPreview, setBulkPreview] = useState(null);
-  const [showBulkPreview, setShowBulkPreview] = useState(false);
-  const [editablePreviewData, setEditablePreviewData] = useState([]);
-  const [previewErrors, setPreviewErrors] = useState([]);
-  const [editingRow, setEditingRow] = useState(null);
-  const [tempStudentsSummary, setTempStudentsSummary] = useState([]);
-  const [loadingTempSummary, setLoadingTempSummary] = useState(false);
-
-  // Email service status
-  const [emailServiceStatus, setEmailServiceStatus] = useState(null);
-  const [loadingEmailStatus, setLoadingEmailStatus] = useState(false);
-
-  // Temp students gender filter
-  const [tempStudentsGenderFilter, setTempStudentsGenderFilter] = useState('all');
 
   // Photo upload states
   const [studentPhoto, setStudentPhoto] = useState(null);
@@ -392,12 +395,6 @@ const Students = () => {
   const [showStatusUpdateModal, setShowStatusUpdateModal] = useState(false);
   const [statusUpdateReason, setStatusUpdateReason] = useState('');
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
-
-  // Share credentials modal states
-  const [shareModal, setShareModal] = useState(false);
-  const [shareStudent, setShareStudent] = useState(null);
-  const [shareLoading, setShareLoading] = useState(false);
-  const [customMessage, setCustomMessage] = useState('');
 
   // Admit card download state
   const [downloadingAdmitCard, setDownloadingAdmitCard] = useState(false);
@@ -509,21 +506,6 @@ const Students = () => {
     }
   }, [showCamera, stream, videoRef, cameraReady]);
 
-  const fetchTempStudentsSummary = async () => {
-    setLoadingTempSummary(true);
-    try {
-      const res = await api.get('/api/admin/students/temp-summary');
-      if (res.data.success) {
-        setTempStudentsSummary(res.data.data);
-      } else {
-        toast.error('Failed to fetch temporary students summary.');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error fetching temporary students summary.');
-    } finally {
-      setLoadingTempSummary(false);
-    }
-  };
 
   // Fetch total course counts
   const fetchCourseCounts = async () => {
@@ -548,21 +530,6 @@ const Students = () => {
     }
   };
 
-  const checkEmailServiceStatus = async () => {
-    setLoadingEmailStatus(true);
-    try {
-      const res = await api.get('/api/admin/email/status');
-      if (res.data.success) {
-        setEmailServiceStatus(res.data.data);
-      } else {
-        setEmailServiceStatus({ configured: false, error: 'Failed to check email service status' });
-      }
-    } catch (err) {
-      setEmailServiceStatus({ configured: false, error: err.response?.data?.message || 'Error checking email service status' });
-    } finally {
-      setLoadingEmailStatus(false);
-    }
-  };
 
   // Fetch courses from backend
   const fetchCourses = async () => {
@@ -1138,14 +1105,11 @@ const Students = () => {
       }
       fetchStudents(isFirst);
       fetchCourseCounts();
-    } else if (tab === 'bulkUpload') {
-      fetchTempStudentsSummary();
     }
   }, [tab, currentPage, filters.course, filters.branch, filters.hostel, filters.category, filters.roomNumber, filters.academicYear, filters.hostelStatus, debouncedSearchTerm]);
 
   // Check email service status and fetch courses on component mount
   useEffect(() => {
-    checkEmailServiceStatus();
     fetchCourses();
     fetchBranches();
     fetchHostels(); // Fetch hostels on mount
@@ -1159,8 +1123,11 @@ const Students = () => {
       navigate('/admin/dashboard/students/register-from-sql', { replace: true });
       return;
     }
-    if (tabParam && ['list', 'bulkUpload'].includes(tabParam)) {
+    if (tabParam && tabParam === 'list') {
       setTab(tabParam);
+    }
+    if (tabParam === 'bulkUpload') {
+      setTab('list');
     }
 
     // Pre-registration approval: register via SQL page (add student removed from this page)
@@ -1492,104 +1459,6 @@ const Students = () => {
     }
   };
 
-  const handleAddStudent = async e => {
-    e.preventDefault();
-
-    // Check permission before proceeding
-    if (!canAddStudent) {
-      toast.error('You do not have permission to add students');
-      return;
-    }
-
-    // Check if student photo is required
-    if (!studentPhoto && !studentPhotoPreview) {
-      toast.error('Student photo is required. Please upload a photo before submitting.');
-      return;
-    }
-
-    if (!feeStructure) {
-      toast.error(
-        `No fee structure found for ${form.course}, ${form.branch}, year ${form.year}, category ${form.category}, academic year ${form.academicYear}. Please add the fee structure in Fee Management before registering.`
-      );
-      return;
-    }
-
-    setAdding(true);
-    try {
-      const formData = new FormData();
-
-      // Add form fields
-      Object.keys(form).forEach(key => {
-        formData.append(key, form[key]);
-      });
-
-      // Add photos if selected (file objects take priority over previews)
-      if (studentPhoto) {
-        formData.append('studentPhoto', studentPhoto);
-      } else if (studentPhotoPreview) {
-        formData.append('studentPhotoUrl', studentPhotoPreview);
-      }
-      if (guardianPhoto1) {
-        formData.append('guardianPhoto1', guardianPhoto1);
-      } else if (guardianPhoto1Preview) {
-        formData.append('guardianPhoto1Url', guardianPhoto1Preview);
-      }
-      if (guardianPhoto2) {
-        formData.append('guardianPhoto2', guardianPhoto2);
-      } else if (guardianPhoto2Preview) {
-        formData.append('guardianPhoto2Url', guardianPhoto2Preview);
-      }
-
-      const res = await api.post('/api/admin/students', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      // Handle success message based on delivery results
-      let successMessage = 'Student added successfully';
-
-      // Check for email and SMS delivery results
-      const { emailSent, emailError, smsSent, smsError } = res.data.data;
-
-      if (emailSent && smsSent) {
-        successMessage += '. Email and SMS credentials sent successfully';
-      } else if (emailSent && !smsSent) {
-        successMessage += '. Email sent successfully';
-        if (smsError) {
-          successMessage += ', SMS failed: ' + smsError;
-        } else {
-          successMessage += ', no phone number provided for SMS';
-        }
-      } else if (smsSent && !emailSent) {
-        successMessage += '. SMS sent successfully';
-        if (emailError) {
-          successMessage += ', email failed: ' + emailError;
-        } else {
-          successMessage += ', no email provided';
-        }
-      } else {
-        // Neither email nor SMS sent
-        if (!emailSent && !smsSent) {
-          successMessage += '. No credentials sent (no email or phone provided)';
-        } else if (emailError && smsError) {
-          successMessage += '. Both email and SMS failed';
-        }
-      }
-
-      toast.success(successMessage);
-      setForm(initialForm);
-      resetPhotoForm();
-      setGeneratedPassword(res.data.data.generatedPassword);
-      setShowPasswordModal(true);
-      if (tab === 'list') fetchStudents(); // Refresh list if current tab is 'list'
-      fetchTempStudentsSummary(); // Refresh pending students list
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to add student');
-    } finally {
-      setAdding(false);
-    }
-  };
 
   const canRemoveStudentEnrollment = (student) => {
     const viewYear = filters.academicYear;
@@ -1993,10 +1862,10 @@ const Students = () => {
       if (name === 'academicYear') {
         const defaultYear = getDefaultAcademicYear();
         if (value && value !== defaultYear) {
-          // Past year: show all enrollments (active + expired/renewed)
+          // Past year: show all requests (active + expired + cancelled)
           newFilters.hostelStatus = '';
         } else if (value === defaultYear) {
-          newFilters.hostelStatus = 'Active';
+          newFilters.hostelStatus = 'active';
         }
       }
 
@@ -2014,174 +1883,6 @@ const Students = () => {
     setCurrentPage(pageNumber);
   };
 
-  // Bulk Upload Handlers
-  const handleFileChange = (e) => {
-    setBulkFile(e.target.files[0]);
-    setBulkUploadResults(null); // Clear previous results
-  };
-
-  const handleBulkUpload = async (e) => {
-    e.preventDefault();
-
-    // Check permission before proceeding
-    if (!canAddStudent) {
-      toast.error('You do not have permission to add students');
-      return;
-    }
-
-    if (!bulkFile) {
-      toast.error('Please select an Excel file to upload.');
-      return;
-    }
-    setBulkProcessing(true);
-    setBulkPreview(null);
-    setBulkUploadResults(null);
-    const formData = new FormData();
-    formData.append('file', bulkFile);
-
-    try {
-      const res = await api.post('/api/admin/students/bulk-upload-preview', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      if (res.data.success) {
-        const validStudents = res.data.data.validStudents || [];
-        setBulkPreview(res.data.data);
-        setEditablePreviewData(validStudents);
-        setPreviewErrors(validStudents.map(validateStudentRow));
-        setShowBulkPreview(true);
-        toast.success('Preview loaded. Please review and edit the data.');
-      } else {
-        toast.error(res.data.message || 'Failed to generate preview.');
-      }
-    } catch (err) {
-      const errorMsg = err.response?.data?.message || 'An error occurred during preview generation.';
-      toast.error(errorMsg);
-      console.error("Bulk preview error:", err.response?.data || err);
-    } finally {
-      setBulkProcessing(false);
-    }
-  };
-
-  const handleConfirmBulkUpload = async () => {
-    // Check permission before proceeding
-    if (!canAddStudent) {
-      toast.error('You do not have permission to add students');
-      return;
-    }
-
-    if (!editablePreviewData || editablePreviewData.length === 0) {
-      toast.error('No students to upload.');
-      return;
-    }
-
-    // Filter out rows with errors
-    const validStudents = editablePreviewData.filter((_, index) =>
-      !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
-    );
-
-    const invalidCount = editablePreviewData.length - validStudents.length;
-
-    if (validStudents.length === 0) {
-      toast.error('No valid students to upload. Please fix the errors or remove invalid rows.');
-      return;
-    }
-
-    // Show warning if some rows will be skipped
-    if (invalidCount > 0) {
-      const shouldProceed = window.confirm(
-        `${invalidCount} row(s) have validation errors and will be skipped.\n\n` +
-        `Only ${validStudents.length} valid student(s) will be uploaded.\n\n` +
-        `Do you want to proceed with the upload?`
-      );
-
-      if (!shouldProceed) {
-        return;
-      }
-    }
-    setBulkProcessing(true);
-    setBulkUploadResults(null);
-
-    try {
-      const res = await api.post('/api/admin/students/bulk-upload-commit', { students: validStudents });
-      if (res.data.success) {
-        const { successCount, failureCount, emailResults } = res.data.data;
-
-        // Enhanced success message with email status
-        let successMessage = `Bulk upload completed successfully! ${successCount} students added.`;
-
-        if (emailResults) {
-          const { sent, failed, errors } = emailResults;
-          if (sent > 0 && failed === 0) {
-            successMessage += ` All ${sent} email notifications sent successfully.`;
-          } else if (sent > 0 && failed > 0) {
-            successMessage += ` ${sent} emails sent, ${failed} failed. Check details below.`;
-          } else if (sent === 0 && failed > 0) {
-            successMessage += ` All ${failed} email notifications failed, but students were added successfully.`;
-          }
-        }
-
-        if (failureCount > 0) {
-          successMessage += ` ${failureCount} students failed to add.`;
-        }
-
-        toast.success(successMessage);
-        setBulkUploadResults(res.data.data);
-        setShowBulkPreview(false);
-        setBulkPreview(null);
-        setEditablePreviewData([]);
-        setPreviewErrors([]);
-        setEditingRow(null);
-        fetchTempStudentsSummary();
-        if (tab === 'list') {
-          fetchStudents(true);
-        }
-
-        // Show warning if email failures occurred
-        if (emailResults && emailResults.failed > 0) {
-          toast.error(
-            `${emailResults.failed} email(s) failed to send. Students can still login with their generated passwords.`,
-            { duration: 6000 }
-          );
-        }
-
-      } else {
-        toast.error(res.data.message || 'Commit failed.');
-      }
-    } catch (err) {
-      console.error('Bulk upload error:', err);
-
-      // Enhanced error handling
-      if (err.response?.status === 500) {
-        toast.error('Server error occurred. Please try again or contact support.');
-      } else if (err.response?.status === 413) {
-        toast.error('File too large. Please reduce the number of students or split into smaller batches.');
-      } else if (err.response?.status === 429) {
-        toast.error('Too many requests. Please wait a moment and try again.');
-      } else if (err.response?.data?.message) {
-        toast.error(err.response.data.message);
-      } else if (err.message === 'Network Error') {
-        toast.error('Network connection failed. Please check your internet connection and try again.');
-      } else {
-        toast.error('An unexpected error occurred during bulk upload. Please try again.');
-      }
-    } finally {
-      setBulkProcessing(false);
-    }
-  };
-
-  const handleCancelPreview = () => {
-    setShowBulkPreview(false);
-    setBulkPreview(null);
-    setEditablePreviewData([]);
-    setPreviewErrors([]);
-    setEditingRow(null);
-    setBulkFile(null);
-    if (document.getElementById('bulk-file-input')) {
-      document.getElementById('bulk-file-input').value = null;
-    }
-  };
 
   const handleUpdateStudentYears = async () => {
     try {
@@ -2206,288 +1907,9 @@ const Students = () => {
     }
   };
 
-  const getCategoryOptions = (gender) => {
-    // Case-insensitive gender handling
-    if (!gender) return ['A+', 'A', 'B+', 'B'];
+  // Categories are dynamic per hostel (fetched into `categories` when gender/hostel changes)
+  const getCategoryOptions = () => categories.map(c => c.name);
 
-    const genderUpper = gender.toUpperCase();
-    const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
-    const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
-
-    if (isMale) {
-      return ['A+', 'A', 'B+', 'B'];
-    } else if (isFemale) {
-      return ['A+', 'A', 'B'];
-    } else {
-      // Default to all categories if gender is not recognized
-      return ['A+', 'A', 'B+', 'B'];
-    }
-  };
-
-  const validateStudentRow = (student) => {
-    const errors = {};
-    const { Name, RollNumber, Gender, Course, Branch, Year, Category, RoomNumber, StudentPhone, ParentPhone, Email, Batch, AcademicYear } = student;
-
-    if (!Name) errors.Name = 'Name is required.';
-    if (!RollNumber) errors.RollNumber = 'PIN number is required.';
-
-    if (!Gender) errors.Gender = 'Gender is required.';
-    else {
-      // Case-insensitive gender validation
-      const genderUpper = Gender.toUpperCase();
-      if (!['MALE', 'FEMALE', 'M', 'F', 'BOY', 'GIRL'].includes(genderUpper)) {
-        errors.Gender = 'Invalid gender. Must be Male/Female/M/F/Boy/Girl.';
-      }
-    }
-
-    if (!Course) errors.Course = 'Course is required.';
-    else {
-      // Normalize course name for validation (same as backend)
-      const normalizedCourse = normalizeCourseName(Course);
-      const course = courses.find(c => c.name === normalizedCourse);
-      if (!course) errors.Course = `Course "${Course}" (normalized to "${normalizedCourse}") not found.`;
-    }
-
-    if (!Branch) errors.Branch = 'Branch is required.';
-    else if (Course) {
-      // For bulk upload, we need to validate branch against the course
-      const normalizedCourse = normalizeCourseName(Course);
-      const course = courses.find(c => c.name === normalizedCourse);
-      if (course) {
-        // This validation will be done on the backend since we don't have branches loaded for all courses
-        // For now, we'll just check if branch is not empty
-      }
-    }
-
-    // Year is optional for bulk upload, but if provided must be valid
-    if (Year) {
-      const yearNum = parseInt(Year, 10);
-      if (isNaN(yearNum) || yearNum < 1 || yearNum > 10) {
-        errors.Year = 'Year must be a number between 1 and 10.';
-      }
-    }
-
-    if (!Category) errors.Category = 'Category is required.';
-    else {
-      // Case-insensitive category validation
-      const categoryUpper = Category.toUpperCase();
-      const validCategories = ['A+', 'A', 'B+', 'B'];
-      const validCategoryUpper = ['A+', 'A', 'B+', 'B'];
-
-      if (!validCategoryUpper.includes(categoryUpper) &&
-        !['A PLUS', 'A_PLUS', 'B PLUS', 'B_PLUS'].includes(categoryUpper)) {
-        errors.Category = 'Invalid category. Must be A+, A, B+, or B.';
-      } else if (Gender) {
-        // Check gender-specific categories
-        const genderUpper = Gender.toUpperCase();
-        const isMale = ['MALE', 'M', 'BOY'].includes(genderUpper);
-        const isFemale = ['FEMALE', 'F', 'GIRL'].includes(genderUpper);
-
-        if (isFemale && categoryUpper === 'B+') {
-          errors.Category = 'Category B+ is not valid for Female students.';
-        }
-      }
-    }
-
-    if (!RoomNumber) errors.RoomNumber = 'Room number is required.';
-    else if (Gender && Category) {
-      // Case-insensitive gender and category handling for room validation
-      const genderUpper = Gender.toUpperCase();
-      const categoryUpper = Category.toUpperCase();
-
-      // Normalize gender for room mapping
-      let normalizedGender = 'Male'; // default
-      if (['FEMALE', 'F', 'GIRL'].includes(genderUpper)) {
-        normalizedGender = 'Female';
-      }
-
-      // Normalize category for room mapping
-      // Room validation removed - rooms are now fetched dynamically from backend
-      // Room number format validation only
-      if (RoomNumber && !/^[0-9]+$/.test(String(RoomNumber))) {
-        errors.RoomNumber = 'Room number must be numeric.';
-      }
-    }
-
-    // Student phone is optional for bulk upload, but if provided must be valid
-    if (StudentPhone && !/^[0-9]{10}$/.test(StudentPhone)) {
-      errors.StudentPhone = 'Must be 10 digits.';
-    }
-
-    if (!ParentPhone) errors.ParentPhone = 'Parent phone is required.';
-    else if (!/^[0-9]{10}$/.test(ParentPhone)) errors.ParentPhone = 'Must be 10 digits.';
-
-    if (Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(Email)) errors.Email = 'Invalid email format.';
-
-    if (!Batch) errors.Batch = 'Batch is required.';
-    else {
-      // Handle both YYYY-YYYY and YYYY formats
-      if (/^\d{4}$/.test(Batch)) {
-        // Single year provided - validate it's a reasonable year
-        const startYear = parseInt(Batch, 10);
-        if (startYear < 2000 || startYear > 2100) {
-          errors.Batch = 'Starting year must be between 2000-2100.';
-        }
-      } else if (!/^\d{4}-\d{4}$/.test(Batch)) {
-        errors.Batch = 'Format must be YYYY-YYYY or just YYYY.';
-      } else {
-        // Full batch format provided - validate duration
-        const [start, end] = Batch.split('-').map(Number);
-        const duration = end - start;
-        // Use case-insensitive course matching
-        const course = courses.find(c =>
-          c.name.toLowerCase() === Course.toLowerCase() ||
-          c._id === Course ||
-          c.name.toUpperCase() === Course.toUpperCase()
-        );
-        const expectedDuration = course ? course.duration : 4;
-        if (duration !== expectedDuration) {
-          errors.Batch = `Duration must be ${expectedDuration} years for ${Course}.`;
-        }
-      }
-    }
-
-    if (!AcademicYear) errors.AcademicYear = 'Academic year is required.';
-    else if (!/^\d{4}-\d{4}$/.test(AcademicYear)) {
-      errors.AcademicYear = 'Format must be YYYY-YYYY.';
-    } else {
-      const [start, end] = AcademicYear.split('-').map(Number);
-      if (end !== start + 1) {
-        errors.AcademicYear = 'Years must be consecutive.';
-      }
-    }
-
-    return errors;
-  };
-
-  const handleClearTempStudents = async () => {
-    if (!window.confirm('Are you sure you want to clear all temporary student records? This will remove all pending password reset students.')) {
-      return;
-    }
-
-    try {
-      const res = await api.delete('/api/admin/students/temp-clear');
-      if (res.data.success) {
-        toast.success(res.data.message);
-        fetchTempStudentsSummary(); // Refresh the temp students list
-      } else {
-        toast.error(res.data.message || 'Failed to clear temporary students.');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'An error occurred while clearing temporary students.');
-    }
-  };
-
-  const handleStartEdit = (index) => {
-    setEditingRow(index);
-  };
-
-  const handleCancelEdit = () => {
-    setEditingRow(null);
-  };
-
-  const handleSaveEdit = (index) => {
-    setEditingRow(null);
-    toast.success('Changes saved to preview.');
-  };
-
-  const handleEditField = (index, field, value) => {
-    const updatedData = [...editablePreviewData];
-    const newStudent = { ...updatedData[index], [field]: value };
-    updatedData[index] = newStudent;
-    setEditablePreviewData(updatedData);
-
-    const newErrors = [...previewErrors];
-    newErrors[index] = validateStudentRow(newStudent);
-    setPreviewErrors(newErrors);
-  };
-
-  const handleRemoveStudent = (index) => {
-    const updatedData = editablePreviewData.filter((_, i) => i !== index);
-    const updatedErrors = previewErrors.filter((_, i) => i !== index);
-    setEditablePreviewData(updatedData);
-    setPreviewErrors(updatedErrors);
-    toast.success('Student removed from preview.');
-  };
-
-  // Function to generate PDF
-  const generatePDF = () => {
-    if (!bulkUploadResults) return;
-
-    const doc = new jsPDF();
-
-    // Add title
-    doc.setFontSize(16);
-    doc.text('Bulk Upload Results', 14, 15);
-
-    // Add summary
-    doc.setFontSize(12);
-    doc.text(`Successfully Added: ${bulkUploadResults.successCount}`, 14, 25);
-    doc.text(`Failed: ${bulkUploadResults.failureCount}`, 14, 30);
-
-    // Add successful students table
-    if (bulkUploadResults.addedStudents && bulkUploadResults.addedStudents.length > 0) {
-      doc.setFontSize(14);
-      doc.text('Successfully Added Students', 14, 40);
-
-      const tableData = bulkUploadResults.addedStudents.map(student => [
-        student.name,
-        student.hostelId || 'N/A',
-        student.rollNumber,
-        student.generatedPassword
-      ]);
-
-      autoTable(doc, {
-        startY: 45,
-        head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [41, 128, 185] },
-        styles: { fontSize: 10 }
-      });
-    }
-
-    // Add errors table if any
-    if (bulkUploadResults.errors && bulkUploadResults.errors.length > 0) {
-      const lastY = doc.lastAutoTable.finalY || 45;
-      doc.setFontSize(14);
-      doc.text('Failed Entries', 14, lastY + 10);
-
-      const errorData = bulkUploadResults.errors.map(error => [
-        error.row,
-        error.error,
-        error.details ? JSON.stringify(error.details) : ''
-      ]);
-
-      autoTable(doc, {
-        startY: lastY + 15,
-        head: [['Row', 'Error', 'Details']],
-        body: errorData,
-        theme: 'grid',
-        headStyles: { fillColor: [231, 76, 60] },
-        styles: { fontSize: 8 }
-      });
-    }
-
-    return doc;
-  };
-
-  // Function to handle PDF download
-  const handleDownloadPDF = () => {
-    const doc = generatePDF();
-    if (doc) {
-      doc.save('bulk-upload-results.pdf');
-    }
-  };
-
-  // Function to handle printing
-  const handlePrint = () => {
-    const doc = generatePDF();
-    if (doc) {
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-    }
-  };
 
   // Function to handle printing live student list grouped by Hostel -> Category -> Room Number
   const handlePrintLiveStudentsReport = async () => {
@@ -2503,7 +1925,7 @@ const Students = () => {
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
       // If in Live mode, force active status. If in AY-Wise, do not filter by status to print all.
       if (isLiveMode) {
-        params.append('hostelStatus', 'Active');
+        params.append('hostelStatus', 'active');
       }
       params.append('page', '1');
       params.append('limit', '1000000'); // get all matching students
@@ -2748,7 +2170,7 @@ const Students = () => {
       if (filters.academicYear) params.append('academicYear', filters.academicYear);
       // If in Live mode, force active status. If in AY-Wise, do not filter by status to print all.
       if (isLiveMode) {
-        params.append('hostelStatus', 'Active');
+        params.append('hostelStatus', 'active');
       }
       params.append('page', '1');
       params.append('limit', '1000000'); // get all matching students
@@ -2987,1819 +2409,8 @@ const Students = () => {
     }
   };
 
-  // Function to generate PDF for pending students
-  const generatePendingStudentsPDF = () => {
-    if (!tempStudentsSummary || tempStudentsSummary.length === 0) return;
-
-    const doc = new jsPDF();
-
-    // Filter students based on gender filter
-    const filteredStudents = tempStudentsSummary.filter(student =>
-      tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
-    );
-
-    // Add title
-    doc.setFontSize(16);
-    doc.text('Students Pending Password Reset', 14, 15);
-
-    // Add filter info
-    doc.setFontSize(10);
-    const filterText = tempStudentsGenderFilter === 'all'
-      ? 'All Students'
-      : `${tempStudentsGenderFilter} Students Only`;
-    doc.text(`Filter: ${filterText}`, 14, 22);
-
-    // Add summary
-    doc.setFontSize(12);
-    doc.text(`Total Students Pending: ${filteredStudents.length}`, 14, 30);
-
-    // Separate male and female students if showing all
-    if (tempStudentsGenderFilter === 'all') {
-      const maleStudents = filteredStudents.filter(student => student.gender === 'Male');
-      const femaleStudents = filteredStudents.filter(student => student.gender === 'Female');
-
-      let currentY = 40;
-
-      // Male Students Section
-      if (maleStudents.length > 0) {
-        doc.setFontSize(14);
-        doc.text('Male Students', 14, currentY);
-        currentY += 8;
-
-        const maleTableData = maleStudents.map(student => [
-          student.name,
-          student.hostelId || 'N/A',
-          student.rollNumber,
-          student.generatedPassword,
-          student.studentPhone,
-          new Date(student.createdAt).toLocaleDateString()
-        ]);
-
-        autoTable(doc, {
-          startY: currentY,
-          head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-          body: maleTableData,
-          theme: 'grid',
-          headStyles: { fillColor: [41, 128, 185] },
-          styles: { fontSize: 9 }
-        });
-
-        currentY = doc.lastAutoTable.finalY + 10;
-      }
-
-      // Female Students Section
-      if (femaleStudents.length > 0) {
-        doc.setFontSize(14);
-        doc.text('Female Students', 14, currentY);
-        currentY += 8;
-
-        const femaleTableData = femaleStudents.map(student => [
-          student.name,
-          student.hostelId || 'N/A',
-          student.rollNumber,
-          student.generatedPassword,
-          student.studentPhone,
-          new Date(student.createdAt).toLocaleDateString()
-        ]);
-
-        autoTable(doc, {
-          startY: currentY,
-          head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-          body: femaleTableData,
-          theme: 'grid',
-          headStyles: { fillColor: [155, 89, 182] },
-          styles: { fontSize: 9 }
-        });
-      }
-    } else {
-      // Single gender table
-      const tableData = filteredStudents.map(student => [
-        student.name,
-        student.hostelId || 'N/A',
-        student.rollNumber,
-        student.generatedPassword,
-        student.studentPhone,
-        new Date(student.createdAt).toLocaleDateString()
-      ]);
-
-      autoTable(doc, {
-        startY: 40,
-        head: [['Name', 'Hostel ID', 'Roll Number', 'Generated Password', 'Phone', 'Added On']],
-        body: tableData,
-        theme: 'grid',
-        headStyles: { fillColor: [41, 128, 185] },
-        styles: { fontSize: 10 }
-      });
-    }
-
-    return doc;
-  };
-
-  // Function to handle PDF download for pending students
-  const handleDownloadPendingPDF = () => {
-    const doc = generatePendingStudentsPDF();
-    if (doc) {
-      doc.save('pending-password-reset-students.pdf');
-    }
-  };
-
-  // Function to handle printing for pending students
-  const handlePrintPending = () => {
-    const doc = generatePendingStudentsPDF();
-    if (doc) {
-      doc.autoPrint();
-      window.open(doc.output('bloburl'), '_blank');
-    }
-  };
-
-  const renderAddStudentForm = () => (
-    <div className="mx-auto bg-white rounded-xl shadow-md p-4 sm:p-6 lg:p-8">
-      <h2 className="text-xl sm:text-2xl font-bold mb-6 text-blue-800">Add New Student</h2>
-      <form onSubmit={handleAddStudent} className="space-y-8">
-
-        {/* Personal Information Section */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Personal Information</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-              <input
-                type="text"
-                name="name"
-                value={form.name}
-                onChange={handleFormChange}
-                placeholder="Enter student's full name"
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">PIN Number *</label>
-              <input
-                type="text"
-                name="rollNumber"
-                value={form.rollNumber}
-                onChange={handleFormChange}
-                placeholder="Enter PIN number"
-                required
-                pattern="[A-Z0-9]+"
-                title="Uppercase letters and numbers only"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Admission Number</label>
-              <input
-                type="text"
-                name="admissionNumber"
-                value={form.admissionNumber}
-                onChange={handleFormChange}
-                placeholder="Enter admission number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 uppercase"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
-              <select
-                name="gender"
-                value={form.gender}
-                onChange={handleFormChange}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Hostel ID</label>
-              <input
-                type="text"
-                name="hostelId"
-                value={form.hostelId}
-                disabled
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-                placeholder="Auto-generated"
-              />
-              <p className="text-xs text-gray-500 mt-1">Auto-generated based on gender</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Academic Information Section */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Academic Information</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Course *</label>
-              <select
-                name="course"
-                value={form.course}
-                onChange={handleFormChange}
-                required
-                disabled={loadingCourses}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingCourses ? 'Loading courses...' : 'Select Course'}</option>
-                {courses.map(course => (
-                  <option key={course._id} value={course._id}>
-                    {course.name} ({course.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Year *</label>
-              <select
-                name="year"
-                value={form.year}
-                onChange={handleFormChange}
-                required
-                disabled={!form.course}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Year</option>
-                {form.course && Array.from(
-                  { length: getCourseDuration(form.course) },
-                  (_, i) => i + 1
-                ).map(year => (
-                  <option key={year} value={year}>Year {year}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-              <select
-                name="branch"
-                value={form.branch}
-                onChange={handleFormChange}
-                required
-                disabled={!form.course || loadingBranches}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingBranches ? 'Loading branches...' : 'Select Branch'}</option>
-                {(() => {
-                  console.log('ðŸŽ¯ Rendering branch dropdown with', branches.length, 'branches');
-                  return branches.map(branch => (
-                    <option key={branch._id} value={branch._id}>
-                      {branch.name} ({branch.code})
-                    </option>
-                  ));
-                })()}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Batch *</label>
-              <select
-                name="batch"
-                value={form.batch}
-                onChange={handleFormChange}
-                required
-                disabled={!form.course}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Batch</option>
-                {form.course && generateBatches(form.course, courses).map(batch => (
-                  <option key={batch} value={batch}>{batch}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year *</label>
-              <select
-                name="academicYear"
-                value={form.academicYear}
-                onChange={handleFormChange}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Academic Year</option>
-                {generateAcademicYears().map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Hostel Information Section */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Hostel Information</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-              <select
-                name="category"
-                value={form.category}
-                onChange={handleFormChange}
-                required
-                disabled={!form.gender}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Category</option>
-                {form.gender && (form.gender === 'Male'
-                  ? ['A+', 'A', 'B+', 'B'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category === 'B+' ? 'B+ (AC)' : category}
-                    </option>
-                  ))
-                  : ['A+', 'A', 'B'].map(category => (
-                    <option key={category} value={category}>
-                      {category === 'A+' ? 'A+ (AC)' : category}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Concession Amount (â‚¹)</label>
-              <input
-                type="number"
-                name="concession"
-                value={form.concession}
-                onChange={(e) => {
-                  const value = Number(e.target.value) || 0;
-                  setForm(prev => ({ ...prev, concession: value }));
-                  calculateFeesWithConcession(value);
-                }}
-                min="0"
-                step="1"
-                placeholder="Enter concession amount"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">Fixed amount to deduct from total fee</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Meal Type</label>
-              <select
-                name="mealType"
-                value={form.mealType}
-                onChange={handleFormChange}
-                required
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select Meal Type</option>
-                <option value="non-veg">Non-Veg</option>
-                <option value="veg">Veg</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parent Permission for Outing</label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  name="parentPermissionForOuting"
-                  checked={form.parentPermissionForOuting}
-                  onChange={handleFormChange}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                />
-                <span className="text-sm text-gray-700">Enable parent permission for outing requests</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-1">When enabled, OTP will be sent to parent for permission requests. When disabled, requests go directly to principal.</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Room Number *</label>
-              <div className="flex gap-2">
-                <select
-                  name="roomNumber"
-                  value={form.roomNumber}
-                  onChange={handleFormChange}
-                  required
-                  disabled={!form.gender || !form.category || loadingRooms}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Room</option>
-                  {loadingRooms ? (
-                    <option value="" disabled>Loading rooms...</option>
-                  ) : (
-                    roomsWithAvailability.map(room => (
-                      <option key={room._id} value={room.roomNumber}>
-                        Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
-                      </option>
-                    ))
-                  )}
-                </select>
-                {form.roomNumber && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const selectedRoom = roomsWithAvailability.find(r => r.roomNumber === form.roomNumber);
-                      if (selectedRoom) {
-                        handleRoomView(selectedRoom);
-                      }
-                    }}
-                    className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    View
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Bed and Locker Assignment - Only show when room is selected */}
-          {form.roomNumber && (
-            <div className="mt-4 pt-4 border-t border-blue-200">
-              <h4 className="text-sm font-medium text-gray-700 mb-3">Bed & Locker Assignment (Optional)</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Bed Number
-                    {form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber) && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Auto-selected
-                      </span>
-                    )}
-                  </label>
-                  <select
-                    name="bedNumber"
-                    value={form.bedNumber}
-                    onChange={handleFormChange}
-                    disabled={loadingBedLocker}
-                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.bedNumber && bedLockerAvailability?.availableBeds?.find(bed => bed.value === form.bedNumber)
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-gray-300'
-                      }`}
-                  >
-                    <option value="">Select Bed (Optional)</option>
-                    {loadingBedLocker ? (
-                      <option value="" disabled>Loading beds...</option>
-                    ) : bedLockerAvailability?.availableBeds?.map(bed => (
-                      <option key={bed.value} value={bed.value}>
-                        {bed.label}
-                      </option>
-                    ))}
-                  </select>
-                  {bedLockerAvailability && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {bedLockerAvailability.availableBeds?.length || 0} of {bedLockerAvailability.room?.bedCount || 0} beds available
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Locker Number
-                    {form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber) && (
-                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        Auto-selected
-                      </span>
-                    )}
-                  </label>
-                  <select
-                    name="lockerNumber"
-                    value={form.lockerNumber}
-                    onChange={handleFormChange}
-                    disabled={loadingBedLocker}
-                    className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${form.lockerNumber && bedLockerAvailability?.availableLockers?.find(locker => locker.value === form.lockerNumber)
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-gray-300'
-                      }`}
-                  >
-                    <option value="">Select Locker (Optional)</option>
-                    {loadingBedLocker ? (
-                      <option value="" disabled>Loading lockers...</option>
-                    ) : bedLockerAvailability?.availableLockers?.map(locker => (
-                      <option key={locker.value} value={locker.value}>
-                        {locker.label}
-                      </option>
-                    ))}
-                  </select>
-                  {bedLockerAvailability && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {bedLockerAvailability.availableLockers?.length || 0} of {bedLockerAvailability.room?.bedCount || 0} lockers available
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Fee Structure Display Section - Show when category and academic year are selected */}
-        {form.category && form.academicYear && (
-          <div className="bg-green-50 rounded-lg p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoinround="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Fee Structure & Calculation</h3>
-            </div>
-
-            {loadingFeeStructure ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
-                <p className="text-sm text-gray-600 mt-2">Loading fee structure...</p>
-              </div>
-            ) : feeStructure ? (
-              <div className="bg-white rounded-lg p-4 border border-green-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term1Fee?.toLocaleString() || 0}</div>
-                    <div className="text-xs text-gray-600">Term 1</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term2Fee?.toLocaleString() || 0}</div>
-                    <div className="text-xs text-gray-600">Term 2</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">â‚¹{feeStructure.term3Fee?.toLocaleString() || 0}</div>
-                    <div className="text-xs text-gray-600">Term 3</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-green-600">â‚¹{feeStructure.totalFee?.toLocaleString() || 0}</div>
-                    <div className="text-xs text-gray-600">Total</div>
-                  </div>
-                </div>
-
-                {form.concession > 0 && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium text-yellow-800">Concession Applied</div>
-                        <div className="text-xs text-yellow-600">â‚¹{form.concession} off total fee</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-yellow-800">â‚¹{calculatedFees.total.toLocaleString()}</div>
-                        <div className="text-xs text-yellow-600">Final Amount</div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">
-                      Term 1 {form.concession > 0 ? '(Concession Applied)' : ''}
-                    </div>
-                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term1.toLocaleString()}</div>
-                    {form.concession > 0 && (
-                      <div className="text-xs text-gray-500">
-                        Original: â‚¹{feeStructure.term1Fee.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">
-                      Term 2 {form.concession > feeStructure.term1Fee ? '(Excess Concession)' : ''}
-                    </div>
-                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term2.toLocaleString()}</div>
-                    {form.concession > feeStructure.term1Fee && (
-                      <div className="text-xs text-gray-500">
-                        Original: â‚¹{feeStructure.term2Fee.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-medium text-gray-700">
-                      Term 3 {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) ? '(Excess Concession)' : ''}
-                    </div>
-                    <div className="text-lg font-bold text-green-600">â‚¹{calculatedFees.term3.toLocaleString()}</div>
-                    {form.concession > (feeStructure.term1Fee + feeStructure.term2Fee) && (
-                      <div className="text-xs text-gray-500">
-                        Original: â‚¹{feeStructure.term3Fee.toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                <div className="text-yellow-800 text-sm">
-                  <p>No fee structure found for category <strong>{form.category}</strong> and academic year <strong>{form.academicYear}</strong></p>
-                  <p className="text-xs mt-1">Please ensure fee structure is configured in Fee Management</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Contact Information Section */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Student Phone</label>
-              <input
-                type="tel"
-                name="studentPhone"
-                value={form.studentPhone}
-                onChange={handleFormChange}
-                pattern="[0-9]{10}"
-                title="10 digit phone number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter phone number (optional)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Father's Phone *</label>
-              <input
-                type="tel"
-                name="parentPhone"
-                value={form.parentPhone}
-                onChange={handleFormChange}
-                required
-                pattern="[0-9]{10}"
-                title="10 digit phone number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter father's phone number"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              <input
-                type="email"
-                name="email"
-                value={form.email}
-                onChange={handleFormChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter email address (optional)"
-              />
-              <p className="text-xs text-gray-500 mt-1">Credentials will be sent to this email if provided</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mother's Name</label>
-              <input
-                type="text"
-                name="motherName"
-                value={form.motherName}
-                onChange={handleFormChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter mother's full name (optional)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mother's Phone</label>
-              <input
-                type="tel"
-                name="motherPhone"
-                value={form.motherPhone}
-                onChange={handleFormChange}
-                pattern="[0-9]{10}"
-                title="10 digit phone number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter mother's phone number (optional)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Name</label>
-              <input
-                type="text"
-                name="localGuardianName"
-                value={form.localGuardianName}
-                onChange={handleFormChange}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter local guardian name (optional)"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Local Guardian Phone</label>
-              <input
-                type="tel"
-                name="localGuardianPhone"
-                value={form.localGuardianPhone}
-                onChange={handleFormChange}
-                pattern="[0-9]{10}"
-                title="10 digit phone number"
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter local guardian phone (optional)"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Photo Upload Section */}
-        <div className="bg-blue-50 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">Profile Photos</h3>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {/* Student Photo */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-3">Student Photo *</label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {studentPhotoPreview ? (
-                        <div className="relative">
-                          <img src={studentPhotoPreview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setStudentPhoto(null);
-                              setStudentPhotoPreview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
-                          <p className="text-sm text-blue-600">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, 'student')}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('student')}
-                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Guardian Photo 1 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-3">Parents Photo</label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {guardianPhoto1Preview ? (
-                        <div className="relative">
-                          <img src={guardianPhoto1Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setGuardianPhoto1(null);
-                              setGuardianPhoto1Preview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
-                          <p className="text-sm text-blue-600">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, 'guardian1')}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('guardian1')}
-                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Guardian Photo 2 */}
-            <div className="bg-white rounded-lg p-4 border border-blue-200">
-              <label className="block text-sm font-medium text-gray-700 mb-3">Local Guardian Photo</label>
-              <div className="space-y-3">
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-blue-300 border-dashed rounded-lg cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {guardianPhoto2Preview ? (
-                        <div className="relative">
-                          <img src={guardianPhoto2Preview} alt="Preview" className="mx-auto h-20 w-auto object-cover rounded-lg" />
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setGuardianPhoto2(null);
-                              setGuardianPhoto2Preview(null);
-                            }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <XCircleIcon className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <>
-                          <PhotoIcon className="w-8 h-8 mb-2 text-blue-400" />
-                          <p className="text-sm text-blue-600">Click to upload</p>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoChange(e, 'guardian2')}
-                    />
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => startCamera('guardian2')}
-                  className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <CameraIcon className="w-4 h-4" />
-                  <span>Take Photo</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 mt-4 text-center">Maximum file size: 5MB. Supported formats: JPG, PNG, GIF</p>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex justify-end pt-4">
-          <button
-            type="submit"
-            disabled={adding}
-            className={`px-6 py-3 rounded-lg text-white font-medium transition-all duration-200 text-sm ${adding
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:scale-105'
-              }`}
-          >
-            {adding ? (
-              <div className="flex items-center space-x-2">
-                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Adding Student...</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                <span>Add Student</span>
-              </div>
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-
-  const renderStudentList = () => {
-    if (loading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <LoadingSpinner />
-        </div>
-      );
-    }
-
-    if (error && !tableLoading) {
-      return <div className="text-center text-red-600 py-4">{error}</div>;
-    }
-
-    // Keep the functionality for later use but don't display
-    const countsByCourse = courseCounts;
-    const countsByBatch = students.reduce((acc, student) => {
-      acc[student.batch] = (acc[student.batch] || 0) + 1;
-      return acc;
-    }, {});
-
-    return (
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-              {isLiveMode
-                ? `Live Students ( ${totalStudents} )`
-                : filters.hostelStatus === 'Active'
-                  ? `Active Students ( ${totalStudents} )`
-                  : filters.hostelStatus === 'Inactive'
-                    ? `Expired Students ( ${totalStudents} )`
-                    : `All Students ( ${totalStudents} )`}
-            </h2>
-            <div className="flex items-center gap-2 mt-2 sm:mt-0">
-              <span className="text-sm text-gray-600">
-                Showing {students.length} of {totalStudents} {isLiveMode ? 'live' : filters.hostelStatus === 'Inactive' ? 'expired' : filters.hostelStatus === 'Active' ? 'active' : ''} students
-                {Object.entries(filters).some(([key, value]) => value && key !== 'search' && !(isLiveMode && key === 'hostelStatus')) && ' (filtered)'}
-              </span>
-            </div>
-          </div>
 
 
-
-          {/* Filters - Made responsive */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            <div className="sm:col-span-2">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name or roll..."
-                  name="search"
-                  value={filters.search}
-                  onChange={handleFilterChange}
-                  className="w-full pl-9 sm:pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            </div>
-            <div>
-              <select
-                name="course"
-                value={filters.course}
-                onChange={handleFilterChange}
-                disabled={loadingCourses}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
-                {courseOptions.map(courseName => (
-                  <option key={courseName} value={courseName}>
-                    {courseName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="branch"
-                value={filters.branch}
-                onChange={handleFilterChange}
-                disabled={!filters.course || loadingBranches}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
-                {branchOptions.map(branchName => (
-                  <option key={branchName} value={branchName}>
-                    {branchName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="hostel"
-                value={filters.hostel}
-                onChange={handleFilterChange}
-                disabled={loadingHostels}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingHostels ? 'Loading hostels...' : 'All Hostels'}</option>
-                {hostels.map((hostel) => (
-                  <option key={hostel._id} value={hostel._id}>
-                    {hostel.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="category"
-                value={filters.category}
-                onChange={handleFilterChange}
-                disabled={!filters.hostel}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Categories</option>
-                {filterCategories.map((category) => (
-                  <option key={category._id} value={category.name}>
-                    {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="roomNumber"
-                value={filters.roomNumber}
-                onChange={handleFilterChange}
-                disabled={!filters.hostel || loadingFilterRooms}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">
-                  {!filters.hostel
-                    ? 'Select hostel first'
-                    : loadingFilterRooms
-                      ? 'Loading rooms...'
-                      : 'All Rooms'}
-                </option>
-                {filterRooms.map((room) => (
-                  <option key={room._id || room.roomNumber} value={room.roomNumber}>
-                    Room {room.roomNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="hostelStatus"
-                disabled={isLiveMode}
-                value={isLiveMode ? 'Active' : filters.hostelStatus}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <option value="">All Status</option>
-                <option value="Active">Active Students</option>
-                <option value="Inactive">Expired Students</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Active Filters - Made responsive */}
-          <div className="mt-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  setFilters({
-                    search: '',
-                    course: '',
-                    branch: '',
-                    hostel: '',
-                    category: '',
-                    roomNumber: '',
-                    academicYear: isLiveMode ? '' : getDefaultAcademicYear(),
-                    hostelStatus: 'Active'
-                  });
-                  setFilterCategories([]);
-                  setFilterRooms([]);
-                  setCurrentPage(1);
-                }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-              >
-                Clear Filters
-              </button>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(filters).map(([key, value]) => {
-                  if (!shouldShowFilterChip(key, value)) return null;
-                  const label = FILTER_LABELS[key] || key;
-                  const chipValue = key === 'hostel'
-                    ? toDisplayText(hostels.find((h) => h._id === value), value)
-                    : formatFilterChipValue(key, value);
-                  return (
-                    <span
-                      key={key}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full inline-flex items-center gap-1"
-                    >
-                      <span>{label}: {chipValue}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFilters((prev) => ({
-                            ...prev,
-                            [key]:
-                              key === 'hostelStatus'
-                                ? 'Active'
-                                : key === 'academicYear'
-                                  ? getDefaultAcademicYear()
-                                  : ''
-                          }));
-                          if (key === 'hostel') {
-                            setFilterCategories([]);
-                            setFilterRooms([]);
-                          }
-                          setCurrentPage(1);
-                        }}
-                        className="p-0.5 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-200/60"
-                        aria-label={`Remove ${label} filter`}
-                      >
-                        <XMarkIcon className="w-3.5 h-3.5" />
-                      </button>
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Table - Made responsive with min-height so spinner is always visible during loading */}
-        <div className="relative min-h-[350px]">
-          {(tableLoading || loading) && (
-            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex justify-center items-center z-20 rounded-xl">
-              <LoadingSpinner size="lg" />
-            </div>
-          )}
-          {error && !students.length && !tableLoading && !loading && (
-            <div className="text-center text-red-600 py-16 font-medium">{error}</div>
-          )}
-          {!error && !tableLoading && !loading && students.length === 0 && (
-            <div className="text-center text-gray-500 py-16 font-medium">No students found matching your criteria.</div>
-          )}
-          {students.length > 0 && (
-            <>
-              <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <div className="inline-block min-w-full align-middle">
-                  <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hostel ID</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
-                          <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
-                          <th scope="col" className="hidden md:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                          <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {students.map(student => (
-                          <tr key={student._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openStudentDetailsModal(student)}>
-                            <td className="px-3 py-4 whitespace-nowrap">
-                              {student.studentPhoto ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPhotoEditModal(student);
-                                  }}
-                                  className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer"
-                                  title="Click to edit photos"
-                                >
-                                  <img
-                                    src={student.studentPhoto}
-                                    alt={student.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPhotoEditModal(student);
-                                  }}
-                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-xs font-bold hover:from-blue-700 hover:to-blue-900 hover:shadow-md transition-all duration-200 cursor-pointer"
-                                  title="Click to add photos"
-                                >
-                                  {student.name?.charAt(0).toUpperCase()}
-                                </button>
-                              )}
-                            </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{student.name}</td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
-                            <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {getCourseDisplay(student.course)} - Year {student.year}
-                            </td>
-                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex flex-col">
-                                <span>Room {student.roomNumber || '—'}</span>
-                                {student.category && (
-                                  <span className="text-xs text-purple-600">Cat: {getCategoryDisplay(student.category)}</span>
-                                )}
-                                {student.bedNumber && (
-                                  <span className="text-xs text-blue-600">Bed: {student.bedNumber}</span>
-                                )}
-                                {student.lockerNumber && (
-                                  <span className="text-xs text-green-600">Locker: {student.lockerNumber}</span>
-                                )}
-                                {student.isHistoricalView && student.currentAcademicYear && (
-                                  <span className="text-xs text-amber-600">
-                                    Now in {student.currentAcademicYear}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
-                              <div className="flex flex-col gap-1">
-                                {(() => {
-                                  const statusDisplay = getHostelStatusDisplay(student);
-                                  return (
-                                    <>
-                                      <span
-                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
-                                      >
-                                        {statusDisplay.label}
-                                      </span>
-                                      {statusDisplay.nocDateText ? (
-                                        <span className="text-xs text-gray-500">
-                                          NOC Vacating Date: {statusDisplay.nocDateText}
-                                        </span>
-                                      ) : statusDisplay.expiryText ? (
-                                        <span className="text-xs text-gray-500">
-                                          Expired on {statusDisplay.expiryText}
-                                        </span>
-                                      ) : null}
-                                    </>
-                                  );
-                                })()}
-                                {shouldShowGraduationStatus(student.graduationStatus) && (
-                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.graduationStatus === 'Graduated'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : student.graduationStatus === 'Dropped'
-                                      ? 'bg-gray-100 text-gray-800'
-                                      : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                    {student.graduationStatus}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-4 whitespace-nowrap text-sm">
-                              <div className="flex space-x-2">
-                                {canEditStudent ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEditModal(student);
-                                    }}
-                                    className="p-1.5 text-blue-600 hover:text-blue-800 rounded-lg hover:bg-blue-50 transition-colors"
-                                    title="Edit student"
-                                  >
-                                    <PencilSquareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    disabled
-                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
-                                    title="Edit access restricted"
-                                  >
-                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
-                                )}
-                                {canDeleteStudent && canRemoveStudentEnrollment(student) ? (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDelete(student._id, student);
-                                    }}
-                                    disabled={deletingId === student._id}
-                                    className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                                    title={`Remove from ${student.academicYear}`}
-                                  >
-                                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
-                                ) : canDeleteStudent ? (
-                                  <button
-                                    disabled
-                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
-                                    title="Only the student's current academic year enrollment can be removed"
-                                  >
-                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
-                                ) : (
-                                  <button
-                                    disabled
-                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
-                                    title="Delete access restricted"
-                                  >
-                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openShareModal(student);
-                                  }}
-                                  className="p-1.5 text-green-600 hover:text-green-800 rounded-lg hover:bg-green-50 transition-colors"
-                                  title="Share credentials via SMS"
-                                >
-                                  <ShareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pagination - Made responsive */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center space-x-2 mt-6">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1 || tableLoading}
-                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                  >
-                    <ChevronLeftIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                  <span className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages || tableLoading}
-                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
-                  >
-                    <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Student Details Modal
-  const renderStudentDetailsModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col mx-2 sm:mx-0 relative">
-        {selectedStudent && (
-          <>
-            {/* Header */}
-            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-800">Student Details</h3>
-              <button
-                onClick={() => setStudentDetailsModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
-              {/* Top Section: Photo + Basic Info */}
-              <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 mb-6">
-                {/* Photo Section */}
-                <div className="flex-shrink-0 flex justify-center items-center">
-                  {selectedStudent.studentPhoto ? (
-                    <img
-                      src={selectedStudent.studentPhoto}
-                      alt={selectedStudent.name}
-                      className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-gray-200 shadow-lg"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-2xl sm:text-4xl font-bold shadow-lg">
-                      {selectedStudent.name?.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Basic Info Card */}
-                <div className="flex-1 bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Basic Information</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {/* Name */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Name:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.name}</span>
-                    </div>
-                    {/* Roll Number */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Roll Number:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.rollNumber}</span>
-                    </div>
-                    {/* Admission Number */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Admission No:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.admissionNumber || 'N/A'}</span>
-                    </div>
-                    {/* Hostel ID */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelId || 'Not assigned'}</span>
-                    </div>
-                    {/* Hostel Name */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{getHostelName(selectedStudent.hostel?._id || selectedStudent.hostel)}</span>
-                    </div>
-                    {/* Gender */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Gender:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.gender}</span>
-                    </div>
-                    {/* Student Phone */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Student Phone:</span>
-                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.studentPhone || 'N/A'}</span>
-                    </div>
-                    {/* Parent Phone */}
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Parent Phone:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.parentPhone || 'N/A'}</span>
-                    </div>
-                    {/* Email */}
-                    <div className="flex items-center space-x-2 sm:col-span-2">
-                      <span className="text-xs sm:text-sm text-gray-600 w-24">Email:</span>
-                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.email || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Section: Other Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                {/* Fee & Concession Information */}
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <h4 className="text-base sm:text-lg font-semibold text-orange-800 mb-3 flex items-center">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Fee & Concession
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-orange-700">Concession:</span>
-                      <span className="font-medium text-orange-900 text-sm sm:text-base">
-                        â‚¹{(selectedStudent.concession || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-orange-700">Status:</span>
-                      {selectedStudent.concession > 0 ? (
-                        selectedStudent.concessionApproved ? (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Approved
-                          </span>
-                        ) : (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            Pending Approval
-                          </span>
-                        )
-                      ) : (
-                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          No Concession
-                        </span>
-                      )}
-                    </div>
-                    {selectedStudent.totalCalculatedFee > 0 && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-orange-700">Total Fee (After Concession):</span>
-                        <span className="font-medium text-orange-900 text-sm sm:text-base">
-                          â‚¹{selectedStudent.totalCalculatedFee.toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                    {canManageConcessions && (
-                      <button
-                        onClick={() => {
-                          setStudentDetailsModal(false);
-                          openConcessionRequestModal(selectedStudent);
-                        }}
-                        className="w-full mt-2 px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center"
-                      >
-                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        {selectedStudent.concession > 0 ? 'Update Concession' : 'Request Concession'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Academic Information */}
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h4 className="text-base sm:text-lg font-semibold text-blue-800 mb-3 flex items-center">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                    Academic Info
-                  </h4>
-                  <div className="space-y-3">
-                    {[
-                      { label: 'Course', value: getCourseDisplay(selectedStudent.course) },
-                      { label: 'Branch', value: getBranchDisplay(selectedStudent.branch) },
-                      { label: 'Year', value: `Year ${selectedStudent.year ?? '—'}` },
-                      { label: 'Category', value: getCategoryDisplay(selectedStudent.category) },
-                      { label: 'Batch', value: toDisplayText(selectedStudent.batch, '—') },
-                      { label: 'Academic Year', value: toDisplayText(selectedStudent.academicYear, '—') },
-                    ].map((item) => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
-                        <span className="font-medium text-blue-900 text-sm sm:text-base">{toDisplayText(item.value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Hostel Information */}
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h4 className="text-base sm:text-lg font-semibold text-purple-800 mb-3 flex items-center">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    Hostel Information
-                  </h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-purple-700">Room Number:</span>
-                      <span className="font-medium text-purple-900 text-sm sm:text-base">Room {selectedStudent.roomNumber}</span>
-                    </div>
-                    {selectedStudent.bedNumber && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-purple-700">Bed Number:</span>
-                        <span className="font-medium text-blue-600 text-sm sm:text-base">{selectedStudent.bedNumber}</span>
-                      </div>
-                    )}
-                    {selectedStudent.lockerNumber && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm text-purple-700">Locker Number:</span>
-                        <span className="font-medium text-green-600 text-sm sm:text-base">{selectedStudent.lockerNumber}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-purple-700">Meal Type:</span>
-                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.mealType === 'veg' ? 'text-green-600' : 'text-orange-600'}`}>
-                        {selectedStudent.mealType === 'veg' ? 'Veg' : 'Non-Veg'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-purple-700">Parent Permission:</span>
-                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.parentPermissionForOuting ? 'text-green-600' : 'text-red-600'}`}>
-                        {selectedStudent.parentPermissionForOuting ? 'Enabled' : 'Disabled'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
-                      {(() => {
-                        const statusDisplay = getHostelStatusDisplay(selectedStudent);
-                        return (
-                          <div className="flex flex-col items-end gap-0.5">
-                            <span
-                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
-                            >
-                              {statusDisplay.label}
-                            </span>
-                            {statusDisplay.nocDateText ? (
-                              <span className="text-xs text-gray-500">
-                                NOC Vacating Date: {statusDisplay.nocDateText}
-                              </span>
-                            ) : statusDisplay.expiryText ? (
-                              <span className="text-xs text-gray-500">
-                                Expired on {statusDisplay.expiryText}
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    {shouldShowGraduationStatus(selectedStudent.graduationStatus) && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
-                        ? 'bg-blue-100 text-blue-800'
-                        : selectedStudent.graduationStatus === 'Dropped'
-                          ? 'bg-gray-100 text-gray-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                        {selectedStudent.graduationStatus}
-                      </span>
-                    </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-              <button
-                onClick={() => handleDownloadAdmitCard(selectedStudent)}
-                disabled={downloadingAdmitCard || !selectedStudent.studentPhoto || (selectedStudent.concession > 0 && !selectedStudent.concessionApproved)}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!selectedStudent.studentPhoto ? 'Student photo required' : selectedStudent.concession > 0 && !selectedStudent.concessionApproved ? 'Concession pending approval' : 'Download Admit Card'}
-              >
-                <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-                {downloadingAdmitCard ? 'Downloading...' : 'Admit Card'}
-              </button>
-              <button
-                onClick={() => {
-                  setStudentDetailsModal(false);
-                  openEditModal(selectedStudent);
-                }}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit Student
-              </button>
-              <button
-                onClick={() => {
-                  setStudentDetailsModal(false);
-                  openPhotoEditModal(selectedStudent);
-                }}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Edit Photos
-              </button>
-              <button
-                onClick={() => {
-                  setStudentDetailsModal(false);
-                  openPasswordResetModal(selectedStudent);
-                }}
-                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center text-sm sm:text-base"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                </svg>
-                Reset Password
-              </button>
-              {canDeactivateStudent(selectedStudent) && (
-                <button
-                  onClick={() => {
-                    setStatusUpdateReason('');
-                    setShowStatusUpdateModal(true);
-                  }}
-                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm sm:text-base"
-                >
-                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                  Status Update
-                </button>
-              )}
-            </div>
-          </>
-        )}
-
-        {showStatusUpdateModal && selectedStudent && (
-          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-xl z-10 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 sm:p-6">
-              <h4 className="text-lg font-bold text-gray-900 mb-2">Mark Student Inactive</h4>
-              <p className="text-sm text-gray-600 mb-4">
-                This will set <span className="font-medium">{selectedStudent.name}</span> ({selectedStudent.rollNumber}) as{' '}
-                <span className="font-medium text-red-600">Inactive</span> and mark their application as{' '}
-                <span className="font-medium text-red-600">Expired</span>. Bed and locker will be freed.
-              </p>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Reason for status update <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                value={statusUpdateReason}
-                onChange={(e) => setStatusUpdateReason(e.target.value)}
-                rows={4}
-                placeholder="Enter reason for deactivating this student..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
-                disabled={statusUpdateLoading}
-              />
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 mt-5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowStatusUpdateModal(false);
-                    setStatusUpdateReason('');
-                  }}
-                  disabled={statusUpdateLoading}
-                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeactivateStudent}
-                  disabled={statusUpdateLoading || !statusUpdateReason.trim()}
-                  className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {statusUpdateLoading ? 'Updating...' : 'Done'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Password Modal
-  const renderPasswordModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Student Added Successfully</h3>
-
-        {/* Email Status
-        {generatedPassword && (
-          <div className={`mb-4 p-3 rounded-lg ${
-            generatedPassword.emailSent 
-              ? 'bg-green-50 border border-green-200' 
-              : 'bg-yellow-50 border border-yellow-200'
-          }`}>
-            <div className="flex items-center gap-2 mb-2">
-              {generatedPassword.emailSent ? (
-                <>
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-green-800 font-medium">Email Sent Successfully</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <span className="text-yellow-800 font-medium">Email Not Sent</span>
-                </>
-              )}
-            </div>
-            {generatedPassword.emailError && (
-              <p className="text-sm text-yellow-700">Error: {generatedPassword.emailError}</p>
-            )}
-            <p className="text-sm text-gray-600">
-              {generatedPassword.emailSent 
-                ? 'The student has been notified via email with their login credentials.'
-                : 'The student was added successfully, but the email notification failed. You can manually share the password below.'
-              }
-            </p>
-          </div>
-        )} */}
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-yellow-800 font-medium">Generated Password:</p>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(generatedPassword);
-                toast.success('Password copied to clipboard!');
-              }}
-              className="flex items-center gap-1 px-3 py-1 text-sm bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-md transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-              </svg>
-              Copy
-            </button>
-          </div>
-          <p className="text-2xl font-mono bg-yellow-100 p-2 rounded text-center select-all">{generatedPassword}</p>
-          <p className="text-sm text-yellow-700 mt-2">
-            Please save this password securely. It will be needed for the student's first login.
-          </p>
-        </div>
-        <div className="flex justify-between">
-          <button
-            onClick={() => {
-              setShowPasswordModal(false);
-              navigate(`/admin/dashboard/students/admit-cards?password=${encodeURIComponent(generatedPassword)}`);
-              setGeneratedPassword(null);
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200 flex items-center gap-2"
-          >
-            <DocumentDuplicateIcon className="w-4 h-4" />
-            Generate Admit Card
-          </button>
-          <button
-            onClick={() => {
-              setShowPasswordModal(false);
-              setGeneratedPassword(null);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   // Edit Modal
   const renderEditModal = () => (
@@ -5084,672 +2695,7 @@ const Students = () => {
   );
 
 
-  // Update the bulk upload section
-  const renderBulkUploadSection = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-lg bg-blue-50">
-            <ArrowUpTrayIcon className="w-5 h-5 text-blue-600" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Bulk Upload Students</h2>
-            <p className="text-sm text-gray-500">Upload multiple students using an Excel file</p>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - File Upload */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-center w-full">
-              <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                  <ArrowUpTrayIcon className="w-8 h-8 mb-4 text-gray-500" />
-                  <p className="mb-2 text-sm text-gray-500">
-                    <span className="font-semibold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-500">Excel file (.xlsx, .xls)</p>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                />
-              </label>
-            </div>
-
-            {bulkFile && (
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <DocumentArrowDownIcon className="w-5 h-5 text-gray-500" />
-                  <span className="text-sm text-gray-700">{bulkFile.name}</span>
-                </div>
-                <button
-                  onClick={() => setBulkFile(null)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <XMarkIcon className="w-5 h-5" />
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={handleBulkUpload}
-              disabled={!bulkFile || bulkProcessing}
-              className={`w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 ${!bulkFile || bulkProcessing
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-            >
-              {bulkProcessing ? (
-                <div className="flex items-center justify-center gap-2">
-                  <LoadingSpinner size="sm" className="border-white" />
-                  <span>Uploading...</span>
-                </div>
-              ) : (
-                'Upload Students'
-              )}
-            </button>
-
-            {/* Update Student Years Button */}
-            <button
-              onClick={handleUpdateStudentYears}
-              className="w-full py-2 px-4 rounded-lg text-white font-medium transition-all duration-200 bg-orange-600 hover:bg-orange-700"
-            >
-              Update Student Years
-            </button>
-          </div>
-
-          {/* Right Column - Instructions */}
-          <div className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-medium text-blue-800">Required Excel Columns:</h3>
-                <a
-                  href="/Updated_Student_Data.xlsx"
-                  download
-                  className="flex items-center px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <DocumentArrowDownIcon className="w-4 h-4 mr-1.5" />
-                  Download Sample
-                </a>
-              </div>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>â€¢ Name (Student's full name)</li>
-                <li>â€¢ RollNumber (Unique roll number)</li>
-                <li>â€¢ Gender (Male/Female)</li>
-                <li>â€¢ Course (B.Tech/Diploma/Pharmacy/Degree)</li>
-                <li>â€¢ Branch (Based on course)</li>
-                <li>â€¢ Year (1-4 for B.Tech/Pharmacy, 1-3 for others)</li>
-                <li>â€¢ Category (A+/A/B+/B for Male, A+/A/B/C for Female)</li>
-                <li>â€¢ RoomNumber (Based on gender and category)</li>
-                <li>â€¢ StudentPhone (10-digit mobile number)</li>
-                <li>â€¢ ParentPhone (10-digit mobile number)</li>
-                <li>â€¢ Email (Optional - Valid email address for credential delivery)</li>
-                <li>â€¢ Batch (Format based on course duration):
-                  <ul className="ml-4 mt-1 space-y-1">
-                    <li>- B.Tech/Pharmacy: YYYY-YYYY (4 years, e.g., 2020-2024)</li>
-                    <li>- Diploma/Degree: YYYY-YYYY (3 years, e.g., 2020-2023)</li>
-                  </ul>
-                </li>
-                <li>â€¢ AcademicYear (e.g., 2023-2024)</li>
-                <li>â€¢ <strong>Hostel ID will be automatically generated</strong> based on gender (BH for Male, GH for Female)</li>
-                <li>â€¢ <strong>Password will be automatically generated</strong> and sent to email if provided</li>
-              </ul>
-            </div>
-
-            <div className="bg-yellow-50 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-yellow-800 mb-2">Batch Validation Rules:</h3>
-              <ul className="text-sm text-yellow-700 space-y-1">
-                <li>â€¢ B.Tech/Pharmacy batches must be 4 years (e.g., 2020-2024)</li>
-                <li>â€¢ Diploma/Degree batches must be 3 years (e.g., 2020-2023)</li>
-                <li>â€¢ Batch end year must match course duration</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Preview Section */}
-      {showBulkPreview && bulkPreview && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Preview - Editable</h3>
-
-          {/* Debug Information */}
-          {bulkPreview.debug && (
-            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-              <h4 className="text-md font-medium text-blue-800 mb-2">Debug Information</h4>
-              <p className="text-sm text-blue-700">Total Rows: {bulkPreview.debug.totalRows}</p>
-              <p className="text-sm text-blue-700">Available Columns: {bulkPreview.debug.firstRowColumns.join(', ')}</p>
-              <details className="mt-2">
-                <summary className="text-sm text-blue-700 cursor-pointer">First Row Data</summary>
-                <pre className="text-xs text-blue-600 mt-1 bg-blue-100 p-2 rounded overflow-auto">
-                  {JSON.stringify(bulkPreview.debug.firstRowData, null, 2)}
-                </pre>
-              </details>
-            </div>
-          )}
-
-          {/* Validation Summary */}
-          {(() => {
-            const validCount = editablePreviewData.filter((_, index) =>
-              !previewErrors[index] || Object.keys(previewErrors[index]).length === 0
-            ).length;
-            const invalidCount = editablePreviewData.length - validCount;
-
-            return (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-md font-medium text-gray-800">Validation Summary</h4>
-                  <div className="text-sm text-gray-600">
-                    Click on any cell to edit â€¢ Changes are saved automatically
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <div className="text-sm font-medium text-green-800">Valid Students</div>
-                    <div className="text-2xl font-bold text-green-600">{validCount}</div>
-                  </div>
-                  <div className="bg-red-50 p-3 rounded-lg">
-                    <div className="text-sm font-medium text-red-800">Invalid Rows</div>
-                    <div className="text-2xl font-bold text-red-600">{invalidCount}</div>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <div className="text-sm font-medium text-blue-800">Total Rows</div>
-                    <div className="text-2xl font-bold text-blue-600">{editablePreviewData.length}</div>
-                  </div>
-                </div>
-                {invalidCount > 0 && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center">
-                      <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mr-2" />
-                      <div className="text-sm text-yellow-800">
-                        <strong>Note:</strong> {invalidCount} row(s) have validation errors and will be skipped during upload.
-                        Only valid students will be added to the system.
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* Editable Students Table */}
-          <div className="mb-6">
-            {editablePreviewData.length > 0 ? (
-              <div className="overflow-x-auto border rounded-lg">
-                <table className="min-w-[1500px] divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Row</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Name</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Hostel ID</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Roll Number</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Gender</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Course</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Branch</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Year</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Category</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Room</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Student Phone</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Parent Phone</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Email</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Batch</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Academic Year</th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {editablePreviewData.map((student, index) => {
-                      const errors = previewErrors[index] || {};
-                      return (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-2 py-2 whitespace-nowrap text-sm text-gray-700 font-medium align-top">
-                            {index + 2}
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.Name || ''}
-                              onChange={(e) => handleEditField(index, 'Name', e.target.value)}
-                              title={errors.Name}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Name ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.HostelId || ''}
-                              disabled
-                              className="w-full px-2 py-1 text-sm border border-gray-300 rounded bg-gray-100 text-gray-500"
-                              placeholder="Auto-generated"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.RollNumber || ''}
-                              onChange={(e) => handleEditField(index, 'RollNumber', e.target.value)}
-                              title={errors.RollNumber}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RollNumber ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
-                              value={student.Gender || ''}
-                              onChange={(e) => handleEditField(index, 'Gender', e.target.value)}
-                              title={errors.Gender}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Gender ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              <option value="Male">Male</option>
-                              <option value="Female">Female</option>
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
-                              value={normalizeCourseName(student.Course) || ''}
-                              onChange={(e) => handleEditField(index, 'Course', e.target.value)}
-                              title={errors.Course}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Course ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              {courses.map(course => (
-                                <option key={course._id} value={course.name}>
-                                  {course.name} ({course.code})
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.Branch || ''}
-                              onChange={(e) => handleEditField(index, 'Branch', e.target.value)}
-                              title={errors.Branch}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Branch ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="Enter branch name"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
-                              value={student.Year || ''}
-                              onChange={(e) => handleEditField(index, 'Year', e.target.value)}
-                              title={errors.Year}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Year ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              {student.Course && (() => {
-                                const normalizedCourse = normalizeCourseName(student.Course);
-                                const course = courses.find(c => c.name === normalizedCourse);
-                                const duration = course ? course.duration : 4;
-                                return Array.from({ length: duration }, (_, i) => i + 1).map(year => (
-                                  <option key={year} value={year}>Year {year}</option>
-                                ));
-                              })()}
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <select
-                              value={student.Category || ''}
-                              onChange={(e) => handleEditField(index, 'Category', e.target.value)}
-                              title={errors.Category}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Category ? 'border-red-500' : 'border-gray-300'}`}
-                            >
-                              <option value="">Select</option>
-                              {student.Gender && getCategoryOptions(student.Gender).map(category => (
-                                <option key={category} value={category}>{category}</option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.RoomNumber || ''}
-                              onChange={(e) => handleEditField(index, 'RoomNumber', e.target.value)}
-                              title={errors.RoomNumber}
-                              placeholder="Enter room number"
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.RoomNumber ? 'border-red-500' : 'border-gray-300'}`}
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="tel"
-                              value={student.StudentPhone || ''}
-                              onChange={(e) => handleEditField(index, 'StudentPhone', e.target.value)}
-                              title={errors.StudentPhone}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.StudentPhone ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="10 digits"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="tel"
-                              value={student.ParentPhone || ''}
-                              onChange={(e) => handleEditField(index, 'ParentPhone', e.target.value)}
-                              title={errors.ParentPhone}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.ParentPhone ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="10 digits"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.Email || ''}
-                              onChange={(e) => handleEditField(index, 'Email', e.target.value)}
-                              title={errors.Email}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Email ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="example@example.com"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.Batch || ''}
-                              onChange={(e) => handleEditField(index, 'Batch', e.target.value)}
-                              title={errors.Batch}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.Batch ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="YYYY-YYYY"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <input
-                              type="text"
-                              value={student.AcademicYear || ''}
-                              onChange={(e) => handleEditField(index, 'AcademicYear', e.target.value)}
-                              title={errors.AcademicYear}
-                              className={`w-full px-2 py-1 text-sm border rounded focus:ring-1 focus:ring-blue-500 ${errors.AcademicYear ? 'border-red-500' : 'border-gray-300'}`}
-                              placeholder="YYYY-YYYY"
-                            />
-                          </td>
-                          <td className="px-2 py-2 whitespace-nowrap text-sm align-top">
-                            <button
-                              onClick={() => handleRemoveStudent(index)}
-                              className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                              title="Remove student"
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : <p className="text-sm text-gray-500">No valid students found in the file.</p>}
-          </div>
-
-          {/* Invalid Students */}
-          {bulkPreview.invalidStudents && bulkPreview.invalidStudents.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-red-700 mb-2">Invalid Students ({bulkPreview.invalidStudents.length})</h4>
-              <div className="max-h-80 overflow-y-auto border rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-red-50 sticky top-0">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Row</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Name</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Roll Number</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-red-800 uppercase">Errors</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {bulkPreview.invalidStudents.map((item, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.row}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.data.Name}</td>
-                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700">{item.data.RollNumber}</td>
-                        <td className="px-4 py-2 text-sm text-red-600">
-                          <ul className="list-disc list-inside">
-                            {Object.entries(item.errors).map(([field, error], i) => (
-                              <li key={i}>
-                                <span className="font-medium">{field}:</span> {error}
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 mt-4">
-            <button
-              onClick={handleCancelPreview}
-              className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirmBulkUpload}
-              disabled={bulkProcessing || editablePreviewData.length === 0}
-              className={`px-4 py-2 text-white rounded-lg transition-colors ${(bulkProcessing || editablePreviewData.length === 0)
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700'
-                }`}
-            >
-              {bulkProcessing ? 'Uploading...' : `Confirm and Add ${editablePreviewData.filter((_, index) => !previewErrors[index] || Object.keys(previewErrors[index]).length === 0).length} Valid Students`}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Results Section */}
-      {bulkUploadResults && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Upload Results</h3>
-            <div className="flex gap-2">
-              <button
-                onClick={handlePrint}
-                className="flex items-center px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                <PrinterIcon className="w-4 h-4 mr-1.5" />
-                Print
-              </button>
-              <button
-                onClick={handleDownloadPDF}
-                className="flex items-center px-3 py-1.5 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <DocumentArrowDownIcon className="w-4 h-4 mr-1.5" />
-                Download PDF
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="bg-green-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-green-800 mb-2">Successfully Added</h4>
-              <p className="text-2xl font-bold text-green-600">{bulkUploadResults.successCount}</p>
-            </div>
-            <div className="bg-red-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-red-800 mb-2">Failed</h4>
-              <p className="text-2xl font-bold text-red-600">{bulkUploadResults.failureCount}</p>
-            </div>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">Emails Sent</h4>
-              <p className="text-2xl font-bold text-blue-600">{bulkUploadResults.emailResults?.sent || 0}</p>
-              {bulkUploadResults.emailResults?.failed > 0 && (
-                <p className="text-sm text-blue-600">({bulkUploadResults.emailResults.failed} failed)</p>
-              )}
-            </div>
-          </div>
-
-          {/* Email Results Summary */}
-          {bulkUploadResults.emailResults && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-800 mb-2">Email Notification Summary</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Successfully sent: <span className="font-medium text-green-600">{bulkUploadResults.emailResults.sent}</span></p>
-                  <p className="text-sm text-gray-600">Failed to send: <span className="font-medium text-red-600">{bulkUploadResults.emailResults.failed}</span></p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Total students: <span className="font-medium">{bulkUploadResults.successCount}</span></p>
-                  <p className="text-sm text-gray-600">Email success rate: <span className="font-medium">{bulkUploadResults.successCount > 0 ? Math.round((bulkUploadResults.emailResults.sent / bulkUploadResults.successCount) * 100) : 0}%</span></p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Email Errors */}
-          {bulkUploadResults.emailResults?.errors && bulkUploadResults.emailResults.errors.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-red-700 mb-2">Email Errors ({bulkUploadResults.emailResults.errors.length})</h4>
-              <div className="max-h-40 overflow-y-auto">
-                {bulkUploadResults.emailResults.errors.map((error, index) => (
-                  <div key={index} className="bg-red-50 p-3 rounded-lg mb-2">
-                    <p className="text-sm text-red-700">
-                      <span className="font-medium">{error.student} ({error.rollNumber}):</span> {error.error}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {bulkUploadResults.errors && bulkUploadResults.errors.length > 0 && (
-            <div className="mt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Upload Errors:</h4>
-              <div className="max-h-60 overflow-y-auto">
-                {bulkUploadResults.errors.map((error, index) => (
-                  <div key={index} className="bg-red-50 p-3 rounded-lg mb-2">
-                    <p className="text-sm text-red-700">
-                      <span className="font-medium">Row {error.row}:</span> {error.error}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  // Update the renderTempStudentsSummaryTable function
-  const renderTempStudentsSummaryTable = () => (
-    <div className="mt-8 bg-white rounded-xl shadow-md p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-800">Students Pending First Password Reset</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            {tempStudentsSummary.length > 0
-              ? `${tempStudentsSummary.length} student(s) yet to reset their initial password.`
-              : "All bulk-uploaded students have reset their passwords or no students are pending."}
-          </p>
-        </div>
-        {tempStudentsSummary.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3 sm:mt-0">
-            <button
-              onClick={handleClearTempStudents}
-              className="flex items-center px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-sm"
-            >
-              <TrashIcon className="w-5 h-5 mr-2" />
-              Clear Temp Students
-            </button>
-            <button
-              onClick={handlePrintPending}
-              className="flex items-center px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <PrinterIcon className="w-5 h-5 mr-2" />
-              Print List
-            </button>
-            <button
-              onClick={handleDownloadPendingPDF}
-              className="flex items-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-            >
-              <DocumentArrowDownIcon className="w-5 h-5 mr-2" />
-              Download PDF
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Gender Filter */}
-      {tempStudentsSummary.length > 0 && (
-        <div className="mb-4 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Filter by Gender:</label>
-            <select
-              value={tempStudentsGenderFilter}
-              onChange={(e) => setTempStudentsGenderFilter(e.target.value)}
-              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">All Students</option>
-              <option value="Male">Male Students</option>
-              <option value="Female">Female Students</option>
-            </select>
-          </div>
-          <div className="text-sm text-gray-600">
-            Showing {tempStudentsSummary.filter(student =>
-              tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter
-            ).length} of {tempStudentsSummary.length} students
-          </div>
-        </div>
-      )}
-
-      {loadingTempSummary ? (
-        <div className="flex justify-center items-center h-40"><LoadingSpinner /></div>
-      ) : tempStudentsSummary.length === 0 ? (
-        <p className="text-center text-gray-500 py-4">No students are currently pending password reset.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hostel ID</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Generated Password</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Added On</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tempStudentsSummary
-                .filter(student => tempStudentsGenderFilter === 'all' || student.gender === tempStudentsGenderFilter)
-                .map(student => (
-                  <tr key={student._id}>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.name}</td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelId || 'N/A'}</td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                      <div className="flex items-center justify-between">
-                        <code className="px-2 py-1 bg-gray-100 rounded text-gray-800">{student.generatedPassword}</code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(student.generatedPassword);
-                            toast.success('Password copied!');
-                          }}
-                          className="ml-2 p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Copy password"
-                        >
-                          <DocumentDuplicateIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.studentPhone}</td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(student.createdAt).toLocaleDateString()}</td>
-                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                        Pending Reset
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
 
   // Photo Edit Modal
   const renderPhotoEditModal = () => (
@@ -6228,44 +3174,6 @@ const Students = () => {
     }
   };
 
-  // Share credentials functions
-  const openShareModal = (student) => {
-    setShareStudent(student);
-    setCustomMessage('');
-    setShareModal(true);
-  };
-
-  const handleShareCredentials = async (e) => {
-    e.preventDefault();
-
-    if (!shareStudent?.studentPhone) {
-      toast.error('Student mobile number not found');
-      return;
-    }
-
-    setShareLoading(true);
-    try {
-      const response = await api.post('/api/admin/students/share-credentials', {
-        studentId: shareStudent._id,
-        studentPhone: shareStudent.studentPhone,
-        customMessage: customMessage.trim() || null
-      });
-
-      if (response.data.success) {
-        toast.success('Credentials sent successfully via SMS!');
-        setShareModal(false);
-        setShareStudent(null);
-        setCustomMessage('');
-      } else {
-        toast.error(response.data.message || 'Failed to send credentials');
-      }
-    } catch (err) {
-      console.error('Error sharing credentials:', err);
-      toast.error(err.response?.data?.message || 'Failed to send credentials');
-    } finally {
-      setShareLoading(false);
-    }
-  };
 
   const handlePasswordReset = async (e) => {
     e.preventDefault();
@@ -6304,7 +3212,6 @@ const Students = () => {
         setPasswordResetStudent(null);
         setNewPassword('');
         setConfirmPassword('');
-        fetchTempStudentsSummary(); // Refresh temp students list
       } else {
         throw new Error(res.data.message || 'Failed to reset password');
       }
@@ -6408,103 +3315,6 @@ const Students = () => {
     )
   );
 
-  // Share Credentials Modal
-  const renderShareModal = () => (
-    shareModal && (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-gray-800">Share Credentials</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {shareStudent?.name} ({shareStudent?.rollNumber})
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setShareModal(false);
-                setShareStudent(null);
-                setCustomMessage('');
-              }}
-              className="text-gray-500 hover:text-gray-700 p-1"
-            >
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
-
-          <form onSubmit={handleShareCredentials} className="space-y-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">Student Details:</h4>
-              <div className="text-sm text-blue-700 space-y-1">
-                <div><strong>Name:</strong> {shareStudent?.name}</div>
-                <div><strong>Roll Number:</strong> {shareStudent?.rollNumber}</div>
-                <div><strong>Hostel ID:</strong> {shareStudent?.hostelId || 'N/A'}</div>
-                <div><strong>Mobile:</strong> {shareStudent?.studentPhone || 'N/A'}</div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Custom Message (Optional)
-              </label>
-              <textarea
-                value={customMessage}
-                onChange={(e) => setCustomMessage(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Add a custom message to include with the credentials..."
-              />
-            </div>
-
-            <div className="bg-green-50 p-3 rounded-lg">
-              <h4 className="text-sm font-medium text-green-800 mb-2">SMS Template:</h4>
-              <p className="text-xs text-green-700">
-                "Welcome to PYDAH HOSTEL. Your Account is created with UserID: {shareStudent?.rollNumber || shareStudent?.hostelId} Password: [Current Password] login with link: hms.pydahsoft.in -Pydah"
-              </p>
-            </div>
-
-            <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mt-0.5" />
-                </div>
-                <div className="ml-2">
-                  <h4 className="text-sm font-medium text-yellow-800 mb-1">Important Note:</h4>
-                  <p className="text-xs text-yellow-700">
-                    This feature can only send the original password for <strong>first-time login students</strong> who haven't changed their password yet. For students who have already logged in and changed their password, the system will send a default password and they will need to reset their password.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  setShareModal(false);
-                  setShareStudent(null);
-                  setCustomMessage('');
-                }}
-                className="flex-1 px-4 py-2 text-sm text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={shareLoading || !shareStudent?.studentPhone}
-                className={`flex-1 px-4 py-2 text-sm rounded-lg text-white font-medium transition-colors ${shareLoading || !shareStudent?.studentPhone
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-green-600 hover:bg-green-700'
-                  }`}
-              >
-                {shareLoading ? 'Sending...' : 'Send Credentials'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    )
-  );
 
   // Concession Request Modal Component
   const renderConcessionRequestModal = () => (
@@ -6771,6 +3581,804 @@ const Students = () => {
     )
   );
 
+  const renderStudentList = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    if (error && !tableLoading) {
+      return <div className="text-center text-red-600 py-4">{error}</div>;
+    }
+
+    return (
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+              {isLiveMode
+                ? `Live Students ( ${totalStudents} )`
+                : filters.hostelStatus === 'Active'
+                  ? `Active Students ( ${totalStudents} )`
+                  : filters.hostelStatus === 'Inactive'
+                    ? `Expired Students ( ${totalStudents} )`
+                    : `All Students ( ${totalStudents} )`}
+            </h2>
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+              <span className="text-sm text-gray-600">
+                Showing {students.length} of {totalStudents} {isLiveMode ? 'live' : filters.hostelStatus === 'Inactive' ? 'expired' : filters.hostelStatus === 'Active' ? 'active' : ''} students
+                {Object.entries(filters).some(([key, value]) => value && key !== 'search' && !(isLiveMode && key === 'hostelStatus')) && ' (filtered)'}
+              </span>
+            </div>
+          </div>
+
+          {/* Filters - Made responsive */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="sm:col-span-2">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by name or roll..."
+                  name="search"
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  className="w-full pl-9 sm:pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div>
+              <select
+                name="course"
+                value={filters.course}
+                onChange={handleFilterChange}
+                disabled={loadingCourses}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
+                {courseOptions.map(courseName => (
+                  <option key={courseName} value={courseName}>
+                    {courseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="branch"
+                value={filters.branch}
+                onChange={handleFilterChange}
+                disabled={!filters.course || loadingBranches}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
+                {branchOptions.map(branchName => (
+                  <option key={branchName} value={branchName}>
+                    {branchName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="hostel"
+                value={filters.hostel}
+                onChange={handleFilterChange}
+                disabled={loadingHostels}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingHostels ? 'Loading hostels...' : 'All Hostels'}</option>
+                {hostels.map((hostel) => (
+                  <option key={hostel._id} value={hostel._id}>
+                    {hostel.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                disabled={!filters.hostel}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Categories</option>
+                {filterCategories.map((category) => (
+                  <option key={category._id} value={category.name}>
+                    {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="roomNumber"
+                value={filters.roomNumber}
+                onChange={handleFilterChange}
+                disabled={!filters.hostel || loadingFilterRooms}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">
+                  {!filters.hostel
+                    ? 'Select hostel first'
+                    : loadingFilterRooms
+                      ? 'Loading rooms...'
+                      : 'All Rooms'}
+                </option>
+                {filterRooms.map((room) => (
+                  <option key={room._id || room.roomNumber} value={room.roomNumber}>
+                    Room {room.roomNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="hostelStatus"
+                disabled={isLiveMode}
+                value={isLiveMode ? 'Active' : filters.hostelStatus}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+              >
+                <option value="">All Status</option>
+                <option value="Active">Active Students</option>
+                <option value="Inactive">Expired Students</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filters - Made responsive */}
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setFilters({
+                    search: '',
+                    course: '',
+                    branch: '',
+                    hostel: '',
+                    category: '',
+                    roomNumber: '',
+                    academicYear: isLiveMode ? '' : getDefaultAcademicYear(),
+                    hostelStatus: 'Active'
+                  });
+                  setFilterCategories([]);
+                  setFilterRooms([]);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Clear Filters
+              </button>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(filters).map(([key, value]) => {
+                  if (!shouldShowFilterChip(key, value)) return null;
+                  const label = FILTER_LABELS[key] || key;
+                  const chipValue = key === 'hostel'
+                    ? toDisplayText(hostels.find((h) => h._id === value), value)
+                    : formatFilterChipValue(key, value);
+                  return (
+                    <span
+                      key={key}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full inline-flex items-center gap-1"
+                    >
+                      <span>{label}: {chipValue}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFilters((prev) => ({
+                            ...prev,
+                            [key]:
+                              key === 'hostelStatus'
+                                ? 'Active'
+                                : key === 'academicYear'
+                                  ? getDefaultAcademicYear()
+                                  : ''
+                          }));
+                          if (key === 'hostel') {
+                            setFilterCategories([]);
+                            setFilterRooms([]);
+                          }
+                          setCurrentPage(1);
+                        }}
+                        className="p-0.5 rounded-full text-blue-600 hover:text-blue-800 hover:bg-blue-200/60"
+                        aria-label={`Remove ${label} filter`}
+                      >
+                        <XMarkIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Table - Made responsive with min-height so spinner is always visible during loading */}
+        <div className="relative min-h-[350px]">
+          {(tableLoading || loading) && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex justify-center items-center z-20 rounded-xl">
+              <LoadingSpinner size="lg" />
+            </div>
+          )}
+          {error && !students.length && !tableLoading && !loading && (
+            <div className="text-center text-red-600 py-16 font-medium">{error}</div>
+          )}
+          {!error && !tableLoading && !loading && students.length === 0 && (
+            <div className="text-center text-gray-500 py-16 font-medium">No students found matching your criteria.</div>
+          )}
+          {students.length > 0 && (
+            <>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Photo</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hostel ID</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
+                          <th scope="col" className="hidden sm:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Course</th>
+                          <th scope="col" className="hidden md:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
+                          <th scope="col" className="hidden lg:table-cell px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                          <th scope="col" className="px-3 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {students.map(student => (
+                          <tr key={student._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openStudentDetailsModal(student)}>
+                            <td className="px-3 py-4 whitespace-nowrap">
+                              {student.studentPhoto ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPhotoEditModal(student);
+                                  }}
+                                  className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                  title="Click to edit photos"
+                                >
+                                  <img
+                                    src={student.studentPhoto}
+                                    alt={student.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPhotoEditModal(student);
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-xs font-bold hover:from-blue-700 hover:to-blue-900 hover:shadow-md transition-all duration-200 cursor-pointer"
+                                  title="Click to add photos"
+                                >
+                                  {student.name?.charAt(0).toUpperCase()}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{student.name}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500 font-medium">{student.hostelSequenceId || student.hostelId || 'N/A'}</td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber}</td>
+                            <td className="hidden sm:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {getCourseDisplay(student.course)} - Year {student.year}
+                            </td>
+                            <td className="hidden md:table-cell px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div className="flex flex-col">
+                                <span>Room {student.roomNumber || '—'}</span>
+                                {student.category && (
+                                  <span className="text-xs text-purple-600">Cat: {getCategoryDisplay(student.category)}</span>
+                                )}
+                                {student.bedNumber && (
+                                  <span className="text-xs text-blue-600">Bed: {student.bedNumber}</span>
+                                )}
+                                {student.lockerNumber && (
+                                  <span className="text-xs text-green-600">Locker: {student.lockerNumber}</span>
+                                )}
+                                {student.isHistoricalView && student.currentAcademicYear && (
+                                  <span className="text-xs text-amber-600">
+                                    Now in {student.currentAcademicYear}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="hidden lg:table-cell px-3 py-4 whitespace-nowrap text-sm">
+                              <div className="flex flex-col gap-1">
+                                {(() => {
+                                  const statusDisplay = getHostelStatusDisplay(student);
+                                  return (
+                                    <>
+                                      <span
+                                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
+                                      >
+                                        {statusDisplay.label}
+                                      </span>
+                                      {statusDisplay.nocDateText ? (
+                                        <span className="text-xs text-gray-500">
+                                          NOC Vacating Date: {statusDisplay.nocDateText}
+                                        </span>
+                                      ) : statusDisplay.expiryText ? (
+                                        <span className="text-xs text-gray-500">
+                                          Expired on {statusDisplay.expiryText}
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  );
+                                })()}
+                                {shouldShowGraduationStatus(student.graduationStatus) && (
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${student.graduationStatus === 'Graduated'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : student.graduationStatus === 'Dropped'
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                    {student.graduationStatus}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-4 whitespace-nowrap text-sm">
+                              <div className="flex space-x-2">
+                                {canEditStudent ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEditModal(student);
+                                    }}
+                                    className="p-1.5 text-blue-600 hover:text-blue-800 rounded-lg hover:bg-blue-50 transition-colors"
+                                    title="Edit student"
+                                  >
+                                    <PencilSquareIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Edit access restricted"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                )}
+                                {canDeleteStudent && canRemoveStudentEnrollment(student) ? (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDelete(student._id, student);
+                                    }}
+                                    disabled={deletingId === student._id}
+                                    className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
+                                    title={`Remove from ${student.academicYear}`}
+                                  >
+                                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : canDeleteStudent ? (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Only the student's current academic year enrollment can be removed"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    disabled
+                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
+                                    title="Delete access restricted"
+                                  >
+                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pagination - Made responsive */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center space-x-2 mt-6">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || tableLoading}
+                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeftIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || tableLoading}
+                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Student Details Modal
+  const renderStudentDetailsModal = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl lg:max-w-6xl max-h-[95vh] flex flex-col mx-2 sm:mx-0 relative">
+        {selectedStudent && (
+          <>
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-800">Student Details</h3>
+              <button
+                onClick={() => setStudentDetailsModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+              {/* Top Section: Photo + Basic Info */}
+              <div className="flex flex-col xl:flex-row gap-4 sm:gap-6 mb-6">
+                {/* Photo Section */}
+                <div className="flex-shrink-0 flex justify-center items-center">
+                  {selectedStudent.studentPhoto ? (
+                    <img
+                      src={selectedStudent.studentPhoto}
+                      alt={selectedStudent.name}
+                      className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-gray-200 shadow-lg"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center text-white text-2xl sm:text-4xl font-bold shadow-lg">
+                      {selectedStudent.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Basic Info Card */}
+                <div className="flex-1 bg-gray-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-3">Basic Information</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Name */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Name:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.name}</span>
+                    </div>
+                    {/* Roll Number */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Roll Number:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.rollNumber}</span>
+                    </div>
+                    {/* Admission Number */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Admission No:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.admissionNumber || 'N/A'}</span>
+                    </div>
+                    {/* Hostel ID (sequence) */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelSequenceId || selectedStudent.hostelId || 'Not assigned'}</span>
+                    </div>
+                    {/* Hostel Name */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{getHostelName(selectedStudent.hostel?._id || selectedStudent.hostel)}</span>
+                    </div>
+                    {/* Gender */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Gender:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.gender}</span>
+                    </div>
+                    {/* Student Phone */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Student Phone:</span>
+                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.studentPhone || 'N/A'}</span>
+                    </div>
+                    {/* Parent Phone */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Parent Phone:</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.parentPhone || 'N/A'}</span>
+                    </div>
+                    {/* Email */}
+                    <div className="flex items-center space-x-2 sm:col-span-2">
+                      <span className="text-xs sm:text-sm text-gray-600 w-24">Email:</span>
+                      <span className="font-medium text-gray-900 break-all text-sm sm:text-base">{selectedStudent.email || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Section: Other Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {/* Fee & Concession Information */}
+                <div className="bg-orange-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-orange-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Fee & Concession
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-orange-700">Concession:</span>
+                      <span className="font-medium text-orange-900 text-sm sm:text-base">
+                        ₹{(selectedStudent.concession || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-orange-700">Status:</span>
+                      {selectedStudent.concession > 0 ? (
+                        selectedStudent.concessionApproved ? (
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Approved
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Pending Approval
+                          </span>
+                        )
+                      ) : (
+                        <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                          No Concession
+                        </span>
+                      )}
+                    </div>
+                    {selectedStudent.totalCalculatedFee > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-orange-700">Total Fee (After Concession):</span>
+                        <span className="font-medium text-orange-900 text-sm sm:text-base">
+                          ₹{selectedStudent.totalCalculatedFee.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    {canManageConcessions && (
+                      <button
+                        onClick={() => {
+                          setStudentDetailsModal(false);
+                          openConcessionRequestModal(selectedStudent);
+                        }}
+                        className="w-full mt-2 px-3 py-2 text-sm bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center"
+                      >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        {selectedStudent.concession > 0 ? 'Update Concession' : 'Request Concession'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Academic Information */}
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-blue-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Academic Info
+                  </h4>
+                  <div className="space-y-3">
+                    {[
+                      { label: 'Course', value: getCourseDisplay(selectedStudent.course) },
+                      { label: 'Branch', value: getBranchDisplay(selectedStudent.branch) },
+                      { label: 'Year', value: `Year ${selectedStudent.year ?? '—'}` },
+                      { label: 'Category', value: getCategoryDisplay(selectedStudent.category) },
+                      { label: 'Batch', value: toDisplayText(selectedStudent.batch, '—') },
+                      { label: 'Academic Year', value: toDisplayText(selectedStudent.academicYear, '—') },
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
+                        <span className="font-medium text-blue-900 text-sm sm:text-base">{toDisplayText(item.value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hostel Information */}
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h4 className="text-base sm:text-lg font-semibold text-purple-800 mb-3 flex items-center">
+                    <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Hostel Information
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Room Number:</span>
+                      <span className="font-medium text-purple-900 text-sm sm:text-base">Room {selectedStudent.roomNumber}</span>
+                    </div>
+                    {selectedStudent.bedNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-purple-700">Bed Number:</span>
+                        <span className="font-medium text-blue-600 text-sm sm:text-base">{selectedStudent.bedNumber}</span>
+                      </div>
+                    )}
+                    {selectedStudent.lockerNumber && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs sm:text-sm text-purple-700">Locker Number:</span>
+                        <span className="font-medium text-green-600 text-sm sm:text-base">{selectedStudent.lockerNumber}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Meal Type:</span>
+                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.mealType === 'veg' ? 'text-green-600' : 'text-orange-600'}`}>
+                        {selectedStudent.mealType === 'veg' ? 'Veg' : 'Non-Veg'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Parent Permission:</span>
+                      <span className={`font-medium text-sm sm:text-base ${selectedStudent.parentPermissionForOuting ? 'text-green-600' : 'text-red-600'}`}>
+                        {selectedStudent.parentPermissionForOuting ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Hostel Status:</span>
+                      {(() => {
+                        const statusDisplay = getHostelStatusDisplay(selectedStudent);
+                        return (
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span
+                              className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusDisplay.badgeClass}`}
+                            >
+                              {statusDisplay.label}
+                            </span>
+                            {statusDisplay.nocDateText ? (
+                              <span className="text-xs text-gray-500">
+                                NOC Vacating Date: {statusDisplay.nocDateText}
+                              </span>
+                            ) : statusDisplay.expiryText ? (
+                              <span className="text-xs text-gray-500">
+                                Expired on {statusDisplay.expiryText}
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    {shouldShowGraduationStatus(selectedStudent.graduationStatus) && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs sm:text-sm text-purple-700">Graduation Status:</span>
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${selectedStudent.graduationStatus === 'Graduated'
+                        ? 'bg-blue-100 text-blue-800'
+                        : selectedStudent.graduationStatus === 'Dropped'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {selectedStudent.graduationStatus}
+                      </span>
+                    </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+              <button
+                onClick={() => handleDownloadAdmitCard(selectedStudent)}
+                disabled={downloadingAdmitCard || !selectedStudent.studentPhoto || (selectedStudent.concession > 0 && !selectedStudent.concessionApproved)}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!selectedStudent.studentPhoto ? 'Student photo required' : selectedStudent.concession > 0 && !selectedStudent.concessionApproved ? 'Concession pending approval' : 'Download Admit Card'}
+              >
+                <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
+                {downloadingAdmitCard ? 'Downloading...' : 'Admit Card'}
+              </button>
+              <button
+                onClick={() => {
+                  setStudentDetailsModal(false);
+                  openEditModal(selectedStudent);
+                }}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center text-sm sm:text-base"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Student
+              </button>
+              <button
+                onClick={() => {
+                  setStudentDetailsModal(false);
+                  openPhotoEditModal(selectedStudent);
+                }}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center text-sm sm:text-base"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Edit Photos
+              </button>
+              <button
+                onClick={() => {
+                  setStudentDetailsModal(false);
+                  openPasswordResetModal(selectedStudent);
+                }}
+                className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center text-sm sm:text-base"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                Reset Password
+              </button>
+              {canDeactivateStudent(selectedStudent) && (
+                <button
+                  onClick={() => {
+                    setStatusUpdateReason('');
+                    setShowStatusUpdateModal(true);
+                  }}
+                  className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center text-sm sm:text-base"
+                >
+                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                  Status Update
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {showStatusUpdateModal && selectedStudent && (
+          <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-xl z-10 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 sm:p-6">
+              <h4 className="text-lg font-bold text-gray-900 mb-2">Mark Student Inactive</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                This will set <span className="font-medium">{selectedStudent.name}</span> ({selectedStudent.rollNumber}) as{' '}
+                <span className="font-medium text-red-600">Inactive</span> and mark their application as{' '}
+                <span className="font-medium text-red-600">Expired</span>. Bed and locker will be freed.
+              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Reason for status update <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={statusUpdateReason}
+                onChange={(e) => setStatusUpdateReason(e.target.value)}
+                rows={4}
+                placeholder="Enter reason for deactivating this student..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-sm"
+                disabled={statusUpdateLoading}
+              />
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 mt-5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowStatusUpdateModal(false);
+                    setStatusUpdateReason('');
+                  }}
+                  disabled={statusUpdateLoading}
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeactivateStudent}
+                  disabled={statusUpdateLoading || !statusUpdateReason.trim()}
+                  className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {statusUpdateLoading ? 'Updating...' : 'Done'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (loading && tab === 'list' && !tableLoading) {
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
@@ -6783,9 +4391,6 @@ const Students = () => {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
             <div className="flex flex-wrap gap-1 sm:gap-2 justify-center sm:justify-start flex-1">
             {TABS.map(t => {
-              if (t.value === 'bulkUpload' && !canAddStudent) {
-                return null; // Hide Bulk Upload tab if no permission
-              }
               if (t.superAdminOnly && !isSuperAdmin) {
                 return null; // Hide super admin only tabs
               }
@@ -6835,7 +4440,7 @@ const Students = () => {
                       setFilters(prev => ({
                         ...prev,
                         academicYear: getDefaultAcademicYear(),
-                        hostelStatus: 'Active'
+                        hostelStatus: 'active'
                       }));
                       setCurrentPage(1);
                     }}
@@ -6854,7 +4459,7 @@ const Students = () => {
                       setFilters(prev => ({
                         ...prev,
                         academicYear: '',
-                        hostelStatus: 'Active'
+                        hostelStatus: 'active'
                       }));
                       setCurrentPage(1);
                     }}
@@ -6892,19 +4497,11 @@ const Students = () => {
         </div>
       </div>
 
-      {tab === 'bulkUpload' && (
-        <>
-          {renderBulkUploadSection()}
-          {renderTempStudentsSummaryTable()}
-        </>
-      )}
       {tab === 'list' && renderStudentList()}
-      {showPasswordModal && renderPasswordModal()}
       {editModal && renderEditModal()}
       {photoEditModal && renderPhotoEditModal()}
       {studentDetailsModal && renderStudentDetailsModal()}
       {passwordResetModal && renderPasswordResetModal()}
-      {renderShareModal()}
       {renderCameraModal()}
       {renderConcessionRequestModal()}
 

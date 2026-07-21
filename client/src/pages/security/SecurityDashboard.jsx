@@ -1513,9 +1513,9 @@ const StudentDetailsCard = ({ student, onClose, securitySettings, getCourseName,
                 Hidden by admin
               </div>
             )}
-            <span className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${student.hostelStatus === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            <span className={`mt-2 sm:mt-3 px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${['Active','Extended'].includes(student.applicationStatus) ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
               }`}>
-              {student.hostelStatus}
+              {student.applicationStatus || student.hostelStatus}
             </span>
             {/* Guardian Photos */}
             {securitySettings.viewGuardianImages && (student.guardianPhoto1 || student.guardianPhoto2) ? (

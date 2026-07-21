@@ -19,6 +19,21 @@ import { useCoursesBranches } from '../../context/CoursesBranchesContext';
 import { useDebounce } from '../../hooks/useDebounce';
 import SEO from '../../components/SEO';
 
+const getDefaultAcademicYear = () => {
+  const year = new Date().getFullYear();
+  return `${year}-${year + 1}`;
+};
+
+const generateAcademicYears = () => {
+  const currentYear = new Date().getFullYear();
+  const years = [];
+  for (let i = -3; i <= 3; i++) {
+    const year = currentYear + i;
+    years.push(`${year}-${year + 1}`);
+  }
+  return years;
+};
+
 const TakeAttendance = ({ onStatsUpdate }) => {
   const { courses, branches, getBranchesByCourse } = useCoursesBranches();
   const [loading, setLoading] = useState(true);
@@ -31,7 +46,8 @@ const TakeAttendance = ({ onStatsUpdate }) => {
     branch: '',
     gender: '',
     category: '',
-    roomNumber: ''
+    roomNumber: '',
+    academicYear: getDefaultAcademicYear()
   });
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [stats, setStats] = useState({
@@ -239,6 +255,21 @@ const TakeAttendance = ({ onStatsUpdate }) => {
                 />
               </div>
 
+              {/* Academic Year Filter */}
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
+                <select
+                  name="academicYear"
+                  value={filters.academicYear}
+                  onChange={handleFilterChange}
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+                >
+                  {generateAcademicYears().map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Course Filter */}
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
@@ -331,7 +362,7 @@ const TakeAttendance = ({ onStatsUpdate }) => {
         transition={{ delay: 0.1 }}
         className="hidden lg:block bg-white rounded-lg shadow-sm p-3 sm:p-4 lg:p-6 mb-4 sm:mb-6"
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3 sm:gap-4">
           {/* Date Selector */}
           <div>
             <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
@@ -344,6 +375,21 @@ const TakeAttendance = ({ onStatsUpdate }) => {
               onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
+          </div>
+
+          {/* Academic Year Filter */}
+          <div>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
+            <select
+              name="academicYear"
+              value={filters.academicYear}
+              onChange={handleFilterChange}
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
+            >
+              {generateAcademicYears().map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
           </div>
 
           {/* Filters */}

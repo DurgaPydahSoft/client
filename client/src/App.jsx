@@ -34,7 +34,6 @@ const UploadPastPayments = lazy(() => import('./pages/public/UploadPastPayments'
 const Students = lazy(() => import('./pages/admin/Students'));
 const StudentRegistrationSQL = lazy(() => import('./pages/admin/StudentRegistrationSQL'));
 const AdmitCards = lazy(() => import('./pages/admin/AdmitCards'));
-const PreRegistrationRequests = lazy(() => import('./pages/admin/PreRegistrationRequests'));
 const ApplicationExpirySettings = lazy(() => import('./pages/admin/ApplicationExpirySettings'));
 const Complaints = lazy(() => import('./pages/admin/Complaints'));
 const FoundLostManagement = lazy(() => import('./pages/admin/FoundLostManagement'));
@@ -192,9 +191,7 @@ function App() {
                     </ProtectedSection>
                   } />
                   <Route path="students/preregistration-requests" element={
-                    <ProtectedSection permission="student_management" sectionName="Pre-Registration Requests">
-                      <PreRegistrationRequests />
-                    </ProtectedSection>
+                    <Navigate to="/admin/dashboard/students/register-from-sql" replace />
                   } />
                   <Route path="students/application-expiry-settings" element={
                     <ProtectedSection permission="student_management" sectionName="Application Expiry Settings">
