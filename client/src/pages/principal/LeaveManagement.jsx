@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
@@ -41,6 +41,9 @@ const LeaveManagement = () => {
     toDate: ''
   });
 
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
   useEffect(() => {
     fetchLeaves();
     // Clear notified leaves when filters change to ensure notifications work properly
@@ -49,11 +52,10 @@ const LeaveManagement = () => {
 
   // Add real-time notification polling
   useEffect(() => {
-    // Initial fetch
-    fetchLeaves();
-
     // Set up polling for real-time updates
-    const interval = setInterval(fetchLeaves, 30000); // Poll every 30 seconds
+    const interval = setInterval(() => {
+      fetchLeaves();
+    }, 30000); // Poll every 30 seconds
 
     // Listen for notification events
     const handleNotificationRefresh = () => {
@@ -67,10 +69,8 @@ const LeaveManagement = () => {
     return () => {
       clearInterval(interval);
       window.removeEventListener('refresh-notifications', handleNotificationRefresh);
-      // Clear notified leaves on cleanup to prevent memory leaks
-      setNotifiedLeaves(new Set());
     };
-  }, [filters]);
+  }, []);
 
   const fetchLeaves = async () => {
     try {
@@ -267,38 +267,40 @@ const LeaveManagement = () => {
           keywords="leave management, permission management, principal approval"
         />
 
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
-          <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-purple-900">Leave & Permission Management</h1>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Managing leave requests for your assigned course
-            </p>
-          </div>
-          <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3 items-end sm:items-center flex-wrap">
+        <div className="mb-4 sm:mb-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-purple-900">Leave & Permission Management</h1>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            Managing leave requests for your assigned course
+          </p>
+        </div>
+
+        {/* Filter Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-purple-100 p-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider ml-1">From</label>
+              <label className="text-xs font-semibold text-purple-800 uppercase tracking-wider">From Date</label>
               <input
                 type="date"
                 value={filters.fromDate}
                 onChange={e => setFilters(f => ({ ...f, fromDate: e.target.value, page: 1 }))}
-                className="w-full px-2 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+                className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/20 text-gray-800"
               />
             </div>
             <div className="flex flex-col gap-1.5 w-full">
-              <label className="text-[10px] sm:text-xs font-semibold text-purple-700 uppercase tracking-wider ml-1">To</label>
+              <label className="text-xs font-semibold text-purple-800 uppercase tracking-wider">To Date</label>
               <input
                 type="date"
                 value={filters.toDate}
                 onChange={e => setFilters(f => ({ ...f, toDate: e.target.value, page: 1 }))}
-                className="w-full px-2 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+                className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/20 text-gray-800"
               />
             </div>
-            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-              <label className="sm:hidden text-[10px] font-semibold text-purple-700 uppercase tracking-wider ml-1">Type</label>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-semibold text-purple-800 uppercase tracking-wider">Application Type</label>
               <select
                 value={filters.applicationType}
                 onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
-                className="w-full px-2 sm:px-3 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+                className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/20 text-gray-800"
               >
                 <option value="">All Types</option>
                 <option value="Leave">Leave</option>
@@ -306,21 +308,30 @@ const LeaveManagement = () => {
                 <option value="Stay in Hostel">Stay in Hostel</option>
               </select>
             </div>
-            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-              <label className="sm:hidden text-[10px] font-semibold text-purple-700 uppercase tracking-wider ml-1">Status</label>
+            <div className="flex flex-col gap-1.5 w-full">
+              <label className="text-xs font-semibold text-purple-800 uppercase tracking-wider">Status</label>
               <select
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
-                className="w-full px-2 sm:px-3 py-2 sm:py-1.5 border border-purple-100 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/30"
+                className="w-full px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-xs sm:text-sm bg-purple-50/20 text-gray-800"
               >
                 <option value="">All Status</option>
+                <option value="Warden Verified">Warden Verified</option>
                 <option value="Pending">Pending</option>
                 <option value="Pending OTP Verification">Pending OTP</option>
-                <option value="Warden Verified">Warden Verified</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Rejected</option>
                 <option value="Expired">Expired</option>
               </select>
+            </div>
+            <div className="flex flex-col justify-end w-full">
+              <button
+                type="button"
+                onClick={() => setFilters({ status: 'Warden Verified', applicationType: '', page: 1, fromDate: '', toDate: '' })}
+                className="w-full px-3 py-2 bg-gray-100 hover:bg-purple-100 text-purple-700 hover:text-purple-900 border border-gray-200 hover:border-purple-300 rounded-lg transition-colors text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 h-[38px]"
+              >
+                Reset Filters
+              </button>
             </div>
           </div>
         </div>

@@ -1467,30 +1467,19 @@ const Students = () => {
     return viewYear === currentYear;
   };
 
-  const handleDelete = async (id, studentRecord) => {
+  const handleCancelRegistration = async (id, studentRecord) => {
     // Check permission before proceeding
     if (!canDeleteStudent) {
-      toast.error('You do not have permission to delete students');
+      toast.error('You do not have permission to cancel student registration');
       return;
     }
 
     const currentYear = studentRecord?.currentAcademicYear || studentRecord?.academicYear;
     const academicYear = filters.academicYear || currentYear;
-    if (!academicYear) {
-      toast.error('Select an academic year filter or ensure the student has an academic year set');
-      return;
-    }
-
-    if (currentYear && academicYear !== currentYear) {
-      toast.error(
-        `Only the student's current academic year (${currentYear}) can be removed.`
-      );
-      return;
-    }
 
     const confirmMessage =
-      `Remove this student from academic year ${academicYear}?\n\n` +
-      'Historical enrollments from previous years cannot be removed from here.';
+      `Cancel registration for ${studentRecord?.name || 'this student'} (${studentRecord?.rollNumber || ''})?\n\n` +
+      'The registration status will be set to Cancelled. Student records and attendance history will remain preserved in the database.';
 
     if (!window.confirm(confirmMessage)) return;
 
@@ -1499,11 +1488,11 @@ const Students = () => {
       const res = await api.delete(`/api/admin/students/${id}`, {
         params: { academicYear: currentYear || academicYear }
       });
-      const msg = res.data?.message || 'Student removed successfully';
+      const msg = res.data?.message || 'Student registration cancelled successfully';
       toast.success(msg);
       await fetchStudents();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete student');
+      toast.error(err.response?.data?.message || 'Failed to cancel student registration');
     } finally {
       setDeletingId(null);
     }
@@ -1553,11 +1542,22 @@ const Students = () => {
     // Note: We need to fetch branches first to find the match
     const studentBranchName = student.branch?.name || student.branch || '';
 
+    const resolvedHostelId =
+      student.hostel?._id ||
+      (typeof student.hostel === 'string' ? student.hostel : '') ||
+      student.hostelId ||
+      '';
+
+    const resolvedHostelSequenceId =
+      student.hostelSequenceId ||
+      (student.hostelId && !/^[0-9a-fA-F]{24}$/.test(student.hostelId) ? student.hostelId : '');
+
     const initialEditForm = {
       name: student.name,
       rollNumber: student.rollNumber,
       admissionNumber: student.admissionNumber || '',
-      hostelId: student.hostelId || '',
+      hostelId: resolvedHostelId,
+      hostelSequenceId: resolvedHostelSequenceId,
       course: courseId, // Use resolved course ID
       year: student.year,
       branch: '', // Will be set after branches are fetched
@@ -1573,7 +1573,9 @@ const Students = () => {
       email: student.email,
       batch: normalizeBatchToYear(student.batch || ''),
       academicYear: student.academicYear,
-      hostelStatus: student.hostelStatus || 'Active'
+      hostelStatus: student.hostelStatus || 'Active',
+      admitDate: student.admitDate ? new Date(student.admitDate).toISOString().split('T')[0] : '',
+      joiningDate: student.joiningDate ? new Date(student.joiningDate).toISOString().split('T')[0] : ''
     };
     // Display hostel name in edit modal
     setEditHostelName(getHostelName(student.hostel?._id || student.hostel));
@@ -1786,6 +1788,7 @@ const Students = () => {
 
       // Only submit hostel-related fields (personal/academic/contact are SQL-sourced)
       const submitData = {
+        hostel: editForm.hostelId,
         category: editForm.category,
         mealType: editForm.mealType,
         parentPermissionForOuting: editForm.parentPermissionForOuting,
@@ -1793,7 +1796,9 @@ const Students = () => {
         bedNumber: editForm.bedNumber,
         lockerNumber: editForm.lockerNumber,
         academicYear: editForm.academicYear,
-        hostelStatus: editForm.hostelStatus
+        hostelStatus: editForm.hostelStatus,
+        admitDate: editForm.admitDate,
+        joiningDate: editForm.joiningDate
       };
 
       console.log('Submitting data:', submitData);
@@ -2510,10 +2515,31 @@ const Students = () => {
                 </select>
               </div>
               <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Admit Date</label>
+                <input
+                  type="date"
+                  name="admitDate"
+                  value={editForm.admitDate || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Joining Date</label>
+                <input
+                  type="date"
+                  name="joiningDate"
+                  value={editForm.joiningDate || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+                <p className="text-[11px] text-gray-500 mt-0.5">Attendance opens starting from this date</p>
+              </div>
+              <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel ID</label>
                 <input
                   type="text"
-                  value={editForm.hostelId || ''}
+                  value={editForm.hostelSequenceId || 'Not assigned'}
                   readOnly
                   className={readOnlyInputClass}
                   placeholder="Auto-generated"
@@ -3945,31 +3971,28 @@ const Students = () => {
                                     <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </button>
                                 )}
-                                {canDeleteStudent && canRemoveStudentEnrollment(student) ? (
+                                {canDeleteStudent && student.applicationStatus !== 'Withdrawn' && student.hostelRequestStatus !== 'cancelled' ? (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleDelete(student._id, student);
+                                      handleCancelRegistration(student._id, student);
                                     }}
                                     disabled={deletingId === student._id}
-                                    className="p-1.5 text-red-600 hover:text-red-800 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
-                                    title={`Remove from ${student.academicYear}`}
+                                    className="px-2 py-1 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-50"
+                                    title="Cancel student registration"
                                   >
-                                    <TrashIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    <XCircleIcon className="w-4 h-4" />
+                                    <span>Cancel</span>
                                   </button>
-                                ) : canDeleteStudent ? (
-                                  <button
-                                    disabled
-                                    className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
-                                    title="Only the student's current academic year enrollment can be removed"
-                                  >
-                                    <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                  </button>
+                                ) : (student.applicationStatus === 'Withdrawn' || student.hostelRequestStatus === 'cancelled') ? (
+                                  <span className="text-xs text-amber-700 font-medium px-2 py-1 bg-amber-50 rounded border border-amber-200">
+                                    Cancelled
+                                  </span>
                                 ) : (
                                   <button
                                     disabled
                                     className="p-1.5 text-gray-400 cursor-not-allowed rounded-lg"
-                                    title="Delete access restricted"
+                                    title="Cancel access restricted"
                                   >
                                     <LockClosedIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                                   </button>
@@ -4073,7 +4096,7 @@ const Students = () => {
                     {/* Hostel ID (sequence) */}
                     <div className="flex items-center space-x-2">
                       <span className="text-xs sm:text-sm text-gray-600 w-24">Hostel ID:</span>
-                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelSequenceId || selectedStudent.hostelId || 'Not assigned'}</span>
+                      <span className="font-medium text-gray-900 text-sm sm:text-base">{selectedStudent.hostelSequenceId || (selectedStudent.hostelId && !/^[0-9a-fA-F]{24}$/.test(selectedStudent.hostelId) ? selectedStudent.hostelId : 'Not assigned')}</span>
                     </div>
                     {/* Hostel Name */}
                     <div className="flex items-center space-x-2">
@@ -4180,6 +4203,8 @@ const Students = () => {
                       { label: 'Category', value: getCategoryDisplay(selectedStudent.category) },
                       { label: 'Batch', value: toDisplayText(selectedStudent.batch, '—') },
                       { label: 'Academic Year', value: toDisplayText(selectedStudent.academicYear, '—') },
+                      { label: 'Admit Date', value: selectedStudent.admitDate ? new Date(selectedStudent.admitDate).toLocaleDateString() : '—' },
+                      { label: 'Joining Date', value: selectedStudent.joiningDate ? new Date(selectedStudent.joiningDate).toLocaleDateString() : '—' },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between">
                         <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>

@@ -587,7 +587,6 @@ const AdmitCards = () => {
           ['Hostel:', String(hostelName)],
           ['Mobile No:', String(student.studentPhone || '')],
           ['Parent No:', String(student.parentPhone || '')],
-          ['Address:', String(student.address || '')],
           ['Hostel ID:', String(student.hostelId || '')],
           ['Category:', String(student.category || '')],
           ['Room:', String(student.roomNumber || '')]
@@ -1189,7 +1188,6 @@ const AdmitCards = () => {
                         <div><strong>Hostel:</strong> {previewModal.student.gender?.toLowerCase() === 'female' ? 'Girls Hostel' : 'Boys Hostel'}</div>
                         <div><strong>Mobile:</strong> {previewModal.student.studentPhone || 'N/A'}</div>
                         <div><strong>Parent Mobile:</strong> {previewModal.student.parentPhone || 'N/A'}</div>
-                        <div><strong>Address:</strong> {previewModal.student.address || 'N/A'}</div>
                         <div><strong>Hostel ID:</strong> {previewModal.student.hostelId || 'N/A'}</div>
                         <div><strong>Category:</strong> {previewModal.student.category || 'N/A'}</div>
                         <div><strong>Room:</strong> {previewModal.student.roomNumber || 'N/A'}</div>

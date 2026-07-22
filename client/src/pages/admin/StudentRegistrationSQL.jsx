@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { ArrowLeftIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuth } from '../../context/AuthContext';
 import { canPerformAction } from '../../utils/permissionUtils';
@@ -38,7 +38,10 @@ const initialForm = {
   concession: 0,
   hostel: '',
   hostelCategory: '',
-  college: null
+  college: null,
+  admitDate: new Date().toISOString().split('T')[0],
+  joiningDate: new Date().toISOString().split('T')[0],
+  leftDate: ''
 };
 
 const inputClass =
@@ -70,6 +73,7 @@ const StudentRegistrationSQL = () => {
   const [fetchingFromSQL, setFetchingFromSQL] = useState(false);
   const [sqlFetchError, setSqlFetchError] = useState(null);
   const [sqlDataFetched, setSqlDataFetched] = useState(false);
+  const [existingRequestInfo, setExistingRequestInfo] = useState(null);
   const [adding, setAdding] = useState(false);
 
   // Photo states
@@ -389,6 +393,7 @@ const StudentRegistrationSQL = () => {
     setFetchingFromSQL(true);
     setSqlFetchError(null);
     setSqlDataFetched(false);
+    setExistingRequestInfo(null);
 
     try {
       const res = await api.get(`/api/admin/students/fetch-from-sql/${identifier}`);
@@ -453,6 +458,14 @@ const StudentRegistrationSQL = () => {
         // Fetch branches if course is set
         if (mappedForm.course) {
           await fetchBranches(mappedForm.course);
+        }
+
+        // Check if student already has an existing request in HMS
+        if (sqlData.hasExistingRequest) {
+          setExistingRequestInfo(sqlData.existingRequest);
+          toast.error('Request for this student already exist', { duration: 6000 });
+        } else {
+          setExistingRequestInfo(null);
         }
 
         // Show warnings if course/branch matching had issues
@@ -708,6 +721,7 @@ const StudentRegistrationSQL = () => {
         setForm(initialForm);
         setIdentifier('');
         setSqlDataFetched(false);
+        setExistingRequestInfo(null);
         setStudentPhoto(null);
         setGuardianPhoto1(null);
         setGuardianPhoto2(null);
@@ -840,6 +854,18 @@ const StudentRegistrationSQL = () => {
             <div className="mt-2 bg-green-50 border border-green-200 rounded-md px-3 py-1.5 flex items-center">
               <CheckCircleIcon className="w-4 h-4 text-green-600 mr-2 shrink-0" />
               <p className="text-sm text-green-800">Student data fetched successfully. Complete the form below.</p>
+            </div>
+          )}
+
+          {existingRequestInfo && (
+            <div className="mt-2.5 bg-amber-50 border-l-4 border-amber-500 rounded-r-md p-3 shadow-sm flex items-start">
+              <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mr-2.5 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-amber-900">Request for this student already exist</p>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  An active hostel request/registration already exists for this student (Academic Year: <strong>{existingRequestInfo.academicYear}</strong>, Status: <strong>{existingRequestInfo.status}</strong>{existingRequestInfo.roomNumber && existingRequestInfo.roomNumber !== 'N/A' ? `, Room: ${existingRequestInfo.roomNumber}` : ''}).
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -1018,6 +1044,43 @@ const StudentRegistrationSQL = () => {
                 {academicYearError && (
                   <p className="text-xs text-red-600 mt-1">{academicYearError}</p>
                 )}
+              </div>
+
+              <div>
+                <label className={labelClass}>Admit Date *</label>
+                <input
+                  type="date"
+                  name="admitDate"
+                  value={form.admitDate}
+                  onChange={handleFormChange}
+                  required
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>Joining Date *</label>
+                <input
+                  type="date"
+                  name="joiningDate"
+                  value={form.joiningDate}
+                  onChange={handleFormChange}
+                  required
+                  className={inputClass}
+                />
+                <p className="text-[11px] text-gray-500 mt-0.5">Attendance opens from joining date</p>
+              </div>
+
+              {/* Left Date field hidden for now */}
+              <div className="hidden">
+                <label className={labelClass}>Left Date</label>
+                <input
+                  type="date"
+                  name="leftDate"
+                  value={form.leftDate}
+                  onChange={handleFormChange}
+                  className={inputClass}
+                />
               </div>
 
               <div>
