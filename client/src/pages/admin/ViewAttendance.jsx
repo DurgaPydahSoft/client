@@ -227,19 +227,36 @@ const ViewAttendance = ({ onStatsUpdate }) => {
   };
 
   // Organize attendance data by student for date range view
-  const organizeAttendanceByStudent = (attendanceData) => {
-    const studentMap = new Map();
+  const organizeAttendanceByStudent = (attendanceData, startDate, endDate) => {
+    const dateStrings = (() => {
+      if (!startDate || !endDate) return [];
+      const start = new Date(`${startDate}T00:00:00.000Z`);
+      const end = new Date(`${endDate}T00:00:00.000Z`);
+      const out = [];
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+        out.push(new Date(d).toISOString().split('T')[0]);
+      }
+      return out;
+    })();
+
+    const dateCount = dateStrings.length;
+
+    const studentMap = new Map(); // studentId -> { student, attendanceRecords, summary }
+    const recordByStudentAndDate = new Map(); // studentId -> Map(dateStr -> record)
 
     attendanceData.forEach(record => {
       const studentId = record.student?._id;
       if (!studentId) return;
+
+      const dateStr = record.date ? new Date(record.date).toISOString().split('T')[0] : null;
+      if (!dateStr) return;
 
       if (!studentMap.has(studentId)) {
         studentMap.set(studentId, {
           student: record.student,
           attendanceRecords: [],
           summary: {
-            totalDays: 0,
+            totalDays: dateCount,
             presentDays: 0,
             absentDays: 0,
             partialDays: 0,
@@ -248,27 +265,54 @@ const ViewAttendance = ({ onStatsUpdate }) => {
         });
       }
 
-      const studentData = studentMap.get(studentId);
-      studentData.attendanceRecords.push(record);
-
-      // Calculate summary
-      studentData.summary.totalDays++;
-      const status = getAttendanceStatus(record);
-      if (status === 'Present') {
-        studentData.summary.presentDays++;
-      } else if (status === 'Absent') {
-        studentData.summary.absentDays++;
-      } else if (status === 'Partial') {
-        studentData.summary.partialDays++;
+      if (!recordByStudentAndDate.has(studentId)) {
+        recordByStudentAndDate.set(studentId, new Map());
       }
+      recordByStudentAndDate.get(studentId).set(dateStr, record);
     });
 
-    // Calculate attendance percentage for each student
+    // Build a complete day-by-day attendance timeline per student
     studentMap.forEach(studentData => {
-      const { totalDays, presentDays, partialDays } = studentData.summary;
-      const effectivePresentDays = presentDays + (partialDays * 0.33); // Count partial as 0.33 for 3 sessions
-      studentData.summary.attendancePercentage = totalDays > 0
-        ? Math.round((effectivePresentDays / totalDays) * 100)
+      const studentId = studentData.student?._id;
+      const perStudentMap = recordByStudentAndDate.get(studentId) || new Map();
+
+      let presentDays = 0;
+      let absentDays = 0;
+      let partialDays = 0;
+
+      studentData.attendanceRecords = dateStrings.map(dateStr => {
+        const existing = perStudentMap.get(dateStr);
+        if (existing) return existing;
+
+        // Placeholder when no attendance record exists: treat as Absent (and not On Leave).
+        return {
+          _id: null,
+          date: `${dateStr}T00:00:00.000Z`,
+          morning: false,
+          evening: false,
+          night: false,
+          markedBy: null,
+          notes: '',
+          student: {
+            ...studentData.student,
+            isOnLeave: false
+          }
+        };
+      });
+
+      studentData.attendanceRecords.forEach(attRecord => {
+        const status = getAttendanceStatus(attRecord);
+        if (status === 'Present') presentDays++;
+        else if (status === 'Absent') absentDays++;
+        else if (status === 'Partial') partialDays++;
+      });
+
+      const effectivePresentDays = presentDays + (partialDays * 0.33);
+      studentData.summary.presentDays = presentDays;
+      studentData.summary.absentDays = absentDays;
+      studentData.summary.partialDays = partialDays;
+      studentData.summary.attendancePercentage = dateCount > 0
+        ? Math.round((effectivePresentDays / dateCount) * 100)
         : 0;
     });
 
@@ -280,8 +324,8 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     if (viewMode === 'date') {
       return attendance;
     }
-    return organizeAttendanceByStudent(attendance);
-  }, [viewMode, attendance]);
+    return organizeAttendanceByStudent(attendance, dateRange.startDate, dateRange.endDate);
+  }, [viewMode, attendance, dateRange.startDate, dateRange.endDate]);
 
   // Get attendance percentage color
   const getPercentageColor = (percentage) => {
@@ -1168,7 +1212,10 @@ const ViewAttendance = ({ onStatsUpdate }) => {
                                     {record.attendanceRecords.map((attRecord, idx) => {
                                       const dayStatus = getAttendanceStatus(attRecord);
                                       return (
-                                        <tr key={attRecord._id} className="hover:bg-gray-50">
+                                        <tr
+                                          key={attRecord._id || `${record.student?._id || record.student?.rollNumber || 'student'}-${attRecord.date || idx}`}
+                                          className="hover:bg-gray-50"
+                                        >
                                           <td className="px-2 sm:px-3 py-1 sm:py-2 text-gray-900">
                                             {formatDate(attRecord.date)}
                                           </td>

@@ -903,7 +903,7 @@ const Students = () => {
   };
 
   // Fetch bed and locker availability for a room
-  const fetchBedLockerAvailability = async (roomNumber, academicYear) => {
+  const fetchBedLockerAvailability = async (roomNumber, academicYear, target = 'create') => {
     if (!roomNumber) {
       setBedLockerAvailability(null);
       return;
@@ -920,7 +920,7 @@ const Students = () => {
         setBedLockerAvailability(data);
 
         // Auto-select first available bed and corresponding locker
-        autoSelectBedAndLocker(data);
+        autoSelectBedAndLocker(data, target);
       } else {
         throw new Error('Failed to fetch bed/locker availability');
       }
@@ -935,7 +935,7 @@ const Students = () => {
 
 
   // Auto-select first available bed and corresponding locker
-  const autoSelectBedAndLocker = (availabilityData) => {
+  const autoSelectBedAndLocker = (availabilityData, target = 'create') => {
 
     if (!availabilityData || !availabilityData.availableBeds || !availabilityData.availableLockers) {
       return;
@@ -962,15 +962,17 @@ const Students = () => {
     );
 
 
-    // Update form with auto-selected values
-    setForm(prev => {
-      const updatedForm = {
-        ...prev,
-        bedNumber: firstAvailableBed.value,
-        lockerNumber: correspondingLocker ? correspondingLocker.value : ''
-      };
-      return updatedForm;
+    // Update create or edit form with auto-selected values
+    const applySelection = (prev) => ({
+      ...prev,
+      bedNumber: firstAvailableBed.value,
+      lockerNumber: correspondingLocker ? correspondingLocker.value : ''
     });
+    if (target === 'edit') {
+      setEditForm(applySelection);
+    } else {
+      setForm(applySelection);
+    }
 
   };
 
@@ -1653,6 +1655,12 @@ const Students = () => {
         // Reset bed and locker when room changes
         newForm.bedNumber = '';
         newForm.lockerNumber = '';
+        // Fetch bed/locker availability and auto-select for edit form
+        if (value) {
+          fetchBedLockerAvailability(value, newForm.academicYear, 'edit');
+        } else {
+          setBedLockerAvailability(null);
+        }
       }
 
       return newForm;

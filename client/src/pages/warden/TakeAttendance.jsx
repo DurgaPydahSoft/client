@@ -87,6 +87,14 @@ const TakeAttendance = () => {
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Student admit / joining / left date modal
+  const [datesModalOpen, setDatesModalOpen] = useState(false);
+  const [selectedStudentForDates, setSelectedStudentForDates] = useState(null);
+  const [admitDateInput, setAdmitDateInput] = useState('');
+  const [joiningDateInput, setJoiningDateInput] = useState('');
+  const [leftDateInput, setLeftDateInput] = useState('');
+  const [savingDates, setSavingDates] = useState(false);
+
   // Time-based session management
   const [currentTime, setCurrentTime] = useState(new Date());
   const [sessionStatus, setSessionStatus] = useState({
@@ -432,6 +440,90 @@ const TakeAttendance = () => {
       return name.includes(q) || roll.includes(q);
     })
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const toDateInputValue = (d) => {
+    if (!d) return '';
+    const date = new Date(d);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  };
+
+  const openStudentDatesModal = (student) => {
+    setSelectedStudentForDates(student);
+    setAdmitDateInput(
+      toDateInputValue(student?.hostelRequestCreatedAt || student?.admitDate || student?.createdAt)
+    );
+    setJoiningDateInput(toDateInputValue(student?.joiningDate));
+    setLeftDateInput(toDateInputValue(student?.leftDate));
+    setDatesModalOpen(true);
+  };
+
+  const closeStudentDatesModal = () => {
+    setDatesModalOpen(false);
+    setSelectedStudentForDates(null);
+    setAdmitDateInput('');
+    setJoiningDateInput('');
+    setLeftDateInput('');
+  };
+
+  const saveStudentDates = async () => {
+    if (!selectedStudentForDates?._id) return;
+    setSavingDates(true);
+    try {
+      const payload = {
+        academicYear: filters.academicYear || getDefaultAcademicYear()
+      };
+      if (admitDateInput) payload.admitDate = admitDateInput;
+      if (joiningDateInput) payload.joiningDate = joiningDateInput;
+      // Always send leftDate so clearing it is supported; non-empty expires the AY request
+      payload.leftDate = leftDateInput || null;
+
+      const res = await api.put(`/api/admin/students/${selectedStudentForDates._id}`, payload);
+      const expired = res?.data?.data?.hostelRequestExpired;
+      const scheduled = res?.data?.data?.leftDateScheduled;
+      toast.success(
+        expired
+          ? 'Left date due — hostel request expired and room vacated'
+          : scheduled
+            ? 'Left date saved — request will expire on that date'
+            : 'Dates saved successfully'
+      );
+
+      const savedId = selectedStudentForDates._id;
+      if (expired) {
+        setStudents((prev) => prev.filter((s) => s._id !== savedId));
+        setAttendanceData((prev) => {
+          const next = { ...prev };
+          delete next[savedId];
+          return next;
+        });
+        setStats((prev) => ({
+          ...prev,
+          totalStudents: Math.max(0, (prev.totalStudents || 0) - 1)
+        }));
+      } else {
+        setStudents((prev) =>
+          prev.map((s) =>
+            s._id === savedId
+              ? {
+                  ...s,
+                  admitDate: admitDateInput || s.admitDate,
+                  joiningDate: joiningDateInput || s.joiningDate,
+                  leftDate: leftDateInput || null
+                }
+              : s
+          )
+        );
+      }
+
+      closeStudentDatesModal();
+    } catch (error) {
+      console.error('Error saving student dates:', error);
+      toast.error(error?.response?.data?.message || 'Failed to save dates');
+    } finally {
+      setSavingDates(false);
+    }
+  };
 
   const fetchHostels = async () => {
     try {
@@ -1324,7 +1416,16 @@ const TakeAttendance = () => {
                     <div className="mb-3 sm:mb-4">
                       <div className="flex items-start justify-between mb-2 sm:mb-3">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-sm sm:text-base font-semibold text-gray-900 ">{student.name}</h3>
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-900">
+                            <button
+                              type="button"
+                              onClick={() => openStudentDatesModal(student)}
+                              className="text-left hover:text-green-700 hover:underline focus:outline-none focus:underline"
+                              title="Update admit / joining / left dates"
+                            >
+                              {student.name}
+                            </button>
+                          </h3>
                           {/* Mobile: Show only course and room */}
                           <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:hidden">
                             {getCourseName(student.course)} {student.year} • Room {student.roomNumber}
@@ -1537,7 +1638,14 @@ const TakeAttendance = () => {
                           <div className="flex items-center">
                             <div>
                               <div className="text-sm font-medium text-gray-900">
-                                {student.name}
+                                <button
+                                  type="button"
+                                  onClick={() => openStudentDatesModal(student)}
+                                  className="text-left hover:text-green-700 hover:underline focus:outline-none focus:underline"
+                                  title="Update admit / joining / left dates"
+                                >
+                                  {student.name}
+                                </button>
                               </div>
                               <div className="text-sm text-gray-500">
                                 {student.rollNumber} • {getCourseName(student.course)} {student.year} • {getBranchName(student.branch)}
@@ -1682,6 +1790,98 @@ const TakeAttendance = () => {
           )}
         </motion.div>
       </div>
+
+      {datesModalOpen && selectedStudentForDates && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-md bg-white rounded-lg shadow-lg border border-gray-200 p-4 sm:p-5">
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
+                  Update Dates
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                  {selectedStudentForDates.name} ({selectedStudentForDates.rollNumber})
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Academic year: {filters.academicYear || getDefaultAcademicYear()}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeStudentDatesModal}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Admit Date
+                </label>
+                <input
+                  type="date"
+                  value={admitDateInput}
+                  onChange={(e) => setAdmitDateInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Joining Date
+                </label>
+                <input
+                  type="date"
+                  value={joiningDateInput}
+                  onChange={(e) => setJoiningDateInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                  Left Date
+                </label>
+                <input
+                  type="date"
+                  value={leftDateInput}
+                  onChange={(e) => setLeftDateInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <p className="text-xs text-amber-700 mt-1">
+                  Saving a left date schedules expiry for that day. The hostel request stays active until then; the daily job vacates the room on/after that date. A past or today&apos;s date expires immediately.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                type="button"
+                onClick={closeStudentDatesModal}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                disabled={savingDates}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveStudentDates}
+                className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-60"
+                disabled={savingDates}
+              >
+                {savingDates ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

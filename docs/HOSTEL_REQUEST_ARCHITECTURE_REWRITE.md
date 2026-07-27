@@ -1,7 +1,7 @@
 # Hostel Management Architecture Rewrite
 
-**Status:** Phase 6 complete — ready for Phase 7 migration (last)  
-**Last updated:** 2026-07-21  
+**Status:** Phase 6 complete — ready for Phase 7 migration (last)
+**Last updated:** 2026-07-21
 **Rule:** Data migration / backfill runs **LAST**, after all phases are complete and verified.
 
 ---
@@ -22,16 +22,16 @@ Redesign so that:
 
 ## 2. Confirmed Design Decisions
 
-| Decision | Choice |
-|----------|--------|
-| Student identity | Minimal `StudentMaster` keyed by `admissionNumber` |
-| Yearly lifecycle | Full lifecycle on `HostelRequest` (allocation → occupancy → exit) |
-| Status values | `active`, `expired`, `cancelled` only |
-| Hostel sequence | Requires `Hostel.code`; counter key `hostelseq:{AY}:{college}:{course}:{hostel}` |
-| ID format | `{collegeCode}{courseCode}{hostelCode}{paddedSequence}` |
-| Pre-registration | Remove / replace with HostelRequest flow |
-| Renewal | Not supported — new year = new HostelRequest |
-| Migration | **Last step only** |
+| Decision         | Choice                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Student identity | Minimal`StudentMaster` keyed by `admissionNumber`                               |
+| Yearly lifecycle | Full lifecycle on`HostelRequest` (allocation → occupancy → exit)                |
+| Status values    | `active`, `expired`, `cancelled` only                                         |
+| Hostel sequence  | Requires`Hostel.code`; counter key `hostelseq:{AY}:{college}:{course}:{hostel}` |
+| ID format        | `{collegeCode}{courseCode}{hostelCode}{paddedSequence}`                           |
+| Pre-registration | Remove / replace with HostelRequest flow                                            |
+| Renewal          | Not supported — new year = new HostelRequest                                       |
+| Migration        | **Last step only**                                                            |
 
 ---
 
@@ -78,19 +78,19 @@ User login lifecycle uses `applicationStatus` only (`Active` | `Expired` | `Exte
 
 ## 4. Requirements Checklist (R1–R11)
 
-| ID | Requirement | Status |
-|----|-------------|--------|
-| R1 | Academic-year-wise student/hostel data | Phase 2 dual-read prefers HostelRequest when present |
-| R2 | Students page shows hostel request data | Phase 5 UI cutover (filters + detail) |
-| R3 | Admission number is main identifier | Phase 1 (`StudentMaster`) |
-| R4 | No renewal process | Phase 2+ (disable `isRenewal` path) |
-| R5 | Sequence College→Course→Hostel→Number | Phase 1 (`hostelSequenceGenerator`) |
-| R6 | HostelRequest is allocation SOT | Phase 3 occupancy reads prefer HostelRequest |
-| R7 | Occupancy history secondary only | Phase 3 reads + registration audit-only history |
-| R8 | Single status: active/expired/cancelled | Phase 1 model |
-| R9 | SDMS for academics | Phase 1 create flow; expand in Phase 2 |
-| R10 | Remove StudentPreRegistration | Phase 6 removed model/routes/UI |
-| R11 | Canonical API mounts only (no dual mount for new APIs) | Phase 1 + Phase 6 documented |
+| ID  | Requirement                                            | Status                                               |
+| --- | ------------------------------------------------------ | ---------------------------------------------------- |
+| R1  | Academic-year-wise student/hostel data                 | Phase 2 dual-read prefers HostelRequest when present |
+| R2  | Students page shows hostel request data                | Phase 5 UI cutover (filters + detail)                |
+| R3  | Admission number is main identifier                    | Phase 1 (`StudentMaster`)                          |
+| R4  | No renewal process                                     | Phase 2+ (disable`isRenewal` path)                 |
+| R5  | Sequence College→Course→Hostel→Number               | Phase 1 (`hostelSequenceGenerator`)                |
+| R6  | HostelRequest is allocation SOT                        | Phase 3 occupancy reads prefer HostelRequest         |
+| R7  | Occupancy history secondary only                       | Phase 3 reads + registration audit-only history      |
+| R8  | Single status: active/expired/cancelled                | Phase 1 model                                        |
+| R9  | SDMS for academics                                     | Phase 1 create flow; expand in Phase 2               |
+| R10 | Remove StudentPreRegistration                          | Phase 6 removed model/routes/UI                      |
+| R11 | Canonical API mounts only (no dual mount for new APIs) | Phase 1 + Phase 6 documented                         |
 
 ---
 
@@ -98,63 +98,63 @@ User login lifecycle uses `applicationStatus` only (`Active` | `Expired` | `Exte
 
 ### Phase 1 — Foundation (DONE)
 
-- [x] `StudentMaster` model
-- [x] `HostelRequest` model
-- [x] `Hostel.code` field + create/update API
-- [x] `RoomOccupancyHistory.hostelRequestId`
-- [x] `hostelSequenceGenerator.js`
-- [x] `hostelRequestOccupancyUtils.js` (AY-scoped)
-- [x] Canonical routes:
+- [X] `StudentMaster` model
+- [X] `HostelRequest` model
+- [X] `Hostel.code` field + create/update API
+- [X] `RoomOccupancyHistory.hostelRequestId`
+- [X] `hostelSequenceGenerator.js`
+- [X] `hostelRequestOccupancyUtils.js` (AY-scoped)
+- [X] Canonical routes:
   - `/api/student-masters`
   - `/api/hostel-requests`
-- [x] Backfill **script created** but **not to be run until last**
+- [X] Backfill **script created** but **not to be run until last**
 
 ### Phase 2 — Registration + Students write path (DONE)
 
-- [x] Shared `hostelRequestService.createYearlyHostelRequest`
-- [x] On SQL registration / `addStudent`: dual-write `StudentMaster` + `HostelRequest`
-- [x] Block duplicate HostelRequest for same admission + academic year
-- [x] Require hostel `code` before allocation (create hostel UI + API)
-- [x] Show `hostelSequenceId` on registration success toast
-- [x] Students list: dual-read / DTO compat (`fetchStudentsForAcademicYear` prefers HostelRequest; UI maps `active`/`expired`/`cancelled`)
+- [X] Shared `hostelRequestService.createYearlyHostelRequest`
+- [X] On SQL registration / `addStudent`: dual-write `StudentMaster` + `HostelRequest`
+- [X] Block duplicate HostelRequest for same admission + academic year
+- [X] Require hostel `code` before allocation (create hostel UI + API)
+- [X] Show `hostelSequenceId` on registration success toast
+- [X] Students list: dual-read / DTO compat (`fetchStudentsForAcademicYear` prefers HostelRequest; UI maps `active`/`expired`/`cancelled`)
 - [ ] Stop labeling flow as “renewal” in product copy (backend still dual-writes User for login compat) — optional polish
 
 ### Phase 3 — Occupancy & reports (DONE)
 
-- [x] Room bed/locker availability from active `HostelRequest` (legacy fallback until backfill)
-- [x] Align warden + admin room occupancy reads (`roomOccupancyUtils` AY-scoped; staff/guest uses same count)
-- [x] Dashboard / attendance / count reports prefer HostelRequest when AY filter set (dashboard room occupied + student lists via Phase 2 fetch)
-- [x] Drop synthetic “live snapshot” occupancy-history on registration — audit emitted from HostelRequest only
+- [X] Room bed/locker availability from active `HostelRequest` (legacy fallback until backfill)
+- [X] Align warden + admin room occupancy reads (`roomOccupancyUtils` AY-scoped; staff/guest uses same count)
+- [X] Dashboard / attendance / count reports prefer HostelRequest when AY filter set (dashboard room occupied + student lists via Phase 2 fetch)
+- [X] Drop synthetic “live snapshot” occupancy-history on registration — audit emitted from HostelRequest only
 
 ### Phase 4 — Fee / NOC / expiry (DONE)
 
-- [x] Expiry job updates `HostelRequest.status` → `expired` (`expireStudentApplication` → `closeActiveHostelRequestForUser`)
-- [x] NOC vacating updates request status → `cancelled` + reopen on NOC revert
-- [x] Admin inactive / enrollment removal closes or deletes request for that AY
-- [x] Fee reminders keyed by `hostelRequestId` + `admissionNumber` (+ legacy student id)
+- [X] Expiry job updates `HostelRequest.status` → `expired` (`expireStudentApplication` → `closeActiveHostelRequestForUser`)
+- [X] NOC vacating updates request status → `cancelled` + reopen on NOC revert
+- [X] Admin inactive / enrollment removal closes or deletes request for that AY
+- [X] Fee reminders keyed by `hostelRequestId` + `admissionNumber` (+ legacy student id)
 
 ### Phase 5 — Frontend Students module cutover (DONE)
 
-- [x] Students page framed as Hostel Requests for selected academic year
-- [x] Filters: AY, hostel, category, room, status (`active` / `expired` / `cancelled`)
-- [x] Detail modal: SDMS academics + hostel request allocation (sequence, status, admission)
-- [x] Pre-registration admin route redirects to SQL registration; public prereg form retired
+- [X] Students page framed as Hostel Requests for selected academic year
+- [X] Filters: AY, hostel, category, room, status (`active` / `expired` / `cancelled`)
+- [X] Detail modal: SDMS academics + hostel request allocation (sequence, status, admission)
+- [X] Pre-registration admin route redirects to SQL registration; public prereg form retired
 
 ### Phase 6 — Cleanup (DONE)
 
-- [x] Stop writing yearly hostel allocation onto `User` (login keeps `academicYear` + `hostelStatus`; room/bed/hostel on HostelRequest)
-- [x] Remove `StudentPreRegistration` (model, routes, controller, admin UI)
-- [x] Retire dual occupancy utils — `roomOccupancyUtils` is HostelRequest-only
-- [x] Document canonical API map; new APIs mounted once via `routes/index.js`
+- [X] Stop writing yearly hostel allocation onto `User` (login keeps `academicYear` + `hostelStatus`; room/bed/hostel on HostelRequest)
+- [X] Remove `StudentPreRegistration` (model, routes, controller, admin UI)
+- [X] Retire dual occupancy utils — `roomOccupancyUtils` is HostelRequest-only
+- [X] Document canonical API map; new APIs mounted once via `routes/index.js`
 
 ### Phase 7 — Migration LAST
 
-- [x] Inspect existing data: `node -r dotenv/config src/scripts/inspectMigrationData.js` (read-only)
-- [x] Assign real `Hostel.code` values (`assignHostelCodes.js` → Boys=BH, Girls=GH)
-- [x] Rewrite backfill script: real `generateHostelSequenceId` (no BACKFILL prefix), course-code
-      overrides (BSC/PHARMD/DAPPTV/DAH/DFP + strip dots), per-student+AY history dedupe,
-      preserve existing statuses regardless of AY, real expiry/cancel dates, `--fix-users` normalization
-- [x] Missing Mongo admission numbers are looked up in SDMS by roll number and synced during the real run
+- [X] Inspect existing data: `node -r dotenv/config src/scripts/inspectMigrationData.js` (read-only)
+- [X] Assign real `Hostel.code` values (`assignHostelCodes.js` → Boys=BH, Girls=GH)
+- [X] Rewrite backfill script: real `generateHostelSequenceId` (no BACKFILL prefix), course-code
+  overrides (BSC/PHARMD/DAPPTV/DAH/DFP + strip dots), per-student+AY history dedupe,
+  preserve existing statuses regardless of AY, real expiry/cancel dates, `--fix-users` normalization
+- [X] Missing Mongo admission numbers are looked up in SDMS by roll number and synced during the real run
 - [ ] Re-run dry-run after status-preservation and SDMS-sync changes; verify totals in `server/backfill-dryrun.log`
 - [ ] Resolve only SDMS lookup conflicts/not-found records reported by the dry-run (script is idempotent)
 - [ ] Run real: `npm run backfill-hostel-requests` (add `-- --fix-users` after review)
@@ -180,15 +180,15 @@ status fields per the table below.
 
 ### Mapping rules
 
-| Legacy signal on `User` | Reason / how to detect | → `HostelRequest.status` | → `User.applicationStatus` |
-|--------------------------|------------------------|--------------------------|-----------------------------|
-| `hostelStatus = 'Active'` | Preserve existing active state, regardless of academic year | `active` | `Active` |
-| `hostelStatus = 'Active'` **and** `applicationStatus = 'Extended'` | Extension granted | `active` | `Extended` |
-| `hostelStatus = 'Inactive'` due to application expiry | `applicationExpiryDate` in the past, or `applicationStatus = 'Expired'` | `expired` | `Expired` |
-| `hostelStatus = 'Inactive'` due to NOC / vacate | Has approved/served `NOC` or `nocDate` set | `cancelled` | `Withdrawn` |
-| `hostelStatus = 'Inactive'`, no NOC and no expiry date | Manually deactivated | `expired` | `Expired` |
-| `applicationStatus = 'Withdrawn'` (already) | Preserve | `cancelled` | `Withdrawn` |
-| No `hostelStatus` and no allocation | Never allocated / login-only | **no HostelRequest** | keep existing (`Active` default) |
+| Legacy signal on`User`                                                     | Reason / how to detect                                                      | →`HostelRequest.status` | →`User.applicationStatus`       |
+| ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------- | ---------------------------------- |
+| `hostelStatus = 'Active'`                                                  | Preserve existing active state, regardless of academic year                 | `active`                 | `Active`                         |
+| `hostelStatus = 'Active'` **and** `applicationStatus = 'Extended'` | Extension granted                                                           | `active`                 | `Extended`                       |
+| `hostelStatus = 'Inactive'` due to application expiry                      | `applicationExpiryDate` in the past, or `applicationStatus = 'Expired'` | `expired`                | `Expired`                        |
+| `hostelStatus = 'Inactive'` due to NOC / vacate                            | Has approved/served`NOC` or `nocDate` set                               | `cancelled`              | `Withdrawn`                      |
+| `hostelStatus = 'Inactive'`, no NOC and no expiry date                     | Manually deactivated                                                        | `expired`                | `Expired`                        |
+| `applicationStatus = 'Withdrawn'` (already)                                | Preserve                                                                    | `cancelled`              | `Withdrawn`                      |
+| No`hostelStatus` and no allocation                                         | Never allocated / login-only                                                | **no HostelRequest** | keep existing (`Active` default) |
 
 ### Allocation & sequence
 
@@ -220,33 +220,33 @@ Mount rule: **new architecture routes are registered once** in `server/src/route
 
 ### Hostel request architecture (canonical)
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/api/student-masters` | List masters |
-| POST | `/api/student-masters` | Upsert master (optional SDMS sync) |
-| GET | `/api/student-masters/:admissionNumber` | Get by admission |
-| GET | `/api/hostel-requests` | List/filter yearly requests |
-| POST | `/api/hostel-requests` | Create yearly allocation |
-| GET | `/api/hostel-requests/:id` | Detail |
-| PATCH | `/api/hostel-requests/:id/status` | Set active/expired/cancelled |
-| PATCH | `/api/hostel-requests/:id/allocation` | Change room/bed within year |
-| PUT | `/api/hostels/:id` | Update hostel including `code` |
+| Method | Path                                      | Purpose                            |
+| ------ | ----------------------------------------- | ---------------------------------- |
+| GET    | `/api/student-masters`                  | List masters                       |
+| POST   | `/api/student-masters`                  | Upsert master (optional SDMS sync) |
+| GET    | `/api/student-masters/:admissionNumber` | Get by admission                   |
+| GET    | `/api/hostel-requests`                  | List/filter yearly requests        |
+| POST   | `/api/hostel-requests`                  | Create yearly allocation           |
+| GET    | `/api/hostel-requests/:id`              | Detail                             |
+| PATCH  | `/api/hostel-requests/:id/status`       | Set active/expired/cancelled       |
+| PATCH  | `/api/hostel-requests/:id/allocation`   | Change room/bed within year        |
+| PUT    | `/api/hostels/:id`                      | Update hostel including`code`    |
 
 ### Compatibility (still used; prefer HostelRequest for allocation)
 
-| Method | Path | Notes |
-|--------|------|-------|
-| GET | `/api/admin/students` | Dual-read DTO; overlays HostelRequest when present |
-| POST | `/api/admin/students` | Creates User login + HostelRequest (no User room writes) |
-| GET | `/api/admin/rooms` / `/api/rooms` | Occupancy counts from active HostelRequest |
+| Method | Path                                  | Notes                                                    |
+| ------ | ------------------------------------- | -------------------------------------------------------- |
+| GET    | `/api/admin/students`               | Dual-read DTO; overlays HostelRequest when present       |
+| POST   | `/api/admin/students`               | Creates User login + HostelRequest (no User room writes) |
+| GET    | `/api/admin/rooms` / `/api/rooms` | Occupancy counts from active HostelRequest               |
 
 ### Removed (Phase 6)
 
-| Path | Status |
-|------|--------|
-| `/api/student/preregister` | Removed |
-| `/api/student/preregistrations/*` | Removed |
-| Admin Pre-Registration Requests UI | Removed (redirects to SQL registration) |
+| Path                                | Status                                  |
+| ----------------------------------- | --------------------------------------- |
+| `/api/student/preregister`        | Removed                                 |
+| `/api/student/preregistrations/*` | Removed                                 |
+| Admin Pre-Registration Requests UI  | Removed (redirects to SQL registration) |
 
 ---
 
@@ -336,8 +336,6 @@ npm run backfill-hostel-requests
 npm run backfill-hostel-requests -- --fix-users
 ```
 
-
-
 ```
 cd server
 
@@ -356,5 +354,4 @@ npm run backfill-hostel-requests -- --fix-users
 
 # 5. Final verification
 node -r dotenv/config src/scripts/inspectMigrationData.js
-
 ```

@@ -80,6 +80,8 @@ const RoomManagement = () => {
     category: '',
     academicYear: getDefaultAcademicYear()
   });
+  // Live = active requests across all AYs; AY Wise = all statuses for selected year
+  const [analyticsMode, setAnalyticsMode] = useState('live');
   const [formData, setFormData] = useState({
     hostel: '',
     category: '',
@@ -142,8 +144,12 @@ const RoomManagement = () => {
   const fetchRooms = async () => {
     try {
       const params = {
-        ...filters
+        hostel: filters.hostel,
+        category: filters.category
       };
+      if (analyticsMode === 'ay' && filters.academicYear) {
+        params.academicYear = filters.academicYear;
+      }
       const response = await api.get('/api/admin/rooms', { params });
       if (response.data.success) {
         const fetchedRooms = response.data.data.rooms || [];
@@ -167,7 +173,9 @@ const RoomManagement = () => {
     setStatsLoading(true);
     try {
       const params = {};
-      if (filters.academicYear) params.academicYear = filters.academicYear;
+      if (analyticsMode === 'ay' && filters.academicYear) {
+        params.academicYear = filters.academicYear;
+      }
       const response = await api.get('/api/admin/rooms/stats', { params });
       if (response.data.success) {
         setRoomStats(response.data.data);
@@ -192,7 +200,7 @@ const RoomManagement = () => {
     setStatsLoading(true);
     fetchRooms();
     fetchRoomStats();
-  }, [filters]);
+  }, [filters, analyticsMode]);
 
   useEffect(() => {
     if (showBillModal) {
@@ -413,7 +421,10 @@ const RoomManagement = () => {
     setHistoryFilterAY(filters.academicYear || '');
     setLoadingStudents(true);
     try {
-      const params = filters.academicYear ? { academicYear: filters.academicYear } : {};
+      const params =
+        analyticsMode === 'ay' && filters.academicYear
+          ? { academicYear: filters.academicYear }
+          : {};
       const response = await api.get(`/api/admin/rooms/${room._id}/students`, { params });
       if (response.data.success) {
         setRoomStudents(response.data.data.students || []);
@@ -834,19 +845,61 @@ const RoomManagement = () => {
           <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-900 to-blue-700 bg-clip-text text-transparent">Room Management</h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
             Manage hostel rooms and their assignments
-            {filters.academicYear && (
+            {analyticsMode === 'ay' && filters.academicYear ? (
               <span className="ml-1 text-blue-700 font-medium">· {filters.academicYear}</span>
+            ) : (
+              <span className="ml-1 text-green-700 font-medium">· Live</span>
             )}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-2 sm:gap-3 w-full lg:w-auto">
-          <div className="min-w-[160px]">
-            <label className="block text-xs font-medium text-gray-700 mb-1">Academic Year</label>
+          <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100">
+            <div className="relative grid grid-cols-2 items-center bg-gray-200/80 p-1 rounded-xl w-56 sm:w-64 border border-gray-300/60 shadow-inner">
+              <motion.div
+                className="absolute top-1 bottom-1 bg-blue-600 rounded-lg shadow-md"
+                initial={false}
+                animate={{
+                  left: analyticsMode === 'live' ? '4px' : 'calc(50% + 2px)',
+                  width: 'calc(50% - 6px)'
+                }}
+                transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setStatsLoading(true);
+                  setAnalyticsMode('live');
+                }}
+                className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                  analyticsMode === 'live' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                Live
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStatsLoading(true);
+                  setAnalyticsMode('ay');
+                }}
+                className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                  analyticsMode === 'ay' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
+                }`}
+              >
+                AY Wise
+              </button>
+            </div>
             <select
               name="academicYear"
               value={filters.academicYear}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs sm:text-sm bg-white"
+              disabled={analyticsMode === 'live'}
+              className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                analyticsMode === 'live'
+                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                  : 'bg-white text-gray-800 border-gray-300'
+              }`}
+              title={analyticsMode === 'live' ? 'Switch to AY Wise to select academic year' : 'Select Academic Year'}
             >
               {generateAcademicYears().map((year) => (
                 <option key={year} value={year}>{year}</option>
@@ -875,8 +928,10 @@ const RoomManagement = () => {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             Room Statistics
-            {filters.academicYear && (
-              <span className="ml-2 text-sm font-normal text-gray-500">({filters.academicYear})</span>
+            {analyticsMode === 'ay' && filters.academicYear ? (
+              <span className="ml-2 text-sm font-normal text-gray-500">({filters.academicYear} · all statuses)</span>
+            ) : (
+              <span className="ml-2 text-sm font-normal text-gray-500">(Live · active)</span>
             )}
           </h2>
           {statsLoading && (
@@ -1063,7 +1118,7 @@ const RoomManagement = () => {
                           Bed Count
                         </th>
                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Students{filters.academicYear ? ` (${filters.academicYear})` : ''}
+                          Students{analyticsMode === 'ay' && filters.academicYear ? ` (${filters.academicYear})` : ' (Live)'}
                         </th>
                         <th className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions

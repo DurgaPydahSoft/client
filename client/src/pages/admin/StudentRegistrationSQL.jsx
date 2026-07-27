@@ -23,9 +23,6 @@ const initialForm = {
   category: '',
   mealType: '',
   parentPermissionForOuting: true,
-  roomNumber: '',
-  bedNumber: '',
-  lockerNumber: '',
   studentPhone: '',
   parentPhone: '',
   motherName: '',
@@ -122,12 +119,6 @@ const StudentRegistrationSQL = () => {
       return true;
     });
   }, [branches]);
-
-  // Room availability
-  const [roomsWithAvailability, setRoomsWithAvailability] = useState([]);
-  const [loadingRooms, setLoadingRooms] = useState(false);
-  const [bedLockerAvailability, setBedLockerAvailability] = useState(null);
-  const [loadingBedLocker, setLoadingBedLocker] = useState(false);
 
   // Hostel hierarchy
   const [hostels, setHostels] = useState([]);
@@ -282,67 +273,6 @@ const StudentRegistrationSQL = () => {
     }
   };
 
-  // Fetch rooms with availability (filtered by academic year)
-  const fetchRoomsWithAvailability = async (hostelId, categoryIdOrName, academicYear) => {
-    if (!hostelId || !categoryIdOrName) {
-      setRoomsWithAvailability([]);
-      return;
-    }
-    setLoadingRooms(true);
-    try {
-      let finalCategoryId = categoryIdOrName;
-      if (!/^[0-9a-fA-F]{24}$/.test(finalCategoryId)) {
-        const list = hostelCategories.length ? hostelCategories : await fetchHostelCategories(hostelId);
-        const match = list.find(c => c._id === categoryIdOrName || (c.name || '').toLowerCase() === (categoryIdOrName || '').toLowerCase());
-        if (match) finalCategoryId = match._id;
-      }
-      const params = new URLSearchParams({
-        hostel: hostelId,
-        category: finalCategoryId,
-        academicYear: academicYear || getDefaultAcademicYear()
-      });
-      const res = await api.get(`/api/admin/rooms/bed-availability?${params.toString()}`);
-      if (res.data.success) {
-        setRoomsWithAvailability(res.data.data.rooms || []);
-      }
-    } catch (err) {
-      console.error('Error fetching rooms:', err);
-      toast.error('Error fetching room availability');
-    } finally {
-      setLoadingRooms(false);
-    }
-  };
-
-  // Fetch bed/locker availability for selected academic year
-  const fetchBedLockerAvailability = async (roomNumber, academicYear, hostelId, categoryId) => {
-    if (!roomNumber) return;
-    setLoadingBedLocker(true);
-    try {
-      const params = new URLSearchParams({
-        academicYear: academicYear || getDefaultAcademicYear()
-      });
-      if (hostelId) params.set('hostel', hostelId);
-      if (categoryId) params.set('category', categoryId);
-      const query = params.toString();
-      const url = `/api/admin/rooms/${roomNumber}/bed-locker-availability${query ? `?${query}` : ''}`;
-      const res = await api.get(url);
-      if (res.data.success) {
-        setBedLockerAvailability(res.data.data);
-        // Auto-select first available bed and locker
-        if (res.data.data.availableBeds?.length > 0) {
-          setForm(prev => ({ ...prev, bedNumber: res.data.data.availableBeds[0].value }));
-        }
-        if (res.data.data.availableLockers?.length > 0) {
-          setForm(prev => ({ ...prev, lockerNumber: res.data.data.availableLockers[0].value }));
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching bed/locker availability:', err);
-    } finally {
-      setLoadingBedLocker(false);
-    }
-  };
-
   // Fetch fee structure
   const fetchFeeStructure = async (courseIdOrName, branchIdOrName, year, categoryName, academicYear, studentId = '') => {
     const courseName = getCourseNameById(courseIdOrName);
@@ -424,9 +354,6 @@ const StudentRegistrationSQL = () => {
           category: form.category,
           mealType: form.mealType,
           parentPermissionForOuting: form.parentPermissionForOuting,
-          roomNumber: form.roomNumber,
-          bedNumber: form.bedNumber,
-          lockerNumber: form.lockerNumber,
           localGuardianName: form.localGuardianName,
           localGuardianPhone: form.localGuardianPhone,
           academicYear: resolvedAcademicYear || form.academicYear,
@@ -503,35 +430,13 @@ const StudentRegistrationSQL = () => {
       if (name === 'gender') {
         newForm.category = '';
       }
-      if (name === 'academicYear') {
-        newForm.roomNumber = '';
-        newForm.bedNumber = '';
-        newForm.lockerNumber = '';
-        setBedLockerAvailability(null);
-      }
       if (name === 'hostel') {
         newForm.hostelCategory = '';
-        newForm.roomNumber = '';
-        newForm.bedNumber = '';
-        newForm.lockerNumber = '';
         fetchHostelCategories(fieldValue);
       }
       if (name === 'hostelCategory') {
-        newForm.roomNumber = '';
-        newForm.bedNumber = '';
-        newForm.lockerNumber = '';
         // set category string from selected hostel category for fee calc
         newForm.category = getHostelCategoryNameById(fieldValue);
-        if (newForm.hostel && fieldValue) {
-          fetchRoomsWithAvailability(newForm.hostel, fieldValue, newForm.academicYear);
-        }
-      }
-      if (name === 'roomNumber') {
-        newForm.bedNumber = '';
-        newForm.lockerNumber = '';
-        if (value) {
-          fetchBedLockerAvailability(value, newForm.academicYear, newForm.hostel, newForm.hostelCategory);
-        }
       }
 
       return newForm;
@@ -736,15 +641,6 @@ const StudentRegistrationSQL = () => {
       setAdding(false);
     }
   };
-
-  // Fetch rooms when hostel, category, or academic year changes
-  useEffect(() => {
-    if (form.hostel && form.hostelCategory && form.academicYear) {
-      fetchRoomsWithAvailability(form.hostel, form.hostelCategory, form.academicYear);
-    } else {
-      setRoomsWithAvailability([]);
-    }
-  }, [form.hostel, form.hostelCategory, form.academicYear]);
 
   // Fetch fee structure when relevant fields change (derived values)
   useEffect(() => {
@@ -1116,30 +1012,6 @@ const StudentRegistrationSQL = () => {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>Room Number *</label>
-                <select
-                  name="roomNumber"
-                  value={form.roomNumber}
-                  onChange={handleFormChange}
-                  required
-                  disabled={!form.hostel || !form.hostelCategory || loadingRooms}
-                  className={inputClass}
-                >
-                  <option value="">{loadingRooms ? 'Loading rooms...' : 'Select Room'}</option>
-                  {roomsWithAvailability.map(room => (
-                    <option
-                      key={room._id}
-                      value={room.roomNumber}
-                      disabled={room.availableBeds <= 0}
-                    >
-                      Room {room.roomNumber} ({room.studentCount}/{room.bedCount} students
-                      {form.academicYear ? ` · ${form.academicYear}` : ''}
-                      {room.availableBeds <= 0 ? ' · Full' : ''})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className={labelClass}>Meal Type *</label>
                 <select
                   name="mealType"
@@ -1166,40 +1038,6 @@ const StudentRegistrationSQL = () => {
                   <span className="text-xs text-gray-700">Enable (OTP to parent)</span>
                 </label>
               </div>
-              {form.roomNumber && (
-                <>
-                  <div>
-                    <label className={labelClass}>Bed Number</label>
-                    <select
-                      name="bedNumber"
-                      value={form.bedNumber}
-                      onChange={handleFormChange}
-                      disabled={loadingBedLocker}
-                      className={inputClass}
-                    >
-                      <option value="">Select Bed</option>
-                      {bedLockerAvailability?.availableBeds?.map(bed => (
-                        <option key={bed.value} value={bed.value}>{bed.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelClass}>Locker Number</label>
-                    <select
-                      name="lockerNumber"
-                      value={form.lockerNumber}
-                      onChange={handleFormChange}
-                      disabled={loadingBedLocker}
-                      className={inputClass}
-                    >
-                      <option value="">Select Locker</option>
-                      {bedLockerAvailability?.availableLockers?.map(locker => (
-                        <option key={locker.value} value={locker.value}>{locker.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
             </div>
           </div>
 
