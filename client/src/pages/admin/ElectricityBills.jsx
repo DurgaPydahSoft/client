@@ -87,6 +87,35 @@ const ElectricityBills = () => {
   const [loadingDefaultRate, setLoadingDefaultRate] = useState(false);
   const [savingDefaultRate, setSavingDefaultRate] = useState(false);
   const [showPrintReport, setShowPrintReport] = useState(false);
+  const [feeHeads, setFeeHeads] = useState([]);
+  const [loadingFeeHeads, setLoadingFeeHeads] = useState(false);
+  const [selectedFeeHeadId, setSelectedFeeHeadId] = useState('');
+  const [savedFeeHead, setSavedFeeHead] = useState({ id: null, code: null, name: null });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [generatorBill, setGeneratorBill] = useState({ month: '', amount: '', savedAmount: 0, updatedAt: null });
+  const [loadingGeneratorBill, setLoadingGeneratorBill] = useState(false);
+  const [savingGeneratorBill, setSavingGeneratorBill] = useState(false);
+  const [syncingRoomId, setSyncingRoomId] = useState(null);
+  const [syncingAll, setSyncingAll] = useState(false);
+  const [syncResultModal, setSyncResultModal] = useState({
+    open: false,
+    mode: 'single', // 'single' | 'all'
+    roomNumber: '',
+    month: '',
+    data: null,
+    rooms: [] // for Sync All: [{ roomId, roomNumber, ok, error, data }]
+  });
+  const [occupantsModal, setOccupantsModal] = useState({
+    open: false,
+    roomId: null,
+    roomNumber: '',
+    loading: false,
+    students: [],
+    error: null,
+    minAttendanceDays: 5,
+    eligibleCount: 0,
+    totalLive: 0
+  });
 
   const getId = (objOrId) => (typeof objOrId === 'object' && objOrId?._id ? objOrId._id : objOrId);
   const getHostelLabel = (hostel) => {
@@ -94,11 +123,32 @@ const ElectricityBills = () => {
     if (typeof hostel === 'string') return hostel;
     return hostel.name || hostel.hostelName || hostel._id || '';
   };
+  const getHostelCode = (hostel) => {
+    if (!hostel) return '';
+    if (typeof hostel === 'string') {
+      const found = hostels.find((h) => getId(h._id || h) === hostel || h.name === hostel);
+      return found?.code || found?.name || hostel;
+    }
+    return hostel.code || hostel.name || hostel.hostelName || '';
+  };
 
   const getCategoryLabel = (category) => {
     if (!category) return '';
     if (typeof category === 'string') return category;
     return category.name || category.categoryName || category._id || '';
+  };
+
+  const getRoomHostelCategoryText = (bill) => {
+    const hostelCode =
+      bill.hostelCode ||
+      getHostelCode(hostels.find((h) => getId(h._id || h) === bill.hostel) || bill.hostel) ||
+      '';
+    const category =
+      bill.categoryLabel ||
+      getCategoryLabel(categories.find((c) => getId(c._id || c) === bill.category) || bill.category) ||
+      '';
+    if (hostelCode && category) return `${hostelCode} / ${category}`;
+    return hostelCode || category || '';
   };
 
   const fetchHostels = async () => {
@@ -147,6 +197,7 @@ const ElectricityBills = () => {
           const hostelId = getId(room.hostel);
           const categoryId = getId(room.category);
           const hostelLabel = getHostelLabel(room.hostel);
+          const hostelCode = getHostelCode(room.hostel);
           const categoryLabel = getCategoryLabel(room.category);
           
           if (isDualMeter) {
@@ -155,6 +206,7 @@ const ElectricityBills = () => {
               roomNumber: room.roomNumber,
               hostel: hostelId,
               hostelLabel,
+              hostelCode,
               category: categoryId,
               categoryLabel,
               meterType: 'dual',
@@ -171,6 +223,7 @@ const ElectricityBills = () => {
               roomNumber: room.roomNumber,
               hostel: hostelId,
               hostelLabel,
+              hostelCode,
               category: categoryId,
               categoryLabel,
               meterType: 'single',
@@ -421,6 +474,204 @@ const ElectricityBills = () => {
     }
   };
 
+  /** Sync Fees DB demands for an already-raised bill (recalculate shares + update/create/remove) */
+  const handleSyncBillDemands = async (roomId) => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to sync electricity demands');
+      return;
+    }
+    if (!bulkMonth) {
+      toast.error('Please select a billing month.');
+      return;
+    }
+    if (!savedFeeHead.id) {
+      toast.error('Select and save an electricity fee head in Settings first.');
+      return;
+    }
+
+    const roomNumber = rooms.find((r) => r._id === roomId)?.roomNumber || '';
+    setSyncingRoomId(roomId);
+    try {
+      const response = await api.post(
+        `/api/admin/rooms/${roomId}/electricity-bill/sync-demands`,
+        { month: bulkMonth }
+      );
+      if (response.data.success) {
+        setSyncResultModal({
+          open: true,
+          mode: 'single',
+          roomNumber,
+          month: bulkMonth,
+          data: response.data.data || {},
+          rooms: []
+        });
+        await fetchRooms();
+      } else {
+        throw new Error(response.data.message || 'Sync failed');
+      }
+    } catch (error) {
+      console.error('Error syncing bill demands:', error);
+      toast.error(error.response?.data?.message || 'Failed to sync fee demands');
+    } finally {
+      setSyncingRoomId(null);
+    }
+  };
+
+  /** Sync all already-billed rooms for the selected month (respects hostel/category filters). */
+  const handleSyncAllBillDemands = async () => {
+    if (!canManageBills) {
+      toast.error('You do not have permission to sync electricity demands');
+      return;
+    }
+    if (!bulkMonth) {
+      toast.error('Please select a billing month.');
+      return;
+    }
+    if (!savedFeeHead.id) {
+      toast.error('Select and save an electricity fee head in Settings first.');
+      return;
+    }
+
+    const billedRooms = bulkBillData.filter((bill) => {
+      if (filters.hostel && bill.hostel !== filters.hostel) return false;
+      if (filters.category && bill.category !== filters.category) return false;
+      const room = rooms.find((r) => r._id === bill.roomId);
+      return !!(bulkMonth && room?.electricityBills?.find((b) => b.month === bulkMonth));
+    });
+
+    if (billedRooms.length === 0) {
+      toast.error('No raised bills found for this month in the current filter.');
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Sync fee demands for ${billedRooms.length} billed room(s) in ${bulkMonth}? Eligible shares will be recalculated room-wise.`
+      )
+    ) {
+      return;
+    }
+
+    setSyncingAll(true);
+    const roomResults = [];
+    try {
+      for (const bill of billedRooms) {
+        try {
+          const response = await api.post(
+            `/api/admin/rooms/${bill.roomId}/electricity-bill/sync-demands`,
+            { month: bulkMonth }
+          );
+          if (response.data.success) {
+            roomResults.push({
+              roomId: bill.roomId,
+              roomNumber: bill.roomNumber,
+              ok: true,
+              data: response.data.data || {}
+            });
+          } else {
+            roomResults.push({
+              roomId: bill.roomId,
+              roomNumber: bill.roomNumber,
+              ok: false,
+              error: response.data.message || 'Sync failed',
+              data: null
+            });
+          }
+        } catch (err) {
+          roomResults.push({
+            roomId: bill.roomId,
+            roomNumber: bill.roomNumber,
+            ok: false,
+            error: err.response?.data?.message || err.message || 'Sync failed',
+            data: null
+          });
+        }
+      }
+
+      setSyncResultModal({
+        open: true,
+        mode: 'all',
+        roomNumber: '',
+        month: bulkMonth,
+        data: null,
+        rooms: roomResults
+      });
+      await fetchRooms();
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
+  const closeSyncResultModal = () => {
+    setSyncResultModal({
+      open: false,
+      mode: 'single',
+      roomNumber: '',
+      month: '',
+      data: null,
+      rooms: []
+    });
+  };
+
+  /** Show live active students when a room is clicked */
+  const handleOpenRoomOccupants = async (roomId) => {
+    const room = rooms.find((r) => r._id === roomId);
+    if (!bulkMonth) {
+      toast.error('Select a billing month first to check attendance eligibility.');
+      return;
+    }
+    setOccupantsModal({
+      open: true,
+      roomId,
+      roomNumber: room?.roomNumber || '',
+      loading: true,
+      students: [],
+      error: null,
+      minAttendanceDays: 5,
+      eligibleCount: 0,
+      totalLive: 0
+    });
+    try {
+      const response = await api.get(`/api/admin/rooms/${roomId}/electricity-occupants`, {
+        params: { month: bulkMonth }
+      });
+      if (response.data.success) {
+        const data = response.data.data || {};
+        setOccupantsModal((prev) => ({
+          ...prev,
+          loading: false,
+          students: data.students || [],
+          minAttendanceDays: data.minAttendanceDays ?? 5,
+          eligibleCount: data.eligibleCount ?? 0,
+          totalLive: data.totalLive ?? (data.students || []).length
+        }));
+      } else {
+        throw new Error(response.data.message || 'Failed to load students');
+      }
+    } catch (error) {
+      console.error('Error loading room occupants:', error);
+      setOccupantsModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: error.response?.data?.message || 'Failed to load live students'
+      }));
+    }
+  };
+
+  const closeOccupantsModal = () => {
+    setOccupantsModal({
+      open: false,
+      roomId: null,
+      roomNumber: '',
+      loading: false,
+      students: [],
+      error: null,
+      minAttendanceDays: 5,
+      eligibleCount: 0,
+      totalLive: 0
+    });
+  };
+
   useEffect(() => {
   fetchHostels();
 }, []);
@@ -491,21 +742,136 @@ useEffect(() => {
     }
   }, [activeTab, filters, reportsMonthFilter, reportsPaymentFilter]);
 
-  // Fetch default rate
+  // Fetch electricity settings (rate + fee head)
   const fetchDefaultRate = async () => {
     setLoadingDefaultRate(true);
     try {
-      const response = await api.get('/api/admin/rooms/electricity-default-rate');
+      const response = await api.get('/api/admin/rooms/electricity-settings');
       if (response.data.success) {
-        const rate = response.data.rate || '';
+        const data = response.data.data || {};
+        const rate = data.defaultRate ?? response.data.rate ?? '';
         setDefaultRate(rate.toString());
-        setBulkRate(rate.toString()); // Also set bulkRate for backward compatibility
+        setBulkRate(rate.toString());
+        setSavedFeeHead({
+          id: data.feeHeadId || null,
+          code: data.feeHeadCode || null,
+          name: data.feeHeadName || null
+        });
+        setSelectedFeeHeadId(data.feeHeadId || '');
       }
     } catch (error) {
-      console.error('Error fetching default rate:', error);
-      toast.error('Failed to fetch default rate');
+      console.error('Error fetching electricity settings:', error);
+      // Fallback to legacy endpoint
+      try {
+        const legacy = await api.get('/api/admin/rooms/electricity-default-rate');
+        if (legacy.data.success) {
+          const rate = legacy.data.rate || '';
+          setDefaultRate(rate.toString());
+          setBulkRate(rate.toString());
+          if (legacy.data.feeHeadId) {
+            setSavedFeeHead({
+              id: legacy.data.feeHeadId,
+              code: legacy.data.feeHeadCode || null,
+              name: legacy.data.feeHeadName || null
+            });
+            setSelectedFeeHeadId(legacy.data.feeHeadId);
+          }
+        }
+      } catch (legacyErr) {
+        toast.error('Failed to fetch electricity settings');
+      }
     } finally {
       setLoadingDefaultRate(false);
+    }
+  };
+
+  const fetchFeeHeads = async () => {
+    setLoadingFeeHeads(true);
+    try {
+      const response = await api.get('/api/admin/rooms/fee-heads');
+      if (response.data.success) {
+        setFeeHeads(response.data.feeHeads || []);
+      } else {
+        toast.error(response.data.message || 'Failed to load fee heads');
+      }
+    } catch (error) {
+      console.error('Error fetching fee heads:', error);
+      toast.error(error.response?.data?.message || 'Failed to load fee heads from Fees DB');
+    } finally {
+      setLoadingFeeHeads(false);
+    }
+  };
+
+  const fetchGeneratorBill = async (month, hostelId) => {
+    if (!month || !hostelId) {
+      setGeneratorBill({ month: '', amount: '', savedAmount: 0, updatedAt: null });
+      return;
+    }
+    setLoadingGeneratorBill(true);
+    try {
+      const response = await api.get('/api/admin/rooms/generator-bill', {
+        params: { month, hostel: hostelId }
+      });
+      if (response.data.success) {
+        const data = response.data.data || {};
+        const amount = Number(data.amount) || 0;
+        setGeneratorBill({
+          month,
+          amount: String(amount),
+          savedAmount: amount,
+          updatedAt: data.updatedAt || null
+        });
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch generator bill');
+      }
+    } catch (error) {
+      console.error('Error fetching generator bill:', error);
+      setGeneratorBill({ month, amount: '', savedAmount: 0, updatedAt: null });
+      toast.error(error.response?.data?.message || 'Failed to fetch generator bill');
+    } finally {
+      setLoadingGeneratorBill(false);
+    }
+  };
+
+  const handleSaveGeneratorBill = async () => {
+    if (!bulkMonth) {
+      toast.error('Select a billing month first.');
+      return;
+    }
+    if (!filters.hostel) {
+      toast.error('Select a hostel first.');
+      return;
+    }
+    const parsedAmount = Number(generatorBill.amount);
+    if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
+      toast.error('Generator amount must be 0 or more.');
+      return;
+    }
+
+    setSavingGeneratorBill(true);
+    try {
+      const response = await api.post('/api/admin/rooms/generator-bill', {
+        month: bulkMonth,
+        hostel: filters.hostel,
+        amount: parsedAmount
+      });
+      if (response.data.success) {
+        const data = response.data.data || {};
+        setGeneratorBill({
+          month: bulkMonth,
+          amount: String(Number(data.amount) || 0),
+          savedAmount: Number(data.amount) || 0,
+          updatedAt: data.updatedAt || null
+        });
+        toast.success('Generator bill saved for this month.');
+      } else {
+        throw new Error(response.data.message || 'Failed to save generator bill');
+      }
+    } catch (error) {
+      console.error('Error saving generator bill:', error);
+      toast.error(error.response?.data?.message || 'Failed to save generator bill');
+    } finally {
+      setSavingGeneratorBill(false);
     }
   };
 
@@ -518,12 +884,12 @@ useEffect(() => {
 
     setSavingDefaultRate(true);
     try {
-      const response = await api.post('/api/admin/rooms/electricity-default-rate', {
-        rate: Number(defaultRate)
+      const response = await api.post('/api/admin/rooms/electricity-settings', {
+        defaultRate: Number(defaultRate)
       });
       if (response.data.success) {
         toast.success('Default electricity rate saved successfully!');
-        setBulkRate(defaultRate); // Update bulkRate as well
+        setBulkRate(defaultRate);
       } else {
         throw new Error(response.data.message || 'Failed to save default rate');
       }
@@ -535,10 +901,52 @@ useEffect(() => {
     }
   };
 
+  const handleSaveFeeHead = async () => {
+    if (!selectedFeeHeadId) {
+      toast.error('Please select a fee head');
+      return;
+    }
+    const head = feeHeads.find((h) => h._id === selectedFeeHeadId);
+    setSavingSettings(true);
+    try {
+      const response = await api.post('/api/admin/rooms/electricity-settings', {
+        feeHeadId: selectedFeeHeadId,
+        feeHeadCode: head?.code || '',
+        feeHeadName: head?.name || ''
+      });
+      if (response.data.success) {
+        const data = response.data.data || {};
+        setSavedFeeHead({
+          id: data.feeHeadId,
+          code: data.feeHeadCode,
+          name: data.feeHeadName
+        });
+        toast.success('Electricity fee head saved. New bills will create demands under this head.');
+      } else {
+        throw new Error(response.data.message || 'Failed to save fee head');
+      }
+    } catch (error) {
+      console.error('Error saving fee head:', error);
+      toast.error(error.response?.data?.message || 'Failed to save fee head');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   // Load default rate on mount
   useEffect(() => {
     fetchDefaultRate();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      fetchFeeHeads();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchGeneratorBill(bulkMonth, filters.hostel);
+  }, [bulkMonth, filters.hostel]);
 
   // Handle print report - opens modal
   const handleGenerateReport = () => {
@@ -684,14 +1092,18 @@ useEffect(() => {
         };
       }
 
-      await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${roomId}/electricity-bill`, payload, {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api/admin/rooms/${roomId}/electricity-bill`, payload, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
       });
-
-      toast.success(`Bill saved for Room ${rooms.find(r => r._id === roomId)?.roomNumber}!`);
+      const occ = res.data?.occupancy;
+      const eligibleNote =
+        occ?.eligibleCount != null
+          ? ` ${occ.eligibleCount}/${occ.occupantCount ?? '?'} eligible · elec ₹${Number(occ.sharePerStudent || 0).toFixed(2)} + gen ₹${Number(occ.generatorAmount || 0).toFixed(2)}`
+          : '';
+      toast.success(`Bill saved for Room ${rooms.find(r => r._id === roomId)?.roomNumber}!${eligibleNote}`);
 
       // Refetch rooms to update last bill info
       fetchRooms();
@@ -718,7 +1130,7 @@ useEffect(() => {
     const scopeText = hasFilters
       ? 'rooms matching current filters (Hostel/Category)'
       : 'all rooms';
-    if (!window.confirm(`Remove all electricity bills for ${monthLabel}? This will set bills to zero for that month for ${scopeText}. This action cannot be undone.`)) {
+    if (!window.confirm(`Delete all electricity bills for ${monthLabel}? This removes bill records for ${scopeText} and reverses each student's electricity fee demand for that month. This cannot be undone.`)) {
       return;
     }
     setIsClearingMonth(true);
@@ -729,7 +1141,15 @@ useEffect(() => {
       if (filters.category) payload.category = filters.category; // category _id
       const res = await api.post('/api/admin/rooms/clear-electricity-bills-for-month', payload);
       if (res.data?.success) {
-        toast.success(res.data.message || `Removed bills for ${bulkMonth}. ${res.data.modifiedCount ?? 0} rooms updated.`);
+        const d = res.data;
+        const demandNote =
+          d.demandsReversed != null || d.demandsDeleted != null
+            ? ` Demands: ${d.demandsReversed || 0} reduced, ${d.demandsDeleted || 0} removed.`
+            : '';
+        toast.success(
+          (d.message || `Removed bills for ${bulkMonth}. ${d.modifiedCount ?? 0} rooms updated.`) +
+            demandNote
+        );
         fetchRooms();
       } else {
         toast.error(res.data?.message || 'Failed to remove bills.');
@@ -802,18 +1222,18 @@ useEffect(() => {
       {activeTab === 'billing' && (
         <>
 
-      {/* Filters and Controls - Single Line */}
-      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4 mb-3 sm:mb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      {/* Filters and Controls */}
+      <div className="bg-white rounded-lg shadow-sm p-2.5 sm:p-3 mb-3 sm:mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-2 sm:mb-3">
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-[11px] sm:text-xs font-medium text-gray-700 mb-0.5">
               Hostel
             </label>
             <select
               name="hostel"
               value={filters.hostel}
               onChange={handleFilterChange}
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2.5 py-1.5 text-[11px] sm:text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Hostels</option>
               {hostels.map(h => (
@@ -824,7 +1244,7 @@ useEffect(() => {
             </select>
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-[11px] sm:text-xs font-medium text-gray-700 mb-0.5">
               Category
             </label>
             <select
@@ -832,7 +1252,7 @@ useEffect(() => {
               value={filters.category}
               onChange={handleFilterChange}
               disabled={!filters.hostel}
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+              className="w-full px-2.5 py-1.5 text-[11px] sm:text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
             >
               <option value="">All Categories</option>
               {categories
@@ -845,39 +1265,108 @@ useEffect(() => {
             </select>
           </div>
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Billing Month</label>
+            <label className="block text-[11px] sm:text-xs font-medium text-gray-700 mb-0.5">Billing Month</label>
             <input
               type="month"
               value={bulkMonth}
               onChange={(e) => setBulkMonth(e.target.value)}
-              className="w-full px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-2.5 py-1.5 text-[11px] sm:text-xs border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-          <div className="sm:col-span-2 lg:col-span-1 flex items-end gap-2">
-            <button
-              onClick={handleSaveBulkBills}
-              disabled={isSavingBulk || !canManageBills}
-              className={`flex-1 px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && !isSavingBulk
-                ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-                }`}
-              title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all bills'}
-            >
-              {!canManageBills ? <LockClosedIcon className="w-5 h-5 mx-auto" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
-            </button>
-            <button
-              type="button"
-              onClick={handleClearMonthBills}
-              disabled={isClearingMonth || !canManageBills || !bulkMonth}
-              className={`flex-1 px-4 py-2 text-xs sm:text-sm rounded-lg transition-colors ${canManageBills && bulkMonth && !isClearingMonth
-                ? 'bg-red-600 text-white hover:bg-red-700'
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleSaveBulkBills}
+            disabled={isSavingBulk || !canManageBills || syncingAll}
+            className={`px-3 py-1.5 text-[11px] sm:text-xs rounded-md transition-colors whitespace-nowrap ${canManageBills && !isSavingBulk && !syncingAll
+              ? 'bg-green-600 text-white hover:bg-green-700'
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              }`}
+            title={!canManageBills ? 'You need full access to manage electricity bills' : 'Save all edited bills'}
+          >
+            {!canManageBills ? <LockClosedIcon className="w-4 h-4" /> : (isSavingBulk ? 'Saving...' : 'Save All Bills')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSyncAllBillDemands}
+            disabled={syncingAll || !!syncingRoomId || !canManageBills || !bulkMonth || !savedFeeHead.id}
+            className={`px-3 py-1.5 text-[11px] sm:text-xs rounded-md transition-colors whitespace-nowrap ${
+              canManageBills && bulkMonth && savedFeeHead.id && !syncingAll && !syncingRoomId
+                ? 'bg-blue-600 text-white hover:bg-blue-700'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            title={
+              !bulkMonth
+                ? 'Select a billing month first'
+                : !savedFeeHead.id
+                  ? 'Save an electricity fee head in Settings first'
+                  : !canManageBills
+                    ? 'You need full access'
+                    : 'Sync fee demands for all billed rooms this month'
+            }
+          >
+            {syncingAll ? 'Syncing All…' : 'Sync All'}
+          </button>
+          <button
+            type="button"
+            onClick={handleClearMonthBills}
+            disabled={isClearingMonth || !canManageBills || !bulkMonth || syncingAll}
+            className={`px-3 py-1.5 text-[11px] sm:text-xs rounded-md transition-colors whitespace-nowrap ${canManageBills && bulkMonth && !isClearingMonth && !syncingAll
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            title={!bulkMonth ? 'Select a month first' : !canManageBills ? 'You need full access' : `Delete bills for selected month${filters.hostel || filters.category ? ' (filtered rooms only)' : ''}`}
+          >
+            {isClearingMonth ? 'Removing...' : 'Remove Month'}
+          </button>
+        </div>
+        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-2.5 sm:p-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-amber-800">
+                Generator Bill
+              </p>
+              <p className="text-[11px] sm:text-xs text-amber-700">
+                Flat add-on per eligible student for the selected billing month.
+              </p>
+            </div>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:w-auto sm:min-w-[320px]">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={generatorBill.amount}
+                onChange={(e) =>
+                  setGeneratorBill((prev) => ({ ...prev, amount: e.target.value, month: bulkMonth }))
+                }
+                disabled={!bulkMonth || !filters.hostel || loadingGeneratorBill || savingGeneratorBill}
+                placeholder={!bulkMonth ? 'Select month first' : !filters.hostel ? 'Select hostel first' : 'Enter generator amount'}
+                className="w-full rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] sm:text-xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100"
+              />
+              <button
+                type="button"
+                onClick={handleSaveGeneratorBill}
+                disabled={!bulkMonth || !filters.hostel || loadingGeneratorBill || savingGeneratorBill}
+                className={`rounded-md px-3 py-1.5 text-[11px] sm:text-xs font-medium whitespace-nowrap ${
+                  bulkMonth && filters.hostel && !loadingGeneratorBill && !savingGeneratorBill
+                    ? 'bg-amber-600 text-white hover:bg-amber-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
-              title={!bulkMonth ? 'Select a month first' : !canManageBills ? 'You need full access' : `Remove bills for selected month${filters.hostel || filters.category ? ' (filtered rooms only)' : ''}`}
-            >
-              {isClearingMonth ? 'Removing...' : 'Remove Month'}
-            </button>
+              >
+                {savingGeneratorBill ? 'Saving...' : 'Save Generator'}
+              </button>
+            </div>
           </div>
+          <p className="mt-2 text-[11px] sm:text-xs text-amber-800">
+            {loadingGeneratorBill
+              ? 'Loading saved amount...'
+              : !filters.hostel
+                ? 'Select a hostel to manage that hostel\'s generator bill.'
+                : bulkMonth
+                ? `Saved for ${bulkMonth}: ₹${Number(generatorBill.savedAmount || 0).toFixed(2)} per eligible student`
+                : 'Select a billing month to manage the generator bill.'}
+          </p>
         </div>
       </div>
 
@@ -1011,19 +1500,30 @@ useEffect(() => {
                       <BuildingOfficeIcon className="w-4 h-4 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900 text-base">Room {bill.roomNumber}</h3>
-                      <p className="text-xs text-gray-500">
-                        {bill.hostelLabel || getHostelLabel(hostels.find(h => getId(h._id || h) === bill.hostel) || bill.hostel) || '-'}
-                        {' / '}
-                        {bill.categoryLabel || getCategoryLabel(categories.find(c => getId(c._id || c) === bill.category) || bill.category) || '-'}
-                      </p>
+                      <h3 className="font-semibold text-gray-900 text-base">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRoomOccupants(bill.roomId)}
+                          className="text-left hover:text-blue-700 hover:underline"
+                          title="View live active students"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span>Room {bill.roomNumber}</span>
+                            {isAlreadyBilled && !editingBills.has(bill.roomId) && (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-green-600 text-white text-[10px] font-bold">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          {getRoomHostelCategoryText(bill) ? (
+                            <div className="text-xs text-gray-500 mt-0.5">
+                              {getRoomHostelCategoryText(bill)}
+                            </div>
+                          ) : null}
+                        </button>
+                      </h3>
                     </div>
                   </div>
-                  {isAlreadyBilled && !editingBills.has(bill.roomId) && (
-                    <span className="px-2 py-1 text-xs text-white bg-green-600 rounded-full font-medium shadow-sm">
-                      ✓ Billed
-                    </span>
-                  )}
                   {editingBills.has(bill.roomId) && (
                     <span className="px-2 py-1 text-xs text-white bg-orange-600 rounded-full font-medium shadow-sm">
                       ✏️ Editing
@@ -1124,14 +1624,16 @@ useEffect(() => {
                   ) : (
                     <>
                       {/* Single Meter Mode */}
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                      <div className="flex items-center gap-3">
+                        <label className="block text-xs font-medium text-gray-700 whitespace-nowrap">
+                          Start
+                        </label>
                         <input
                           type="number"
                           value={editingBills.has(bill.roomId) ? bill.startUnits : (isAlreadyBilled ? startUnits : bill.startUnits)}
                           onChange={(e) => handleBulkBillChange(bill.roomId, 'startUnits', e.target.value)}
                           disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                          className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
                             isAlreadyBilled && !editingBills.has(bill.roomId) 
                               ? 'bg-gray-100 text-gray-500 cursor-not-allowed' 
                               : 'border-gray-300'
@@ -1140,25 +1642,29 @@ useEffect(() => {
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                      <div className="flex items-center gap-3">
+                        <label className="block text-xs font-medium text-gray-700 whitespace-nowrap">
+                          End
+                        </label>
                         <input
                           type="number"
                           placeholder="Enter new reading"
                           value={editingBills.has(bill.roomId) ? bill.endUnits : (isAlreadyBilled ? endUnits : bill.endUnits)}
                           onChange={(e) => handleBulkBillChange(bill.roomId, 'endUnits', e.target.value)}
                           disabled={isAlreadyBilled && !editingBills.has(bill.roomId)}
-                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
+                          className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors ${
                             !isValid && !isAlreadyBilled ? 'border-red-500 bg-red-50' : 
                             isAlreadyBilled && !editingBills.has(bill.roomId) 
                               ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
                               : 'border-gray-300'
                           }`}
                         />
-                        {!isValid && !isAlreadyBilled && (
-                          <p className="text-xs text-red-600 mt-1">End units must be greater than start units</p>
-                        )}
                       </div>
+                      {!isValid && !isAlreadyBilled && (
+                        <p className="text-xs text-red-600 mt-1">
+                          End units must be greater than start units
+                        </p>
+                      )}
                     </>
                   )}
 
@@ -1199,17 +1705,34 @@ useEffect(() => {
                     {/* Action Buttons for Mobile */}
                     <div className="flex gap-2">
                       {isAlreadyBilled && !editingBills.has(bill.roomId) ? (
-                        // Edit button for saved bills
-                        <button
-                          onClick={() => handleEditBill(bill.roomId)}
-                          disabled={!canManageBills}
-                          className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills
-                            ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        <>
+                          <button
+                            onClick={() => handleEditBill(bill.roomId)}
+                            disabled={!canManageBills}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${canManageBills
+                              ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 shadow-sm'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                          >
+                            Edit Bill
+                          </button>
+                          <button
+                            onClick={() => handleSyncBillDemands(bill.roomId)}
+                            disabled={!canManageBills || syncingRoomId === bill.roomId || !savedFeeHead.id}
+                            className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              canManageBills && syncingRoomId !== bill.roomId && savedFeeHead.id
+                                ? 'bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 shadow-sm'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                             }`}
-                        >
-                          ✏️ Edit Bill
-                        </button>
+                            title={
+                              !savedFeeHead.id
+                                ? 'Save a fee head in Settings first'
+                                : 'Create missing fee demands in Fees DB'
+                            }
+                          >
+                            {syncingRoomId === bill.roomId ? 'Syncing…' : 'Sync Demands'}
+                          </button>
+                        </>
                       ) : editingBills.has(bill.roomId) ? (
                         // Save and Cancel buttons when editing
                         <>
@@ -1275,21 +1798,21 @@ useEffect(() => {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden sm:block bg-white rounded-lg shadow-sm p-4">
+      <div className="hidden sm:block bg-white rounded-lg shadow-sm p-3 text-xs">
         {/* Billing Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-200 text-xs">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Room</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meter Readings</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consumption</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Room</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Meter Readings</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider"></th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Consumption</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -1375,21 +1898,28 @@ useEffect(() => {
                       bill.isEdited ? 'bg-blue-50' : ''
                     }`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {bill.roomNumber}
-                        <div className="flex items-center mt-1">
-                          <span className="text-xs text-gray-500">
-                            {bill.hostelLabel || getHostelLabel(hostels.find(h => getId(h._id || h) === bill.hostel) || bill.hostel) || '-'}
-                            {' / '}
-                            {bill.categoryLabel || getCategoryLabel(categories.find(c => getId(c._id || c) === bill.category) || bill.category) || '-'}
-                          </span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenRoomOccupants(bill.roomId)}
+                          className="text-left font-medium text-gray-900 hover:text-blue-700 hover:underline"
+                          title="View live active students"
+                        >
+                          Room {bill.roomNumber}
+                          {getRoomHostelCategoryText(bill) ? (
+                            <span className="ml-1.5 text-xs font-normal text-gray-500">
+                              · {getRoomHostelCategoryText(bill)}
+                            </span>
+                          ) : null}
+                        </button>
+                        <div className="flex items-center gap-2 mt-1">
                           {isDualMeter && (
-                            <span className="ml-2 px-2 py-0.5 text-xs text-white bg-blue-600 rounded-full">Dual</span>
+                            <span className="px-2 py-0.5 text-xs text-white bg-blue-600 rounded-full">Dual</span>
                           )}
                           {isAlreadyBilled && !editingBills.has(bill.roomId) && (
-                            <span className="ml-2 px-2 py-0.5 text-xs text-white bg-green-600 rounded-full">Billed</span>
+                            <span className="px-2 py-0.5 text-xs text-white bg-green-600 rounded-full">Billed</span>
                           )}
                           {editingBills.has(bill.roomId) && (
-                            <span className="ml-2 px-2 py-0.5 text-xs text-white bg-orange-600 rounded-full">Editing</span>
+                            <span className="px-2 py-0.5 text-xs text-white bg-orange-600 rounded-full">Editing</span>
                           )}
                         </div>
                       </td>
@@ -1512,17 +2042,34 @@ useEffect(() => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-1">
                           {isAlreadyBilled && !editingBills.has(bill.roomId) ? (
-                            // Edit button for saved bills
-                            <button
-                              onClick={() => handleEditBill(bill.roomId)}
-                              disabled={!canManageBills}
-                              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills
-                                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            <>
+                              <button
+                                onClick={() => handleEditBill(bill.roomId)}
+                                disabled={!canManageBills}
+                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${canManageBills
+                                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleSyncBillDemands(bill.roomId)}
+                                disabled={!canManageBills || syncingRoomId === bill.roomId || !savedFeeHead.id}
+                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                  canManageBills && syncingRoomId !== bill.roomId && savedFeeHead.id
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 }`}
-                            >
-                              Edit
-                            </button>
+                                title={
+                                  !savedFeeHead.id
+                                    ? 'Save a fee head in Settings first'
+                                    : 'Create missing fee demands in Fees DB'
+                                }
+                              >
+                                {syncingRoomId === bill.roomId ? 'Syncing…' : 'Sync'}
+                              </button>
+                            </>
                           ) : editingBills.has(bill.roomId) ? (
                             // Save and Cancel buttons when editing
                             <>
@@ -1579,6 +2126,405 @@ useEffect(() => {
         </div>
       </div>
         </>
+      )}
+
+      {/* Live occupants modal (billing tab room click) */}
+      {occupantsModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeOccupantsModal}
+        >
+          <div
+            className="w-full max-w-lg rounded-lg bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  Room {occupantsModal.roomNumber} — Live students
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Demand only if present/partial days in {bulkMonth || 'month'} &gt;{' '}
+                  {occupantsModal.minAttendanceDays ?? 5}. Eligible:{' '}
+                  {occupantsModal.eligibleCount ?? 0}/{occupantsModal.totalLive ?? 0}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeOccupantsModal}
+                className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto px-4 py-3">
+              {occupantsModal.loading ? (
+                <p className="py-6 text-center text-sm text-gray-500">Loading…</p>
+              ) : occupantsModal.error ? (
+                <p className="py-6 text-center text-sm text-red-600">{occupantsModal.error}</p>
+              ) : occupantsModal.students.length === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-500">
+                  No live active students in this room.
+                </p>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {occupantsModal.students.map((s) => (
+                    <li key={s._id || s.hostelRequestId || s.admissionNumber} className="py-2.5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{s.name || '—'}</p>
+                          <p className="text-xs text-gray-500">
+                            {s.rollNumber || 'No roll'}
+                            {s.admissionNumber ? ` · Adm ${s.admissionNumber}` : ''}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            Attendance days (present/partial):{' '}
+                            <span className="font-medium text-gray-800">
+                              {s.attendanceDays ?? 0}
+                            </span>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span
+                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                              s.eligibleForDemand
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {s.eligibleForDemand ? 'Eligible' : 'Not eligible'}
+                          </span>
+                          {s.academicYear && (
+                            <p className="mt-1 text-xs text-gray-400">{s.academicYear}</p>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="border-t border-gray-200 px-4 py-3 text-right">
+              <button
+                type="button"
+                onClick={closeOccupantsModal}
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync demands result modal */}
+      {syncResultModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeSyncResultModal}
+        >
+          <div
+            className={`w-full rounded-lg bg-white shadow-xl ${
+              syncResultModal.mode === 'all' ? 'max-w-3xl' : 'max-w-2xl'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {(() => {
+              const fmt = (n) =>
+                n == null || Number.isNaN(Number(n))
+                  ? '—'
+                  : `₹${Number(n).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}`;
+              const statusClass = (status) => {
+                switch (status) {
+                  case 'created':
+                    return 'bg-green-100 text-green-800';
+                  case 'updated':
+                    return 'bg-blue-100 text-blue-800';
+                  case 'removed':
+                    return 'bg-amber-100 text-amber-800';
+                  case 'failed':
+                  case 'skipped':
+                    return 'bg-red-100 text-red-800';
+                  default:
+                    return 'bg-gray-100 text-gray-700';
+                }
+              };
+
+              const renderRoomBlock = (roomNumber, d, key) => {
+                const bill = d?.bill || {};
+                const eligible = d?.eligibleStudents || [];
+                const ineligible = d?.ineligibleStudents || [];
+                return (
+                  <div key={key} className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="bg-gray-50 px-3 py-2 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">Room {roomNumber}</p>
+                        <p className="text-[11px] text-gray-500">
+                          Total {fmt(bill.total)} · Electricity {fmt(bill.sharePerStudent ?? d?.sharePerStudent)} · Generator {fmt(bill.generatorAmount ?? d?.generatorAmount ?? 0)} · Final {fmt(bill.totalPerStudent ?? ((bill.sharePerStudent ?? d?.sharePerStudent ?? 0) + (bill.generatorAmount ?? d?.generatorAmount ?? 0)))} ·{' '}
+                          {d?.eligibleCount ?? eligible.length}/{d?.occupantCount ?? '—'} eligible
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 text-[10px]">
+                        {d?.created ? (
+                          <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-800">
+                            {d.created} created
+                          </span>
+                        ) : null}
+                        {d?.updated ? (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-800">
+                            {d.updated} updated
+                          </span>
+                        ) : null}
+                        {d?.removed ? (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">
+                            {d.removed} removed
+                          </span>
+                        ) : null}
+                        {d?.failed ? (
+                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-red-800">
+                            {d.failed} failed
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="px-3 py-2 space-y-3">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">
+                          Eligible ({eligible.length})
+                        </p>
+                        {eligible.length === 0 ? (
+                          <p className="text-xs text-gray-500 py-1">
+                            No students with &gt;{d?.minAttendanceDays || 5} present/partial days.
+                          </p>
+                        ) : (
+                          <ul className="divide-y divide-gray-100 rounded border border-gray-100">
+                            {eligible.map((s) => (
+                              <li
+                                key={s.studentId || s.rollNumber || s.admissionNumber}
+                                className="flex items-start justify-between gap-3 px-2.5 py-2"
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {s.name || '—'}
+                                  </p>
+                                  <p className="text-[11px] text-gray-500">
+                                    {s.rollNumber || 'No roll'}
+                                    {s.admissionNumber ? ` · Adm ${s.admissionNumber}` : ''}
+                                    {s.attendanceDays != null ? ` · ${s.attendanceDays} days` : ''}
+                                  </p>
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-sm font-semibold text-gray-900">{fmt(s.share)}</p>
+                                  <p className="text-[10px] text-gray-500">
+                                    Elec {fmt(s.electricityShare)} + Gen {fmt(s.generatorShare || 0)}
+                                  </p>
+                                  <span
+                                    className={`mt-0.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium capitalize ${statusClass(
+                                      s.demandStatus
+                                    )}`}
+                                  >
+                                    {s.demandStatus || 'synced'}
+                                  </span>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      {ineligible.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-700 mb-1">
+                            Not eligible ({ineligible.length})
+                          </p>
+                          <ul className="divide-y divide-amber-50 rounded border border-amber-100 bg-amber-50/40">
+                            {ineligible.map((s) => (
+                              <li
+                                key={s.studentId || s.rollNumber || s.admissionNumber}
+                                className="flex items-center justify-between gap-3 px-2.5 py-1.5"
+                              >
+                                <div>
+                                  <p className="text-sm text-gray-900">{s.name || '—'}</p>
+                                  <p className="text-[11px] text-gray-500">
+                                    {s.rollNumber || 'No roll'}
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                                  ≤{d?.minAttendanceDays || 5} days
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              };
+
+              if (syncResultModal.mode === 'all') {
+                const roomRows = syncResultModal.rooms || [];
+                const okRooms = roomRows.filter((r) => r.ok);
+                const failRooms = roomRows.filter((r) => !r.ok);
+                const totalEligible = okRooms.reduce(
+                  (sum, r) => sum + (r.data?.eligibleCount || 0),
+                  0
+                );
+                const totalCreated = okRooms.reduce((sum, r) => sum + (r.data?.created || 0), 0);
+                const totalUpdated = okRooms.reduce((sum, r) => sum + (r.data?.updated || 0), 0);
+                const totalRemoved = okRooms.reduce((sum, r) => sum + (r.data?.removed || 0), 0);
+                const grandBillTotal = okRooms.reduce(
+                  (sum, r) => sum + (Number(r.data?.bill?.total) || 0),
+                  0
+                );
+                const grandGeneratorTotal = okRooms.reduce(
+                  (sum, r) =>
+                    sum +
+                    (Number(r.data?.generatorAmount ?? r.data?.bill?.generatorAmount) || 0) *
+                      (Number(r.data?.eligibleCount) || 0),
+                  0
+                );
+
+                return (
+                  <>
+                    <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-gray-900">
+                          Sync All complete
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          Month {syncResultModal.month} · {okRooms.length} room(s) synced
+                          {failRooms.length ? ` · ${failRooms.length} failed` : ''}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={closeSyncResultModal}
+                        className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <div className="max-h-[70vh] overflow-y-auto px-4 py-3 space-y-4">
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                          Overall summary
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                          <div>
+                            <p className="text-[11px] text-gray-500">Rooms</p>
+                            <p className="text-sm font-semibold text-gray-900">{okRooms.length}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-gray-500">Bill totals</p>
+                            <p className="text-sm font-semibold text-gray-900">{fmt(grandBillTotal)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-gray-500">Generator add-on</p>
+                            <p className="text-sm font-semibold text-gray-900">{fmt(grandGeneratorTotal)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-gray-500">Eligible students</p>
+                            <p className="text-sm font-semibold text-gray-900">{totalEligible}</p>
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-gray-500">Demands</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                              {totalCreated} new · {totalUpdated} upd · {totalRemoved} rem
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {failRooms.length > 0 && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                          <p className="text-xs font-semibold text-red-800 mb-1">Failed rooms</p>
+                          <ul className="text-xs text-red-700 space-y-0.5">
+                            {failRooms.map((r) => (
+                              <li key={r.roomId}>
+                                Room {r.roomNumber}: {r.error || 'Failed'}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Room-wise eligible students
+                        </h4>
+                        {okRooms.length === 0 ? (
+                          <p className="text-sm text-gray-500">No rooms synced successfully.</p>
+                        ) : (
+                          okRooms.map((r) =>
+                            renderRoomBlock(r.roomNumber, r.data, r.roomId)
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border-t border-gray-200 px-4 py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={closeSyncResultModal}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </>
+                );
+              }
+
+              const d = syncResultModal.data || {};
+              const bill = d.bill || {};
+
+              return (
+                <>
+                  <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900">
+                        Sync complete — Room {syncResultModal.roomNumber || bill.roomNumber}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Month {syncResultModal.month || bill.month}
+                        {d.feeHeadName ? ` · Fee head: ${d.feeHeadName}` : ''}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={closeSyncResultModal}
+                      className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="max-h-[70vh] overflow-y-auto px-4 py-3 space-y-4">
+                    {renderRoomBlock(
+                      syncResultModal.roomNumber || bill.roomNumber,
+                      d,
+                      'single'
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={closeSyncResultModal}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
       )}
 
       {/* Reports Tab */}
@@ -2180,6 +3126,69 @@ useEffect(() => {
                   ) : (
                     'Refresh'
                   )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">Fee Head for Demands</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Select the fee head from Fee Management. When an electricity bill is saved for a room,
+              each occupant (active hostel request for that month) gets an equal share and a demand
+              is created/updated under this fee head in Fees DB.
+            </p>
+
+            {savedFeeHead.id && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                Currently mapped:{' '}
+                <span className="font-semibold">
+                  {savedFeeHead.code ? `${savedFeeHead.code} — ` : ''}
+                  {savedFeeHead.name || savedFeeHead.id}
+                </span>
+              </div>
+            )}
+
+            <div className="max-w-lg space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Fee Head
+                </label>
+                <select
+                  value={selectedFeeHeadId}
+                  onChange={(e) => setSelectedFeeHeadId(e.target.value)}
+                  disabled={loadingFeeHeads || savingSettings}
+                  className="w-full px-4 py-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                >
+                  <option value="">
+                    {loadingFeeHeads ? 'Loading fee heads…' : 'Select a fee head'}
+                  </option>
+                  {feeHeads.map((head) => (
+                    <option key={head._id} value={head._id}>
+                      {(head.code ? `${head.code} — ` : '') + (head.name || head._id)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSaveFeeHead}
+                  disabled={!selectedFeeHeadId || savingSettings || loadingFeeHeads}
+                  className={`px-6 py-3 text-sm font-medium rounded-lg transition-colors ${
+                    !selectedFeeHeadId || savingSettings || loadingFeeHeads
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {savingSettings ? 'Saving…' : 'Save Fee Head'}
+                </button>
+                <button
+                  onClick={fetchFeeHeads}
+                  disabled={loadingFeeHeads || savingSettings}
+                  className="px-6 py-3 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                >
+                  {loadingFeeHeads ? 'Loading…' : 'Refresh Fee Heads'}
                 </button>
               </div>
             </div>

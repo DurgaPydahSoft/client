@@ -55,8 +55,10 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     branch: '',
     gender: '',
     status: '',
-    academicYear: getDefaultAcademicYear()
+    academicYear: ''
   });
+  // Live = active students (no AY); AY Wise = selected academic year roster
+  const [analyticsMode, setAnalyticsMode] = useState('live');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
@@ -99,15 +101,28 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     } else {
       fetchAttendanceForRange();
     }
-  }, [selectedDate, debouncedDateRange, viewMode, debouncedFilters]);
+  }, [selectedDate, debouncedDateRange, viewMode, debouncedFilters, analyticsMode, filters.academicYear]);
+
+  const buildFilterParams = (base = {}) => {
+    const params = new URLSearchParams(base);
+    const { studentId, course, branch, gender, status } = debouncedFilters;
+
+    if (studentId?.trim()) params.set('studentId', studentId.trim());
+    if (course) params.set('course', course);
+    if (branch) params.set('branch', branch);
+    if (gender) params.set('gender', gender);
+    if (status) params.set('status', status);
+    // Use live filters.academicYear so Live↔AY toggles apply immediately (not after debounce)
+    if (analyticsMode === 'ay' && filters.academicYear) {
+      params.set('academicYear', filters.academicYear);
+    }
+    return params;
+  };
 
   const fetchAttendanceForDate = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        date: selectedDate,
-        ...debouncedFilters
-      });
+      const params = buildFilterParams({ date: selectedDate });
 
       const endpoint = getAttendanceEndpoint('date');
       const response = await api.get(`${endpoint}?${params}`);
@@ -134,10 +149,9 @@ const ViewAttendance = ({ onStatsUpdate }) => {
   const fetchAttendanceForRange = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
+      const params = buildFilterParams({
         startDate: debouncedDateRange.startDate,
-        endDate: debouncedDateRange.endDate,
-        ...debouncedFilters
+        endDate: debouncedDateRange.endDate
       });
 
       const endpoint = getAttendanceEndpoint('range');
@@ -170,7 +184,16 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === 'course' ? { branch: '' } : {})
+    }));
+  };
+
+  const handleAnalyticsModeChange = (mode) => {
+    setAnalyticsMode(mode);
+    setFilters((prev) => ({
+      ...prev,
+      academicYear: mode === 'ay' ? (prev.academicYear || getDefaultAcademicYear()) : ''
     }));
   };
 
@@ -371,10 +394,9 @@ const ViewAttendance = ({ onStatsUpdate }) => {
     setGeneratingExcel(true);
     try {
       // Get comprehensive report data from backend
-      const params = new URLSearchParams({
+      const params = buildFilterParams({
         startDate: viewMode === 'date' ? selectedDate : dateRange.startDate,
-        endDate: viewMode === 'date' ? selectedDate : dateRange.endDate,
-        ...filters
+        endDate: viewMode === 'date' ? selectedDate : dateRange.endDate
       });
 
       const endpoint = getAttendanceEndpoint('report');
@@ -685,18 +707,62 @@ const ViewAttendance = ({ onStatsUpdate }) => {
 
             {/* Additional Filters */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
-                <select
-                  name="academicYear"
-                  value={filters.academicYear}
-                  onChange={handleFilterChange}
-                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
-                >
-                  {generateAcademicYears().map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+              <div className="sm:col-span-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  Roster mode
+                  {analyticsMode === 'ay' && filters.academicYear ? (
+                    <span className="ml-1 text-blue-700 font-medium">· {filters.academicYear}</span>
+                  ) : (
+                    <span className="ml-1 text-green-700 font-medium">· Live</span>
+                  )}
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative grid grid-cols-2 items-center bg-gray-200/80 p-1 rounded-xl w-full max-w-[16rem] border border-gray-300/60 shadow-inner">
+                    <motion.div
+                      className="absolute top-1 bottom-1 bg-blue-600 rounded-lg shadow-md"
+                      initial={false}
+                      animate={{
+                        left: analyticsMode === 'live' ? '4px' : 'calc(50% + 2px)',
+                        width: 'calc(50% - 6px)'
+                      }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAnalyticsModeChange('live')}
+                      className={`relative z-10 py-1.5 text-xs font-medium text-center transition-colors duration-200 select-none ${
+                        analyticsMode === 'live' ? 'text-white' : 'text-gray-700'
+                      }`}
+                    >
+                      Live
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAnalyticsModeChange('ay')}
+                      className={`relative z-10 py-1.5 text-xs font-medium text-center transition-colors duration-200 select-none ${
+                        analyticsMode === 'ay' ? 'text-white' : 'text-gray-700'
+                      }`}
+                    >
+                      AY Wise
+                    </button>
+                  </div>
+                  <select
+                    name="academicYear"
+                    value={filters.academicYear}
+                    onChange={handleFilterChange}
+                    disabled={analyticsMode === 'live'}
+                    className={`flex-1 min-w-[8rem] px-2 sm:px-3 py-1.5 sm:py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm ${
+                      analyticsMode === 'live'
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                        : 'border-gray-300 bg-white'
+                    }`}
+                    title={analyticsMode === 'live' ? 'Switch to AY Wise to select academic year' : 'Select Academic Year'}
+                  >
+                    {generateAcademicYears().map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
@@ -759,13 +825,13 @@ const ViewAttendance = ({ onStatsUpdate }) => {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Search student</label>
                 <input
                   type="text"
                   name="studentId"
                   value={filters.studentId}
                   onChange={handleFilterChange}
-                  placeholder="Search by student ID"
+                  placeholder="Name, roll no, or admission no"
                   className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
                 />
               </div>
@@ -852,19 +918,63 @@ const ViewAttendance = ({ onStatsUpdate }) => {
             </>
           )}
 
-          {/* Academic Year Filter */}
-          <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Academic Year</label>
-            <select
-              name="academicYear"
-              value={filters.academicYear}
-              onChange={handleFilterChange}
-              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
-            >
-              {generateAcademicYears().map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+          {/* Live / AY Wise */}
+          <div className="sm:col-span-2 lg:col-span-2">
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+              Roster mode
+              {analyticsMode === 'ay' && filters.academicYear ? (
+                <span className="ml-1 text-blue-700 font-medium">· {filters.academicYear}</span>
+              ) : (
+                <span className="ml-1 text-green-700 font-medium">· Live</span>
+              )}
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative grid grid-cols-2 items-center bg-gray-200/80 p-1 rounded-xl w-56 sm:w-64 border border-gray-300/60 shadow-inner">
+                <motion.div
+                  className="absolute top-1 bottom-1 bg-blue-600 rounded-lg shadow-md"
+                  initial={false}
+                  animate={{
+                    left: analyticsMode === 'live' ? '4px' : 'calc(50% + 2px)',
+                    width: 'calc(50% - 6px)'
+                  }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleAnalyticsModeChange('live')}
+                  className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                    analyticsMode === 'live' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  Live
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnalyticsModeChange('ay')}
+                  className={`relative z-10 py-1.5 text-xs sm:text-sm font-medium text-center transition-colors duration-200 select-none ${
+                    analyticsMode === 'ay' ? 'text-white' : 'text-gray-700 hover:text-gray-900'
+                  }`}
+                >
+                  AY Wise
+                </button>
+              </div>
+              <select
+                name="academicYear"
+                value={filters.academicYear}
+                onChange={handleFilterChange}
+                disabled={analyticsMode === 'live'}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm ${
+                  analyticsMode === 'live'
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                    : 'border-gray-300 bg-white'
+                }`}
+                title={analyticsMode === 'live' ? 'Switch to AY Wise to select academic year' : 'Select Academic Year'}
+              >
+                {generateAcademicYears().map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Status Filter */}
@@ -880,6 +990,7 @@ const ViewAttendance = ({ onStatsUpdate }) => {
               <option value="Present">Present</option>
               <option value="Partial">Partial</option>
               <option value="Absent">Absent</option>
+              <option value="On Leave">On Leave</option>
             </select>
           </div>
         </div>
@@ -931,13 +1042,13 @@ const ViewAttendance = ({ onStatsUpdate }) => {
           </div>
 
           <div>
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Student ID</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Search student</label>
             <input
               type="text"
               name="studentId"
               value={filters.studentId}
               onChange={handleFilterChange}
-              placeholder="Search by student ID"
+              placeholder="Name, roll no, or admission no"
               className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs sm:text-sm"
             />
           </div>
@@ -954,6 +1065,11 @@ const ViewAttendance = ({ onStatsUpdate }) => {
         <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
           <h2 className="text-base sm:text-lg font-semibold text-gray-900">
             Attendance Records ({attendance.length})
+            <span className="ml-2 text-xs sm:text-sm font-normal text-gray-500">
+              {analyticsMode === 'ay' && filters.academicYear
+                ? `(${filters.academicYear})`
+                : '(Live · active)'}
+            </span>
           </h2>
         </div>
 
@@ -1033,10 +1149,8 @@ const ViewAttendance = ({ onStatsUpdate }) => {
                   const status = getAttendanceStatus(record);
                   return (
                     <motion.tr
-                      key={record._id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
+                      key={record._id || record.student?._id || `att-${index}`}
+                      initial={false}
                       className="hover:bg-gray-50"
                     >
                       <td className="px-3 sm:px-6 py-3 sm:py-4 whitespace-nowrap">
@@ -1102,11 +1216,10 @@ const ViewAttendance = ({ onStatsUpdate }) => {
                   const isExpanded = expandedStudents.has(student._id);
 
                   return (
-                    <React.Fragment key={student._id}>
+                    <React.Fragment key={student._id || `student-${index}`}>
                       <motion.tr
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                        key={`summary-${student._id || index}`}
+                        initial={false}
                         className="hover:bg-gray-50 cursor-pointer"
                         onClick={() => toggleStudentExpansion(student._id)}
                       >
@@ -1187,9 +1300,8 @@ const ViewAttendance = ({ onStatsUpdate }) => {
                       {/* Expanded Details */}
                       {isExpanded && (
                         <motion.tr
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
+                          key={`details-${student._id || index}`}
+                          initial={false}
                           className="bg-gray-50"
                         >
                           <td colSpan="7" className="px-3 sm:px-6 py-3 sm:py-4">

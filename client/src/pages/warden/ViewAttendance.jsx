@@ -53,8 +53,9 @@ const ViewAttendance = () => {
     branch: '',
     gender: '',
     status: '',
-    academicYear: getDefaultAcademicYear()
+    academicYear: ''
   });
+  const [analyticsMode, setAnalyticsMode] = useState('live');
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
     morningPresent: 0,
@@ -102,7 +103,7 @@ const ViewAttendance = () => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [selectedDate, dateRange, viewMode, filters]);
+  }, [selectedDate, dateRange, viewMode, filters, analyticsMode]);
 
   useEffect(() => {
     fetchFilters();
@@ -129,7 +130,9 @@ const ViewAttendance = () => {
       if (filters.branch) params.append('branch', filters.branch);
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
-      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (analyticsMode === 'ay' && filters.academicYear) {
+        params.append('academicYear', filters.academicYear);
+      }
 
       const response = await api.get(`/api/attendance/date?${params}`);
       
@@ -167,7 +170,9 @@ const ViewAttendance = () => {
       // Add other filters that don't involve course/branch IDs
       if (filters.studentId) params.append('studentId', filters.studentId);
       if (filters.status) params.append('status', filters.status);
-      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (analyticsMode === 'ay' && filters.academicYear) {
+        params.append('academicYear', filters.academicYear);
+      }
 
       console.log('🔍 ViewAttendance: API params for range view:', params.toString());
       console.log('🔍 ViewAttendance: Current filters:', filters);
@@ -292,6 +297,14 @@ const ViewAttendance = () => {
         [name]: value
       }));
     }
+  };
+
+  const handleAnalyticsModeChange = (mode) => {
+    setAnalyticsMode(mode);
+    setFilters((prev) => ({
+      ...prev,
+      academicYear: mode === 'ay' ? (prev.academicYear || getDefaultAcademicYear()) : ''
+    }));
   };
 
   const getAttendanceStatus = (record) => {
@@ -441,16 +454,41 @@ const ViewAttendance = () => {
                   <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
                     View Attendance {`( ${getWardenHostelLabel()} )`}
                   </h1>
-                  {/* Mobile Academic Year Select */}
-                  <div className="sm:hidden flex items-center gap-2 flex-shrink-0">
+                  {/* Mobile Live / AY toggle */}
+                  <div className="sm:hidden flex items-center gap-1.5 flex-shrink-0">
                     {loading && (
                       <div className="w-3.5 h-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                     )}
+                    <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200">
+                      <button
+                        type="button"
+                        onClick={() => handleAnalyticsModeChange('live')}
+                        className={`px-2 py-1 text-[10px] font-semibold rounded-md ${
+                          analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
+                        }`}
+                      >
+                        Live
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAnalyticsModeChange('ay')}
+                        className={`px-2 py-1 text-[10px] font-semibold rounded-md ${
+                          analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
+                        }`}
+                      >
+                        AY
+                      </button>
+                    </div>
                     <select
                       name="academicYear"
                       value={filters.academicYear}
                       onChange={handleFilterChange}
-                      className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-xs font-semibold text-gray-700 bg-white shadow-sm"
+                      disabled={analyticsMode === 'live'}
+                      className={`px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-xs font-semibold shadow-sm ${
+                        analyticsMode === 'live'
+                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'text-gray-700 bg-white border-gray-300'
+                      }`}
                     >
                       {generateAcademicYears().map((year) => (
                         <option key={year} value={year}>
@@ -472,16 +510,42 @@ const ViewAttendance = () => {
                 <p className="text-[10px] sm:text-xs text-gray-500 font-medium">Total Records</p>
                 <p className="text-base sm:text-lg font-bold text-green-600">{attendance.length}</p>
               </div>
-              {/* Desktop Academic Year Select */}
+              {/* Desktop Live / AY toggle */}
               <div className="hidden sm:flex items-center gap-2">
                 {loading && (
                   <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                 )}
+                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyticsModeChange('live')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Live
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyticsModeChange('ay')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    AY Wise
+                  </button>
+                </div>
                 <select
                   name="academicYear"
                   value={filters.academicYear}
                   onChange={handleFilterChange}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold text-gray-700 bg-white shadow-sm"
+                  disabled={analyticsMode === 'live'}
+                  className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold shadow-sm ${
+                    analyticsMode === 'live'
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                      : 'text-gray-700 bg-white border-gray-300'
+                  }`}
+                  title={analyticsMode === 'live' ? 'Switch to AY Wise to select academic year' : 'Select Academic Year'}
                 >
                   {generateAcademicYears().map((year) => (
                     <option key={year} value={year}>
@@ -561,21 +625,55 @@ const ViewAttendance = () => {
             className="mb-6"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-            {/* Academic Year Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
-              <select
-                name="academicYear"
-                value={filters.academicYear}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-medium text-gray-700 bg-white"
-              >
-                {generateAcademicYears().map((year) => (
-                  <option key={year} value={year}>
-                    {year} AY
-                  </option>
-                ))}
-              </select>
+            {/* Live / AY Wise */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Roster mode
+                {analyticsMode === 'ay' && filters.academicYear ? (
+                  <span className="ml-1 text-green-700 font-medium">· {filters.academicYear}</span>
+                ) : (
+                  <span className="ml-1 text-green-700 font-medium">· Live</span>
+                )}
+              </label>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyticsModeChange('live')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
+                    }`}
+                  >
+                    Live
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAnalyticsModeChange('ay')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                      analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
+                    }`}
+                  >
+                    AY Wise
+                  </button>
+                </div>
+                <select
+                  name="academicYear"
+                  value={filters.academicYear}
+                  onChange={handleFilterChange}
+                  disabled={analyticsMode === 'live'}
+                  className={`flex-1 min-w-[8rem] px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 font-medium ${
+                    analyticsMode === 'live'
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
+                      : 'text-gray-700 bg-white border-gray-300'
+                  }`}
+                >
+                  {generateAcademicYears().map((year) => (
+                    <option key={year} value={year}>
+                      {year} AY
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* View Mode Toggle */}
@@ -701,13 +799,13 @@ const ViewAttendance = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Student ID</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Search student</label>
               <input
                 type="text"
                 name="studentId"
                 value={filters.studentId}
                 onChange={handleFilterChange}
-                placeholder="Search by student ID"
+                placeholder="Name, roll no, or admission no"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
