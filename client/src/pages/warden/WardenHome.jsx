@@ -104,8 +104,8 @@ const WardenHome = () => {
     setLoadingModalRooms(true);
     try {
       const hostelId = getWardenHostelId();
+      // Live occupancy (omit academicYear) so vacancy matches current active occupants.
       const params = new URLSearchParams({
-        academicYear,
         category: categoryId
       });
       if (hostelId) params.set('hostel', hostelId);
@@ -134,12 +134,10 @@ const WardenHome = () => {
     const catId = resolveStudentCategoryId(student);
     setModalCategoryId(catId);
     setDatesModalOpen(true);
+    setModalRooms([]);
     if (catId) {
-      if (roomsByCategory[catId]?.length) {
-        setModalRooms(roomsByCategory[catId]);
-      } else {
-        await fetchRoomsForModal(catId);
-      }
+      // Always refresh live counts when opening the modal.
+      await fetchRoomsForModal(catId);
     } else {
       setModalRooms([]);
     }
@@ -274,8 +272,8 @@ const WardenHome = () => {
     if (!silent) setLoadingRooms(true);
     try {
       const hostelId = getWardenHostelId();
+      // Live occupancy for vacancy cards (omit academicYear).
       const params = new URLSearchParams({
-        academicYear,
         category: categoryId
       });
       if (hostelId) params.set('hostel', hostelId);
@@ -293,7 +291,7 @@ const WardenHome = () => {
     } finally {
       if (!silent) setLoadingRooms(false);
     }
-  }, [academicYear, user]);
+  }, [user]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -760,13 +758,17 @@ const WardenHome = () => {
                       </option>
                     )}
                   {modalRooms.map((room) => {
-                    const available = room.availableBeds || 0;
-                    const beds = room.bedCount || 0;
+                    const available = Number(room.availableBeds) || 0;
+                    const beds = Number(room.bedCount) || 0;
+                    const occupied =
+                      room.totalOccupancy != null
+                        ? Number(room.totalOccupancy) || 0
+                        : Math.max(0, beds - available);
                     const isCurrent = String(room.roomNumber) === String(selectedStudentForDates?.roomNumber || '');
                     const isSelected = String(room.roomNumber) === String(roomNumberInput);
                     const label = isCurrent
-                      ? `Room ${room.roomNumber} (${available}/${beds} free · current)`
-                      : `Room ${room.roomNumber} (${available}/${beds} free)`;
+                      ? `Room ${room.roomNumber} (${occupied}/${beds} live · ${available} free · current)`
+                      : `Room ${room.roomNumber} (${occupied}/${beds} live · ${available} free)`;
                     const disabled = available <= 0 && !isCurrent && !isSelected;
                     return (
                       <option
@@ -780,7 +782,13 @@ const WardenHome = () => {
                   })}
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Vacancy shown live for {academicYear}. Full rooms are disabled unless already assigned.
+                  {loadingModalRooms
+                    ? 'Loading live room vacancy…'
+                    : modalRooms.length
+                      ? 'Live vacancy (active occupants). Full rooms are disabled unless already assigned.'
+                      : modalCategoryId
+                        ? 'No rooms found for this category.'
+                        : 'Student has no category — cannot load rooms.'}
                 </p>
               </div>
 
