@@ -193,14 +193,6 @@ const NOCRequests = () => {
                     <p className="text-sm sm:text-base text-gray-600">Track your No Objection Certificate requests</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="inline-flex items-center justify-center px-3 py-2 sm:px-4 sm:py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                >
-                  <PlusIcon className="h-4 w-4 mr-1 sm:mr-2" />
-                  <span className="hidden sm:inline">New NOC Request</span>
-                  <span className="sm:hidden">New</span>
-                </button>
               </div>
             </div>
           </div>
@@ -210,14 +202,7 @@ const NOCRequests = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-12 text-center">
               <DocumentTextIcon className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
               <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">No NOC Requests</h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">You haven't submitted any NOC requests yet.</p>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <PlusIcon className="h-4 w-4 mr-2" />
-                Submit Your First NOC Request
-              </button>
+              <p className="text-sm sm:text-base text-gray-600">NOC requests are raised on your behalf by your hostel warden when you vacate.</p>
             </div>
           ) : (
             <div className="space-y-3 sm:space-y-4">

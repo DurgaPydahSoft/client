@@ -256,6 +256,19 @@ const NOCRequestDetails = () => {
                         </div>
                       </div>
                     )}
+                    {nocRequest.breakageFee > 0 && (
+                      <div className="mb-4">
+                        <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">Breakage Fee</label>
+                        <div className="p-3 sm:p-4 bg-red-50 border border-red-100 rounded-md">
+                          <p className="text-xs sm:text-sm text-red-700 font-semibold">
+                            ₹{nocRequest.breakageFee}
+                          </p>
+                          {nocRequest.breakageRemarks && (
+                            <p className="text-xs text-red-600 mt-1">Remarks: {nocRequest.breakageRemarks}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center text-xs sm:text-sm text-gray-600">
                       <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                       <span>Submitted on {formatDate(nocRequest.createdAt)}</span>

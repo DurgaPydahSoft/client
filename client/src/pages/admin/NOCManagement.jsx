@@ -7,6 +7,7 @@ import {
   ClockIcon, 
   CheckCircleIcon, 
   XCircleIcon,
+  XMarkIcon,
   EyeIcon,
   UserIcon,
   FunnelIcon,
@@ -44,6 +45,52 @@ const NOCManagement = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [selectedAY, setSelectedAY] = useState('');
 
+  // Settings tab state
+  const [feeHeads, setFeeHeads] = useState([]);
+  const [selectedFeeHead, setSelectedFeeHead] = useState('');
+  const [loadingSettings, setLoadingSettings] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Meter readings and Breakage fee state
+  const [breakageFee, setBreakageFee] = useState('');
+  const [breakageRemarks, setBreakageRemarks] = useState('');
+  const [meterType, setMeterType] = useState('single');
+  const [startUnits, setStartUnits] = useState('');
+  const [endUnits, setEndUnits] = useState('');
+  const [meter1StartUnits, setMeter1StartUnits] = useState('');
+  const [meter1EndUnits, setMeter1EndUnits] = useState('');
+  const [meter2StartUnits, setMeter2StartUnits] = useState('');
+  const [meter2EndUnits, setMeter2EndUnits] = useState('');
+
+  // Reason type dropdown state
+  const [reasonType, setReasonType] = useState('');
+
+  const resetFields = () => {
+    setBreakageFee('');
+    setBreakageRemarks('');
+    setMeterType('single');
+    setStartUnits('');
+    setEndUnits('');
+    setMeter1StartUnits('');
+    setMeter1EndUnits('');
+    setMeter2StartUnits('');
+    setMeter2EndUnits('');
+    setReasonType('');
+  };
+
+  const handleDiscardStudent = () => {
+    setSelectedStudent(null);
+    resetFields();
+  };
+
+  // Auto-select meter type based on selected student's room meter type
+  useEffect(() => {
+    if (selectedStudent) {
+      const autoType = selectedStudent.room?.meterType || 'single';
+      setMeterType(autoType);
+    }
+  }, [selectedStudent]);
+
   const getDefaultAcademicYear = () => {
     const year = new Date().getFullYear();
     return `${year}-${year + 1}`;
@@ -65,6 +112,54 @@ const NOCManagement = () => {
       fetchStats();
     }
   }, [filter, activeTab]);
+
+  // Fetch settings and fee heads when Settings tab is active
+  useEffect(() => {
+    if (activeTab === 'settings') {
+      fetchSettingsAndFeeHeads();
+    }
+  }, [activeTab]);
+
+  const fetchSettingsAndFeeHeads = async () => {
+    setLoadingSettings(true);
+    try {
+      const feeHeadsResponse = await api.get('/api/noc/admin/fee-heads');
+      if (feeHeadsResponse.data.success) {
+        setFeeHeads(feeHeadsResponse.data.data);
+      }
+
+      const settingsResponse = await api.get('/api/noc/admin/settings');
+      if (settingsResponse.data.success && settingsResponse.data.data) {
+        setSelectedFeeHead(settingsResponse.data.data.breakageFeeHeadId || '');
+      }
+    } catch (error) {
+      console.error('Error fetching settings/fee heads:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const selectedHead = feeHeads.find(fh => fh.id === selectedFeeHead);
+      const payload = {
+        breakageFeeHeadId: selectedFeeHead,
+        breakageFeeHeadName: selectedHead ? selectedHead.name : ''
+      };
+
+      const response = await api.post('/api/noc/admin/settings', payload);
+      if (response.data.success) {
+        toast.success('NOC settings updated successfully');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
 
   // Fetch students when create modal is open and search or selectedAY changes
   useEffect(() => {
@@ -103,8 +198,15 @@ const NOCManagement = () => {
       toast.error('Please select a student');
       return;
     }
-    if (!nocReason.trim() || nocReason.trim().length < 10) {
-      toast.error('Please enter a valid reason (at least 10 characters)');
+
+    const finalReason = reasonType === 'Other' ? nocReason.trim() : reasonType;
+    if (!finalReason) {
+      toast.error('Please select or enter a reason for NOC');
+      return;
+    }
+
+    if (finalReason.length < 10) {
+      toast.error('Reason must be at least 10 characters long');
       return;
     }
 
@@ -113,14 +215,23 @@ const NOCManagement = () => {
       return;
     }
 
-    // Allow any date (past or future) for vacating date
-
     setIsCreating(true);
     try {
       const response = await api.post('/api/noc/admin/create', {
         studentId: selectedStudent._id,
-        reason: nocReason.trim(),
-        vacatingDate: vacatingDate
+        reason: finalReason,
+        vacatingDate: vacatingDate,
+        breakageFee: Number(breakageFee) || 0,
+        breakageRemarks: breakageRemarks,
+        meterReadings: {
+          meterType,
+          startUnits: Number(startUnits) || 0,
+          endUnits: Number(endUnits) || 0,
+          meter1StartUnits: Number(meter1StartUnits) || 0,
+          meter1EndUnits: Number(meter1EndUnits) || 0,
+          meter2StartUnits: Number(meter2StartUnits) || 0,
+          meter2EndUnits: Number(meter2EndUnits) || 0
+        }
       });
 
       if (response.data.success) {
@@ -131,6 +242,7 @@ const NOCManagement = () => {
         setVacatingDate('');
         setStudentSearch('');
         setSelectedAY('');
+        resetFields();
         fetchNOCRequests();
         fetchStats();
       }
@@ -172,6 +284,15 @@ const NOCManagement = () => {
     setSelectedRequest(request);
     setAction(actionType);
     setRemarks('');
+
+    // Auto-select meter type based on request student's room or existing request meter readings
+    if (actionType === 'approve' || actionType === 'verify') {
+      const autoType = request.meterReadings?.meterType 
+        || request.student?.room?.meterType 
+        || 'single';
+      setMeterType(autoType);
+    }
+
     setShowModal(true);
   };
 
@@ -191,7 +312,20 @@ const NOCManagement = () => {
       if (action === 'delete') {
         response = await api.delete(`/api/noc/admin/${requestId}`);
       } else if (action === 'approve') {
-        response = await api.post(`/api/noc/admin/${requestId}/approve`, { adminRemarks: remarks });
+        response = await api.post(`/api/noc/admin/${requestId}/approve`, {
+          adminRemarks: remarks,
+          breakageFee: Number(breakageFee) || 0,
+          breakageRemarks: breakageRemarks,
+          meterReadings: {
+            meterType,
+            startUnits: Number(startUnits) || 0,
+            endUnits: Number(endUnits) || 0,
+            meter1StartUnits: Number(meter1StartUnits) || 0,
+            meter1EndUnits: Number(meter1EndUnits) || 0,
+            meter2StartUnits: Number(meter2StartUnits) || 0,
+            meter2EndUnits: Number(meter2EndUnits) || 0
+          }
+        });
       } else {
         response = await api.post(`/api/noc/admin/${requestId}/reject`, { rejectionReason: remarks });
       }
@@ -200,11 +334,12 @@ const NOCManagement = () => {
         toast.success(
           action === 'delete' 
             ? 'NOC request deleted and student reactivated successfully'
-            : `NOC request ${action === 'approve' ? 'approved and student deactivated' : 'rejected'} successfully`
+            : `NOC request ${action === 'approve' ? 'approved successfully (deactivation scheduled)' : 'rejected successfully'}`
         );
         setShowModal(false);
         setSelectedRequest(null);
         setRemarks('');
+        resetFields();
         fetchNOCRequests();
         fetchStats();
       }
@@ -332,11 +467,68 @@ const NOCManagement = () => {
                   Process Guide
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'settings'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Settings
+              </button>
             </div>
           </div>
 
           {/* Tab Content */}
-          {activeTab === 'process' ? (
+          {activeTab === 'settings' ? (
+            /* Settings Tab */
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="max-w-xl font-sans">
+                <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                  <DocumentTextIcon className="h-6 w-6 text-blue-600 mr-2" />
+                  NOC Settings
+                </h2>
+                <p className="text-gray-600 mb-6 text-sm">
+                  Configure the default fee head for NOC breakage fees. When the warden or admin enters a breakage fee during NOC creation or verification, a fee record will be generated in the student's ledger under this fee head.
+                </p>
+
+                {loadingSettings ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        NOC Breakage Fee Head *
+                      </label>
+                      <select
+                        value={selectedFeeHead}
+                        onChange={(e) => setSelectedFeeHead(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                      >
+                        <option value="">-- Select Breakage Fee Head --</option>
+                        {feeHeads.map((fh) => (
+                          <option key={fh.id} value={fh.id}>
+                            {fh.name} ({fh.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings || !selectedFeeHead}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {savingSettings ? 'Saving...' : 'Save Settings'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : activeTab === 'process' ? (
             /* Process Guide Tab */
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -643,17 +835,49 @@ const NOCManagement = () => {
                               <p className="text-sm text-gray-900 bg-gray-50 p-3 rounded-md">{selectedRequest.wardenRemarks}</p>
                             </div>
                           )}
+
+                          {selectedRequest.breakageFee > 0 && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500 mb-1">Breakage Fee</label>
+                              <div className="p-3 bg-red-50 border border-red-100 rounded-md">
+                                <p className="text-sm font-semibold text-red-700">₹{selectedRequest.breakageFee}</p>
+                                {selectedRequest.breakageRemarks && (
+                                  <p className="text-xs text-red-600 mt-1">Remarks: {selectedRequest.breakageRemarks}</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {selectedRequest.meterReadings && selectedRequest.meterReadings.meterType && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-500 mb-1">Meter Readings</label>
+                              <div className="p-3 bg-gray-50 border border-gray-200 rounded-md text-xs space-y-1 text-gray-700">
+                                <p><span className="font-semibold text-gray-800">Type:</span> {selectedRequest.meterReadings.meterType === 'single' ? 'Single Meter' : 'Dual Meter'}</p>
+                                {selectedRequest.meterReadings.meterType === 'single' ? (
+                                  <>
+                                    <p><span className="font-semibold text-gray-800">Start Units:</span> {selectedRequest.meterReadings.startUnits}</p>
+                                    <p><span className="font-semibold text-gray-800">End Units:</span> {selectedRequest.meterReadings.endUnits}</p>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p><span className="font-semibold text-gray-800">Meter 1 Start:</span> {selectedRequest.meterReadings.meter1StartUnits} | <span className="font-semibold text-gray-800">End:</span> {selectedRequest.meterReadings.meter1EndUnits}</p>
+                                    <p><span className="font-semibold text-gray-800">Meter 2 Start:</span> {selectedRequest.meterReadings.meter2StartUnits} | <span className="font-semibold text-gray-800">End:</span> {selectedRequest.meterReadings.meter2EndUnits}</p>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
                           {action === 'approve' && (
                             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
                               <div className="flex">
                                 <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2 mt-0.5 flex-shrink-0" />
                                 <div>
-                                  <h4 className="text-sm font-medium text-yellow-800">Direct Approval & Deactivation</h4>
+                                  <h4 className="text-sm font-medium text-yellow-800">Approve NOC Request</h4>
                                   <p className="mt-1 text-xs text-yellow-700">
-                                    Approving this NOC request will immediately deactivate the student's hostel profile for this academic year ({selectedRequest.academicYear}) and vacate their room allotment. This action cannot be undone.
+                                    Approving this request is final. The student profile deactivation and room vacating will be automatically processed by the nightly scheduler on or after the vacating date ({new Date(selectedRequest.vacatingDate).toLocaleDateString('en-IN')}).
                                   </p>
                                 </div>
                               </div>
@@ -674,10 +898,130 @@ const NOCManagement = () => {
                             </div>
                           )}
 
+                          {action === 'approve' && (
+                            <>
+                              {/* Meter Readings */}
+                              <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-4">
+                                <h4 className="text-sm font-semibold text-gray-800">
+                                  Meter Readings (Room: {selectedRequest.student?.roomNumber || selectedRequest.roomNumber || 'N/A'})
+                                </h4>
+                                
+                                <div>
+                                  <span className="text-xs font-medium text-gray-500 mr-2">Meter Type:</span>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 uppercase">
+                                    {meterType === 'single' ? 'Single Meter' : 'Dual Meter'}
+                                  </span>
+                                </div>
+
+                                {meterType === 'single' ? (
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                                      <input
+                                        type="number"
+                                        value={startUnits}
+                                        onChange={(e) => setStartUnits(e.target.value)}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                        min="0"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                                      <input
+                                        type="number"
+                                        value={endUnits}
+                                        onChange={(e) => setEndUnits(e.target.value)}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                        min="0"
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Meter 1 Start</label>
+                                        <input
+                                          type="number"
+                                          value={meter1StartUnits}
+                                          onChange={(e) => setMeter1StartUnits(e.target.value)}
+                                          className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                          min="0"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Meter 1 End</label>
+                                        <input
+                                          type="number"
+                                          value={meter1EndUnits}
+                                          onChange={(e) => setMeter1EndUnits(e.target.value)}
+                                          className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                          min="0"
+                                        />
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Meter 2 Start</label>
+                                        <input
+                                          type="number"
+                                          value={meter2StartUnits}
+                                          onChange={(e) => setMeter2StartUnits(e.target.value)}
+                                          className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                          min="0"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">Meter 2 End</label>
+                                        <input
+                                          type="number"
+                                          value={meter2EndUnits}
+                                          onChange={(e) => setMeter2EndUnits(e.target.value)}
+                                          className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                          min="0"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Breakage Fee */}
+                              <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-4">
+                                <h4 className="text-sm font-semibold text-gray-800">Breakage Fee</h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                  <div>
+                                    <label className="block text-xs font-medium text-gray-700 mb-1">Breakage Fee Amount (₹)</label>
+                                    <input
+                                      type="number"
+                                      value={breakageFee}
+                                      onChange={(e) => setBreakageFee(e.target.value)}
+                                      placeholder="0"
+                                      className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                      min="0"
+                                    />
+                                  </div>
+                                  {Number(breakageFee) > 0 && (
+                                    <div>
+                                      <label className="block text-xs font-medium text-gray-700 mb-1">Remarks / Description</label>
+                                      <textarea
+                                        value={breakageRemarks}
+                                        onChange={(e) => setBreakageRemarks(e.target.value)}
+                                        placeholder="Reason for breakage charge..."
+                                        rows={2}
+                                        className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </>
+                          )}
+
                           {action !== 'delete' && (
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-2">
-                                {action === 'approve' ? 'Remarks / Approval Notes (Optional)' : 'Rejection Reason *'}
+                                {action === 'approve' ? 'Approval Remarks / Notes (Optional)' : 'Rejection Reason *'}
                               </label>
                               <textarea
                                 value={remarks}
@@ -743,143 +1087,294 @@ const NOCManagement = () => {
                 </div>
 
                 <div className="px-6 py-4 space-y-4">
-                  {/* Academic Year Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Academic Year *
-                    </label>
-                    <select
-                      value={selectedAY}
-                      onChange={(e) => {
-                        setSelectedAY(e.target.value);
-                        setSelectedStudent(null); // Reset selected student when AY changes
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
-                    >
-                      <option value="">Select Academic Year...</option>
-                      {generateAcademicYears().map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {!selectedStudent ? (
+                    <>
+                      {/* Academic Year Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Academic Year *
+                        </label>
+                        <select
+                          value={selectedAY}
+                          onChange={(e) => {
+                            setSelectedAY(e.target.value);
+                            setSelectedStudent(null); // Reset selected student when AY changes
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
+                        >
+                          <option value="">Select Academic Year...</option>
+                          {generateAcademicYears().map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                  {/* Student Search */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Search Student *
-                    </label>
-                    <div className="relative">
-                      <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={studentSearch}
-                        onChange={(e) => setStudentSearch(e.target.value)}
-                        disabled={!selectedAY}
-                        placeholder={selectedAY ? "Search by name or roll number..." : "Select Academic Year first..."}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      />
+                      {/* Student Search */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Search Student *
+                        </label>
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            value={studentSearch}
+                            onChange={(e) => setStudentSearch(e.target.value)}
+                            disabled={!selectedAY}
+                            placeholder={selectedAY ? "Search by name or roll number..." : "Select Academic Year first..."}
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Student Selection */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Select Student *
+                        </label>
+                        {!selectedAY ? (
+                          <div className="text-center py-4 bg-gray-50 rounded-md">
+                            <InformationCircleIcon className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">
+                              Please select an Academic Year first to load students
+                            </p>
+                          </div>
+                        ) : loadingStudents ? (
+                          <div className="flex items-center justify-center py-4">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-sm text-gray-500">Loading students...</span>
+                          </div>
+                        ) : students.length === 0 ? (
+                          <div className="text-center py-4 bg-gray-50 rounded-md">
+                            <UserIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">
+                              {studentSearch ? 'No students found matching your search' : 'No eligible active students found for this Academic Year'}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md font-sans">
+                            {students.map((student) => (
+                              <div
+                                key={student._id}
+                                onClick={() => setSelectedStudent(student)}
+                                className={`p-3 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0 ${
+                                  selectedStudent?._id === student._id
+                                    ? 'bg-blue-50 border-l-4 border-l-blue-500'
+                                    : 'hover:bg-gray-50'
+                                }`}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-gray-900 text-sm">{student.name}</p>
+                                    <p className="text-xs text-gray-500">{student.rollNumber}</p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-xs text-gray-600">{student.course?.name}</p>
+                                    <p className="text-xs text-gray-500">Year {student.year} (AY: {student.academicYear})</p>
+                                  </div>
+                                </div>
+                                {student.roomNumber && (
+                                  <p className="text-xs text-gray-400 mt-1">Room: {student.roomNumber}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* Selected Student Display */
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md relative pr-10">
+                      <button
+                        type="button"
+                        onClick={handleDiscardStudent}
+                        className="absolute top-2 right-2 p-1 text-gray-500 hover:text-red-500 rounded-full transition-colors duration-200"
+                        title="Discard Student"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                      <p className="text-xs font-medium text-blue-800">Selected Student:</p>
+                      <p className="text-sm font-semibold text-blue-900">{selectedStudent.name} ({selectedStudent.rollNumber})</p>
+                      <p className="text-xs text-blue-700">{selectedStudent.course?.name} - Year {selectedStudent.year} (Academic Year: {selectedStudent.academicYear})</p>
+                      {selectedStudent.roomNumber && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          Room: {selectedStudent.roomNumber} {selectedStudent.room?.meterType ? `(${selectedStudent.room.meterType === 'single' ? 'Single Meter' : 'Dual Meter'})` : ''}
+                        </p>
+                      )}
                     </div>
+                  )}
+
+                   {/* NOC Reason */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Reason for NOC *
+                     </label>
+                     <select
+                       value={reasonType}
+                       onChange={(e) => {
+                         setReasonType(e.target.value);
+                         if (e.target.value !== 'Other') {
+                           setNocReason('');
+                         }
+                       }}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm bg-white mb-2"
+                     >
+                       <option value="">Select Reason...</option>
+                       <option value="Academic Year Completed">Academic Year Completed</option>
+                       <option value="Course Completed">Course Completed</option>
+                       <option value="Other">Other</option>
+                     </select>
+
+                     {reasonType === 'Other' && (
+                       <div>
+                         <textarea
+                           value={nocReason}
+                           onChange={(e) => setNocReason(e.target.value)}
+                           rows={4}
+                           maxLength={500}
+                           className="w-full px-3 py-2 border border-blue-500 focus:border-blue-500 text-sm rounded-md shadow-sm focus:outline-none focus:ring-blue-500"
+                           placeholder="Enter the reason for requesting NOC (minimum 10 characters)..."
+                         />
+                         <p className="text-xs text-gray-500 mt-1 text-right">
+                           {nocReason.length}/500 characters
+                         </p>
+                       </div>
+                     )}
+                   </div>
+
+                   {/* Vacating Date */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Vacating Date from Hostel *
+                     </label>
+                     <input
+                       type="date"
+                       value={vacatingDate}
+                       onChange={(e) => setVacatingDate(e.target.value)}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                       required
+                     />
+                     <p className="text-xs text-gray-500 mt-1 hidden sm:block">
+                       Select the date when the student plans to vacate the hostel
+                     </p>
                   </div>
 
-                  {/* Student Selection */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Student *
-                    </label>
-                    {!selectedAY ? (
-                      <div className="text-center py-4 bg-gray-50 rounded-md">
-                        <InformationCircleIcon className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">
-                          Please select an Academic Year first to load students
-                        </p>
-                      </div>
-                    ) : loadingStudents ? (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                        <span className="ml-2 text-sm text-gray-500">Loading students...</span>
-                      </div>
-                    ) : students.length === 0 ? (
-                      <div className="text-center py-4 bg-gray-50 rounded-md">
-                        <UserIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-500">
-                          {studentSearch ? 'No students found matching your search' : 'No eligible active students found for this Academic Year'}
-                        </p>
+                  {/* Meter Readings */}
+                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-800">
+                      Meter Readings (Room: {selectedStudent?.roomNumber || 'N/A'})
+                    </h4>
+                    
+                    <div>
+                      <span className="text-xs font-medium text-gray-500 mr-2">Meter Type:</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 uppercase">
+                        {meterType === 'single' ? 'Single Meter' : 'Dual Meter'}
+                      </span>
+                    </div>
+
+                    {meterType === 'single' ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Start Units</label>
+                          <input
+                            type="number"
+                            value={startUnits}
+                            onChange={(e) => setStartUnits(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            min="0"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">End Units</label>
+                          <input
+                            type="number"
+                            value={endUnits}
+                            onChange={(e) => setEndUnits(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                            min="0"
+                          />
+                        </div>
                       </div>
                     ) : (
-                      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-md font-sans">
-                        {students.map((student) => (
-                          <div
-                            key={student._id}
-                            onClick={() => setSelectedStudent(student)}
-                            className={`p-3 cursor-pointer transition-colors duration-200 border-b border-gray-100 last:border-b-0 ${
-                              selectedStudent?._id === student._id
-                                ? 'bg-blue-50 border-l-4 border-l-blue-500'
-                                : 'hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-medium text-gray-900 text-sm">{student.name}</p>
-                                <p className="text-xs text-gray-500">{student.rollNumber}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs text-gray-600">{student.course?.name}</p>
-                                <p className="text-xs text-gray-500">Year {student.year} (AY: {student.academicYear})</p>
-                              </div>
-                            </div>
-                            {student.roomNumber && (
-                              <p className="text-xs text-gray-400 mt-1">Room: {student.roomNumber}</p>
-                            )}
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Meter 1 Start</label>
+                            <input
+                              type="number"
+                              value={meter1StartUnits}
+                              onChange={(e) => setMeter1StartUnits(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              min="0"
+                            />
                           </div>
-                        ))}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Meter 1 End</label>
+                            <input
+                              type="number"
+                              value={meter1EndUnits}
+                              onChange={(e) => setMeter1EndUnits(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              min="0"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Meter 2 Start</label>
+                            <input
+                              type="number"
+                              value={meter2StartUnits}
+                              onChange={(e) => setMeter2StartUnits(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              min="0"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Meter 2 End</label>
+                            <input
+                              type="number"
+                              value={meter2EndUnits}
+                              onChange={(e) => setMeter2EndUnits(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              min="0"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Selected Student Display */}
-                  {selectedStudent && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <p className="text-xs font-medium text-blue-800">Selected Student:</p>
-                      <p className="text-sm font-semibold text-blue-900">{selectedStudent.name} ({selectedStudent.rollNumber})</p>
-                      <p className="text-xs text-blue-700">{selectedStudent.course?.name} - Year {selectedStudent.year} (Academic Year: {selectedStudent.academicYear})</p>
+                  {/* Breakage Fee */}
+                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200 space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-800">Breakage Fee</h4>
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Breakage Fee Amount (₹)</label>
+                        <input
+                          type="number"
+                          value={breakageFee}
+                          onChange={(e) => setBreakageFee(e.target.value)}
+                          placeholder="0"
+                          className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                          min="0"
+                        />
+                      </div>
+                      {Number(breakageFee) > 0 && (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">Remarks / Description</label>
+                          <textarea
+                            value={breakageRemarks}
+                            onChange={(e) => setBreakageRemarks(e.target.value)}
+                            placeholder="Reason for breakage charge..."
+                            rows={2}
+                            className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      )}
                     </div>
-                  )}
-
-                  {/* NOC Reason */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for NOC *
-                    </label>
-                    <textarea
-                      value={nocReason}
-                      onChange={(e) => setNocReason(e.target.value)}
-                      rows={4}
-                      maxLength={500}
-                      className="w-full px-3 py-2 border border-blue-500 focus:border-blue-500 text-sm rounded-md shadow-sm focus:outline-none focus:ring-blue-500"
-                      placeholder="Enter the reason for requesting NOC (minimum 10 characters)..."
-                    />
-                    <p className="text-xs text-gray-500 mt-1 text-right">
-                      {nocReason.length}/500 characters
-                    </p>
-                  </div>
-
-                  {/* Vacating Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Vacating Date from Hostel *
-                    </label>
-                    <input
-                      type="date"
-                      value={vacatingDate}
-                      onChange={(e) => setVacatingDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Select the date when the student plans to vacate the hostel
-                    </p>
                   </div>
                 </div>
 
@@ -892,6 +1387,7 @@ const NOCManagement = () => {
                       setVacatingDate('');
                       setStudentSearch('');
                       setSelectedAY('');
+                      resetFields();
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
                   >
@@ -899,7 +1395,7 @@ const NOCManagement = () => {
                   </button>
                   <button
                     onClick={handleCreateNOC}
-                    disabled={isCreating || !selectedStudent || nocReason.trim().length < 10 || !vacatingDate}
+                    disabled={isCreating || !selectedStudent || !reasonType || (reasonType === 'Other' && nocReason.trim().length < 10) || !vacatingDate}
                     className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isCreating ? 'Creating...' : 'Create NOC Request'}
