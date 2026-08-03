@@ -385,7 +385,7 @@ const TakeStaffAttendance = () => {
     <div className="min-h-screen bg-gray-50">
       <SEO title="Take Staff Attendance - Warden Dashboard" />
 
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -626,13 +626,8 @@ const TakeStaffAttendance = () => {
           </div>
         </motion.div>
 
-        {/* Submit Button - Mobile Optimized */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-[60] bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
-        >
+        {/* Submit Button — sticky flush under layout top bar */}
+        <div className="mb-3 sm:mb-4 lg:mb-6 sticky top-14 z-30 -mx-4 px-4 py-2.5 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:shadow-none">
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
             <button
               onClick={handleSubmit}
@@ -678,7 +673,7 @@ const TakeStaffAttendance = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Staff List - Mobile Optimized */}
         <motion.div

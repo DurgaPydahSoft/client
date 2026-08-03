@@ -172,7 +172,7 @@ const FeeManagement = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto mt-16 sm:mt-0">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">

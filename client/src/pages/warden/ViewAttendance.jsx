@@ -34,7 +34,9 @@ const ViewAttendance = () => {
   });
   const getDefaultAcademicYear = () => {
     const year = new Date().getFullYear();
-    return `${year}-${year + 1}`;
+    const month = new Date().getMonth() + 1;
+    const start = month >= 6 ? year : year - 1;
+    return `${start}-${start + 1}`;
   };
 
   const generateAcademicYears = () => {
@@ -53,13 +55,22 @@ const ViewAttendance = () => {
     branch: '',
     gender: '',
     status: '',
-    academicYear: ''
+    academicYear: (() => {
+      const year = new Date().getFullYear();
+      const month = new Date().getMonth() + 1;
+      const start = month >= 6 ? year : year - 1;
+      return `${start}-${start + 1}`;
+    })()
   });
-  const [analyticsMode, setAnalyticsMode] = useState('live');
+  const [analyticsMode, setAnalyticsMode] = useState('ay');
   const [statistics, setStatistics] = useState({
     totalStudents: 0,
     morningPresent: 0,
+    morningAbsent: 0,
     eveningPresent: 0,
+    eveningAbsent: 0,
+    nightPresent: 0,
+    nightAbsent: 0,
     fullyPresent: 0,
     partiallyPresent: 0,
     absent: 0
@@ -138,7 +149,12 @@ const ViewAttendance = () => {
       
       if (response.data.success) {
         setAttendance(response.data.data.attendance);
-        setStatistics(response.data.data.statistics);
+        setStatistics(
+          normalizeStatistics(
+            response.data.data.statistics,
+            response.data.data.attendance || []
+          )
+        );
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -211,9 +227,9 @@ const ViewAttendance = () => {
         
         setAttendance(filteredAttendance);
         
-        // Calculate statistics from attendance data
+        // Calculate statistics from attendance data (unique students in range = length of filtered set for that fetch)
         const stats = {
-          totalStudents: response.data.data.totalRecords || filteredAttendance.length,
+          totalStudents: filteredAttendance.length,
           morningPresent: 0,
           eveningPresent: 0,
           nightPresent: 0,
@@ -222,7 +238,6 @@ const ViewAttendance = () => {
           absent: 0
         };
 
-        // Calculate statistics from the attendance records
         filteredAttendance.forEach(record => {
           if (record.morning) stats.morningPresent++;
           if (record.evening) stats.eveningPresent++;
@@ -237,7 +252,7 @@ const ViewAttendance = () => {
           }
         });
 
-        setStatistics(stats);
+        setStatistics(normalizeStatistics(stats, filteredAttendance));
       }
     } catch (error) {
       console.error('Error fetching attendance:', error);
@@ -432,201 +447,196 @@ const ViewAttendance = () => {
     }
   };
 
+  const getRowKey = (record, index) => {
+    if (viewMode === 'date') {
+      const sid = record.student?._id || record.student || 'unknown';
+      return String(record._id || `att-${sid}-${record.date || ''}-${index}`);
+    }
+    const sid = record.student?._id || record.student || 'unknown';
+    return String(`stu-${sid}-${index}`);
+  };
+
+  const normalizeStatistics = (raw = {}, records = []) => {
+    const total =
+      Number(raw.totalStudents) ||
+      records.length ||
+      0;
+    const morningPresent = Number(raw.morningPresent) || records.filter((r) => r.morning).length;
+    const eveningPresent = Number(raw.eveningPresent) || records.filter((r) => r.evening).length;
+    const nightPresent = Number(raw.nightPresent) || records.filter((r) => r.night).length;
+    return {
+      totalStudents: total,
+      morningPresent,
+      morningAbsent: Math.max(0, total - morningPresent),
+      eveningPresent,
+      eveningAbsent: Math.max(0, total - eveningPresent),
+      nightPresent,
+      nightAbsent: Math.max(0, total - nightPresent),
+      fullyPresent: Number(raw.fullyPresent) || 0,
+      partiallyPresent: Number(raw.partiallyPresent) || 0,
+      absent: Number(raw.absent) || 0
+    };
+  };
+
   if (initialLoading) {
     return <LoadingSpinner />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 -mx-1 sm:mx-0">
       <SEO title="View Attendance - Warden Dashboard" />
       
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        {/* Toolbar — hostel badge + Live/AY tabs + year dropdown */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          className="-mx-4 px-4 py-2.5 mb-3 bg-white border-b border-gray-100 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:border-0 sm:mb-6"
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-start flex-1 min-w-0">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2">
-                  <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
-                    View Attendance {`( ${getWardenHostelLabel()} )`}
-                  </h1>
-                  {/* Mobile Live / AY toggle */}
-                  <div className="sm:hidden flex items-center gap-1.5 flex-shrink-0">
-                    {loading && (
-                      <div className="w-3.5 h-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                    )}
-                    <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200">
-                      <button
-                        type="button"
-                        onClick={() => handleAnalyticsModeChange('live')}
-                        className={`px-2 py-1 text-[10px] font-semibold rounded-md ${
-                          analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
-                        }`}
-                      >
-                        Live
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleAnalyticsModeChange('ay')}
-                        className={`px-2 py-1 text-[10px] font-semibold rounded-md ${
-                          analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
-                        }`}
-                      >
-                        AY
-                      </button>
-                    </div>
-                    <select
-                      name="academicYear"
-                      value={filters.academicYear}
-                      onChange={handleFilterChange}
-                      disabled={analyticsMode === 'live'}
-                      className={`px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-xs font-semibold shadow-sm ${
-                        analyticsMode === 'live'
-                          ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                          : 'text-gray-700 bg-white border-gray-300'
-                      }`}
-                    >
-                      {generateAcademicYears().map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <p className="text-gray-500 mt-0.5 text-xs sm:text-sm lg:text-base">
-                  View and analyze attendance records for students in {getWardenHostelLabel()}
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center justify-between gap-2">
+            {getWardenHostelLabel() && (
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-green-50 text-green-700 border border-green-200 flex-shrink-0">
+                {getWardenHostelLabel()}
+              </span>
+            )}
 
-            {/* Desktop Stats & Academic Year */}
-            <div className="flex flex-row items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t sm:border-t-0 border-gray-100 pt-3 sm:pt-0">
-              <div className="bg-green-50/50 border border-green-100 p-2 rounded-lg min-w-[100px] text-center">
-                <p className="text-[10px] sm:text-xs text-gray-500 font-medium">Total Records</p>
-                <p className="text-base sm:text-lg font-bold text-green-600">{attendance.length}</p>
-              </div>
-              {/* Desktop Live / AY toggle */}
-              <div className="hidden sm:flex items-center gap-2">
-                {loading && (
-                  <div className="w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                )}
-                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyticsModeChange('live')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                      analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Live
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAnalyticsModeChange('ay')}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
-                      analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    AY Wise
-                  </button>
-                </div>
-                <select
-                  name="academicYear"
-                  value={filters.academicYear}
-                  onChange={handleFilterChange}
-                  disabled={analyticsMode === 'live'}
-                  className={`px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm font-semibold shadow-sm ${
-                    analyticsMode === 'live'
-                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
-                      : 'text-gray-700 bg-white border-gray-300'
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              {loading && (
+                <div className="w-3.5 h-3.5 border-2 border-green-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+              )}
+              <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleAnalyticsModeChange('live')}
+                  className={`px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-md ${
+                    analyticsMode === 'live' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
                   }`}
-                  title={analyticsMode === 'live' ? 'Switch to AY Wise to select academic year' : 'Select Academic Year'}
                 >
-                  {generateAcademicYears().map((year) => (
-                    <option key={year} value={year}>
-                      {year} AY
-                    </option>
-                  ))}
-                </select>
+                  Live
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAnalyticsModeChange('ay')}
+                  className={`px-2.5 py-1 text-[11px] sm:text-xs font-semibold rounded-md ${
+                    analyticsMode === 'ay' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  AY
+                </button>
               </div>
+              <select
+                name="academicYear"
+                value={filters.academicYear || getDefaultAcademicYear()}
+                onChange={handleFilterChange}
+                disabled={analyticsMode === 'live'}
+                className={`min-w-0 max-w-[7.5rem] sm:max-w-none px-2 py-1 sm:px-3 sm:py-1.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-green-500 text-[11px] sm:text-sm font-semibold ${
+                  analyticsMode === 'live'
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'text-gray-700 bg-white border-gray-300'
+                }`}
+                title={analyticsMode === 'live' ? 'Switch to AY to select year' : 'Select Academic Year'}
+              >
+                {generateAcademicYears().map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </motion.div>
 
-        {/* Statistics */}
+        {/* Statistics — Total + Morning/Evening/Night Present & Absent */}
         {viewMode === 'date' && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-6"
+            className="mb-3 sm:mb-6 px-1 sm:px-0"
           >
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-              <div className="text-center p-3 bg-green-50/50 rounded-lg border border-green-100/50">
-                <p className="text-xs font-semibold text-green-700">Total Students</p>
-                <p className="text-xl sm:text-2xl font-bold text-green-600 mt-1">{statistics.totalStudents}</p>
+            <div className="grid grid-cols-1 gap-2 sm:gap-3">
+              <div className="text-center p-2.5 sm:p-3 bg-green-50 rounded-lg border border-green-100">
+                <p className="text-[10px] sm:text-xs font-semibold text-green-700 uppercase tracking-wide">Total Students</p>
+                <p className="text-xl sm:text-2xl font-bold text-green-700 mt-0.5">{statistics.totalStudents}</p>
               </div>
-              <div className="text-center p-3 bg-yellow-50/50 rounded-lg border border-yellow-100/50">
-                <p className="text-xs font-semibold text-yellow-700 flex items-center justify-center gap-1">
-                  <SunIcon className="w-3.5 h-3.5" /> Morn Present
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-yellow-600 mt-1">{statistics.morningPresent}</p>
-              </div>
-              <div className="text-center p-3 bg-purple-50/50 rounded-lg border border-purple-100/50">
-                <p className="text-xs font-semibold text-purple-700 flex items-center justify-center gap-1">
-                  <MoonIcon className="w-3.5 h-3.5" /> Eve Present
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-purple-600 mt-1">{statistics.eveningPresent}</p>
-              </div>
-              <div className="text-center p-3 bg-indigo-50/50 rounded-lg border border-indigo-100/50">
-                <p className="text-xs font-semibold text-indigo-700 flex items-center justify-center gap-1">
-                  <StarIcon className="w-3.5 h-3.5" /> Night Present
-                </p>
-                <p className="text-xl sm:text-2xl font-bold text-indigo-600 mt-1">{statistics.nightPresent}</p>
-              </div>
-              <div className="text-center p-3 bg-emerald-50/50 rounded-lg border border-emerald-100/50">
-                <p className="text-xs font-semibold text-emerald-700">Fully Present</p>
-                <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">{statistics.fullyPresent}</p>
-              </div>
-              <div className="text-center p-3 bg-orange-50/50 rounded-lg border border-orange-100/50">
-                <p className="text-xs font-semibold text-orange-700">Partially Present</p>
-                <p className="text-xl sm:text-2xl font-bold text-orange-600 mt-1">{statistics.partiallyPresent}</p>
-              </div>
-              <div className="text-center p-3 bg-red-50/50 rounded-lg border border-red-100/50">
-                <p className="text-xs font-semibold text-red-700">Absent</p>
-                <p className="text-xl sm:text-2xl font-bold text-red-600 mt-1">{statistics.absent}</p>
+
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                {/* Morning */}
+                <div className="rounded-lg border border-yellow-100 bg-yellow-50/60 p-2 sm:p-3">
+                  <p className="text-[10px] sm:text-xs font-semibold text-yellow-800 flex items-center justify-center gap-1 mb-1.5">
+                    <SunIcon className="w-3.5 h-3.5" /> Morning
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-center">
+                    <div>
+                      <p className="text-[9px] text-green-600 font-medium">Present</p>
+                      <p className="text-sm sm:text-lg font-bold text-green-700">{statistics.morningPresent}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-red-500 font-medium">Absent</p>
+                      <p className="text-sm sm:text-lg font-bold text-red-600">{statistics.morningAbsent}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evening */}
+                <div className="rounded-lg border border-purple-100 bg-purple-50/60 p-2 sm:p-3">
+                  <p className="text-[10px] sm:text-xs font-semibold text-purple-800 flex items-center justify-center gap-1 mb-1.5">
+                    <MoonIcon className="w-3.5 h-3.5" /> Evening
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-center">
+                    <div>
+                      <p className="text-[9px] text-green-600 font-medium">Present</p>
+                      <p className="text-sm sm:text-lg font-bold text-green-700">{statistics.eveningPresent}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-red-500 font-medium">Absent</p>
+                      <p className="text-sm sm:text-lg font-bold text-red-600">{statistics.eveningAbsent}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Night */}
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-2 sm:p-3">
+                  <p className="text-[10px] sm:text-xs font-semibold text-indigo-800 flex items-center justify-center gap-1 mb-1.5">
+                    <StarIcon className="w-3.5 h-3.5" /> Night
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-center">
+                    <div>
+                      <p className="text-[9px] text-green-600 font-medium">Present</p>
+                      <p className="text-sm sm:text-lg font-bold text-green-700">{statistics.nightPresent}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-red-500 font-medium">Absent</p>
+                      <p className="text-sm sm:text-lg font-bold text-red-600">{statistics.nightAbsent}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
 
         {/* Mobile Filter Toggle */}
-        <div className="sm:hidden mb-4">
+        <div className="sm:hidden mb-2 px-1">
           <button
             onClick={() => setShowMobileFilters(!showMobileFilters)}
-            className="w-full flex items-center justify-center gap-2 bg-white px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 shadow-sm active:bg-gray-50"
+            className="w-full flex items-center justify-center gap-1.5 bg-white px-3 py-2 rounded-md border border-gray-200 text-xs font-medium text-gray-700 active:bg-gray-50"
           >
-            <FunnelIcon className="w-5 h-5 text-gray-500" />
-            {showMobileFilters ? 'Hide Filters' : 'Show Filters'}
+            <FunnelIcon className="w-4 h-4 text-gray-500" />
+            {showMobileFilters ? 'Hide Filters' : 'Filters'}
           </button>
         </div>
 
         {/* Controls */}
         <div className={`${showMobileFilters ? 'block' : 'hidden'} sm:block`}>
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="mb-6"
+            transition={{ delay: 0.05 }}
+            className="mb-3 sm:mb-6 bg-white sm:bg-transparent rounded-md border border-gray-200 sm:border-0 p-2.5 sm:p-0"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
-            {/* Live / AY Wise */}
-            <div className="md:col-span-2">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-4 mb-2 sm:mb-4">
+            {/* Live / AY Wise — hide duplicate on mobile (already in header) */}
+            <div className="hidden sm:block md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Roster mode
                 {analyticsMode === 'ay' && filters.academicYear ? (
@@ -678,11 +688,11 @@ const ViewAttendance = () => {
 
             {/* View Mode Toggle */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">View Mode</label>
+              <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">View</label>
               <select
                 value={viewMode}
                 onChange={(e) => setViewMode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="date">Single Date</option>
                 <option value="range">Date Range</option>
@@ -692,35 +702,35 @@ const ViewAttendance = () => {
             {/* Date Selector */}
             {viewMode === 'date' ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <CalendarIcon className="w-4 h-4 inline mr-1" />
+                <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
+                  <CalendarIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 inline mr-0.5" />
                   Date
                 </label>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
             ) : (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                  <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Start</label>
                   <input
                     type="date"
                     value={dateRange.startDate}
                     onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                  <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">End</label>
                   <input
                     type="date"
                     value={dateRange.endDate}
                     onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </>
@@ -728,12 +738,12 @@ const ViewAttendance = () => {
 
             {/* Status Filter */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Status</label>
               <select
                 name="status"
                 value={filters.status}
                 onChange={handleFilterChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="">All Status</option>
                 <option value="Present">Present</option>
@@ -745,15 +755,15 @@ const ViewAttendance = () => {
           </div>
 
           {/* Additional Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
+              <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Course</label>
               <select
                 name="course"
                 value={filters.course}
                 onChange={handleFilterChange}
                 disabled={loadingFilters}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
               >
                 <option value="">{loadingFilters ? 'Loading...' : 'All Courses'}</option>
                 {courses.map((course) => (
@@ -765,13 +775,13 @@ const ViewAttendance = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Branch</label>
+              <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Branch</label>
               <select
                 name="branch"
                 value={filters.branch}
                 onChange={handleFilterChange}
                 disabled={loadingFilters || !filters.course}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
               >
                 <option value="">
                   {loadingFilters ? 'Loading...' : !filters.course ? 'Select Course First' : 'All Branches'}
@@ -784,7 +794,7 @@ const ViewAttendance = () => {
               </select>
             </div>
 
-            <div>
+            <div className="hidden sm:block">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Hostel
               </label>
@@ -798,15 +808,15 @@ const ViewAttendance = () => {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search student</label>
+            <div className="col-span-2 sm:col-span-1">
+              <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">Search</label>
               <input
                 type="text"
                 name="studentId"
                 value={filters.studentId}
                 onChange={handleFilterChange}
-                placeholder="Name, roll no, or admission no"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Name / roll / admission"
+                className="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -828,9 +838,9 @@ const ViewAttendance = () => {
               </div>
             </div>
           )}
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Attendance Records ({attendance.length})
+          <div className="px-3 py-2 sm:px-6 sm:py-4 border-b border-gray-200 bg-white rounded-t-md">
+            <h2 className="text-sm sm:text-lg font-semibold text-gray-900">
+              Students ({statistics.totalStudents || attendance.length})
             </h2>
           </div>
 
@@ -901,10 +911,10 @@ const ViewAttendance = () => {
                     const status = getAttendanceStatus(record);
                     return (
                       <motion.tr
-                        key={record._id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                        key={getRowKey(record, index)}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: Math.min(index * 0.02, 0.3) }}
                         className="hover:bg-gray-50"
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -969,11 +979,11 @@ const ViewAttendance = () => {
                     const isExpanded = expandedStudents.has(student._id);
                     
                     return (
-                      <React.Fragment key={student._id}>
+                      <React.Fragment key={getRowKey(record, index)}>
                         <motion.tr
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: Math.min(index * 0.02, 0.3) }}
                           className="hover:bg-gray-50 cursor-pointer"
                           onClick={() => toggleStudentExpansion(student._id)}
                         >
@@ -1078,7 +1088,7 @@ const ViewAttendance = () => {
                                       {record.attendanceRecords.map((attRecord, idx) => {
                                         const dayStatus = getAttendanceStatus(attRecord);
                                         return (
-                                          <tr key={attRecord._id} className="hover:bg-gray-50">
+                                          <tr key={getAttRecordKey(attRecord, idx)} className="hover:bg-gray-50">
                                             <td className="px-3 py-2 text-gray-900">
                                               {formatDate(attRecord.date)}
                                             </td>
@@ -1131,64 +1141,55 @@ const ViewAttendance = () => {
           </div>
 
           {/* Mobile view cards */}
-          <div className="block md:hidden divide-y divide-gray-200">
+          <div className="block md:hidden divide-y divide-gray-100 bg-white rounded-b-md border border-gray-200 border-t-0">
             {getDisplayData().map((record, index) => {
               if (viewMode === 'date') {
                 const status = getAttendanceStatus(record);
                 return (
-                  <div key={record._id || index} className="p-4 hover:bg-gray-50 bg-white">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900">{record.student?.name || 'Unknown'}</h4>
-                        <p className="text-xs text-gray-500">{record.student?.rollNumber || 'N/A'}</p>
+                  <div key={getRowKey(record, index)} className="px-2.5 py-2 active:bg-gray-50">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-semibold text-gray-900 truncate">{record.student?.name || 'Unknown'}</h4>
+                        <p className="text-[10px] text-gray-500 truncate">
+                          {record.student?.rollNumber || 'N/A'} · Rm {record.student?.roomNumber || '—'} · {(record.student?.course?.name || record.student?.course || '')} {(record.student?.branch?.name || record.student?.branch || '')}
+                        </p>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                        {getStatusIcon(status)}
-                        <span className="ml-1">{status}</span>
+                      <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColor(status)}`}>
+                        {status}
                       </span>
                     </div>
 
-                    <div className="text-xs text-gray-500 mb-3 space-y-0.5">
-                      <p>{(record.student?.course?.name || record.student?.course || 'N/A')} {record.student?.year || 'N/A'} • {(record.student?.branch?.name || record.student?.branch || 'N/A')}</p>
-                      <p>Room {record.student?.roomNumber || 'N/A'} • {record.student?.gender || 'N/A'}</p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 border-t border-b border-gray-100 py-2.5 my-2.5 bg-gray-50 rounded-lg text-center">
+                    <div className="mt-1.5 grid grid-cols-3 gap-1 rounded bg-gray-50 border border-gray-100 py-1 text-center">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-gray-400 flex items-center justify-center gap-0.5 mb-1">
-                          <SunIcon className="w-3.5 h-3.5 text-yellow-500" /> Morning
+                        <p className="text-[9px] text-gray-400 flex items-center justify-center gap-0.5">
+                          <SunIcon className="w-3 h-3 text-yellow-500" /> AM
                         </p>
                         {record.morning ? (
-                          <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                          <CheckIcon className="w-3.5 h-3.5 text-green-600 mx-auto" />
                         ) : (
-                          <span className="text-gray-400 text-xs font-medium">-</span>
+                          <span className="text-gray-300 text-[10px]">—</span>
                         )}
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-gray-400 flex items-center justify-center gap-0.5 mb-1">
-                          <MoonIcon className="w-3.5 h-3.5 text-indigo-500" /> Evening
+                        <p className="text-[9px] text-gray-400 flex items-center justify-center gap-0.5">
+                          <MoonIcon className="w-3 h-3 text-indigo-500" /> PM
                         </p>
                         {record.evening ? (
-                          <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                          <CheckIcon className="w-3.5 h-3.5 text-green-600 mx-auto" />
                         ) : (
-                          <span className="text-gray-400 text-xs font-medium">-</span>
+                          <span className="text-gray-300 text-[10px]">—</span>
                         )}
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-gray-400 flex items-center justify-center gap-0.5 mb-1">
-                          <StarIcon className="w-3.5 h-3.5 text-purple-500" /> Night
+                        <p className="text-[9px] text-gray-400 flex items-center justify-center gap-0.5">
+                          <StarIcon className="w-3 h-3 text-purple-500" /> NT
                         </p>
                         {record.night ? (
-                          <CheckIcon className="w-4 h-4 text-green-600 mx-auto" />
+                          <CheckIcon className="w-3.5 h-3.5 text-green-600 mx-auto" />
                         ) : (
-                          <span className="text-gray-400 text-xs font-medium">-</span>
+                          <span className="text-gray-300 text-[10px]">—</span>
                         )}
                       </div>
-                    </div>
-
-                    <div className="flex justify-between items-center text-xs text-gray-400 mt-2">
-                      <span>Marked: {record.markedBy?.username ? `${record.markedBy.username} (${record.markedBy.role})` : 'System'}</span>
-                      {record.notes && <span className="italic text-gray-500 max-w-[50%] truncate">Note: {record.notes}</span>}
                     </div>
                   </div>
                 );
@@ -1196,82 +1197,65 @@ const ViewAttendance = () => {
                 const { student, summary } = record;
                 const isExpanded = expandedStudents.has(student._id);
                 return (
-                  <div key={student._id} className="p-4 hover:bg-gray-50 bg-white">
-                    <div className="flex justify-between items-start mb-2" onClick={() => toggleStudentExpansion(student._id)}>
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-900">{student.name || 'Unknown'}</h4>
-                        <p className="text-xs text-gray-500">{student.rollNumber || 'N/A'}</p>
+                  <div key={getRowKey(record, index)} className="px-2.5 py-2 active:bg-gray-50">
+                    <div className="flex justify-between items-start gap-2" onClick={() => toggleStudentExpansion(student._id)}>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-semibold text-gray-900 truncate">{student.name || 'Unknown'}</h4>
+                        <p className="text-[10px] text-gray-500 truncate">
+                          {student.rollNumber || 'N/A'} · Rm {student.roomNumber || '—'}
+                        </p>
                       </div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
-                        {getPercentageIcon(summary.attendancePercentage)}
-                        <span className="ml-1">{summary.attendancePercentage}%</span>
+                      <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getPercentageColor(summary.attendancePercentage)}`}>
+                        {summary.attendancePercentage}%
                       </span>
                     </div>
 
-                    <div className="text-xs text-gray-500 mb-3 space-y-0.5" onClick={() => toggleStudentExpansion(student._id)}>
-                      <p>{(student.course?.name || student.course || 'N/A')} {student.year || 'N/A'} • {(student.branch?.name || student.branch || 'N/A')}</p>
-                      <p>Room {student.roomNumber || 'N/A'} • {student.gender || 'N/A'}</p>
-                    </div>
-
-                    <div className="grid grid-cols-4 gap-1 border-t border-b border-gray-100 py-2 my-2 bg-gray-50 rounded-lg text-center" onClick={() => toggleStudentExpansion(student._id)}>
+                    <div className="mt-1.5 grid grid-cols-4 gap-0.5 rounded bg-gray-50 border border-gray-100 py-1 text-center" onClick={() => toggleStudentExpansion(student._id)}>
                       <div>
-                        <p className="text-[10px] text-gray-400">Total</p>
-                        <p className="text-xs font-bold text-gray-700">{summary.totalDays}</p>
+                        <p className="text-[9px] text-gray-400">Tot</p>
+                        <p className="text-[11px] font-bold text-gray-700">{summary.totalDays}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-green-500">Present</p>
-                        <p className="text-xs font-bold text-green-600">{summary.presentDays}</p>
+                        <p className="text-[9px] text-green-500">P</p>
+                        <p className="text-[11px] font-bold text-green-600">{summary.presentDays}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-yellow-500">Partial</p>
-                        <p className="text-xs font-bold text-yellow-600">{summary.partialDays}</p>
+                        <p className="text-[9px] text-yellow-500">Par</p>
+                        <p className="text-[11px] font-bold text-yellow-600">{summary.partialDays}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-red-500">Absent</p>
-                        <p className="text-xs font-bold text-red-600">{summary.absentDays}</p>
+                        <p className="text-[9px] text-red-500">A</p>
+                        <p className="text-[11px] font-bold text-red-600">{summary.absentDays}</p>
                       </div>
                     </div>
 
-                    <div className="flex justify-center mt-2">
-                      <button 
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium w-full py-1 text-center bg-blue-50/50 rounded hover:bg-blue-50 transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleStudentExpansion(student._id);
-                        }}
-                      >
-                        {isExpanded ? 'Hide Daily Details' : 'Show Daily Details'}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      className="mt-1 w-full text-[10px] font-medium text-blue-600 py-1 rounded bg-blue-50/60"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStudentExpansion(student._id);
+                      }}
+                    >
+                      {isExpanded ? 'Hide days' : 'Show days'}
+                    </button>
 
                     {isExpanded && (
-                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
-                        <h5 className="text-xs font-semibold text-gray-800">Daily Details:</h5>
-                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                          {record.attendanceRecords.map((attRecord) => {
-                            const dayStatus = getAttendanceStatus(attRecord);
-                            return (
-                              <div key={attRecord._id} className="text-[11px] p-2 bg-gray-50 rounded border border-gray-100">
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="font-medium text-gray-700">{formatDate(attRecord.date)}</span>
-                                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getStatusColor(dayStatus)}`}>
-                                    {dayStatus}
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-3 gap-1 text-center text-gray-500">
-                                  <div>Morn: {attRecord.morning ? '✔️' : '❌'}</div>
-                                  <div>Eve: {attRecord.evening ? '✔️' : '❌'}</div>
-                                  <div>Night: {attRecord.night ? '✔️' : '❌'}</div>
-                                </div>
-                                {attRecord.notes && (
-                                  <div className="text-[10px] text-gray-400 mt-1 italic">
-                                    Note: {attRecord.notes}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="mt-1.5 space-y-1 max-h-48 overflow-y-auto">
+                        {record.attendanceRecords.map((attRecord, idx) => {
+                          const dayStatus = getAttendanceStatus(attRecord);
+                          return (
+                            <div key={getAttRecordKey(attRecord, idx)} className="text-[10px] px-1.5 py-1 bg-gray-50 rounded border border-gray-100 flex items-center justify-between gap-2">
+                              <span className="font-medium text-gray-700">{formatDate(attRecord.date)}</span>
+                              <span className="text-gray-500">
+                                {attRecord.morning ? '✓' : '–'}
+                                {attRecord.evening ? '✓' : '–'}
+                                {attRecord.night ? '✓' : '–'}
+                              </span>
+                              <span className={`px-1 rounded ${getStatusColor(dayStatus)}`}>{dayStatus}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -1281,9 +1265,9 @@ const ViewAttendance = () => {
           </div>
 
           {getDisplayData().length === 0 && (
-            <div className="text-center py-12">
-              <UserGroupIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">
+            <div className="text-center py-8 sm:py-12">
+              <UserGroupIcon className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-2 sm:mb-4" />
+              <p className="text-xs sm:text-base text-gray-500">
                 {viewMode === 'date' 
                   ? 'No attendance records found for the selected date.'
                   : 'No attendance records found for the selected date range.'

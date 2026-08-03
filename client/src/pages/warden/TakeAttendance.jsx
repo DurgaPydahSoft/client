@@ -475,8 +475,6 @@ const TakeAttendance = () => {
       };
       if (admitDateInput) payload.admitDate = admitDateInput;
       if (joiningDateInput) payload.joiningDate = joiningDateInput;
-      // Always send leftDate so clearing it is supported; non-empty expires the AY request
-      payload.leftDate = leftDateInput || null;
 
       const res = await api.put(`/api/admin/students/${selectedStudentForDates._id}`, payload);
       const expired = res?.data?.data?.hostelRequestExpired;
@@ -823,20 +821,27 @@ const TakeAttendance = () => {
     <div className="min-h-screen">
       <SEO title="Take Attendance - Warden Dashboard" />
 
-      <div className="w-full mt-12 sm:mt-0">
-        {/* Header */}
+      <div className="w-full">
+        {/* Header — full-bleed on mobile */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
+          className="-mx-4 px-4 py-3 mb-3 bg-white border-b border-gray-100 sm:mx-0 sm:px-4 sm:py-4 lg:p-6 sm:rounded-xl sm:shadow-sm sm:border-0 sm:mb-4 lg:mb-6"
         >
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-start flex-1 min-w-0">
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <h1 className="text-base sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
-                    Take Attendance {`( ${getWardenHostelLabel()} )`}
-                  </h1>
+                  <div className="min-w-0 flex-1">
+                    <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent leading-tight">
+                      Take Attendance
+                    </h1>
+                    {getWardenHostelLabel() && (
+                      <span className="mt-1.5 inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+                        {getWardenHostelLabel()}
+                      </span>
+                    )}
+                  </div>
                   {/* Mobile Academic Year Select */}
                   <div className="lg:hidden flex items-center gap-2 flex-shrink-0">
                     {loadingStudents && (
@@ -856,9 +861,6 @@ const TakeAttendance = () => {
                     </select>
                   </div>
                 </div>
-                <p className="text-gray-500 mt-0.5 text-xs sm:text-sm lg:text-base">
-                  Mark daily attendance for students in {getWardenHostelLabel()}
-                </p>
               </div>
             </div>
             
@@ -926,13 +928,13 @@ const TakeAttendance = () => {
                       {sessionIcons[session]}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <div className="flex flex-row items-center gap-2">
                         <span className={`text-xs sm:text-sm font-semibold truncate ${isActive ? 'text-green-800' : 'text-blue-800'
                           }`}>
                           {sessionNames[session]}
                         </span>
                         {isActive && (
-                          <span className="px-1.5 sm:px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full animate-pulse flex-shrink-0 w-fit">
+                          <span className="px-1.5 sm:px-2 py-0.5 bg-green-500 text-white text-xs font-medium rounded-full animate-pulse flex-shrink-0">
                             LIVE
                           </span>
                         )}
@@ -1259,13 +1261,8 @@ const TakeAttendance = () => {
           </div>
         </motion.div>
 
-        {/* Submit Button - Mobile Optimized */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-3 sm:mb-4 lg:mb-6 sticky top-12 z-30 bg-gray-50 p-3 -mx-3 sm:mx-0 sm:p-0 sm:bg-transparent sm:static border-b border-gray-200 sm:border-b-0"
-        >
+        {/* Submit Button — sticky under fixed mobile top bar (no transform: breaks sticky) */}
+        <div className="mb-3 sm:mb-4 lg:mb-6 sticky top-14 z-30 -mx-4 px-4 py-2.5 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm sm:static sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:shadow-none">
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
             <button
               type="button"
@@ -1312,7 +1309,7 @@ const TakeAttendance = () => {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Search Filter */}
         <motion.div
@@ -1843,21 +1840,6 @@ const TakeAttendance = () => {
                   onChange={(e) => setJoiningDateInput(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Left Date
-                </label>
-                <input
-                  type="date"
-                  value={leftDateInput}
-                  onChange={(e) => setLeftDateInput(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <p className="text-xs text-amber-700 mt-1">
-                  Saving a left date schedules expiry for that day. The hostel request stays active until then; the daily job vacates the room on/after that date. A past or today&apos;s date expires immediately.
-                </p>
               </div>
             </div>
 

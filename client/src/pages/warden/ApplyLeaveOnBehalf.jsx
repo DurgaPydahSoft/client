@@ -145,7 +145,7 @@ const ApplyLeaveOnBehalf = () => {
         keywords="warden, leave, on behalf, hostel"
       />
 
-      <div className="w-full mt-12 sm:mt-0 max-w-4xl mx-auto px-2 sm:px-4">
+      <div className="w-full max-w-4xl mx-auto px-2 sm:px-4">
         {/* Back navigation */}
         <button
           onClick={() => navigate('/warden/dashboard/leave-management')}

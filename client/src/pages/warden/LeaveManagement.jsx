@@ -8,9 +8,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationCircleIcon,
-  UserIcon,
-  AcademicCapIcon,
-  PhoneIcon,
   ArrowRightIcon,
   DocumentTextIcon,
   HomeIcon
@@ -185,38 +182,18 @@ const LeaveManagement = () => {
         keywords="leave management, permission management, OTP verification, warden"
       />
       
-      <div className="w-full mt-12 sm:mt-0">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
-        >
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 sm:gap-4">
-            <div>
-              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-green-900 flex items-center gap-2 sm:gap-3">
-                <DocumentTextIcon className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-green-600 flex-shrink-0" />
-                <span>Leave & Permission Management</span>
-              </h1>
-              <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 sm:mt-2">
-                OTP verification for leave requests - forwards to course-specific principals
-              </p>
-            </div>
-          </div>
-        </motion.div>
-
+      <div className="w-full">
         {/* Filters */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-sm p-3 sm:p-4 lg:p-6 mb-3 sm:mb-4 lg:mb-6"
+          className="-mx-4 px-4 py-3 mb-3 bg-white border-b border-gray-100 sm:mx-0 sm:rounded-xl sm:shadow-sm sm:border-0 sm:p-4 lg:p-6 sm:mb-4 lg:mb-6"
         >
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Date Range */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <div className="flex-1">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">From Date</label>
+          <div className="flex flex-col gap-2.5 sm:gap-4">
+            {/* Row 1: From / To dates */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div>
+                <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1">From</label>
                 <input
                   type="date"
                   value={filters.fromDate}
@@ -224,8 +201,8 @@ const LeaveManagement = () => {
                   className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 text-xs sm:text-sm"
                 />
               </div>
-              <div className="flex-1">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">To Date</label>
+              <div>
+                <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1">To</label>
                 <input
                   type="date"
                   value={filters.toDate}
@@ -234,11 +211,11 @@ const LeaveManagement = () => {
                 />
               </div>
             </div>
-            
-            {/* Dropdowns */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <div className="flex-1">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Application Type</label>
+
+            {/* Row 2: Type / Status */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div>
+                <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1">Type</label>
                 <select
                   value={filters.applicationType}
                   onChange={(e) => setFilters({ ...filters, applicationType: e.target.value, page: 1 })}
@@ -250,8 +227,8 @@ const LeaveManagement = () => {
                   <option value="Stay in Hostel">Stay in Hostel</option>
                 </select>
               </div>
-              <div className="flex-1">
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Status</label>
+              <div>
+                <label className="block text-[10px] sm:text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select
                   value={filters.status}
                   onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
@@ -274,151 +251,138 @@ const LeaveManagement = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-lg sm:rounded-xl shadow-sm overflow-hidden"
+          transition={{ delay: 0.1 }}
+          className="sm:bg-white sm:rounded-xl sm:shadow-sm sm:overflow-hidden"
         >
           {loading ? (
-            <div className="p-6 sm:p-8 text-center">
+            <div className="p-6 sm:p-8 text-center bg-white rounded-lg sm:rounded-none">
               <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-green-600 mx-auto"></div>
             </div>
           ) : leaves.length === 0 ? (
-            <div className="p-6 sm:p-8 text-center text-gray-500">
+            <div className="p-6 sm:p-8 text-center text-gray-500 bg-white rounded-lg sm:rounded-none">
               <DocumentTextIcon className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-2 sm:mb-3 text-gray-400" />
               <p className="text-xs sm:text-sm">No requests found</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
+            <div className="space-y-2.5 sm:space-y-0 sm:divide-y sm:divide-gray-200">
               {leaves.map((leave) => {
                 const displayInfo = formatDisplayDate(leave);
                 return (
                   <motion.div
                     key={leave._id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3 sm:p-4 lg:p-6 hover:bg-gray-50 transition-colors"
+                    className="bg-white rounded-lg border border-gray-200 p-3 sm:rounded-none sm:border-0 sm:border-b-0 sm:p-4 lg:p-6 sm:hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex flex-col gap-3 sm:gap-4">
-                      {/* Status and Type Badges */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium ${getStatusColor(leave.status)}`}>
-                          {getStatusIcon(leave.status)}
-                          <span className="ml-1">{leave.status === 'Pending OTP Verification' ? 'Pending OTP' : leave.status}</span>
-                        </span>
-                        <span className={`inline-flex items-center px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-xs font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
-                          {leave.applicationType}
-                        </span>
-                        <span className="text-xs sm:text-sm text-gray-500">
-                          {new Date(leave.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-
-                      {/* Student Details */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-                        <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                          <UserIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="truncate">{leave.student?.name || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                          <AcademicCapIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="truncate">{leave.student?.rollNumber || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                          <PhoneIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span className="truncate">{leave.parentPhone || 'N/A'}</span>
-                        </div>
-                        {leave.student?.gender && (
-                          <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                            <span>Gender: {leave.student.gender === 'Male' ? 'Male' : 'Female'}</span>
-                          </div>
+                    {/* Top: name + badges */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
+                          {leave.student?.name || 'N/A'}
+                        </p>
+                        <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                          {leave.student?.rollNumber || 'N/A'}
+                          {leave.student?.gender ? ` · ${leave.student.gender === 'Male' ? 'Male' : 'Female'}` : ''}
+                        </p>
+                        {leave.parentPhone && (
+                          <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                            Parent: {leave.parentPhone}
+                          </p>
                         )}
                       </div>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getStatusColor(leave.status)}`}>
+                          {getStatusIcon(leave.status)}
+                          <span>{leave.status === 'Pending OTP Verification' ? 'Pending OTP' : leave.status}</span>
+                        </span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border ${getApplicationTypeColor(leave.applicationType)}`}>
+                          {leave.applicationType}
+                        </span>
+                      </div>
+                    </div>
 
-                      {/* Date/Time Information */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                    {/* Dates compact */}
+                    <div className="flex flex-col gap-1 text-[11px] sm:text-sm text-gray-600 mb-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         {leave.applicationType === 'Leave' ? (
                           <>
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>From: {displayInfo.start}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>To: {displayInfo.end}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>{displayInfo.duration}</span>
-                            </div>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.start} → {displayInfo.end}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.duration}
+                            </span>
+                            <span className="inline-flex items-center gap-1 w-full sm:w-auto">
+                              <ArrowRightIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              Gate: {displayInfo.gatePass}
+                            </span>
                           </>
                         ) : leave.applicationType === 'Permission' ? (
                           <>
-                            <div className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Date: {displayInfo.date}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Time: {displayInfo.time}</span>
-                            </div>
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.date}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.time}
+                            </span>
                           </>
                         ) : (
                           <>
-                            <div className="flex items-center gap-1">
-                              <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>Date: {displayInfo.date}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                              <span>{displayInfo.duration}</span>
-                            </div>
+                            <span className="inline-flex items-center gap-1">
+                              <HomeIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.date}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <ClockIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              {displayInfo.duration}
+                            </span>
                           </>
                         )}
                       </div>
-
-                      {/* Gate Pass Information for Leave */}
-                      {leave.applicationType === 'Leave' && (
-                        <div className="flex items-center gap-1 text-xs sm:text-sm text-gray-600">
-                          <ArrowRightIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                          <span>Gate Pass: {displayInfo.gatePass}</span>
-                        </div>
-                      )}
-
-                      {/* Reason */}
-                      <div className="text-xs sm:text-sm text-gray-700 break-words">
-                        <strong>Reason:</strong> {leave.reason}
-                      </div>
-
-                      {/* Rejection Reason */}
-                      {leave.rejectionReason && (
-                        <div className="text-xs sm:text-sm text-red-600">
-                          <strong>Rejection Reason:</strong> {leave.rejectionReason}
-                        </div>
-                      )}
-
-                      {/* Action Buttons */}
-                      {leave.status === 'Pending OTP Verification' && (
-                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-3 sm:mt-4">
-                          <button
-                            onClick={() => {
-                              setSelectedLeave(leave);
-                              setShowOTPModal(true);
-                            }}
-                            className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium"
-                          >
-                            Verify OTP
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedLeave(leave);
-                              setShowRejectModal(true);
-                            }}
-                            className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
+                      <span className="inline-flex items-center gap-1 text-gray-500">
+                        <CalendarIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                        Applied on {new Date(leave.createdAt).toLocaleDateString()}
+                      </span>
                     </div>
+
+                    {/* Reason */}
+                    <p className="text-[11px] sm:text-sm text-gray-700 leading-snug line-clamp-2 sm:line-clamp-none">
+                      <span className="font-medium text-gray-900">Reason:</span> {leave.reason}
+                    </p>
+
+                    {leave.rejectionReason && (
+                      <p className="text-[11px] sm:text-sm text-red-600 mt-1 leading-snug">
+                        <span className="font-medium">Rejected:</span> {leave.rejectionReason}
+                      </p>
+                    )}
+
+                    {/* Actions — always side by side on mobile */}
+                    {leave.status === 'Pending OTP Verification' && (
+                      <div className="grid grid-cols-2 gap-2 mt-2.5 sm:mt-4">
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowOTPModal(true);
+                          }}
+                          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs sm:text-sm font-medium"
+                        >
+                          Verify OTP
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedLeave(leave);
+                            setShowRejectModal(true);
+                          }}
+                          className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs sm:text-sm font-medium"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
                   </motion.div>
                 );
               })}

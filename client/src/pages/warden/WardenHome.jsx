@@ -322,7 +322,7 @@ const WardenHome = () => {
     <div className="min-h-screen">
       <SEO title="Warden Dashboard" />
       
-      <div className="w-full  mt-12 sm:mt-0">
+      <div className="w-full">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

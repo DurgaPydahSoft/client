@@ -92,7 +92,13 @@ const ElectricityBills = () => {
   const [selectedFeeHeadId, setSelectedFeeHeadId] = useState('');
   const [savedFeeHead, setSavedFeeHead] = useState({ id: null, code: null, name: null });
   const [savingSettings, setSavingSettings] = useState(false);
-  const [generatorBill, setGeneratorBill] = useState({ month: '', amount: '', savedAmount: 0, updatedAt: null });
+  const [generatorBill, setGeneratorBill] = useState({
+    month: '',
+    dieselLitres: '',
+    perLitreAmount: '',
+    savedAmount: 0,
+    updatedAt: null
+  });
   const [loadingGeneratorBill, setLoadingGeneratorBill] = useState(false);
   const [savingGeneratorBill, setSavingGeneratorBill] = useState(false);
   const [syncingRoomId, setSyncingRoomId] = useState(null);
@@ -112,9 +118,10 @@ const ElectricityBills = () => {
     loading: false,
     students: [],
     error: null,
-    minAttendanceDays: 5,
+    minAttendanceDays: 0,
     eligibleCount: 0,
-    totalLive: 0
+    totalLive: 0,
+    previewTotalAmount: null
   });
 
   const getId = (objOrId) => (typeof objOrId === 'object' && objOrId?._id ? objOrId._id : objOrId);
@@ -613,8 +620,8 @@ const ElectricityBills = () => {
     });
   };
 
-  /** Show live active students when a room is clicked */
-  const handleOpenRoomOccupants = async (roomId) => {
+  /** Show live students + share preview when Preview Shares / room is clicked */
+  const handleOpenRoomOccupants = async (roomId, computedTotal = null) => {
     const room = rooms.find((r) => r._id === roomId);
     if (!bulkMonth) {
       toast.error('Select a billing month first to check attendance eligibility.');
@@ -627,9 +634,10 @@ const ElectricityBills = () => {
       loading: true,
       students: [],
       error: null,
-      minAttendanceDays: 5,
+      minAttendanceDays: 0,
       eligibleCount: 0,
-      totalLive: 0
+      totalLive: 0,
+      previewTotalAmount: computedTotal
     });
     try {
       const response = await api.get(`/api/admin/rooms/${roomId}/electricity-occupants`, {
@@ -641,7 +649,7 @@ const ElectricityBills = () => {
           ...prev,
           loading: false,
           students: data.students || [],
-          minAttendanceDays: data.minAttendanceDays ?? 5,
+          minAttendanceDays: data.minAttendanceDays ?? 0,
           eligibleCount: data.eligibleCount ?? 0,
           totalLive: data.totalLive ?? (data.students || []).length
         }));
@@ -666,9 +674,10 @@ const ElectricityBills = () => {
       loading: false,
       students: [],
       error: null,
-      minAttendanceDays: 5,
+      minAttendanceDays: 0,
       eligibleCount: 0,
-      totalLive: 0
+      totalLive: 0,
+      previewTotalAmount: null
     });
   };
 
@@ -804,7 +813,7 @@ useEffect(() => {
 
   const fetchGeneratorBill = async (month, hostelId) => {
     if (!month || !hostelId) {
-      setGeneratorBill({ month: '', amount: '', savedAmount: 0, updatedAt: null });
+      setGeneratorBill({ month: '', dieselLitres: '', perLitreAmount: '', savedAmount: 0, updatedAt: null });
       return;
     }
     setLoadingGeneratorBill(true);
@@ -814,11 +823,11 @@ useEffect(() => {
       });
       if (response.data.success) {
         const data = response.data.data || {};
-        const amount = Number(data.amount) || 0;
         setGeneratorBill({
           month,
-          amount: String(amount),
-          savedAmount: amount,
+          dieselLitres: data.dieselLitres != null ? String(data.dieselLitres) : '',
+          perLitreAmount: data.perLitreAmount != null ? String(data.perLitreAmount) : '',
+          savedAmount: Number(data.amount) || 0,
           updatedAt: data.updatedAt || null
         });
       } else {
@@ -826,7 +835,7 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Error fetching generator bill:', error);
-      setGeneratorBill({ month, amount: '', savedAmount: 0, updatedAt: null });
+      setGeneratorBill({ month, dieselLitres: '', perLitreAmount: '', savedAmount: 0, updatedAt: null });
       toast.error(error.response?.data?.message || 'Failed to fetch generator bill');
     } finally {
       setLoadingGeneratorBill(false);
@@ -842,9 +851,14 @@ useEffect(() => {
       toast.error('Select a hostel first.');
       return;
     }
-    const parsedAmount = Number(generatorBill.amount);
-    if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
-      toast.error('Generator amount must be 0 or more.');
+    const litres = Number(generatorBill.dieselLitres);
+    const rate = Number(generatorBill.perLitreAmount);
+    if (Number.isNaN(litres) || litres < 0) {
+      toast.error('Diesel litres must be 0 or more.');
+      return;
+    }
+    if (Number.isNaN(rate) || rate < 0) {
+      toast.error('Per litre amount must be 0 or more.');
       return;
     }
 
@@ -853,17 +867,24 @@ useEffect(() => {
       const response = await api.post('/api/admin/rooms/generator-bill', {
         month: bulkMonth,
         hostel: filters.hostel,
-        amount: parsedAmount
+        dieselLitres: litres,
+        perLitreAmount: rate
       });
       if (response.data.success) {
         const data = response.data.data || {};
         setGeneratorBill({
           month: bulkMonth,
-          amount: String(Number(data.amount) || 0),
+          dieselLitres: String(Number(data.dieselLitres) || 0),
+          perLitreAmount: String(Number(data.perLitreAmount) || 0),
           savedAmount: Number(data.amount) || 0,
           updatedAt: data.updatedAt || null
         });
-        toast.success('Generator bill saved for this month.');
+        const synced = data.syncQueued
+          ? ' · room bills updating in background'
+          : data.syncedBills != null
+            ? ` · ${data.syncedBills} room bill(s) updated`
+            : '';
+        toast.success(`Generator bill saved (total ₹${Number(data.amount || 0).toFixed(2)})${synced}`);
       } else {
         throw new Error(response.data.message || 'Failed to save generator bill');
       }
@@ -1325,23 +1346,35 @@ useEffect(() => {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wide text-amber-800">
-                Generator Bill
+                Generator Bill (Hostel)
               </p>
               <p className="text-[11px] sm:text-xs text-amber-700">
-                Flat add-on per eligible student for the selected billing month.
+                Diesel litres × ₹/litre = hostel total, shared by attendance (same rules as electricity).
               </p>
             </div>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 sm:w-auto sm:min-w-[320px]">
+            <div className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 sm:w-auto sm:min-w-[420px]">
               <input
                 type="number"
                 min="0"
                 step="0.01"
-                value={generatorBill.amount}
+                value={generatorBill.dieselLitres}
                 onChange={(e) =>
-                  setGeneratorBill((prev) => ({ ...prev, amount: e.target.value, month: bulkMonth }))
+                  setGeneratorBill((prev) => ({ ...prev, dieselLitres: e.target.value, month: bulkMonth }))
                 }
                 disabled={!bulkMonth || !filters.hostel || loadingGeneratorBill || savingGeneratorBill}
-                placeholder={!bulkMonth ? 'Select month first' : !filters.hostel ? 'Select hostel first' : 'Enter generator amount'}
+                placeholder="Diesel litres"
+                className="w-full rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] sm:text-xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100"
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={generatorBill.perLitreAmount}
+                onChange={(e) =>
+                  setGeneratorBill((prev) => ({ ...prev, perLitreAmount: e.target.value, month: bulkMonth }))
+                }
+                disabled={!bulkMonth || !filters.hostel || loadingGeneratorBill || savingGeneratorBill}
+                placeholder="₹ per litre"
                 className="w-full rounded-md border border-amber-300 bg-white px-2.5 py-1.5 text-[11px] sm:text-xs focus:border-amber-500 focus:ring-2 focus:ring-amber-500 disabled:bg-gray-100"
               />
               <button
@@ -1364,7 +1397,7 @@ useEffect(() => {
               : !filters.hostel
                 ? 'Select a hostel to manage that hostel\'s generator bill.'
                 : bulkMonth
-                ? `Saved for ${bulkMonth}: ₹${Number(generatorBill.savedAmount || 0).toFixed(2)} per eligible student`
+                ? `Saved total for ${bulkMonth}: ₹${Number(generatorBill.savedAmount || 0).toFixed(2)} (split across hostel eligible students)`
                 : 'Select a billing month to manage the generator bill.'}
           </p>
         </div>
@@ -1699,6 +1732,16 @@ useEffect(() => {
                         <p className={`text-sm font-semibold ${!isValid && !isAlreadyBilled ? 'text-red-500' : 'text-green-600'}`}>
                           ₹{isValid ? total.toFixed(2) : '0.00'}
                         </p>
+                        {isValid && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRoomOccupants(bill.roomId, total)}
+                            className="mt-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                            title="Preview student bill shares"
+                          >
+                            Preview Shares
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -2038,6 +2081,16 @@ useEffect(() => {
                       </td>
                       <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${!isValid && !isAlreadyBilled ? 'text-red-500' : 'text-green-600'}`}>
                         ₹{isValid ? total.toFixed(2) : '0.00'}
+                        {isValid && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRoomOccupants(bill.roomId, total)}
+                            className="block text-[10px] text-blue-600 hover:text-blue-800 hover:underline font-medium mt-0.5"
+                            title="Preview student bill shares"
+                          >
+                            Preview Shares
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div className="flex gap-1">
@@ -2144,9 +2197,8 @@ useEffect(() => {
                   Room {occupantsModal.roomNumber} — Live students
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Demand only if present/partial days in {bulkMonth || 'month'} &gt;{' '}
-                  {occupantsModal.minAttendanceDays ?? 5}. Eligible:{' '}
-                  {occupantsModal.eligibleCount ?? 0}/{occupantsModal.totalLive ?? 0}
+                  Past joiners: full month. Mid-month joiners: joining day → month end (calendar days).
+                  Occupants: {occupantsModal.eligibleCount ?? 0}/{occupantsModal.totalLive ?? 0}
                 </p>
               </div>
               <button
@@ -2167,41 +2219,168 @@ useEffect(() => {
                   No live active students in this room.
                 </p>
               ) : (
-                <ul className="divide-y divide-gray-100">
-                  {occupantsModal.students.map((s) => (
-                    <li key={s._id || s.hostelRequestId || s.admissionNumber} className="py-2.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{s.name || '—'}</p>
-                          <p className="text-xs text-gray-500">
-                            {s.rollNumber || 'No roll'}
-                            {s.admissionNumber ? ` · Adm ${s.admissionNumber}` : ''}
+                <>
+                  {(() => {
+                    const year = parseInt(bulkMonth.slice(0, 4));
+                    const month = parseInt(bulkMonth.slice(5, 7)) - 1;
+                    const monthStart = new Date(year, month, 1);
+                    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59, 999);
+                    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+
+                    // Split mode matches backend: mid-month joiner among all month-overlapping occupants
+                    const hasNewJoiningInModal = occupantsModal.students.some((s) => {
+                      if (!s.joinedDate) return false;
+                      const joined = new Date(s.joinedDate);
+                      return joined >= monthStart && joined <= monthEnd;
+                    });
+
+                    const eligibleStudents = occupantsModal.students.filter((s) => s.eligibleForDemand);
+
+                    const eligiblePastJoiners = eligibleStudents.filter(
+                      (s) => s.joinedDate && new Date(s.joinedDate) < monthStart
+                    );
+                    const eligibleNewJoiners = eligibleStudents.filter((s) => {
+                      if (!s.joinedDate) return false;
+                      const joined = new Date(s.joinedDate);
+                      return joined >= monthStart && joined <= monthEnd;
+                    });
+
+                    const getStayBillingDays = (joinedDate) => {
+                      if (!joinedDate) return totalDaysInMonth;
+                      const joined = new Date(joinedDate);
+                      if (Number.isNaN(joined.getTime()) || joined < monthStart) return totalDaysInMonth;
+                      if (joined > monthEnd) return 0;
+                      const joinDayStart = new Date(joined.getFullYear(), joined.getMonth(), joined.getDate());
+                      const monthEndDay = new Date(year, month, totalDaysInMonth);
+                      const days =
+                        Math.floor((monthEndDay.getTime() - joinDayStart.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                      return Math.max(0, Math.min(days, totalDaysInMonth));
+                    };
+
+                    const totalBillingDays = eligibleStudents.reduce(
+                      (sum, s) => sum + getStayBillingDays(s.joinedDate),
+                      0
+                    );
+
+                    return (
+                      <>
+                        {occupantsModal.previewTotalAmount !== null && (
+                          <div className="mb-4">
+                            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+                              <p className="font-semibold text-gray-700 mb-1">
+                                Previewing Room Total Bill: ₹{occupantsModal.previewTotalAmount.toFixed(2)}
+                              </p>
+                              {hasNewJoiningInModal ? (
+                                <p className="text-blue-700">
+                                  ℹ️ <strong>Mixed-Joiner Split Active:</strong> Room has mid-month new joiners.
+                                  <br />
+                                  · Past joiners: <strong>{eligiblePastJoiners.length}</strong> (pay for all{' '}
+                                  <strong>{totalDaysInMonth} days</strong>)
+                                  <br />
+                                  · New joiners this month: <strong>{eligibleNewJoiners.length}</strong>{' '}
+                                  (joining day → month end)
+                                  <br />
+                                  Total Billing Days: <span className="font-semibold">{totalBillingDays}</span>
+                                </p>
+                              ) : (
+                                <p className="text-gray-600">
+                                  ℹ️ <strong>Standard Equal Split Active:</strong> No mid-month new joiners. Split is divided equally among occupants.
+                                  <br />
+                                  Total Occupants: <span className="font-semibold">{eligibleStudents.length}</span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {eligibleStudents.length === 0 ? (
+                          <p className="py-6 text-center text-sm text-gray-500">
+                            No students to bill for this room in the selected month.
                           </p>
-                          <p className="mt-0.5 text-xs text-gray-500">
-                            Attendance days (present/partial):{' '}
-                            <span className="font-medium text-gray-800">
-                              {s.attendanceDays ?? 0}
-                            </span>
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <span
-                            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                              s.eligibleForDemand
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}
-                          >
-                            {s.eligibleForDemand ? 'Eligible' : 'Not eligible'}
-                          </span>
-                          {s.academicYear && (
-                            <p className="mt-1 text-xs text-gray-400">{s.academicYear}</p>
-                          )}
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                        ) : (
+                          <ul className="divide-y divide-gray-100">
+                            {eligibleStudents.map((s) => {
+                              const billingDays = getStayBillingDays(s.joinedDate);
+                              let calculatedShare = 0;
+                              if (occupantsModal.previewTotalAmount !== null) {
+                                if (hasNewJoiningInModal) {
+                                  if (totalBillingDays > 0) {
+                                    const costPerDay = occupantsModal.previewTotalAmount / totalBillingDays;
+                                    calculatedShare = Math.round(billingDays * costPerDay);
+                                  } else {
+                                    calculatedShare = Math.round(
+                                      occupantsModal.previewTotalAmount / eligibleStudents.length
+                                    );
+                                  }
+                                } else {
+                                  calculatedShare = Math.round(
+                                    occupantsModal.previewTotalAmount / eligibleStudents.length
+                                  );
+                                }
+                              }
+
+                              return (
+                                <li key={s._id || s.hostelRequestId || s.admissionNumber} className="py-2.5">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                      <p className="text-sm font-medium text-gray-900">{s.name || '—'}</p>
+                                      <p className="text-xs text-gray-500">
+                                        {s.rollNumber || 'No roll'}
+                                        {s.admissionNumber ? ` · Adm ${s.admissionNumber}` : ''}
+                                      </p>
+                                      <p className="mt-0.5 text-xs text-gray-500">
+                                        Billing days:{' '}
+                                        <span className="font-medium text-gray-800">{billingDays}</span>
+                                      </p>
+                                      {s.joinedDate && (() => {
+                                        const joined = new Date(s.joinedDate);
+                                        const isPast = joined < monthStart;
+                                        return (
+                                          <p className="text-[10px] text-gray-400 mt-0.5">
+                                            Joined Room: {joined.toLocaleDateString('en-IN')}
+                                            {isPast ? (
+                                              <span className="ml-1 text-purple-600 font-medium">
+                                                (full {totalDaysInMonth} days)
+                                              </span>
+                                            ) : (
+                                              <span className="ml-1 text-blue-600 font-medium">
+                                                ({billingDays} days: join → month end)
+                                              </span>
+                                            )}
+                                          </p>
+                                        );
+                                      })()}
+                                    </div>
+                                    <div className="text-right space-y-1">
+                                      <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end gap-1">
+                                        <span className="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800">
+                                          Eligible
+                                        </span>
+                                        {s.hostelRequestStatus === 'expired' && (
+                                          <span className="inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800">
+                                            Inactive
+                                          </span>
+                                        )}
+                                      </div>
+                                      {s.academicYear && (
+                                        <p className="mt-1 text-xs text-gray-400">{s.academicYear}</p>
+                                      )}
+                                      {occupantsModal.previewTotalAmount !== null && (
+                                        <p className="mt-1.5 text-sm font-bold text-green-700">
+                                          Share: ₹{calculatedShare}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
               )}
             </div>
             <div className="border-t border-gray-200 px-4 py-3 text-right">
@@ -2297,7 +2476,7 @@ useEffect(() => {
                         </p>
                         {eligible.length === 0 ? (
                           <p className="text-xs text-gray-500 py-1">
-                            No students with &gt;{d?.minAttendanceDays || 5} present/partial days.
+                            No students billed for this room.
                           </p>
                         ) : (
                           <ul className="divide-y divide-gray-100 rounded border border-gray-100">
@@ -2352,7 +2531,7 @@ useEffect(() => {
                                   </p>
                                 </div>
                                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
-                                  ≤{d?.minAttendanceDays || 5} days
+                                  Not billed
                                 </span>
                               </li>
                             ))}
@@ -3193,6 +3372,173 @@ useEffect(() => {
               </div>
             </div>
           </div>
+
+          {/* How Electricity Bills Are Calculated */}
+          <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <span>⚡</span> How Electricity Bills Are Calculated
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Month-by-month flow used when saving room bills and generator diesel. Use{' '}
+              <strong>Preview Shares</strong> on a room total to see the electricity split before saving.
+            </p>
+
+            <div className="space-y-5">
+
+              {/* Step 1 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">1</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Room meter → electricity total</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Start and end readings give consumption (End − Start). Room electricity total =
+                    Consumption × Rate. Dual-meter rooms sum both meters into one room total.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 2 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">2</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Find occupants for that month</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Anyone whose hostel stay in that room <strong>overlaps the billing month</strong>
+                    (still active, or left mid-month) is included. Shares are based on stay dates,
+                    not attendance cutoffs.
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold">3</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Partial-month occupancy rule</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    If a room has any student who <strong>joins mid-month</strong> or <strong>leaves during the month (NOC / hostel exit)</strong>,
+                    the bill is split by <strong>occupied days</strong>, not by equal room share.
+                    <br />
+                    <strong>Existing student</strong> → full calendar month<br />
+                    <strong>Mid-month joiner</strong> → joining date → month end (inclusive)<br />
+                    <strong>Mid-month leaver / NOC</strong> → month start → left date (inclusive)<br />
+                    <strong>Joined and left in same month</strong> → joining date → left date (inclusive)
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-bold">4</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Split the room electricity total</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    If <strong>every student stayed for the full month</strong>, the room is divided equally.
+                    If <strong>any student joins or leaves during the month</strong>, the room uses proportional day-based billing.
+                  </p>
+                  <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Equal split</p>
+                      <p className="text-xs text-gray-600">
+                        No mid-month occupancy changes in the room. Everyone pays the same.<br />
+                        <code className="bg-gray-200 px-1 rounded">Share = Room Total ÷ Occupant Count</code>
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-xs font-semibold text-blue-800 mb-1">Partial-month split</p>
+                      <p className="text-xs text-blue-700">
+                        At least one student joins or leaves mid-month.<br />
+                        Each student pays for their occupied days only.<br />
+                        <code className="bg-blue-100 px-1 rounded">Share = (My Days ÷ Total Billing Days) × Room Total</code>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 5 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold">5</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Generator (hostel diesel pool)</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Diesel litres × ₹ per litre = <strong>hostel generator total</strong> for the month.
+                    That total is split across <strong>all students in the hostel</strong> for that month
+                    using the <strong>same stay-day logic</strong> (hostel-wide, not per room).
+                  </p>
+                </div>
+              </div>
+
+              {/* Step 6 */}
+              <div className="flex gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-sm font-bold">6</div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">Final amount → fee demand</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    <code className="bg-gray-100 px-1 rounded">Final = Electricity share + Generator share</code>
+                    <br />
+                    Posted to Fees under the configured fee head above. Editing a bill later updates the demand.
+                  </p>
+                </div>
+              </div>
+
+              {/* Example */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs font-bold text-amber-800 mb-3">Examples — partial-month occupancy split</p>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 text-xs text-amber-700 leading-relaxed">
+                  <div className="rounded-lg border border-amber-200 bg-white/70 p-3">
+                    <p className="font-semibold text-amber-800 mb-1">Example 1 — Existing student + mid-month joiner</p>
+                    <p>
+                      Room 306 · July 2026 (31 days) · Room electricity total <strong>₹1,332</strong><br />
+                      • Student A: existing student → <strong>31 days</strong><br />
+                      • Student B: joined 15 Jul → <strong>17 days</strong> (15–31)<br /><br />
+                      Total billing days = 31 + 17 = <strong>48</strong><br />
+                      Cost per day = ₹1,332 ÷ 48 = <strong>₹27.75</strong><br />
+                      A = 31 × ₹27.75 = <strong>₹860</strong> · B = 17 × ₹27.75 = <strong>₹472</strong>
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-white/70 p-3">
+                    <p className="font-semibold text-amber-800 mb-1">Example 2 — Existing student + NOC student</p>
+                    <p>
+                      Student B left on <strong>20 Jul</strong>.<br />
+                      • Student A: stayed entire month → <strong>31 days</strong><br />
+                      • Student B: left on 20 Jul → <strong>20 days</strong> (1–20)<br /><br />
+                      Total billing days = 31 + 20 = <strong>51</strong><br />
+                      Cost per day = ₹1,332 ÷ 51 = <strong>₹26.12</strong><br />
+                      A = 31 × ₹26.12 = <strong>₹809.72</strong> · B = 20 × ₹26.12 = <strong>₹522.28</strong>
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-white/70 p-3">
+                    <p className="font-semibold text-amber-800 mb-1">Example 3 — Joiner and NOC student in same room</p>
+                    <p>
+                      • Student A: existing student → <strong>31 days</strong><br />
+                      • Student B: joined 15 Jul → <strong>17 days</strong><br />
+                      • Student C: left 10 Jul → <strong>10 days</strong><br /><br />
+                      Total billing days = 31 + 17 + 10 = <strong>58</strong><br />
+                      Cost per day = ₹1,332 ÷ 58 = <strong>₹22.97</strong><br />
+                      A = 31 × ₹22.97 = <strong>₹712.07</strong> · B = 17 × ₹22.97 = <strong>₹390.49</strong> · C = 10 × ₹22.97 = <strong>₹229.70</strong>
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border border-amber-200 bg-white/70 p-3">
+                    <p className="font-semibold text-amber-800 mb-1">Example 4 — Student joined and left in same month</p>
+                    <p>
+                      Student A stayed full month: 1–31 Jul → <strong>31 days</strong><br />
+                      Student B joined 10 Jul and got NOC on 22 Jul → <strong>13 days</strong> (10–22)<br /><br />
+                      If the room electricity total is <strong>₹1,000</strong>:<br />
+                      Total billing days = 31 + 13 = <strong>44</strong><br />
+                      Cost per day = ₹1,000 ÷ 44 = <strong>₹22.73</strong><br />
+                      A = 31 × ₹22.73 = <strong>₹704.63</strong> · B = 13 × ₹22.73 = <strong>₹295.49</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       )}
     </div>

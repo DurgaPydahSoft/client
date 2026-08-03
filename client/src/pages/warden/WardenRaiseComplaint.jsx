@@ -208,7 +208,7 @@ const WardenRaiseComplaint = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8 mt-12 sm:mt-0">
+    <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8">
       <SEO title="Raise Complaint - Warden" />
       
       {/* Header */}

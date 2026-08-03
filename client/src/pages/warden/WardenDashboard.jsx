@@ -196,6 +196,13 @@ const WardenDashboardLayout = () => {
       locked: false
     },
     {
+      name: 'Room Changes',
+      icon: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+      path: '/warden/dashboard/room-change-requests',
+      show: true,
+      locked: false
+    },
+    {
       name: 'NOC Management',
       icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
       path: '/warden/dashboard/noc-management',
@@ -211,16 +218,35 @@ const WardenDashboardLayout = () => {
     }
   ];
 
-  return (
-    <div className="h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsSidebarOpen(true)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-lg hover:bg-gray-50 transition-colors duration-200"
-      >
-        <Bars3Icon className="w-6 h-6 text-gray-600" />
-      </button>
+  const mobilePageTitle = (() => {
+    let best = { name: 'Warden', len: -1 };
+    for (const item of menuItems) {
+      if (item.subItems) {
+        for (const sub of item.subItems) {
+          if (
+            (pathname === sub.path || pathname.startsWith(`${sub.path}/`)) &&
+            sub.path.length > best.len
+          ) {
+            best = { name: sub.name, len: sub.path.length };
+          }
+        }
+      }
+      if (item.path === '/warden/dashboard') {
+        if (pathname === '/warden/dashboard' || pathname === '/warden/dashboard/') {
+          return item.name;
+        }
+      } else if (
+        (pathname === item.path || pathname.startsWith(`${item.path}/`)) &&
+        item.path.length > best.len
+      ) {
+        best = { name: item.name, len: item.path.length };
+      }
+    }
+    return best.name;
+  })();
 
+  return (
+      <div className="h-screen flex bg-gradient-to-br from-green-50 via-white to-green-50 overflow-hidden">
       {/* Mobile Sidebar Backdrop */}
       <AnimatePresence>
         {isSidebarOpen && (
@@ -229,7 +255,7 @@ const WardenDashboardLayout = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            className="lg:hidden fixed inset-0 bg-black/50 z-[45]"
           />
         )}
       </AnimatePresence>
@@ -241,7 +267,7 @@ const WardenDashboardLayout = () => {
           x: isSidebarOpen ? 0 : '-100%',
         }}
         transition={{ type: 'spring', damping: 20 }}
-        className="fixed lg:relative top-0 left-0 bottom-0 w-72 lg:w-56 bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
+        className="fixed lg:relative top-0 left-0 bottom-0 w-60 lg:w-64 bg-white border-r border-green-100 shadow-lg flex flex-col z-50 lg:translate-x-0 lg:!transform-none"
       >
         {/* Mobile Close Button */}
         <button
@@ -454,9 +480,27 @@ const WardenDashboardLayout = () => {
       </motion.aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto p-4 lg:p-8">
-          <div className="flex justify-end mb-4">
+      <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
+        <header className="lg:hidden sticky top-0 z-40 h-14 flex-shrink-0 relative bg-white/95 backdrop-blur-sm border-b border-green-100 shadow-sm flex items-center px-3">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="relative z-10 p-2 rounded-lg bg-white shadow border border-gray-100 hover:bg-gray-50 transition-colors duration-200 flex-shrink-0"
+            aria-label="Open menu"
+          >
+            <Bars3Icon className="w-6 h-6 text-gray-600" />
+          </button>
+          <h1 className="pointer-events-none absolute inset-x-0 top-0 h-14 flex items-center justify-center px-14">
+            <span className="text-base font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent truncate max-w-full text-center">
+              {mobilePageTitle}
+            </span>
+          </h1>
+          <div className="relative z-10 ml-auto flex-shrink-0">
+            <NotificationBell />
+          </div>
+        </header>
+        <div className="max-w-7xl mx-auto p-4 lg:p-8 w-full flex-1">
+          <div className="hidden lg:flex justify-end mb-4">
             <NotificationBell />
           </div>
           <Outlet />

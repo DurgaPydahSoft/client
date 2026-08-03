@@ -141,7 +141,7 @@ const StayInHostelRequests = () => {
           keywords="stay in hostel, warden, student requests, hostel management"
         />
 
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0 mt-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-0">
           <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-green-900 to-green-700 bg-clip-text text-transparent">
             Stay in Hostel Requests
           </h1>

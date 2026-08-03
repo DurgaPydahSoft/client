@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { TableCellsIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid } from '@heroicons/react/24/outline';
+import { TableCellsIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid, ArrowsRightLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { hasFullAccess, canPerformAction, hasPermission } from '../../utils/permissionUtils';
 import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 import PrintableLiveStudents from '../../components/PrintableLiveStudents';
+import PrintableStudentDates from '../../components/PrintableStudentDates';
+import RoomChangesPanel from '../../components/RoomChangesPanel';
 import * as XLSX from 'xlsx';
 
 
@@ -17,6 +19,8 @@ import * as XLSX from 'xlsx';
 
 const TABS = [
   { label: 'Hostel Requests', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
+  { label: 'Room Changes', value: 'room-changes', icon: <ArrowsRightLeftIcon className="w-5 h-5" /> },
+  { label: 'Dates', value: 'dates', icon: <CalendarDaysIcon className="w-5 h-5" /> },
 ];
 
 const FILTER_LABELS = {
@@ -255,8 +259,9 @@ const getHostelStatusDisplay = (student) => {
   }
 
   if (student?.hostelRequestStatus === 'expired' || isStudentExpired(student)) {
-    // Use actual deactivation date — not resolvedExpiryDate (scheduled course/year end)
+    // Prefer leftDate / HostelRequest expiry — not stale occupancy-history allocatedTo
     const expiryDate =
+      student.leftDate ||
       student.actualExpiredAt ||
       student.allocatedTo ||
       student.applicationExpiryDate;
@@ -332,6 +337,7 @@ const Students = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const [printStudents, setPrintStudents] = useState([]);
+  const [printDatesStudents, setPrintDatesStudents] = useState([]);
   const [courseCounts, setCourseCounts] = useState({});
 
   // Photo upload states
@@ -1100,7 +1106,7 @@ const Students = () => {
   // - On initial mount show full loading spinner
   // - On filter / page / search changes show table loading overlay
   useEffect(() => {
-    if (tab === 'list') {
+    if (tab === 'list' || tab === 'dates') {
       const isFirst = isInitialFetch.current;
       if (isFirst) {
         isInitialFetch.current = false;
@@ -1574,10 +1580,17 @@ const Students = () => {
       parentPhone: student.parentPhone,
       email: student.email,
       batch: normalizeBatchToYear(student.batch || ''),
-      academicYear: student.academicYear,
+      // Request year being edited (outer filter) vs student's live/current year
+      academicYear: filters.academicYear || student.academicYear,
+      currentAcademicYear: student.currentAcademicYear || student.academicYear,
       hostelStatus: student.hostelStatus || 'Active',
       admitDate: student.admitDate ? new Date(student.admitDate).toISOString().split('T')[0] : '',
-      joiningDate: student.joiningDate ? new Date(student.joiningDate).toISOString().split('T')[0] : ''
+      joiningDate: student.joiningDate ? new Date(student.joiningDate).toISOString().split('T')[0] : '',
+      // Prefill from this AY request's leftDate; else this request's expired date
+      leftDate: (() => {
+        const source = student.leftDate || student.actualExpiredAt || student.allocatedTo || null;
+        return source ? new Date(source).toISOString().split('T')[0] : '';
+      })()
     };
     // Display hostel name in edit modal
     setEditHostelName(getHostelName(student.hostel?._id || student.hostel));
@@ -1795,6 +1808,10 @@ const Students = () => {
       }
 
       // Only submit hostel-related fields (personal/academic/contact are SQL-sourced)
+      const editingCurrentYear =
+        !editForm.currentAcademicYear ||
+        String(editForm.academicYear) === String(editForm.currentAcademicYear);
+
       const submitData = {
         hostel: editForm.hostelId,
         category: editForm.category,
@@ -1804,9 +1821,11 @@ const Students = () => {
         bedNumber: editForm.bedNumber,
         lockerNumber: editForm.lockerNumber,
         academicYear: editForm.academicYear,
-        hostelStatus: editForm.hostelStatus,
+        // Do not send hostelStatus for historical AY edits — it would cancel the live year request
+        ...(editingCurrentYear ? { hostelStatus: editForm.hostelStatus } : {}),
         admitDate: editForm.admitDate,
-        joiningDate: editForm.joiningDate
+        joiningDate: editForm.joiningDate,
+        leftDate: editForm.leftDate || null
       };
 
       console.log('Submitting data:', submitData);
@@ -2169,6 +2188,118 @@ const Students = () => {
     }
   };
 
+  const handlePrintStudentDatesReport = async () => {
+    const loadingToast = toast.loading('Preparing printable report...');
+    try {
+      const params = new URLSearchParams();
+      if (filters.search) params.append('search', filters.search);
+      if (filters.course) params.append('course', filters.course);
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.hostel) params.append('hostel', filters.hostel);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.roomNumber) params.append('roomNumber', filters.roomNumber);
+      if (filters.academicYear) params.append('academicYear', filters.academicYear);
+      if (filters.hostelStatus) params.append('hostelStatus', filters.hostelStatus);
+      params.append('page', '1');
+      params.append('limit', '1000000'); // get all matching students
+
+      const res = await api.get(`/api/admin/students?${params}`);
+      if (!res.data.success) {
+        throw new Error(res.data.message || 'Failed to fetch students');
+      }
+
+      const allActiveStudents = res.data.data.students || [];
+      if (allActiveStudents.length === 0) {
+        toast.error('No students found matching the current filters', { id: loadingToast });
+        return;
+      }
+
+      setPrintDatesStudents(allActiveStudents);
+
+      // Wait for state update and React render
+      setTimeout(() => {
+        const printElement = document.getElementById('printable-area-dates');
+        const iframeEl = document.getElementById('print-iframe');
+        if (!printElement || !iframeEl) {
+          toast.error('Failed to locate printable elements', { id: loadingToast });
+          return;
+        }
+
+        const iframeDoc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+        
+        // Write the HTML into the iframe
+        iframeDoc.open();
+        iframeDoc.write(`
+          <html>
+            <head>
+              <title>Student Admission & Stay Dates Report</title>
+              <style>
+                @page {
+                  margin: 1cm;
+                }
+                body {
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                  color: #000000;
+                  margin: 0;
+                  padding: 0;
+                  width: 100%;
+                }
+                .printable-dates-container {
+                  width: 100%;
+                }
+                .report-header {
+                  margin-bottom: 12px;
+                  border-bottom: 2px solid #000000;
+                  padding-bottom: 6px;
+                }
+                .report-header h1 {
+                  font-size: 18px;
+                  font-weight: bold;
+                  color: #000000;
+                  margin: 0 0 5px 0;
+                  text-align: center;
+                }
+                .dates-table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 9.5px;
+                }
+                .dates-table th, .dates-table td {
+                  border: 1px solid #000000;
+                  padding: 4px 6px;
+                  font-size: 9.5px;
+                  text-align: left;
+                  color: #000000;
+                }
+                .dates-table th {
+                  background-color: #f3f4f6;
+                  color: #000000;
+                  font-weight: bold;
+                }
+              </style>
+            </head>
+            <body>
+              ${printElement.innerHTML}
+            </body>
+          </html>
+        `);
+        iframeDoc.close();
+
+        toast.dismiss(loadingToast);
+
+        // Trigger print dialog on the iframe contentWindow
+        setTimeout(() => {
+          iframeEl.contentWindow.focus();
+          iframeEl.contentWindow.print();
+        }, 150);
+      }, 300);
+
+    } catch (err) {
+      console.error('Error printing dates list:', err);
+      toast.error(err.message || 'Error printing dates list', { id: loadingToast });
+    }
+  };
+
   // Function to handle downloading live student list as Excel grouped/styled
   const handleDownloadExcelReport = async () => {
     const loadingToast = toast.loading('Preparing Excel report...');
@@ -2455,50 +2586,45 @@ const Students = () => {
 
         <form onSubmit={handleEditSubmit} className="space-y-6">
 
-          {/* Personal Info â€” read-only (SQL source) */}
+          {/* Personal & Academic Info â€” read-only (SQL source) */}
           <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
-            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Personal Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
-                <input type="text" value={editForm.name || ''} readOnly className={readOnlyInputClass} />
+            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Personal &amp; Academic Info</h4>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Name</label>
+                  <input type="text" value={editForm.name || ''} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
+                  <input type="text" value={editForm.rollNumber || ''} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Admission Number</label>
+                  <input type="text" value={editForm.admissionNumber || ''} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
+                  <input type="text" value={editForm.gender || ''} readOnly className={readOnlyInputClass} />
+                </div>
               </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Roll Number</label>
-                <input type="text" value={editForm.rollNumber || ''} readOnly className={readOnlyInputClass} />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Admission Number</label>
-                <input type="text" value={editForm.admissionNumber || ''} readOnly className={readOnlyInputClass} />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Gender</label>
-                <input type="text" value={editForm.gender || ''} readOnly className={readOnlyInputClass} />
-              </div>
-            </div>
-          </div>
-
-          {/* Academic Info â€” read-only (SQL source) */}
-          <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
-            <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Academic Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
-                <input type="text" value={getEditCourseLabel()} readOnly className={readOnlyInputClass} />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
-                <input type="text" value={getEditBranchLabel()} readOnly className={readOnlyInputClass} />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
-                <input type="text" value={editForm.year ?? ''} readOnly className={readOnlyInputClass} />
-              </div>
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
-                <input type="text" value={editForm.batch || ''} readOnly className={readOnlyInputClass} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Course</label>
+                  <input type="text" value={getEditCourseLabel()} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Branch</label>
+                  <input type="text" value={getEditBranchLabel()} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Year</label>
+                  <input type="text" value={editForm.year ?? ''} readOnly className={readOnlyInputClass} />
+                </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700">Batch</label>
+                  <input type="text" value={editForm.batch || ''} readOnly className={readOnlyInputClass} />
+                </div>
               </div>
             </div>
           </div>
@@ -2542,6 +2668,19 @@ const Students = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
                 />
                 <p className="text-[11px] text-gray-500 mt-0.5">Attendance opens starting from this date</p>
+              </div>
+              <div>
+                <label className="block text-xs sm:text-sm font-medium text-gray-700">Left Date</label>
+                <input
+                  type="date"
+                  name="leftDate"
+                  value={editForm.leftDate || ''}
+                  onChange={handleEditFormChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                />
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Prefills from expired date when empty. Saving a due left date expires the hostel request.
+                </p>
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel ID</label>
@@ -2654,16 +2793,33 @@ const Students = () => {
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Hostel Status</label>
-                <select
-                  name="hostelStatus"
-                  value={editForm.hostelStatus || 'Active'}
-                  onChange={handleEditFormChange}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+                {(() => {
+                  const editingCurrentYear =
+                    !editForm.currentAcademicYear ||
+                    String(editForm.academicYear) === String(editForm.currentAcademicYear);
+                  return (
+                    <>
+                      <select
+                        name="hostelStatus"
+                        value={editForm.hostelStatus || 'Active'}
+                        onChange={handleEditFormChange}
+                        required={editingCurrentYear}
+                        disabled={!editingCurrentYear}
+                        className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          !editingCurrentYear ? 'bg-gray-100 text-gray-500' : ''
+                        }`}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                      {!editingCurrentYear && (
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          Historical year — status here is display-only. Deactivate only from the current year ({editForm.currentAcademicYear}).
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="col-span-full">
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Parent Permission for Outing</label>
@@ -2685,7 +2841,6 @@ const Students = () => {
           {/* Contact Info â€” read-only */}
           <div className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
             <h4 className="text-sm sm:text-base font-semibold text-gray-700 border-b pb-1">Contact Info</h4>
-            <p className="text-xs text-gray-500">Managed in college records â€” not editable here</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Student Phone</label>
@@ -4210,9 +4365,10 @@ const Students = () => {
                       { label: 'Year', value: `Year ${selectedStudent.year ?? '—'}` },
                       { label: 'Category', value: getCategoryDisplay(selectedStudent.category) },
                       { label: 'Batch', value: toDisplayText(selectedStudent.batch, '—') },
-                      { label: 'Academic Year', value: toDisplayText(selectedStudent.academicYear, '—') },
-                      { label: 'Admit Date', value: selectedStudent.admitDate ? new Date(selectedStudent.admitDate).toLocaleDateString() : '—' },
-                      { label: 'Joining Date', value: selectedStudent.joiningDate ? new Date(selectedStudent.joiningDate).toLocaleDateString() : '—' },
+                      {
+                        label: 'Academic Year',
+                        value: toDisplayText(filters.academicYear || selectedStudent.academicYear, '—')
+                      },
                     ].map((item) => (
                       <div key={item.label} className="flex items-center justify-between">
                         <span className="text-xs sm:text-sm text-blue-700">{item.label}:</span>
@@ -4231,6 +4387,38 @@ const Students = () => {
                     Hostel Information
                   </h4>
                   <div className="space-y-3">
+                    {(() => {
+                      const stayYear = filters.academicYear || selectedStudent.academicYear;
+                      const formatStayDate = (value) =>
+                        value ? new Date(value).toLocaleDateString() : '—';
+                      return (
+                        <>
+                          <div className="pb-1 mb-1 border-b border-purple-100">
+                            <p className="text-xs font-medium text-purple-600">
+                              Stay dates for {stayYear || 'selected year'} hostel request
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-purple-700">Admit Date:</span>
+                            <span className="font-medium text-purple-900 text-sm sm:text-base">
+                              {formatStayDate(selectedStudent.admitDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-purple-700">Joining Date:</span>
+                            <span className="font-medium text-purple-900 text-sm sm:text-base">
+                              {formatStayDate(selectedStudent.joiningDate)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-purple-700">Left Date:</span>
+                            <span className="font-medium text-purple-900 text-sm sm:text-base">
+                              {formatStayDate(selectedStudent.leftDate)}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
                     <div className="flex items-center justify-between">
                       <span className="text-xs sm:text-sm text-purple-700">Room Number:</span>
                       <span className="font-medium text-purple-900 text-sm sm:text-base">Room {selectedStudent.roomNumber}</span>
@@ -4412,7 +4600,272 @@ const Students = () => {
     </div>
   );
 
-  if (loading && tab === 'list' && !tableLoading) {
+  const renderDatesTab = () => {
+    if (loading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <LoadingSpinner />
+        </div>
+      );
+    }
+
+    if (error && !tableLoading) {
+      return <div className="text-center text-red-600 py-4">{error}</div>;
+    }
+
+    const formatStayDate = (value) => {
+      if (!value) return '';
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return '';
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
+    return (
+      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6">
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+              Student Dates Overview ( {totalStudents} )
+            </h2>
+            <div className="flex items-center gap-3 mt-2 sm:mt-0">
+              <span className="text-sm text-gray-600">
+                Showing {students.length} of {totalStudents} students
+                {Object.entries(filters).some(([key, value]) => value && key !== 'search') && ' (filtered)'}
+              </span>
+              <button
+                onClick={handlePrintStudentDatesReport}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all shadow-sm"
+                title="Print filtered student dates list"
+              >
+                <PrinterIcon className="w-4 h-4" />
+                <span>Print Report</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Filters - shared filters layout */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="sm:col-span-2">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search by name or roll..."
+                  name="search"
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  className="w-full pl-9 sm:pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div>
+              <select
+                name="course"
+                value={filters.course}
+                onChange={handleFilterChange}
+                disabled={loadingCourses}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
+                {courseOptions.map(courseName => (
+                  <option key={courseName} value={courseName}>
+                    {courseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="branch"
+                value={filters.branch}
+                onChange={handleFilterChange}
+                disabled={!filters.course || loadingBranches}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
+                {branchOptions.map(branchName => (
+                  <option key={branchName} value={branchName}>
+                    {branchName}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="hostel"
+                value={filters.hostel}
+                onChange={handleFilterChange}
+                disabled={loadingHostels}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">{loadingHostels ? 'Loading hostels...' : 'All Hostels'}</option>
+                {hostels.map((hostel) => (
+                  <option key={hostel._id} value={hostel._id}>
+                    {hostel.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                disabled={!filters.hostel}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Categories</option>
+                {filterCategories.map((category) => (
+                  <option key={category._id} value={category.name}>
+                    {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="roomNumber"
+                value={filters.roomNumber}
+                onChange={handleFilterChange}
+                disabled={!filters.hostel || loadingFilterRooms}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">
+                  {!filters.hostel
+                    ? 'Select hostel first'
+                    : loadingFilterRooms
+                      ? 'Loading rooms...'
+                      : 'All Rooms'}
+                </option>
+                {filterRooms.map((room) => (
+                  <option key={room._id || room.roomNumber} value={room.roomNumber}>
+                    Room {room.roomNumber}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <select
+                name="hostelStatus"
+                value={filters.hostelStatus}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">All Status</option>
+                <option value="Active">Active Students</option>
+                <option value="Inactive">Expired Students</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Active Filters */}
+          <div className="mt-4">
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => {
+                  setFilters({
+                    search: '',
+                    course: '',
+                    branch: '',
+                    hostel: '',
+                    category: '',
+                    roomNumber: '',
+                    academicYear: getDefaultAcademicYear(),
+                    hostelStatus: 'Active'
+                  });
+                  setFilterCategories([]);
+                  setFilterRooms([]);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium font-semibold"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Table for Dates tab */}
+        <div className="relative min-h-[350px]">
+          {(tableLoading || loading) && (
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-xs flex justify-center items-center z-20 rounded-xl">
+              <LoadingSpinner size="lg" />
+            </div>
+          )}
+          {error && !students.length && !tableLoading && !loading && (
+            <div className="text-center text-red-600 py-16 font-medium">{error}</div>
+          )}
+          {!error && !tableLoading && !loading && students.length === 0 && (
+            <div className="text-center text-gray-500 py-16 font-medium">No students found matching your criteria.</div>
+          )}
+          {students.length > 0 && (
+            <>
+              <div className="overflow-x-auto -mx-4 sm:mx-0">
+                <div className="inline-block min-w-full align-middle">
+                  <div className="overflow-hidden shadow-sm ring-1 ring-black ring-opacity-5">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission Number</th>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admit Date</th>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joining Date</th>
+                          <th scope="col" className="px-6 py-3.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Left Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {students.map(student => (
+                          <tr key={student._id} className="hover:bg-gray-50 cursor-pointer" onClick={() => openStudentDetailsModal(student)}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">{student.name}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.rollNumber || '—'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{student.admissionNumber || '—'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">{formatStayDate(student.admitDate)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">{formatStayDate(student.joiningDate)}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-500 font-medium">{formatStayDate(student.leftDate)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center space-x-2 mt-6">
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || tableLoading}
+                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronLeftIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                  <span className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages || tableLoading}
+                    className="p-1.5 sm:p-2 rounded-lg border border-gray-300 disabled:opacity-50 hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRightIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading && (tab === 'list' || tab === 'dates') && !tableLoading) {
     return <div className="p-4 sm:p-6 max-w-[1400px] mx-auto mt-16 sm:mt-0"><LoadingSpinner size="lg" /></div>;
   }
 
@@ -4462,49 +4915,51 @@ const Students = () => {
               );
             })}
             </div>
-            {tab === 'list' && (
+            {(tab === 'list' || tab === 'dates') && (
               <div className="flex flex-wrap items-center gap-3 shrink-0 px-1 sm:px-2">
                 {/* Live / AY-Wise Toggle */}
-                <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLiveMode(false);
-                      setFilters(prev => ({
-                        ...prev,
-                        academicYear: getDefaultAcademicYear(),
-                        hostelStatus: 'active'
-                      }));
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                      !isLiveMode
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    AY-Wise
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLiveMode(true);
-                      setFilters(prev => ({
-                        ...prev,
-                        academicYear: '',
-                        hostelStatus: 'active'
-                      }));
-                      setCurrentPage(1);
-                    }}
-                    className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
-                      isLiveMode
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Live
-                  </button>
-                </div>
+                {tab === 'list' && (
+                  <div className="flex bg-gray-100 rounded-lg p-0.5 border border-gray-200 shadow-inner">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLiveMode(false);
+                        setFilters(prev => ({
+                          ...prev,
+                          academicYear: getDefaultAcademicYear(),
+                          hostelStatus: 'active'
+                        }));
+                        setCurrentPage(1);
+                      }}
+                      className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                        !isLiveMode
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      AY-Wise
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLiveMode(true);
+                        setFilters(prev => ({
+                          ...prev,
+                          academicYear: '',
+                          hostelStatus: 'active'
+                        }));
+                        setCurrentPage(1);
+                      }}
+                      className={`px-3 py-1 sm:py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${
+                        isLiveMode
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      Live
+                    </button>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2">
                   <label htmlFor="students-academic-year" className="text-xs sm:text-sm text-gray-600 whitespace-nowrap">
@@ -4513,8 +4968,8 @@ const Students = () => {
                   <select
                     id="students-academic-year"
                     name="academicYear"
-                    disabled={isLiveMode}
-                    value={isLiveMode ? "" : filters.academicYear}
+                    disabled={tab === 'list' && isLiveMode}
+                    value={tab === 'list' && isLiveMode ? "" : filters.academicYear}
                     onChange={handleFilterChange}
                     className="min-w-[140px] px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
@@ -4531,6 +4986,8 @@ const Students = () => {
       </div>
 
       {tab === 'list' && renderStudentList()}
+      {tab === 'dates' && renderDatesTab()}
+      {tab === 'room-changes' && <RoomChangesPanel mode="admin" />}
       {editModal && renderEditModal()}
       {photoEditModal && renderPhotoEditModal()}
       {studentDetailsModal && renderStudentDetailsModal()}
@@ -4776,6 +5233,13 @@ const Students = () => {
           students={printStudents}
           isLiveMode={isLiveMode}
           academicYear={filters.academicYear}
+        />
+      </div>
+      <div id="printable-area-dates" style={{ display: 'none' }}>
+        <PrintableStudentDates
+          students={printDatesStudents}
+          filters={filters}
+          hostels={hostels}
         />
       </div>
       <iframe

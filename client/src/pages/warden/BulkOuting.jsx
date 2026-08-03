@@ -340,7 +340,7 @@ const BulkOuting = () => {
     <div className="min-h-screen bg-gray-50">
       <SEO title="Bulk Outing - Warden Dashboard" />
       
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 mt-12 sm:mt-0">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
