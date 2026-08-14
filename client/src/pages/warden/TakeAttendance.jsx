@@ -475,6 +475,7 @@ const TakeAttendance = () => {
       };
       if (admitDateInput) payload.admitDate = admitDateInput;
       if (joiningDateInput) payload.joiningDate = joiningDateInput;
+      if (leftDateInput) payload.leftDate = leftDateInput;
 
       const res = await api.put(`/api/admin/students/${selectedStudentForDates._id}`, payload);
       const expired = res?.data?.data?.hostelRequestExpired;
@@ -1841,7 +1842,18 @@ const TakeAttendance = () => {
                   className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
-            </div>
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    Left Date
+                  </label>
+                  <input
+                    type="date"
+                    value={leftDateInput}
+                    onChange={(e) => setLeftDateInput(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
 
             <div className="flex justify-end gap-2 mt-5">
               <button
