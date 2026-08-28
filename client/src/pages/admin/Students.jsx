@@ -13,6 +13,7 @@ import PrintableLiveStudents from '../../components/PrintableLiveStudents';
 import PrintableStudentDates from '../../components/PrintableStudentDates';
 import RoomChangesPanel from '../../components/RoomChangesPanel';
 import * as XLSX from 'xlsx';
+import { dedupeStudentsByIdentity } from '../../utils/studentListDedupe';
 
 
 // Dynamic course and branch data will be fetched from backend
@@ -1078,7 +1079,8 @@ const Students = () => {
 
       const res = await api.get(`/api/admin/students?${params}`);
       if (res.data.success) {
-        setStudents(res.data.data.students || []);
+        const rawStudents = res.data.data.students || [];
+        setStudents(dedupeStudentsByIdentity(rawStudents));
         setTotalPages(res.data.data.totalPages || 1);
         setTotalStudents(res.data.data.totalStudents || 0);
       } else {
