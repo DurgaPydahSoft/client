@@ -155,6 +155,17 @@ const WardenHome = () => {
 
   const saveStudentDates = async () => {
     if (!selectedStudentForDates?._id) return;
+
+    if (!roomNumberInput || !roomNumberInput.trim()) {
+      toast.error('Room is required');
+      return;
+    }
+
+    if (!joiningDateInput || !joiningDateInput.trim()) {
+      toast.error('Joining date is required');
+      return;
+    }
+
     setSavingDates(true);
     try {
       const hostelId = getWardenHostelId();
@@ -736,7 +747,7 @@ const WardenHome = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Room
+                  Room <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={roomNumberInput}
@@ -806,7 +817,7 @@ const WardenHome = () => {
 
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  Joining Date
+                  Joining Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
