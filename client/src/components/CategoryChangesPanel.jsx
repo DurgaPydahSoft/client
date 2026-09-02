@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../utils/axios';
 import toast from 'react-hot-toast';
 import {
-  ArrowsRightLeftIcon,
+  Squares2X2Icon,
   CheckCircleIcon,
   XCircleIcon,
   PlusIcon
@@ -32,6 +32,12 @@ const fmtDate = (d) => {
   }
 };
 
+const fmtFee = (n) => {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return '—';
+  return `₹${v.toLocaleString('en-IN')}`;
+};
+
 const actorLabel = (name, role, adminObj) => {
   const displayName = name || adminObj?.name || adminObj?.username;
   if (!displayName) return role || '—';
@@ -39,13 +45,14 @@ const actorLabel = (name, role, adminObj) => {
 };
 
 /**
- * Shared Room Changes panel for Admin Students tab + Warden page.
+ * Category change requests — updates hostel category + recalculates fees on approval.
  * @param {'admin'|'warden'} mode
  */
-const RoomChangesPanel = ({ mode = 'admin' }) => {
-  const base = mode === 'warden' ? '/api/room-changes/warden' : '/api/room-changes';
+const CategoryChangesPanel = ({ mode = 'admin' }) => {
+  const base = mode === 'warden' ? '/api/category-changes/warden' : '/api/category-changes';
   const studentsUrl = `${base}/students`;
   const listUrl = base;
+  const feePreviewUrl = `${base}/fee-preview`;
 
   const [viewYear, setViewYear] = useState(getDefaultAcademicYear());
   const [statusFilter, setStatusFilter] = useState('All');
@@ -59,9 +66,14 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
   const [studentQuery, setStudentQuery] = useState('');
   const [studentOptions, setStudentOptions] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [categories, setCategories] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [feePreview, setFeePreview] = useState(null);
+  const [loadingFeePreview, setLoadingFeePreview] = useState(false);
   const [form, setForm] = useState({
+    toCategoryId: '',
     toRoomId: '',
     toBedNumber: '',
     toLockerNumber: '',
@@ -91,7 +103,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.response?.data?.message || 'Failed to load room change requests');
+      toast.error(err.response?.data?.message || 'Failed to load category change requests');
     } finally {
       setLoading(false);
     }
@@ -110,8 +122,8 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
         (r.studentName || '').toLowerCase().includes(q) ||
         (r.admissionNumber || '').toLowerCase().includes(q) ||
         (r.rollNumber || '').toLowerCase().includes(q) ||
-        (r.fromRoomNumber || '').toLowerCase().includes(q) ||
-        (r.toRoomNumber || '').toLowerCase().includes(q)
+        (r.fromCategoryName || '').toLowerCase().includes(q) ||
+        (r.toCategoryName || '').toLowerCase().includes(q)
     );
   }, [requests, searchQ]);
 
@@ -134,11 +146,33 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [studentQuery, showRaise, modalYear]);
 
-  const loadRoomsWithVacancy = async (hostelId) => {
+  const loadCategories = async (hostelId) => {
+    if (!hostelId) {
+      setCategories([]);
+      return;
+    }
+    setLoadingCategories(true);
+    try {
+      const res = await api.get(`/api/hostels/${hostelId}/categories`);
+      if (res.data.success) {
+        setCategories(res.data.data || []);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to load categories');
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const loadRoomsForCategory = async (hostelId, categoryId) => {
+    if (!hostelId || !categoryId) {
+      setRooms([]);
+      return;
+    }
     setLoadingRooms(true);
     try {
-      const params = {};
-      if (hostelId) params.hostel = hostelId;
+      const params = { hostel: hostelId, category: categoryId };
       const vacancyUrl =
         mode === 'warden'
           ? '/api/rooms/warden/bed-availability'
@@ -149,9 +183,27 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Failed to load room vacancy');
     } finally {
       setLoadingRooms(false);
+    }
+  };
+
+  const loadFeePreview = async (admissionNumber, academicYear, toCategoryId) => {
+    if (!admissionNumber || !academicYear || !toCategoryId) {
+      setFeePreview(null);
+      return;
+    }
+    setLoadingFeePreview(true);
+    try {
+      const res = await api.get(feePreviewUrl, {
+        params: { admissionNumber, academicYear, toCategoryId }
+      });
+      if (res.data.success) setFeePreview(res.data.data);
+    } catch (err) {
+      setFeePreview(null);
+      console.error(err);
+    } finally {
+      setLoadingFeePreview(false);
     }
   };
 
@@ -161,7 +213,11 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
     setSelectedStudent(null);
     setStudentQuery('');
     setStudentOptions([]);
+    setCategories([]);
+    setRooms([]);
+    setFeePreview(null);
     setForm({
+      toCategoryId: '',
       toRoomId: '',
       toBedNumber: '',
       toLockerNumber: '',
@@ -169,16 +225,26 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
       reason: ''
     });
     searchStudents('');
-    loadRoomsWithVacancy();
   };
 
   const pickStudent = (s) => {
     setSelectedStudent(s);
     setStudentQuery(`${s.name || ''} (${s.admissionNumber})`);
     setStudentOptions([]);
-    const hostelId = s.hostel?._id || s.hostel;
-    loadRoomsWithVacancy(hostelId);
-    setForm((f) => ({ ...f, toRoomId: '' }));
+    const hostelId = s.hostelId || s.hostel?._id || s.hostel;
+    loadCategories(hostelId);
+    setForm((f) => ({ ...f, toCategoryId: '', toRoomId: '' }));
+    setRooms([]);
+    setFeePreview(null);
+  };
+
+  const onCategoryChange = (categoryId) => {
+    setForm((f) => ({ ...f, toCategoryId: categoryId, toRoomId: '' }));
+    const hostelId = selectedStudent?.hostelId || selectedStudent?.hostel?._id;
+    loadRoomsForCategory(hostelId, categoryId);
+    if (selectedStudent?.admissionNumber) {
+      loadFeePreview(selectedStudent.admissionNumber, modalYear, categoryId);
+    }
   };
 
   const selectedDestRoom = rooms.find((r) => String(r._id) === String(form.toRoomId));
@@ -189,8 +255,12 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
       toast.error('Select an active student');
       return;
     }
-    if (!form.toRoomId) {
-      toast.error('Select destination room');
+    if (!form.toCategoryId) {
+      toast.error('Select destination category');
+      return;
+    }
+    if (String(form.toCategoryId) === String(selectedStudent.currentCategoryId)) {
+      toast.error('Select a different category');
       return;
     }
     if (!form.effectiveDate) {
@@ -202,7 +272,8 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
       const res = await api.post(base, {
         admissionNumber: selectedStudent.admissionNumber,
         academicYear: modalYear,
-        toRoomId: form.toRoomId,
+        toCategoryId: form.toCategoryId,
+        toRoomId: form.toRoomId || undefined,
         toBedNumber: form.toBedNumber || undefined,
         toLockerNumber: form.toLockerNumber || undefined,
         effectiveDate: form.effectiveDate,
@@ -251,20 +322,20 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <ArrowsRightLeftIcon className="w-5 h-5 text-blue-600" />
-              Room Change Requests
+              <Squares2X2Icon className="w-5 h-5 text-indigo-600" />
+              Category Change Requests
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              Raise, approve, and track room transfers for the selected academic year.
+              On approval, hostel category and Fee Management hostel fee (HST01) are updated automatically.
             </p>
           </div>
           <button
             type="button"
             onClick={openRaise}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
           >
             <PlusIcon className="w-4 h-4" />
-            Raise Room Change
+            Raise Category Change
           </button>
         </div>
 
@@ -302,7 +373,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
               type="text"
               value={searchQ}
               onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Name / admission / roll / room"
+              placeholder="Name / admission / roll / category"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
             />
           </div>
@@ -312,7 +383,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
           <p className="text-sm text-gray-500 py-8 text-center">Loading…</p>
         ) : filteredRequests.length === 0 ? (
           <p className="text-sm text-gray-500 py-8 text-center">
-            No room change requests found for {viewYear}.
+            No category change requests found for {viewYear}.
           </p>
         ) : (
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
@@ -321,7 +392,9 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                 <tr>
                   <th className="px-3 py-2 whitespace-nowrap">Student</th>
                   <th className="px-3 py-2 whitespace-nowrap">Admission</th>
-                  <th className="px-3 py-2 whitespace-nowrap">From → To</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Category</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Room</th>
+                  <th className="px-3 py-2 whitespace-nowrap">Fee</th>
                   <th className="px-3 py-2 whitespace-nowrap">Effective</th>
                   <th className="px-3 py-2 whitespace-nowrap">Status</th>
                   <th className="px-3 py-2 whitespace-nowrap">Raised by</th>
@@ -343,8 +416,18 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className="font-medium text-gray-900">
-                        {r.fromRoomNumber || '—'} → {r.toRoomNumber || '—'}
+                        {r.fromCategoryName || '—'} → {r.toCategoryName || '—'}
                       </span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                      {r.fromRoomNumber || r.toRoomNumber
+                        ? `${r.fromRoomNumber || '—'} → ${r.toRoomNumber || '—'}`
+                        : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+                      {r.status === 'Approved' && (r.previousTotalFee || r.newTotalFee)
+                        ? `${fmtFee(r.previousTotalFee)} → ${fmtFee(r.newTotalFee)}`
+                        : '—'}
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-600">
                       {fmtDate(r.effectiveDate)}
@@ -365,9 +448,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                     <td className="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
                       {r.status === 'Approved' ? (
                         <>
-                          <div>
-                            {actorLabel(r.approvedByName, null, r.approvedBy)}
-                          </div>
+                          <div>{actorLabel(r.approvedByName, null, r.approvedBy)}</div>
                           {r.approvedAt ? (
                             <div className="text-gray-400">{fmtDate(r.approvedAt)}</div>
                           ) : null}
@@ -420,7 +501,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="border-b px-4 py-3 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Raise Room Change</h3>
+              <h3 className="font-semibold text-gray-900">Raise Category Change</h3>
               <button type="button" onClick={() => setShowRaise(false)} className="text-gray-500 text-sm">
                 Close
               </button>
@@ -465,11 +546,12 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                         <button
                           type="button"
                           onClick={() => pickStudent(s)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-indigo-50"
                         >
                           <span className="font-medium">{s.name || '—'}</span>
                           <span className="text-gray-500 text-xs ml-2">
-                            {s.admissionNumber} · Room {s.currentRoomNumber || '—'}
+                            {s.admissionNumber} · {s.currentCategoryName || 'No category'}
+                            {s.currentRoomNumber ? ` · Room ${s.currentRoomNumber}` : ''}
                           </span>
                         </button>
                       </li>
@@ -482,14 +564,67 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                 <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-sm">
                   <p className="font-medium text-gray-900">{selectedStudent.name}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Current room: <strong>{selectedStudent.currentRoomNumber || '—'}</strong>
+                    Current category: <strong>{selectedStudent.currentCategoryName || '—'}</strong>
+                    {selectedStudent.currentRoomNumber
+                      ? ` · Room ${selectedStudent.currentRoomNumber}`
+                      : ''}
                   </p>
                 </div>
               )}
 
               <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">New category</label>
+                {loadingCategories ? (
+                  <p className="text-xs text-gray-500">Loading categories…</p>
+                ) : (
+                  <select
+                    value={form.toCategoryId}
+                    onChange={(e) => onCategoryChange(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    required
+                    disabled={!selectedStudent}
+                  >
+                    <option value="">Select category</option>
+                    {categories
+                      .filter(
+                        (c) =>
+                          !selectedStudent?.currentCategoryId ||
+                          String(c._id) !== String(selectedStudent.currentCategoryId)
+                      )
+                      .map((c) => (
+                        <option key={c._id} value={c._id}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+
+              {form.toCategoryId && (
+                <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 text-xs">
+                  {loadingFeePreview ? (
+                    <p className="text-gray-500">Calculating new fee…</p>
+                  ) : feePreview ? (
+                    <>
+                      <p className="font-semibold text-indigo-900">Fee preview</p>
+                      <p className="text-gray-700 mt-1">
+                        {fmtFee(feePreview.previousTotalFee)} →{' '}
+                        <strong>{fmtFee(feePreview.newTotalFee)}</strong> ({feePreview.categoryName})
+                      </p>
+                      <p className="text-gray-500 mt-0.5">
+                        T1 {fmtFee(feePreview.term1Fee)} · T2 {fmtFee(feePreview.term2Fee)} · T3{' '}
+                        {fmtFee(feePreview.term3Fee)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-amber-700">No fee structure found for this category.</p>
+                  )}
+                </div>
+              )}
+
+              <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Destination room (live vacancy)
+                  Room in new category (optional)
                 </label>
                 {loadingRooms ? (
                   <p className="text-xs text-gray-500">Loading rooms…</p>
@@ -498,46 +633,30 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                     value={form.toRoomId}
                     onChange={(e) => setForm((f) => ({ ...f, toRoomId: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    required
+                    disabled={!form.toCategoryId}
                   >
-                    <option value="">Select room</option>
-                    {rooms
-                      .filter(
-                        (r) =>
-                          !selectedStudent?.currentRoomId ||
-                          String(r._id) !== String(selectedStudent.currentRoomId)
-                      )
-                      .map((r) => (
-                        <option key={r._id} value={r._id}>
-                          {r.roomNumber} — {r.availableBeds ?? 0} beds free / {r.bedCount ?? '?'} (
-                          {r.hostel?.code || r.hostel?.name || 'Hostel'})
-                        </option>
-                      ))}
+                    <option value="">No room — category only (clear current room)</option>
+                    {rooms.map((r) => (
+                      <option key={r._id} value={r._id}>
+                        {r.roomNumber} — {r.availableBeds ?? 0} beds free
+                      </option>
+                    ))}
                   </select>
                 )}
                 {selectedDestRoom && (
                   <p className="text-xs text-green-700 mt-1">
-                    Live vacancy: {selectedDestRoom.availableBeds} available of{' '}
-                    {selectedDestRoom.bedCount} beds
+                    Vacancy: {selectedDestRoom.availableBeds} of {selectedDestRoom.bedCount} beds
+                  </p>
+                )}
+                {!form.toRoomId && selectedStudent?.currentRoomNumber && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Current room will be cleared when category changes.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Bed (optional)</label>
-                <input
-                  type="text"
-                  value={form.toBedNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, toBedNumber: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Optional — not validated"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Effective date (past allowed)
-                </label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Effective date</label>
                 <input
                   type="date"
                   value={form.effectiveDate}
@@ -569,7 +688,7 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {submitting ? 'Submitting…' : 'Submit for approval'}
                 </button>
@@ -582,4 +701,4 @@ const RoomChangesPanel = ({ mode = 'admin' }) => {
   );
 };
 
-export default RoomChangesPanel;
+export default CategoryChangesPanel;

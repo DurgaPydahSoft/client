@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../utils/axios';
 import toast from 'react-hot-toast';
-import { TableCellsIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid, ArrowsRightLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { TableCellsIcon, PencilSquareIcon, TrashIcon, MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, PrinterIcon, DocumentArrowDownIcon, XMarkIcon, XCircleIcon, PhotoIcon, UserIcon, UserGroupIcon, AcademicCapIcon, PhoneIcon, ExclamationTriangleIcon, CameraIcon, VideoCameraIcon, LockClosedIcon, CheckCircleIcon, XCircleIcon as XCircleIconSolid, ArrowsRightLeftIcon, Squares2X2Icon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -12,6 +12,7 @@ import { downloadAdmitCard } from '../../utils/admitCardGenerator';
 import PrintableLiveStudents from '../../components/PrintableLiveStudents';
 import PrintableStudentDates from '../../components/PrintableStudentDates';
 import RoomChangesPanel from '../../components/RoomChangesPanel';
+import CategoryChangesPanel from '../../components/CategoryChangesPanel';
 import * as XLSX from 'xlsx';
 import { dedupeStudentsByIdentity } from '../../utils/studentListDedupe';
 
@@ -21,6 +22,7 @@ import { dedupeStudentsByIdentity } from '../../utils/studentListDedupe';
 const TABS = [
   { label: 'Hostel Requests', value: 'list', icon: <TableCellsIcon className="w-5 h-5" /> },
   { label: 'Room Changes', value: 'room-changes', icon: <ArrowsRightLeftIcon className="w-5 h-5" /> },
+  { label: 'Category Changes', value: 'category-changes', icon: <Squares2X2Icon className="w-5 h-5" /> },
   { label: 'Dates', value: 'dates', icon: <CalendarDaysIcon className="w-5 h-5" /> },
 ];
 
@@ -300,6 +302,7 @@ const Students = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isSuperAdmin = user?.role === 'super_admin';
+  const canEditRoomCategory = isSuperAdmin;
   const canEditStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'edit');
   const canDeleteStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'delete');
   const canAddStudent = isSuperAdmin || canPerformAction(user, 'student_management', 'create');
@@ -1816,12 +1819,16 @@ const Students = () => {
 
       const submitData = {
         hostel: editForm.hostelId,
-        category: editForm.category,
+        ...(canEditRoomCategory
+          ? {
+              category: editForm.category,
+              roomNumber: editForm.roomNumber,
+              bedNumber: editForm.bedNumber,
+              lockerNumber: editForm.lockerNumber
+            }
+          : {}),
         mealType: editForm.mealType,
         parentPermissionForOuting: editForm.parentPermissionForOuting,
-        roomNumber: editForm.roomNumber,
-        bedNumber: editForm.bedNumber,
-        lockerNumber: editForm.lockerNumber,
         academicYear: editForm.academicYear,
         // Do not send hostelStatus for historical AY edits — it would cancel the live year request
         ...(editingCurrentYear ? { hostelStatus: editForm.hostelStatus } : {}),
@@ -2706,56 +2713,84 @@ const Students = () => {
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Category</label>
-                <select
-                  name="category"
-                  value={editForm.category}
-                  onChange={handleEditFormChange}
-                  required
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Category</option>
-                  {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
-                    <option key={category} value={category}>{getCategoryDisplay(category)}</option>
-                  ))}
-                </select>
+                {canEditRoomCategory ? (
+                  <select
+                    name="category"
+                    value={editForm.category}
+                    onChange={handleEditFormChange}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Select Category</option>
+                    {editForm.gender && getCategoryOptions(editForm.gender).map(category => (
+                      <option key={category} value={category}>{getCategoryDisplay(category)}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={getCategoryDisplay(editForm.category) || '—'}
+                      readOnly
+                      className={readOnlyInputClass}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Use the Category Changes tab to request a category update.
+                    </p>
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Room Number</label>
-                <div className="flex gap-2">
-                  <select
-                    name="roomNumber"
-                    value={editForm.roomNumber}
-                    onChange={handleEditFormChange}
-                    required
-                    disabled={!editForm.gender || !editForm.category || loadingEditRooms}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Select Room</option>
-                    {loadingEditRooms ? (
-                      <option value="" disabled>Loading rooms...</option>
-                    ) : (
-                      editRoomsWithAvailability.map(room => (
-                        <option key={room._id} value={room.roomNumber}>
-                          Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {editForm.roomNumber && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const selectedRoom = editRoomsWithAvailability.find(r => r.roomNumber === editForm.roomNumber);
-                        if (selectedRoom) {
-                          handleRoomView(selectedRoom);
-                        }
-                      }}
-                      className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                {canEditRoomCategory ? (
+                  <div className="flex gap-2">
+                    <select
+                      name="roomNumber"
+                      value={editForm.roomNumber}
+                      onChange={handleEditFormChange}
+                      required
+                      disabled={!editForm.gender || !editForm.category || loadingEditRooms}
+                      className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      View
-                    </button>
-                  )}
-                </div>
+                      <option value="">Select Room</option>
+                      {loadingEditRooms ? (
+                        <option value="" disabled>Loading rooms...</option>
+                      ) : (
+                        editRoomsWithAvailability.map(room => (
+                          <option key={room._id} value={room.roomNumber}>
+                            Room {room.roomNumber} ({room.studentCount}/{room.bedCount})
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {editForm.roomNumber && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const selectedRoom = editRoomsWithAvailability.find(r => r.roomNumber === editForm.roomNumber);
+                          if (selectedRoom) {
+                            handleRoomView(selectedRoom);
+                          }
+                        }}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        View
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={editForm.roomNumber || '—'}
+                      readOnly
+                      className={readOnlyInputClass}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Use the Room Changes tab to request a room update.
+                    </p>
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-xs sm:text-sm font-medium text-gray-700">Bed Number (Optional)</label>
@@ -2764,7 +2799,12 @@ const Students = () => {
                   name="bedNumber"
                   value={editForm.bedNumber || ''}
                   onChange={handleEditFormChange}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  readOnly={!canEditRoomCategory}
+                  className={
+                    canEditRoomCategory
+                      ? 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                      : readOnlyInputClass
+                  }
                   placeholder="e.g., 320 Bed 1"
                 />
               </div>
@@ -2775,7 +2815,12 @@ const Students = () => {
                   name="lockerNumber"
                   value={editForm.lockerNumber || ''}
                   onChange={handleEditFormChange}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  readOnly={!canEditRoomCategory}
+                  className={
+                    canEditRoomCategory
+                      ? 'w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                      : readOnlyInputClass
+                  }
                   placeholder="e.g., 320 Locker 1"
                 />
               </div>
@@ -3806,148 +3851,134 @@ const Students = () => {
             </div>
           </div>
 
-          {/* Filters - Made responsive */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            <div className="sm:col-span-2">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <MagnifyingGlassIcon className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search by name or roll..."
-                  name="search"
-                  value={filters.search}
-                  onChange={handleFilterChange}
-                  className="w-full pl-9 sm:pl-10 pr-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+          {/* Filters — compact single row */}
+          <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+            <div className="relative min-w-[150px] flex-[1.4] shrink-0">
+              <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                <MagnifyingGlassIcon className="h-3.5 w-3.5 text-gray-400" />
               </div>
-            </div>
-            <div>
-              <select
-                name="course"
-                value={filters.course}
+              <input
+                type="text"
+                placeholder="Search..."
+                name="search"
+                value={filters.search}
                 onChange={handleFilterChange}
-                disabled={loadingCourses}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingCourses ? 'Loading courses...' : 'All Courses'}</option>
-                {courseOptions.map(courseName => (
-                  <option key={courseName} value={courseName}>
-                    {courseName}
-                  </option>
-                ))}
-              </select>
+                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
             </div>
-            <div>
-              <select
-                name="branch"
-                value={filters.branch}
-                onChange={handleFilterChange}
-                disabled={!filters.course || loadingBranches}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingBranches ? 'Loading branches...' : 'All Branches'}</option>
-                {branchOptions.map(branchName => (
-                  <option key={branchName} value={branchName}>
-                    {branchName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="hostel"
-                value={filters.hostel}
-                onChange={handleFilterChange}
-                disabled={loadingHostels}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">{loadingHostels ? 'Loading hostels...' : 'All Hostels'}</option>
-                {hostels.map((hostel) => (
-                  <option key={hostel._id} value={hostel._id}>
-                    {hostel.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="category"
-                value={filters.category}
-                onChange={handleFilterChange}
-                disabled={!filters.hostel}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All Categories</option>
-                {filterCategories.map((category) => (
-                  <option key={category._id} value={category.name}>
-                    {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="roomNumber"
-                value={filters.roomNumber}
-                onChange={handleFilterChange}
-                disabled={!filters.hostel || loadingFilterRooms}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">
-                  {!filters.hostel
-                    ? 'Select hostel first'
-                    : loadingFilterRooms
-                      ? 'Loading rooms...'
-                      : 'All Rooms'}
+            <select
+              name="course"
+              value={filters.course}
+              onChange={handleFilterChange}
+              disabled={loadingCourses}
+              className="min-w-[100px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">{loadingCourses ? 'Courses...' : 'Course'}</option>
+              {courseOptions.map(courseName => (
+                <option key={courseName} value={courseName}>
+                  {courseName}
                 </option>
-                {filterRooms.map((room) => (
-                  <option key={room._id || room.roomNumber} value={room.roomNumber}>
-                    Room {room.roomNumber}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <select
-                name="hostelStatus"
-                disabled={isLiveMode}
-                value={isLiveMode ? 'Active' : filters.hostelStatus}
-                onChange={handleFilterChange}
-                className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-              >
-                <option value="">All Status</option>
-                <option value="Active">Active Students</option>
-                <option value="Inactive">Expired Students</option>
-              </select>
-            </div>
+              ))}
+            </select>
+            <select
+              name="branch"
+              value={filters.branch}
+              onChange={handleFilterChange}
+              disabled={!filters.course || loadingBranches}
+              className="min-w-[100px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">{loadingBranches ? 'Branches...' : 'Branch'}</option>
+              {branchOptions.map(branchName => (
+                <option key={branchName} value={branchName}>
+                  {branchName}
+                </option>
+              ))}
+            </select>
+            <select
+              name="hostel"
+              value={filters.hostel}
+              onChange={handleFilterChange}
+              disabled={loadingHostels}
+              className="min-w-[100px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">{loadingHostels ? 'Hostels...' : 'Hostel'}</option>
+              {hostels.map((hostel) => (
+                <option key={hostel._id} value={hostel._id}>
+                  {hostel.name}
+                </option>
+              ))}
+            </select>
+            <select
+              name="category"
+              value={filters.category}
+              onChange={handleFilterChange}
+              disabled={!filters.hostel}
+              className="min-w-[95px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Category</option>
+              {filterCategories.map((category) => (
+                <option key={category._id} value={category.name}>
+                  {category.name === 'A+' ? 'A+ (AC)' : category.name === 'B+' ? 'B+ (AC)' : category.name}
+                </option>
+              ))}
+            </select>
+            <select
+              name="roomNumber"
+              value={filters.roomNumber}
+              onChange={handleFilterChange}
+              disabled={!filters.hostel || loadingFilterRooms}
+              className="min-w-[90px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">
+                {!filters.hostel
+                  ? 'Room'
+                  : loadingFilterRooms
+                    ? 'Rooms...'
+                    : 'Room'}
+              </option>
+              {filterRooms.map((room) => (
+                <option key={room._id || room.roomNumber} value={room.roomNumber}>
+                  {room.roomNumber}
+                </option>
+              ))}
+            </select>
+            <select
+              name="hostelStatus"
+              disabled={isLiveMode}
+              value={isLiveMode ? 'Active' : filters.hostelStatus}
+              onChange={handleFilterChange}
+              className="min-w-[95px] flex-1 shrink-0 px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500 bg-white disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+            >
+              <option value="">Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Expired</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({
+                  search: '',
+                  course: '',
+                  branch: '',
+                  hostel: '',
+                  category: '',
+                  roomNumber: '',
+                  academicYear: isLiveMode ? '' : getDefaultAcademicYear(),
+                  hostelStatus: 'Active'
+                });
+                setFilterCategories([]);
+                setFilterRooms([]);
+                setCurrentPage(1);
+              }}
+              className="shrink-0 px-2.5 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors font-medium whitespace-nowrap"
+            >
+              Clear
+            </button>
           </div>
 
-          {/* Active Filters - Made responsive */}
-          <div className="mt-4">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => {
-                  setFilters({
-                    search: '',
-                    course: '',
-                    branch: '',
-                    hostel: '',
-                    category: '',
-                    roomNumber: '',
-                    academicYear: isLiveMode ? '' : getDefaultAcademicYear(),
-                    hostelStatus: 'Active'
-                  });
-                  setFilterCategories([]);
-                  setFilterRooms([]);
-                  setCurrentPage(1);
-                }}
-                className="px-3 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-              >
-                Clear Filters
-              </button>
-              <div className="flex flex-wrap gap-2">
+          {/* Active filter chips */}
+          <div className="mt-2">
+            <div className="flex flex-wrap gap-1.5">
                 {Object.entries(filters).map(([key, value]) => {
                   if (!shouldShowFilterChip(key, value)) return null;
                   const label = FILTER_LABELS[key] || key;
@@ -3957,7 +3988,7 @@ const Students = () => {
                   return (
                     <span
                       key={key}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full inline-flex items-center gap-1"
+                      className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full inline-flex items-center gap-1"
                     >
                       <span>{label}: {chipValue}</span>
                       <button
@@ -3986,7 +4017,6 @@ const Students = () => {
                     </span>
                   );
                 })}
-              </div>
             </div>
           </div>
         </div>
@@ -4990,6 +5020,7 @@ const Students = () => {
       {tab === 'list' && renderStudentList()}
       {tab === 'dates' && renderDatesTab()}
       {tab === 'room-changes' && <RoomChangesPanel mode="admin" />}
+      {tab === 'category-changes' && <CategoryChangesPanel mode="admin" />}
       {editModal && renderEditModal()}
       {photoEditModal && renderPhotoEditModal()}
       {studentDetailsModal && renderStudentDetailsModal()}
