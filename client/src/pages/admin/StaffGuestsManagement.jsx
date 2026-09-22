@@ -795,7 +795,8 @@ const StaffGuestsManagement = () => {
           }
         }
 
-        const totalCharges = isGuest ? 0 : (dailyRate * dayCount);
+        const isFixed = ['monthly_fixed', 'fixed_rate', 'fixed'].includes(staffGuestWithPhoto.chargeType);
+        const totalCharges = isGuest ? 0 : (isFixed ? (staffGuestWithPhoto.monthlyFixedAmount || staffGuestWithPhoto.calculatedCharges || 0) : (dailyRate * dayCount));
         const actualCharges = isGuest ? 0 : (staffGuestWithPhoto.calculatedCharges || totalCharges);
         const staffGender = staffGuestWithPhoto.gender?.toLowerCase();
         const hostelName = staffGender === 'female' ? 'Girls Hostel' : 'Boys Hostel';
@@ -900,6 +901,21 @@ const StaffGuestsManagement = () => {
           doc.text(`No charges for guests`, chargesSummaryX, emergencyY + 5);
           doc.setFont('helvetica', 'bold');
           doc.text(`Total Payable: Rs.0`, chargesSummaryX, emergencyY + 10);
+        } else if (isFixed) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.text(`Charge Type: Fixed Rate`, chargesSummaryX, emergencyY + 5);
+          doc.text(`Fixed Amount: Rs.${staffGuestWithPhoto.monthlyFixedAmount || actualCharges}`, chargesSummaryX, emergencyY + 10);
+
+          if (staffGuestWithPhoto.stayType === 'monthly' && staffGuestWithPhoto.selectedMonth) {
+            const monthName = new Date(staffGuestWithPhoto.selectedMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            doc.text(`Valid Month: ${monthName}`, chargesSummaryX, emergencyY + 15);
+          } else if (staffGuestWithPhoto.checkinDate) {
+            doc.text(`Stay Duration: ${dayCount} days`, chargesSummaryX, emergencyY + 15);
+          }
+
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Total Payable: Rs.${actualCharges}`, chargesSummaryX, emergencyY + 22);
         } else {
           doc.setFont('helvetica', 'normal'); // Set to normal for list items
           doc.setFontSize(7);
@@ -1865,6 +1881,15 @@ const StaffGuestsManagement = () => {
                               <p>• No charges for guests</p>
                               <p className="font-bold">• Total Payable: ₹0</p>
                             </div>
+                          ) : ['monthly_fixed', 'fixed_rate', 'fixed'].includes(admitCardData.chargeType) ? (
+                            <div className="text-xs text-gray-700 space-y-1">
+                              <p>• Charge Type: Fixed Rate</p>
+                              <p>• Fixed Amount: ₹{(admitCardData.monthlyFixedAmount || admitCardData.calculatedCharges || 0).toLocaleString('en-IN')}</p>
+                              <p>• Stay Duration: {admitCardData.dayCount || 0} days</p>
+                              <p className="font-bold">• Total Payable: ₹{typeof admitCardData.calculatedCharges === 'number'
+                                ? admitCardData.calculatedCharges.toLocaleString('en-IN')
+                                : (admitCardData.calculatedCharges || 0)}</p>
+                            </div>
                           ) : (
                             <div className="text-xs text-gray-700 space-y-1">
                               <p>• Daily Rate: ₹{admitCardData.dailyRate || dailyRateSettings.staffDailyRate || 100} per day</p>
@@ -2351,14 +2376,14 @@ const StaffGuestsManagement = () => {
                               Charges Information
                             </h4>
 
-                            {/* Charge Type Selection - Only for Monthly Staff */}
-                            {formData.type === 'staff' && formData.stayType === 'monthly' && (
+                            {/* Charge Type Selection - For Staff and Student */}
+                            {['staff', 'student'].includes(formData.type) && (
                               <div className="mb-4 bg-white rounded-lg p-4 border border-blue-100">
                                 <label className="block text-sm font-medium text-gray-700 mb-3">
                                   Charge Type *
                                 </label>
                                 <div className="flex gap-4">
-                                  <label className="flex items-center">
+                                  <label className="flex items-center cursor-pointer">
                                     <input
                                       type="radio"
                                       name="chargeType"
@@ -2367,33 +2392,33 @@ const StaffGuestsManagement = () => {
                                       onChange={handleInputChange}
                                       className="mr-2"
                                     />
-                                    <span className="text-sm text-gray-700">Per Day Rate</span>
+                                    <span className="text-sm font-medium text-gray-700">Per Day Rate</span>
                                   </label>
-                                  <label className="flex items-center">
+                                  <label className="flex items-center cursor-pointer">
                                     <input
                                       type="radio"
                                       name="chargeType"
                                       value="monthly_fixed"
-                                      checked={formData.chargeType === 'monthly_fixed'}
+                                      checked={['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType)}
                                       onChange={handleInputChange}
                                       className="mr-2"
                                     />
-                                    <span className="text-sm text-gray-700">Monthly Fixed Amount</span>
+                                    <span className="text-sm font-medium text-gray-700">Fixed Rate (For Period / Month)</span>
                                   </label>
                                 </div>
                               </div>
                             )}
 
-                            <div className={`grid grid-cols-1 gap-4 ${formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed' ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
+                            <div className={`grid grid-cols-1 gap-4 ${['staff', 'student'].includes(formData.type) && ['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType) ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}>
                               {/* Per Day Rate or Monthly Fixed Amount Input */}
                               <div className="bg-white rounded-lg p-4 border border-blue-100">
                                 <div className="text-sm font-medium text-gray-600 mb-3">
-                                  {formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed'
-                                    ? 'Monthly Fixed Amount'
-                                    : 'Individual Daily Rate'}
+                                  {['staff', 'student'].includes(formData.type) && ['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType)
+                                    ? 'Fixed Rate / Amount (₹)'
+                                    : 'Individual Daily Rate (₹)'}
                                 </div>
                                 <div className="space-y-2">
-                                  {formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed' ? (
+                                  {['staff', 'student'].includes(formData.type) && ['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType) ? (
                                     <>
                                       <div className="relative">
                                         <CurrencyDollarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2402,14 +2427,16 @@ const StaffGuestsManagement = () => {
                                           name="monthlyFixedAmount"
                                           value={formData.monthlyFixedAmount}
                                           onChange={handleInputChange}
-                                          placeholder={dailyRateSettings.monthlyFixedAmount || 3000}
+                                          placeholder={formData.stayType === 'monthly' ? (dailyRateSettings.monthlyFixedAmount || 3000) : "Enter fixed rate amount"}
                                           className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                           min="0"
                                           step="0.01"
                                         />
                                       </div>
                                       <div className="text-xs text-gray-500">
-                                        Leave empty to use default: ₹{dailyRateSettings.monthlyFixedAmount || 3000}
+                                        {formData.stayType === 'monthly' 
+                                          ? `Leave empty to use default: ₹${dailyRateSettings.monthlyFixedAmount || 3000}`
+                                          : `Fixed rate charge for this stay period`}
                                       </div>
                                     </>
                                   ) : (
@@ -2441,15 +2468,13 @@ const StaffGuestsManagement = () => {
                                 <div className="space-y-2">
                                   <div className="text-lg font-bold text-green-700">
                                     ₹{(() => {
+                                      if (['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType)) {
+                                        const amount = formData.monthlyFixedAmount
+                                          ? parseFloat(formData.monthlyFixedAmount)
+                                          : (formData.stayType === 'monthly' ? (dailyRateSettings.monthlyFixedAmount || 3000) : 0);
+                                        return amount.toLocaleString();
+                                      }
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
-                                        // Monthly fixed amount
-                                        if (formData.chargeType === 'monthly_fixed') {
-                                          const amount = formData.monthlyFixedAmount
-                                            ? parseFloat(formData.monthlyFixedAmount)
-                                            : (dailyRateSettings.monthlyFixedAmount || 3000);
-                                          return amount.toLocaleString();
-                                        }
-                                        // Per day calculation
                                         const [year, month] = formData.selectedMonth.split('-').map(Number);
                                         const daysInMonth = new Date(year, month, 0).getDate();
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
@@ -2464,13 +2489,13 @@ const StaffGuestsManagement = () => {
                                   </div>
                                   <div className="text-xs text-gray-500">
                                     {(() => {
+                                      if (['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType)) {
+                                        const amount = formData.monthlyFixedAmount
+                                          ? parseFloat(formData.monthlyFixedAmount)
+                                          : (formData.stayType === 'monthly' ? (dailyRateSettings.monthlyFixedAmount || 3000) : 0);
+                                        return `Fixed rate: ₹${amount.toLocaleString()}`;
+                                      }
                                       if (formData.type === 'staff' && formData.stayType === 'monthly' && formData.selectedMonth) {
-                                        if (formData.chargeType === 'monthly_fixed') {
-                                          const amount = formData.monthlyFixedAmount
-                                            ? parseFloat(formData.monthlyFixedAmount)
-                                            : (dailyRateSettings.monthlyFixedAmount || 3000);
-                                          return `Fixed amount: ₹${amount.toLocaleString()}`;
-                                        }
                                         const [year, month] = formData.selectedMonth.split('-').map(Number);
                                         const daysInMonth = new Date(year, month, 0).getDate();
                                         const rateToUse = formData.dailyRate ? parseFloat(formData.dailyRate) : (dailyRateSettings.staffDailyRate || 100);
@@ -2489,7 +2514,7 @@ const StaffGuestsManagement = () => {
                               </div>
 
                               {/* Default Rate - Only show for per_day charge type */}
-                              {!(formData.type === 'staff' && formData.stayType === 'monthly' && formData.chargeType === 'monthly_fixed') && (
+                              {!['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType) && (
                                 <div className="bg-white rounded-lg p-4 border border-purple-100">
                                   <div className="text-sm font-medium text-gray-600 mb-3">Default Rate</div>
                                   <div className="space-y-2">
@@ -2500,16 +2525,12 @@ const StaffGuestsManagement = () => {
                               )}
                             </div>
                             <div className="mt-3 text-xs text-gray-600">
-                              {formData.type === 'staff' && formData.stayType === 'monthly' ? (
+                              {['monthly_fixed', 'fixed_rate', 'fixed'].includes(formData.chargeType) ? (
+                                <p>• Fixed rate amount will be charged as lump sum for the stay period/month</p>
+                              ) : formData.type === 'staff' && formData.stayType === 'monthly' ? (
                                 <>
-                                  {formData.chargeType === 'monthly_fixed' ? (
-                                    <p>• Monthly fixed amount will be charged regardless of days in the month</p>
-                                  ) : (
-                                    <>
-                                      <p>• Set individual daily rate or leave empty to use default from settings</p>
-                                      <p>• Charges are calculated for the entire selected month (days × rate)</p>
-                                    </>
-                                  )}
+                                  <p>• Set individual daily rate or leave empty to use default from settings</p>
+                                  <p>• Charges are calculated for the entire selected month (days × rate)</p>
                                 </>
                               ) : (
                                 <>
@@ -2797,11 +2818,26 @@ const StaffGuestsManagement = () => {
                         </h3>
                         <div className="space-y-3">
                           <div>
-                            <span className="text-sm font-medium text-gray-600">Daily Rate:</span>
-                            <p className="text-sm text-gray-900">
-                              ₹{selectedStaffGuest.dailyRate || dailyRateSettings.staffDailyRate} per day
+                            <span className="text-sm font-medium text-gray-600">Charge Type:</span>
+                            <p className="text-sm text-gray-900 font-medium">
+                              {['monthly_fixed', 'fixed_rate', 'fixed'].includes(selectedStaffGuest.chargeType) ? 'Fixed Rate' : 'Per Day Rate'}
                             </p>
                           </div>
+                          {['monthly_fixed', 'fixed_rate', 'fixed'].includes(selectedStaffGuest.chargeType) ? (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600">Fixed Rate:</span>
+                              <p className="text-sm text-gray-900">
+                                ₹{(selectedStaffGuest.monthlyFixedAmount || selectedStaffGuest.calculatedCharges || 0).toLocaleString('en-IN')}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="text-sm font-medium text-gray-600">Daily Rate:</span>
+                              <p className="text-sm text-gray-900">
+                                ₹{selectedStaffGuest.dailyRate || dailyRateSettings.staffDailyRate || 100} per day
+                              </p>
+                            </div>
+                          )}
                           <div>
                             <span className="text-sm font-medium text-gray-600">Total Charges:</span>
                             <p className="text-lg font-bold text-green-600">
