@@ -21,9 +21,10 @@ export const CoursesBranchesProvider = ({ children }) => {
   
   // Cache duration: 5 minutes (300000 ms)
   const CACHE_DURATION = 5 * 60 * 1000;
-  const CACHE_KEY_COURSES = 'courses_cache';
-  const CACHE_KEY_BRANCHES = 'branches_cache';
-  const CACHE_KEY_TIMESTAMP = 'courses_branches_timestamp';
+  const CACHE_VERSION = 'v2';
+  const CACHE_KEY_COURSES = `courses_cache_${CACHE_VERSION}`;
+  const CACHE_KEY_BRANCHES = `branches_cache_${CACHE_VERSION}`;
+  const CACHE_KEY_TIMESTAMP = `courses_branches_timestamp_${CACHE_VERSION}`;
 
   // Load from cache
   const loadFromCache = useCallback(() => {

@@ -15,6 +15,37 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
+const extractAdditionalYearsFromMetadata = (metadata) => {
+  if (!metadata) return [];
+
+  const visit = (value, fieldName = '') => {
+    if (Array.isArray(value)) {
+      return value.flatMap(item => visit(item, fieldName));
+    }
+
+    if (value && typeof value === 'object') {
+      return Object.entries(value).flatMap(([key, item]) => (
+        visit(item, `${fieldName} ${key}`)
+      ));
+    }
+
+    const normalizedFieldName = fieldName.replace(/[_\s-]+/g, '').toLowerCase();
+    if (!/additionalyears?$/.test(normalizedFieldName)) {
+      return [];
+    }
+
+    const normalizedValue = typeof value === 'number'
+      ? String(value)
+      : typeof value === 'string'
+        ? value.trim()
+        : '';
+    return /^\d+(?:-\d{4})?$/.test(normalizedValue) ? [normalizedValue] : [];
+  };
+
+  const metadataValue = typeof metadata === 'string' ? JSON.parse(metadata) : metadata;
+  return [...new Set(visit(metadataValue))];
+};
+
 const academicYearOptions = () => {
   const current = new Date().getFullYear();
   const list = [];
@@ -26,7 +57,7 @@ const academicYearOptions = () => {
 };
 
 const FeeStructureManagement = () => {
-  const { courses = [] } = useCoursesBranches();
+  const { courses = [], branches = [] } = useCoursesBranches();
 
   const [hostels, setHostels] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -210,8 +241,19 @@ const FeeStructureManagement = () => {
       c => c.name === courseName || c._id === courseName
     );
     if (!course) return [];
-    return Array.from({ length: course.duration || 4 }, (_, i) => i + 1);
-  }, [courses]);
+
+    const durationYears = Array.from({ length: course.duration || 4 }, (_, i) => i + 1);
+    const metadataYears = branches
+      .filter(branch => {
+        const branchCourse = branch.course;
+        return branchCourse === course._id
+          || (typeof branchCourse === 'object' && branchCourse._id === course._id);
+      })
+      .flatMap(branch => extractAdditionalYearsFromMetadata(branch.metadata))
+      .filter((year, index, years) => years.indexOf(year) === index);
+
+    return [...new Set([...durationYears.map(String), ...metadataYears])];
+  }, [branches, courses]);
 
   useEffect(() => {
     const loadFeeMatrix = async () => {
@@ -273,6 +315,51 @@ const FeeStructureManagement = () => {
     );
     return match?.name || courseValue;
   }, [courses]);
+
+  const getCourseOptionLabel = useCallback((course) => {
+    const courseName = course.name || course.code || 'Course';
+    const collegeName = course.college?.name || course.collegeName;
+    const duplicateCourseNames = courses.filter(
+      item => (item.name || '').trim().toLowerCase() === courseName.trim().toLowerCase()
+    ).length;
+
+    return duplicateCourseNames > 1 && collegeName
+      ? `${courseName} (${collegeName})`
+      : courseName;
+  }, [courses]);
+
+  const getAdditionalYearsForCourse = useCallback((courseName) => {
+    if (!courseName) return {};
+
+    const selectedCourse = courses.find(
+      course => course.name === courseName || course._id === courseName
+    );
+    const selectedCourseId = selectedCourse?._id;
+    const selectedCourseName = selectedCourse?.name || selectedCourse?.courseName;
+    const matchingBranches = branches.filter(branch => {
+      if (!selectedCourseId) return false;
+      const branchCourse = branch.course;
+      return branchCourse === selectedCourseId
+        || (typeof branchCourse === 'object' && (
+          branchCourse._id === selectedCourseId
+          || branchCourse.name === selectedCourseName
+          || branchCourse.code === selectedCourse?.code
+        ));
+    });
+
+    return matchingBranches.reduce((groups, branch) => {
+      const normalizedYears = Array.isArray(branch.additionalYears)
+        ? branch.additionalYears
+        : extractAdditionalYearsFromMetadata(branch.metadata);
+      normalizedYears.forEach((year) => {
+        if (!groups[year]) groups[year] = [];
+        if (!groups[year].includes(branch.name)) groups[year].push(branch.name);
+      });
+      return groups;
+    }, {});
+  }, [branches, courses]);
+
+  const additionalYearsForCourse = getAdditionalYearsForCourse(form.course);
 
   // Additional Fees helpers
   const openAdditionalFeeModal = (feeType = null) => {
@@ -515,6 +602,7 @@ const FeeStructureManagement = () => {
     setForm({
       academicYear: filters.academicYear,
       course: '',
+      branch: '',
       year: '',
       hostelId: '',
       categoryId: '',
@@ -585,9 +673,12 @@ const FeeStructureManagement = () => {
     setSelectedStructure(row);
     setIsEditMode(true);
     const hostelId = typeof row.hostelId === 'object' ? row.hostelId?._id : row.hostelId;
+    const courseLabel = getCourseLabel(row.course) === '-' ? (row.course || '') : getCourseLabel(row.course);
+    const branchOption = branches.find(branch => branch.name === row.branch);
     setForm({
       academicYear: row.academicYear || '',
-      course: getCourseLabel(row.course) === '-' ? (row.course || '') : getCourseLabel(row.course),
+      course: courseLabel,
+      branch: branchOption ? branchOption._id : row.branch || '',
       hostelId: hostelId || '',
       year: '',
       categoryId: '',
@@ -1018,8 +1109,10 @@ const FeeStructureManagement = () => {
                       required
                     >
                       <option value="">Select Course</option>
-                      {courses?.map((c) => (
-                        <option key={c._id || c.name} value={c.name}>{c.name}</option>
+                      {courses?.map((course) => (
+                        <option key={course._id || course.name} value={course.name}>
+                          {getCourseOptionLabel(course)}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -1075,15 +1168,22 @@ const FeeStructureManagement = () => {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {getAvailableYearsForCourse(form.course).map((year) => (
-                            <tr key={year}>
-                              <th className="sticky left-0 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                                Year {year}
-                              </th>
-                              {categories.map((category) => {
-                                const key = `${year}:${category._id}`;
-                                return (
-                                  <td key={category._id} className="px-3 py-2">
+                          {getAvailableYearsForCourse(form.course).map((year) => {
+                            const branchNames = additionalYearsForCourse[year] || [];
+                            return (
+                              <tr key={year}>
+                                <th className="sticky left-0 bg-white px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                                  <span>Year {year}</span>
+                                  {branchNames.length > 0 && (
+                                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                                      Additional · {branchNames.join(', ')}
+                                    </span>
+                                  )}
+                                </th>
+                                {categories.map((category) => {
+                                  const key = `${year}:${category._id}`;
+                                  return (
+                                    <td key={category._id} className="px-3 py-2">
                                     <div className="relative">
                                       <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">₹</span>
                                       <input
@@ -1102,10 +1202,11 @@ const FeeStructureManagement = () => {
                                       />
                                     </div>
                                   </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
