@@ -45,7 +45,6 @@ const WardenDashboardLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
   };
 
   // Close sidebar when route changes

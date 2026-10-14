@@ -173,12 +173,22 @@ api.interceptors.response.use(
       console.log('🚨 Error response data:', error.response?.data);
       
       // Clear token and user data using safe localStorage
+      const isSSO = safeLocalStorage.getItem('loginMethod') === 'sso' || safeLocalStorage.getItem('isSSO') === 'true';
+      const crmUrl = safeLocalStorage.getItem('crmPortalUrl') || import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+
       safeLocalStorage.removeItem('token');
       safeLocalStorage.removeItem('user');
       safeLocalStorage.removeItem('userRole');
+      safeLocalStorage.removeItem('loginMethod');
+      safeLocalStorage.removeItem('isSSO');
+      safeLocalStorage.removeItem('crmPortalUrl');
       
-      // Use window.location.replace to prevent back button from returning to protected page
-      window.location.replace('/login');
+      // Use window.location.replace to redirect appropriately
+      if (isSSO && crmUrl) {
+        window.location.replace(crmUrl);
+      } else {
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

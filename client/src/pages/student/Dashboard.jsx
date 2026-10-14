@@ -267,7 +267,6 @@ const StudentDashboardLayout = () => {
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
   };
 
   // If there are unvoted polls, show the current one in the popup first

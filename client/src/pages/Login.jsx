@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { safeLocalStorage } from '../utils/axios';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import {
@@ -44,6 +45,10 @@ const Login = () => {
   // SSO: if URL has ?token=..., verify and log in (once per mount)
   useEffect(() => {
     const ssoToken = searchParams.get('token');
+    const crmUrl = searchParams.get('crmUrl') || searchParams.get('redirectUrl') || searchParams.get('returnUrl');
+    if (crmUrl) {
+      safeLocalStorage.setItem('crmPortalUrl', crmUrl);
+    }
     if (!ssoToken || ssoAttemptedRef.current || (token && user)) return;
     ssoAttemptedRef.current = true;
     setSsoVerifying(true);

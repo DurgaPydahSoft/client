@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
 import api, { safeLocalStorage } from '../utils/axios';
+import LogoutConfirmModal from '../components/LogoutConfirmModal';
 
 const AuthContext = createContext();
 
@@ -19,6 +20,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [skipValidation, setSkipValidation] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSSOUser, setIsSSOUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return safeLocalStorage.getItem('loginMethod') === 'sso' || safeLocalStorage.getItem('isSSO') === 'true';
+    }
+    return false;
+  });
   const socketRef = useSocket(token);
 
   // Token validation cache - stores last validation timestamp and result
@@ -33,15 +42,19 @@ export const AuthProvider = ({ children }) => {
   if (typeof window !== 'undefined') {
     const urlParams = new URLSearchParams(window.location.search);
     const ssoToken = urlParams.get('token');
+    const crmUrlParam = urlParams.get('crmUrl') || urlParams.get('redirectUrl') || urlParams.get('returnUrl');
     if (ssoToken) {
-      const existingToken = safeLocalStorage.getItem('token');
-      // Only clear if the token is different or if we want to ensure a fresh session regardless
       console.log('SSO Token detected in URL. Clearing existing local sessions to prioritize new login.');
       safeLocalStorage.removeItem('token');
       safeLocalStorage.removeItem('user');
       safeLocalStorage.removeItem('userRole');
       safeLocalStorage.removeItem('accessToken');
       safeLocalStorage.removeItem('refreshToken');
+      safeLocalStorage.setItem('loginMethod', 'sso');
+      safeLocalStorage.setItem('isSSO', 'true');
+      if (crmUrlParam) {
+        safeLocalStorage.setItem('crmPortalUrl', crmUrlParam);
+      }
       // Clear validation cache as well
       validationCacheRef.current = { timestamp: null, user: null, token: null };
     }
@@ -283,6 +296,12 @@ export const AuthProvider = ({ children }) => {
       throw new Error(response.data.message || 'SSO verification failed');
     }
     const { token: newToken, student: studentUser, admin: adminUser, requiresPasswordChange } = response.data.data;
+    
+    // Explicitly flag SSO session
+    safeLocalStorage.setItem('loginMethod', 'sso');
+    safeLocalStorage.setItem('isSSO', 'true');
+    setIsSSOUser(true);
+
     if (adminUser) {
       safeLocalStorage.setItem('token', newToken);
       safeLocalStorage.setItem('user', JSON.stringify(adminUser));
@@ -314,6 +333,12 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (role, credentials) => {
     try {
+      // Clear SSO flag on standard credentials login
+      safeLocalStorage.removeItem('loginMethod');
+      safeLocalStorage.removeItem('isSSO');
+      safeLocalStorage.removeItem('crmPortalUrl');
+      setIsSSOUser(false);
+
       let response;
 
       if (role === 'admin') {
@@ -408,23 +433,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    // Add confirmation for logout
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // On mobile, show a more prominent confirmation
-      const confirmed = window.confirm('Are you sure you want to logout? You will need to login again.');
-      if (!confirmed) {
-        return;
-      }
+  const logout = (skipConfirm = false) => {
+    if (skipConfirm) {
+      performLogout();
     } else {
-      // On desktop, show a toast confirmation
-      const confirmed = window.confirm('Are you sure you want to logout?');
-      if (!confirmed) {
-        return;
-      }
+      setIsLogoutModalOpen(true);
     }
+  };
+
+  const performLogout = () => {
+    const isSSO = safeLocalStorage.getItem('loginMethod') === 'sso' || safeLocalStorage.getItem('isSSO') === 'true';
+    const crmUrl = safeLocalStorage.getItem('crmPortalUrl') || import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+
+    setIsLoggingOut(true);
 
     // Clear validation cache on logout
     validationCacheRef.current = { timestamp: null, user: null, token: null };
@@ -432,12 +453,28 @@ export const AuthProvider = ({ children }) => {
     safeLocalStorage.removeItem('token');
     safeLocalStorage.removeItem('user');
     safeLocalStorage.removeItem('userRole');
+    safeLocalStorage.removeItem('loginMethod');
+    safeLocalStorage.removeItem('isSSO');
+    safeLocalStorage.removeItem('crmPortalUrl');
+    safeLocalStorage.removeItem('accessToken');
+    safeLocalStorage.removeItem('refreshToken');
+
     setToken(null);
     setUser(null);
+    setIsSSOUser(false);
     setRequiresPasswordChange(false);
     setSkipValidation(false);
     delete api.defaults.headers.common['Authorization'];
+
+    setIsLogoutModalOpen(false);
+    setIsLoggingOut(false);
     toast.success('Logged out successfully');
+
+    if (isSSO && crmUrl) {
+      window.location.href = crmUrl;
+    } else {
+      window.location.href = '/login';
+    }
   };
 
   const updateUser = async (updatedUser) => {
@@ -482,6 +519,8 @@ export const AuthProvider = ({ children }) => {
     login,
     loginWithSSOToken,
     logout,
+    confirmLogout: performLogout,
+    isSSOUser,
     updateUser,
     hasPermission,
     isSuperAdmin,
@@ -494,9 +533,21 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user
   };
 
+  const currentCrmUrl = (typeof window !== 'undefined' && safeLocalStorage.getItem('crmPortalUrl'))
+    || import.meta.env.VITE_CRM_URL
+    || 'https://crm.pydah.edu.in';
+
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={performLogout}
+        isSSO={isSSOUser}
+        loading={isLoggingOut}
+        crmUrl={currentCrmUrl}
+      />
     </AuthContext.Provider>
   );
 };

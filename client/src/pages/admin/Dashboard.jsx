@@ -361,7 +361,6 @@ const AdminDashboard = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
   };
 
   const toggleSubmenu = (menuName) => {
