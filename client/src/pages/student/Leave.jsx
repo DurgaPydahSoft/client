@@ -16,7 +16,9 @@ import {
   PlusIcon,
   TrashIcon,
   ChevronDownIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  PhoneIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import SEO from '../../components/SEO';
 import { useAuth } from '../../context/AuthContext';
@@ -27,6 +29,7 @@ const Leave = () => {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showOtpConfirmModal, setShowOtpConfirmModal] = useState(false);
   const [qrModal, setQrModal] = useState({ open: false, leave: null });
   const [incomingQrModal, setIncomingQrModal] = useState({ open: false, leave: null });
   const [applicationType, setApplicationType] = useState('Leave');
@@ -183,9 +186,15 @@ const Leave = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const formatPhoneNumber = (phone) => {
+    if (!phone) return null;
+    const cleaned = String(phone).trim();
+    if (cleaned.startsWith('+')) return cleaned;
+    if (cleaned.length === 10) return `+91 ${cleaned}`;
+    return cleaned;
+  };
 
+  const executeSubmit = async () => {
     // Prevent multiple submissions using both state and ref
     if (isSubmitting || isSubmittingRef.current) {
       console.log('Submission already in progress, ignoring click');
@@ -202,27 +211,6 @@ const Leave = () => {
     try {
       let formData;
       if (applicationType === 'Leave') {
-        // Gate Pass Time Validation
-        const gatePassTime = new Date(leaveFormData.gatePassDateTime);
-        const startDate = new Date(leaveFormData.startDate);
-        const today = new Date();
-
-        // Check if start date is today
-        const isStartDateToday = startDate.toDateString() === today.toDateString();
-
-        if (!isStartDateToday) {
-          // For future dates, gate pass must be after 4:30 PM
-          const hours = gatePassTime.getHours();
-          const minutes = gatePassTime.getMinutes();
-
-          if (hours < 16 || (hours === 16 && minutes <= 30)) {
-            toast.error('Gate Pass time must be after 4:30 PM for future dates.');
-            setIsSubmitting(false);
-            return; // Stop submission
-          }
-        }
-        // For same day leave, any time is allowed
-
         formData = {
           applicationType: 'Leave',
           ...leaveFormData
@@ -247,8 +235,9 @@ const Leave = () => {
         if (applicationType !== 'Stay in Hostel') {
           toast.success('Request submitted successfully. OTP (4 digits) has been sent to your parent\'s phone in both Telugu and English.');
         } else {
-          toast.success(response.data.data.message || 'Request submitted successfully');
+          toast.success(response.data.message || response.data.data?.message || 'Request submitted successfully');
         }
+        setShowOtpConfirmModal(false);
         setShowRequestModal(false);
         resetFormData();
         fetchLeaves();
@@ -266,13 +255,98 @@ const Leave = () => {
 
       if (error.response?.status === 401) {
         toast.error('Please login again to continue');
-        // Redirect to login if needed
       } else {
         toast.error(error.response?.data?.message || 'Failed to submit request');
       }
+      setShowOtpConfirmModal(false);
     } finally {
       setIsSubmitting(false);
       isSubmittingRef.current = false;
+    }
+  };
+
+  const handleSubmit = (e) => {
+    if (e) e.preventDefault();
+
+    if (applicationType === 'Leave') {
+      if (!leaveFormData.startDate) {
+        toast.error('Please select a start date');
+        return;
+      }
+      if (!leaveFormData.endDate) {
+        toast.error('Please select an end date');
+        return;
+      }
+      if (new Date(leaveFormData.endDate) < new Date(leaveFormData.startDate)) {
+        toast.error('End date cannot be before start date');
+        return;
+      }
+      if (!leaveFormData.gatePassDateTime) {
+        toast.error('Please select gate pass date and time');
+        return;
+      }
+
+      // Gate Pass Time Validation
+      const gatePassTime = new Date(leaveFormData.gatePassDateTime);
+      const startDate = new Date(leaveFormData.startDate);
+      const today = new Date();
+
+      // Check if start date is today
+      const isStartDateToday = startDate.toDateString() === today.toDateString();
+
+      if (!isStartDateToday) {
+        // For future dates, gate pass must be after 4:30 PM
+        const hours = gatePassTime.getHours();
+        const minutes = gatePassTime.getMinutes();
+
+        if (hours < 16 || (hours === 16 && minutes <= 30)) {
+          toast.error('Gate Pass time must be after 4:30 PM for future dates.');
+          return;
+        }
+      }
+
+      if (!leaveFormData.reason || !leaveFormData.reason.trim()) {
+        toast.error('Please enter a reason for leave');
+        return;
+      }
+
+      // Open OTP confirmation popup modal
+      setShowOtpConfirmModal(true);
+    } else if (applicationType === 'Permission') {
+      if (!permissionFormData.permissionDate) {
+        toast.error('Please select permission date');
+        return;
+      }
+      if (!permissionFormData.outTime) {
+        toast.error('Please select out time');
+        return;
+      }
+      if (!permissionFormData.inTime) {
+        toast.error('Please select in time');
+        return;
+      }
+      if (permissionFormData.outTime >= permissionFormData.inTime) {
+        toast.error('Out time must be before in time');
+        return;
+      }
+      if (!permissionFormData.reason || !permissionFormData.reason.trim()) {
+        toast.error('Please enter a reason for permission');
+        return;
+      }
+
+      // Open OTP confirmation popup modal
+      setShowOtpConfirmModal(true);
+    } else if (applicationType === 'Stay in Hostel') {
+      if (!stayInHostelFormData.stayDate) {
+        toast.error('Please select stay date');
+        return;
+      }
+      if (!stayInHostelFormData.reason || !stayInHostelFormData.reason.trim()) {
+        toast.error('Please enter a reason');
+        return;
+      }
+
+      executeSubmit();
     }
   };
 
@@ -293,6 +367,7 @@ const Leave = () => {
       stayDate: '',
       reason: ''
     });
+    setShowOtpConfirmModal(false);
     setIsSubmitting(false);
     isSubmittingRef.current = false;
   };
@@ -1362,6 +1437,86 @@ const Leave = () => {
                 </button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+      {/* OTP Confirmation Modal - Mobile Optimized */}
+      {showOtpConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-3 sm:p-4 overflow-y-auto">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 w-full max-w-[94vw] sm:max-w-sm border border-gray-100 text-center relative overflow-hidden my-auto max-h-[92vh] flex flex-col justify-between"
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setShowOtpConfirmModal(false)}
+              disabled={isSubmitting}
+              className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors touch-manipulation z-10"
+              aria-label="Close"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+
+            {/* Icon */}
+            <div className="w-12 h-12 sm:w-14 sm:h-14 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5 sm:mb-3 ring-4 sm:ring-8 ring-blue-50/60 flex-shrink-0">
+              <PhoneIcon className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600" />
+            </div>
+
+            {/* Title */}
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 leading-snug">
+              Confirm {applicationType} Request
+            </h3>
+
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 px-1 leading-relaxed">
+              An OTP (4 digits) will be sent to your registered parent's mobile number for verification:
+            </p>
+
+            {/* Phone Number Box */}
+            <div className="bg-gradient-to-r from-blue-50 via-indigo-50/60 to-blue-50 border border-blue-200/80 rounded-xl p-3 sm:p-3.5 mb-2.5 sm:mb-3 shadow-sm">
+              <div className="text-[10px] sm:text-[11px] font-semibold text-blue-700 uppercase tracking-wider mb-1 flex items-center justify-center gap-1.5">
+                <PhoneIcon className="w-3.5 h-3.5 text-blue-600" />
+                <span>Parent Mobile Number</span>
+              </div>
+              <div className="text-base sm:text-xl font-bold text-gray-900 tracking-wider break-all">
+                {formatPhoneNumber(user?.parentPhone) || (
+                  <span className="text-gray-400 text-xs sm:text-sm font-normal">Registered Parent Number</span>
+                )}
+              </div>
+            </div>
+
+            <p className="text-[11px] sm:text-xs text-amber-800 bg-amber-50/90 rounded-xl p-2.5 sm:p-3 mb-3.5 sm:mb-4 border border-amber-200/70 text-left flex items-start gap-2 leading-relaxed">
+              <span className="text-amber-500 font-bold mt-0.5">•</span>
+              <span>Please ensure your parent is reachable and shares the 4-digit OTP to complete your leave approval.</span>
+            </p>
+
+            {/* Actions - responsive stacking on mobile for thumb accessibility */}
+            <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowOtpConfirmModal(false)}
+                disabled={isSubmitting}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl border border-gray-300 text-gray-700 font-medium text-xs sm:text-sm hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation disabled:opacity-50 min-h-[42px] flex items-center justify-center"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeSubmit}
+                disabled={isSubmitting}
+                className="w-full sm:flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-xs sm:text-sm shadow-md hover:shadow-lg active:scale-[0.99] transition-all touch-manipulation flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed min-h-[42px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  'Confirm & Submit'
+                )}
+              </button>
+            </div>
           </motion.div>
         </div>
       )}
