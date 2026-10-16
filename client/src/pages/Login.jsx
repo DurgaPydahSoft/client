@@ -29,6 +29,10 @@ const Login = () => {
   const ssoAttemptedRef = useRef(false);
 
   useEffect(() => {
+    // If an incoming SSO token is present in URL and pending verification, do not prematurely navigate
+    if (searchParams.get('token') && !ssoAttemptedRef.current) return;
+    if (ssoVerifying) return;
+
     if (token && user) {
       if (user.role === 'warden') {
         navigate('/warden/dashboard', { replace: true });
@@ -40,16 +44,16 @@ const Login = () => {
         navigate('/student', { replace: true });
       }
     }
-  }, [token, user, navigate]);
+  }, [token, user, navigate, searchParams, ssoVerifying]);
 
   // SSO: if URL has ?token=..., verify and log in (once per mount)
   useEffect(() => {
     const ssoToken = searchParams.get('token');
     const crmUrl = searchParams.get('crmUrl') || searchParams.get('redirectUrl') || searchParams.get('returnUrl');
-    if (crmUrl) {
+    if (crmUrl && !crmUrl.includes('localhost') && !crmUrl.includes('127.0.0.1')) {
       safeLocalStorage.setItem('crmPortalUrl', crmUrl);
     }
-    if (!ssoToken || ssoAttemptedRef.current || (token && user)) return;
+    if (!ssoToken || ssoAttemptedRef.current) return;
     ssoAttemptedRef.current = true;
     setSsoVerifying(true);
     loginWithSSOToken(ssoToken)
@@ -74,7 +78,7 @@ const Login = () => {
       .finally(() => {
         setSsoVerifying(false);
       });
-  }, [searchParams, loginWithSSOToken, navigate, setSearchParams, token, user]);
+  }, [searchParams, loginWithSSOToken, navigate, setSearchParams]);
 
   useEffect(() => {
     const handlePopState = (e) => {

@@ -17,6 +17,8 @@ import Home from './pages/Home.jsx';
 import HomeAlt from './pages/HomeAlt.jsx';
 import IOSErrorBoundary from './components/IOSErrorBoundary';
 import IOSDebugPanel from './components/IOSDebugPanel';
+import PortalSwitcher from './components/PortalSwitcher';
+import SSOHandler from './components/SSOHandler';
 
 // Lazy load components
 const Login = lazy(() => import('./pages/Login'));
@@ -135,6 +137,8 @@ function App() {
             <AuthProvider>
             <PushNotificationInitializer />
             <DynamicManifest />
+            <SSOHandler />
+            <PortalSwitcher />
             <Suspense fallback={<RouteLoading />}>
               <Routes>
                 {/* Home page */}

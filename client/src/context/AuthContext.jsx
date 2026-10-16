@@ -3,6 +3,7 @@ import { useSocket } from '../hooks/useSocket';
 import toast from 'react-hot-toast';
 import api, { safeLocalStorage } from '../utils/axios';
 import LogoutConfirmModal from '../components/LogoutConfirmModal';
+import { removePortalSwitcherElements } from '../components/PortalSwitcher';
 
 const AuthContext = createContext();
 
@@ -15,8 +16,40 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  // SSO Session Replacement: Clear existing sessions if a new SSO token is detected in URL.
+  // This must run before any state initialization to ensure a completely clean slate.
+  if (typeof window !== 'undefined') {
+    const urlParams = new URLSearchParams(window.location.search);
+    const ssoToken = urlParams.get('token');
+    const crmUrlParam = urlParams.get('crmUrl') || urlParams.get('redirectUrl') || urlParams.get('returnUrl');
+    if (ssoToken) {
+      console.log('SSO Token detected in URL. Clearing existing local sessions to prioritize new login.');
+      safeLocalStorage.removeItem('token');
+      safeLocalStorage.removeItem('user');
+      safeLocalStorage.removeItem('userRole');
+      safeLocalStorage.removeItem('accessToken');
+      safeLocalStorage.removeItem('refreshToken');
+      try {
+        sessionStorage.clear();
+      } catch (e) {
+        // ignore
+      }
+      safeLocalStorage.setItem('loginMethod', 'sso');
+      safeLocalStorage.setItem('isSSO', 'true');
+      if (crmUrlParam && !crmUrlParam.includes('localhost') && !crmUrlParam.includes('127.0.0.1')) {
+        safeLocalStorage.setItem('crmPortalUrl', crmUrlParam);
+      }
+    }
+  }
+
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(safeLocalStorage.getItem('token'));
+  const [token, setToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('token')) return null;
+    }
+    return safeLocalStorage.getItem('token');
+  });
   const [loading, setLoading] = useState(true);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
   const [skipValidation, setSkipValidation] = useState(false);
@@ -36,29 +69,6 @@ export const AuthProvider = ({ children }) => {
     user: null,
     token: null
   });
-
-  // SSO Session Replacement: Clear existing sessions if a new SSO token is detected in URL.
-  // This must run before any other initialization to ensure a clean slate.
-  if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search);
-    const ssoToken = urlParams.get('token');
-    const crmUrlParam = urlParams.get('crmUrl') || urlParams.get('redirectUrl') || urlParams.get('returnUrl');
-    if (ssoToken) {
-      console.log('SSO Token detected in URL. Clearing existing local sessions to prioritize new login.');
-      safeLocalStorage.removeItem('token');
-      safeLocalStorage.removeItem('user');
-      safeLocalStorage.removeItem('userRole');
-      safeLocalStorage.removeItem('accessToken');
-      safeLocalStorage.removeItem('refreshToken');
-      safeLocalStorage.setItem('loginMethod', 'sso');
-      safeLocalStorage.setItem('isSSO', 'true');
-      if (crmUrlParam) {
-        safeLocalStorage.setItem('crmPortalUrl', crmUrlParam);
-      }
-      // Clear validation cache as well
-      validationCacheRef.current = { timestamp: null, user: null, token: null };
-    }
-  }
 
   const VALIDATION_CACHE_TTL = 60 * 1000; // 60 seconds cache
 
@@ -443,9 +453,15 @@ export const AuthProvider = ({ children }) => {
 
   const performLogout = () => {
     const isSSO = safeLocalStorage.getItem('loginMethod') === 'sso' || safeLocalStorage.getItem('isSSO') === 'true';
-    const crmUrl = safeLocalStorage.getItem('crmPortalUrl') || import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+    let crmUrl = safeLocalStorage.getItem('crmPortalUrl') || import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+    if (crmUrl && (crmUrl.includes('localhost') || crmUrl.includes('127.0.0.1'))) {
+      crmUrl = import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+    }
 
     setIsLoggingOut(true);
+
+    // Destroy and remove Portal Switcher floating widget immediately on logout
+    removePortalSwitcherElements();
 
     // Clear validation cache on logout
     validationCacheRef.current = { timestamp: null, user: null, token: null };
@@ -458,6 +474,11 @@ export const AuthProvider = ({ children }) => {
     safeLocalStorage.removeItem('crmPortalUrl');
     safeLocalStorage.removeItem('accessToken');
     safeLocalStorage.removeItem('refreshToken');
+    try {
+      sessionStorage.clear();
+    } catch (e) {
+      // ignore
+    }
 
     setToken(null);
     setUser(null);
@@ -533,9 +554,12 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!token && !!user
   };
 
-  const currentCrmUrl = (typeof window !== 'undefined' && safeLocalStorage.getItem('crmPortalUrl'))
+  let currentCrmUrl = (typeof window !== 'undefined' && safeLocalStorage.getItem('crmPortalUrl'))
     || import.meta.env.VITE_CRM_URL
     || 'https://crm.pydah.edu.in';
+  if (currentCrmUrl && (currentCrmUrl.includes('localhost') || currentCrmUrl.includes('127.0.0.1'))) {
+    currentCrmUrl = import.meta.env.VITE_CRM_URL || 'https://crm.pydah.edu.in';
+  }
 
   return (
     <AuthContext.Provider value={value}>
