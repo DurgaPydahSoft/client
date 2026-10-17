@@ -25,7 +25,9 @@ const Login = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [ssoVerifying, setSsoVerifying] = useState(false);
+  const [ssoVerifying, setSsoVerifying] = useState(() => {
+    return Boolean(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('token'));
+  });
   const ssoAttemptedRef = useRef(false);
 
   useEffect(() => {
@@ -52,6 +54,17 @@ const Login = () => {
     const crmUrl = searchParams.get('crmUrl') || searchParams.get('redirectUrl') || searchParams.get('returnUrl');
     if (crmUrl && !crmUrl.includes('localhost') && !crmUrl.includes('127.0.0.1')) {
       safeLocalStorage.setItem('crmPortalUrl', crmUrl);
+    }
+    if (ssoToken && !document.getElementById('pydah-portal-switcher-cdn')) {
+      const script = document.createElement('script');
+      script.id = 'pydah-portal-switcher-cdn';
+      script.src = 'https://crm.pydah.edu.in/portal-switcher.js';
+      script.async = true;
+      script.setAttribute('data-current-portal', 'hostel-automation');
+      script.setAttribute('data-api-base-url', 'https://pydah-crm-backend.pydah.edu.in');
+      script.setAttribute('data-landing-url', 'https://crm.pydah.edu.in');
+      script.setAttribute('data-position', 'bottom-right');
+      document.head.appendChild(script);
     }
     if (!ssoToken || ssoAttemptedRef.current) return;
     ssoAttemptedRef.current = true;
@@ -138,14 +151,7 @@ const Login = () => {
   };
 
   if (ssoVerifying) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-200 p-4">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-4 text-gray-700 font-medium">Verifying authentication...</p>
-        </div>
-      </div>
-    );
+    return <pydah-sso-loader />;
   }
 
   return (
