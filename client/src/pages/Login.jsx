@@ -34,7 +34,7 @@ const Login = () => {
     // If an incoming SSO token is present in URL and pending verification, do not prematurely navigate
     if (searchParams.get('token') && !ssoAttemptedRef.current) return;
     if (ssoVerifying) return;
-
+ 
     if (token && user) {
       if (user.role === 'warden') {
         navigate('/warden/dashboard', { replace: true });
@@ -61,7 +61,7 @@ const Login = () => {
       script.src = 'https://crm.pydah.edu.in/portal-switcher.js';
       script.async = true;
       script.setAttribute('data-current-portal', 'hostel-automation');
-      script.setAttribute('data-api-base-url', 'https://pydah-crm-backend.pydah.edu.in');
+      script.setAttribute('data-api-base-url', 'https://crm.pydah.edu.in');
       script.setAttribute('data-landing-url', 'https://crm.pydah.edu.in');
       script.setAttribute('data-position', 'bottom-right');
       document.head.appendChild(script);

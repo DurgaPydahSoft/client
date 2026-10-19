@@ -4,7 +4,7 @@ import { safeLocalStorage } from '../utils/axios';
 
 const PORTAL_ID = 'hostel-automation';
 const CRM_BASE_URL = 'https://crm.pydah.edu.in';
-const CRM_BACKEND_URL = 'https://pydah-crm-backend.pydah.edu.in';
+const CRM_BACKEND_URL = 'https://crm.pydah.edu.in';
 const CDN_SCRIPT_SRC = 'https://crm.pydah.edu.in/portal-switcher.js';
 const SCRIPT_ID = 'pydah-portal-switcher-script';
 
